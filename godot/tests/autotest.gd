@@ -30,10 +30,31 @@ func _shot(tag: String) -> void:
 func _run() -> void:
 	var S: Dictionary = game.S
 	await _wait(1.0)
+	var balcony_route: bool = "--route=balcony" in OS.get_cmdline_user_args()
+	await _shot("order")
+	if balcony_route:
+		for id in ["balcony", "dolly", "fix", "rose"]:
+			game.h_order_set(id, 1)
+	else:
+		for id in ["fx", "refill", "dolly"]:
+			game.h_order_set(id, 1)
+	game.h_order_set("balcony" if not balcony_route else "fx", 1)      # 予算オーバーは通らないはず
+	await _shot("order_chosen")
+	var cost: int = game.order_cost()
+	game.h_order_confirm()
+	await _wait(0.6)
+	var on_truck := 0
+	for p in game.props.values():
+		if p.rider_of == game.truck.pid:
+			on_truck += 1
+	print("ORDER route=", "balcony" if balcony_route else "fx", " cost=", cost, " state=", game.state, " on_truck=", on_truck, " fx_absent=", game.fx.absent, " charges=", game.fx.charges)
+	if cost > 600 or game.state != S.PREP or on_truck < 4:
+		print("AUTOTEST_FAIL order")
 	print("AUTOTEST props=", game.props.size(), " actors=", game.actors.size(), " players=", game.players.size())
 	print("PREP hints(before)=", game.live["hints"])
 	await _shot("start")
-	await _hands_on()
+	if not balcony_route:
+		await _hands_on()
 	game.h_sample()
 	await _wait(2.0)
 	print("PREP hints(sample)=", game.live["hints"])
@@ -44,9 +65,24 @@ func _run() -> void:
 		if p.kind in ["balcony", "mark", "window", "camera", "spot", "plywood", "flat", "moon", "fx"]:
 			print("  ", p.kind, " pos=", p.global_position, " up=%.2f" % p.global_basis.y.y, " layer=", p.collision_layer, " mask=", p.collision_mask, " freeze=", p.freeze)
 	await _shot("sample")
+	# カチンコを持って打つと本番が始まる
+	game.h_use()
+	await _wait(0.1)
+	var no_clapper_start: bool = game.state == S.PREP
+	game.h_grab(game.clapper.pid)
+	await _wait(0.4)
+	await _shot("clapper_held")
 	print("PERF fps=", Engine.get_frames_per_second(), " draw_calls=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " prims=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
-	game.h_take()
-	await _wait(3.4)
+	game.h_use()
+	await _wait(1.2)
+	print("CLAPPER start_without=", not no_clapper_start, " countdown=", game.state == S.COUNTDOWN)
+	await _shot("slate")
+	if not no_clapper_start or game.state != S.COUNTDOWN:
+		print("AUTOTEST_FAIL clapper")
+	await _wait(2.0)
+	await _shot("slate_clap")
+	await _wait(0.2)
+	game.h_release()
 	print("state=", game.state, " (TAKE=", S.TAKE, ")")
 	await _wait(0.6)
 	game.h_cue(1)
@@ -127,6 +163,38 @@ func _hands_on() -> void:
 	ok = ok and fx.fixed and me.held == 0
 	game.h_fix(fx.pid)
 	var film: Node3D = game.film
+	var cart: Node3D
+	for p in game.props.values():
+		if p.kind == "dolly":
+			cart = p
+	# 台車に物を載せる → 一緒に動く → 持つと降りる
+	cart.restore([Vector3(4.0, 0.0, 6.0), Quaternion(Vector3.UP, PI), false])
+	fx.restore([Vector3(4.0, 1.0, 6.0), Quaternion.IDENTITY, false])
+	game._try_load(fx)
+	await _wait(0.2)
+	var on_cart: bool = fx.rider_of == cart.pid
+	cart.linear_velocity = Vector3(2.0, 0, 0)
+	await _wait(0.5)
+	var follow: float = Vector2(fx.global_position.x - cart.global_position.x, fx.global_position.z - cart.global_position.z).length()
+	game.h_grab(fx.pid)
+	await _wait(0.2)
+	print("CART loaded=", on_cart, " follow_gap=%.2f y=%.2f" % [follow, fx.global_position.y], " after_grab_rider=", fx.rider_of)
+	ok = ok and on_cart and follow < 0.05 and fx.rider_of == 0
+	game.h_release()
+	# ライトを持つと、見ている方向へ光が向く
+	var hand: Node3D = game.spots[1]
+	me.aim_pitch = 0.3
+	game.h_grab(hand.pid)
+	await _wait(0.8)
+	print("HANDLIGHT tilt=%.2f pan=%.2f" % [hand.tilt, hand.pan])
+	ok = ok and absf(hand.tilt - 0.38) < 0.05 and absf(hand.pan) < 0.05
+	game.h_release()
+	me.aim_pitch = -0.1
+	# カメラを台車に載せて移動撮影
+	cart.restore([film.global_position, Quaternion(Vector3.UP, PI), false])
+	film.restore([film.global_position + Vector3(0, 0.32, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
+	game.host_load(film, cart)
+	await _wait(0.3)
 	var p0: Vector3 = film.global_position
 	game.h_operate(film.pid, true)
 	await _wait(0.1)

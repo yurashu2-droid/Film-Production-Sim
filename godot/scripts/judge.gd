@@ -90,6 +90,8 @@ func look() -> Dictionary:
 		(out["actors"] as Array).append(d)
 
 	for p: Node3D in game.props.values():
+		if p.absent:
+			continue
 		if "castle" in p.tags:
 			var c: Vector3 = p.center_global()
 			var top_p: Vector3 = p.global_transform * (p.center + Vector3(0, p.half.y * 0.7, 0))
@@ -113,11 +115,15 @@ func look() -> Dictionary:
 	out["height"] = absf(dv.y) >= MIN_HEIGHT_DIFF
 	out["close"] = Vector2(dv.x, dv.z).length() < 1.45 and absf(dv.y) < 0.6
 
-	var fx_pos: Vector3 = boom_pos if boom_t0 >= 0.0 and t - boom_t0 <= BOOM_WINDOW else game.fx.burst_point()
-	out["fx_in"] = _in_frame(cam, vs, fx_pos)
-	var fx_depth := (fx_pos - cam_pos).dot(fwd)
-	var acts: Array = out["actors"]
-	out["fx_behind"] = fx_depth > maxf(acts[0]["depth"], acts[1]["depth"]) + 0.2
+	var recent: bool = boom_t0 >= 0.0 and t - boom_t0 <= BOOM_WINDOW
+	var bp: Variant = boom_pos if recent else game.boom_point()
+	out["fx_none"] = bp == null
+	if bp != null:
+		var fx_pos: Vector3 = bp
+		out["fx_in"] = _in_frame(cam, vs, fx_pos)
+		var fx_depth := (fx_pos - cam_pos).dot(fwd)
+		var acts: Array = out["actors"]
+		out["fx_behind"] = fx_depth > maxf(acts[0]["depth"], acts[1]["depth"]) + 0.2
 	return out
 
 
@@ -185,8 +191,10 @@ func setup_problems(f: Dictionary) -> Array:
 		out.append("城の裏面が映っている（塗った面をカメラへ）" if f["castle_back"] else "城のセットが画面に映っていない")
 	if not f["height"]:
 		out.append("高低差が足りない（片方を高い所へ）")
-	if not f["fx_in"]:
-		out.append("効果機（爆発）が画面に入っていない")
+	if f.get("fx_none", false):
+		out.append("爆発の手段がない（効果機か、爆炎の書割を置く）")
+	elif not f["fx_in"]:
+		out.append("爆発（効果機か書割）が画面に入っていない")
 	elif not f["fx_behind"]:
 		out.append("爆発が二人より手前にある（奥へ置く）")
 	return out

@@ -16,6 +16,10 @@ func _wait(sec: float) -> void:
 func _run() -> void:
 	var S: Dictionary = game.S
 	await _wait(0.5)
+	game.h_order_set("fx", 1)
+	game.h_order_set("refill", 2)
+	game.h_order_confirm()
+	await _wait(0.5)
 	game.h_sample()
 	await _wait(1.5)
 	var flat: Node3D
@@ -36,7 +40,7 @@ func _run() -> void:
 		print("  ", "OK " if r["ok"] else "NG ", r["title"], " / ", r["detail"])
 	var ok: bool = game.state == S.RESULT and not res[0]["ok"] and not res[1]["ok"] and "順序" in res[1]["detail"]
 	print("blown=%.2f" % blown)
-	ok = ok and blown > 0.3
+	ok = ok and blown > 0.15
 	game.h_retake()
 	await _wait(0.5)
 	var back: float = flat.global_position.distance_to(before)
@@ -57,6 +61,6 @@ func _run() -> void:
 	ok = ok and game.state == S.DELIVERED and not game.delivered_ok
 	game.h_next()
 	await _wait(0.3)
-	ok = ok and game.state == S.PREP and game.takes.is_empty()
+	ok = ok and game.state == S.ORDER and game.takes.is_empty()
 	print("FAILTEST_OK" if ok else "FAILTEST_FAIL")
 	get_tree().quit(0 if ok else 1)

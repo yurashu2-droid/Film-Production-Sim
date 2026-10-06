@@ -10,13 +10,24 @@ const Player := preload("res://scripts/player.gd")
 const Judge := preload("res://scripts/judge.gd")
 const Hud := preload("res://scripts/hud.gd")
 
-const S := {"PREP": 0, "COUNTDOWN": 1, "TAKE": 2, "RESULT": 3, "REPLAY": 4, "DELIVERED": 5}
+const S := {"PREP": 0, "COUNTDOWN": 1, "TAKE": 2, "RESULT": 3, "REPLAY": 4, "DELIVERED": 5, "ORDER": 6}
 const TAKE_SEC := 60.0
 const MAX_TAKES := 3
 const REWARD := 1200
-const PLAYER_CASTS := ["M02", "09", "03", "06"]
-const REC_EVENTS := ["sfx", "music", "burst", "fuse"]
-const SPAWN := Vector3(0, 0.1, 9.6)
+const PLAYER_CASTS := ["M02", "04", "09", "03"]
+const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop"]
+const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
+const BUDGET := 600
+const FREE_FIXES := 4           # 固定用品を借りないときに固定できる数
+# 軽トラに積んでもらう物（借りる・買う）。値段は企画書の仮の値
+const OPTIONS := [
+	{"id": "balcony", "name": "借りるバルコニー一式", "desc": "バルコニーとアーチ窓の壁。置くだけで城になる", "cost": 360, "max": 1, "kinds": ["balcony", "window"]},
+	{"id": "fx", "name": "効果機（爆発）", "desc": "合図で本物の爆風が出る。1回分つき", "cost": 360, "max": 1, "kinds": ["fx"]},
+	{"id": "refill", "name": "効果機の充填", "desc": "撮り直し用に1回分ずつ追加（効果機が必要）", "cost": 40, "max": 2, "kinds": []},
+	{"id": "dolly", "name": "台車", "desc": "荷物運びと、カメラを載せての移動撮影", "cost": 80, "max": 1, "kinds": ["dolly"]},
+	{"id": "fix", "name": "固定用品", "desc": "サンドバッグ3個。固定できる数が4か所から無制限に", "cost": 60, "max": 1, "kinds": ["sandbag"]},
+	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"]},
+]
 
 var font: Font
 var stage: Node3D
@@ -30,6 +41,11 @@ var moons: Array = []
 var players: Dictionary = {}
 var film: RigidBody3D
 var fx: RigidBody3D
+var clapper: RigidBody3D
+var truck: RigidBody3D
+var booms: Array = []
+var order: Dictionary = {}      # 借りた物（id → 数）
+var order_cursor := 0
 
 var state: int = 0
 var take_t := 0.0
@@ -47,6 +63,7 @@ var live: Dictionary = {"hints": [], "passed": [false, false, false], "charges":
 var _roster: Array = []          # [参加者ID, 見た目の番号]
 var _take_data: Array = []       # 見返し用の記録（ホストだけが持つ）
 var _layout: Dictionary = {}
+var _layout_riders: Dictionary = {}
 var _rec_frames: Array = []
 var _rec_events: Array = []
 var _rec_t := 0.0
@@ -86,6 +103,8 @@ func _ready() -> void:
 	if Net.mode != "client":
 		_roster = [[Net.my_id(), 0]]
 		_apply_roster()
+		_apply_order()
+		state = S.ORDER
 	if "--nettest" in OS.get_cmdline_user_args():
 		var nt: Node = (load("res://tests/nettest.gd") as GDScript).new()
 		nt.game = self
@@ -97,6 +116,12 @@ func _ready() -> void:
 		ft.game = self
 		input_locked = true
 		add_child(ft)
+		return
+	if "--faceshot" in OS.get_cmdline_user_args():
+		var fs: Node = (load("res://tests/faceshot.gd") as GDScript).new()
+		fs.game = self
+		input_locked = true
+		add_child(fs)
 		return
 	if "--gearshot" in OS.get_cmdline_user_args():
 		var gs: Node = (load("res://tests/gearshot.gd") as GDScript).new()
@@ -110,9 +135,7 @@ func _ready() -> void:
 		input_locked = true
 		add_child(at)
 		return
-	_grab_mouse(true)
-	if not _headless:
-		hud.show_toast("Tab であそびかた　／　F9 で見本のセット", Hud.YELLOW, 6.0)
+	_grab_mouse(state != S.ORDER)
 
 
 func _parse_args() -> void:
@@ -148,7 +171,7 @@ func local_player() -> Node:
 
 
 func ui_blocking() -> bool:
-	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or help_open or input_locked
+	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or help_open or input_locked
 
 
 # ---- 参加者 ----
@@ -165,6 +188,8 @@ func h_hello() -> void:
 	_roster.append([who, idx % PLAYER_CASTS.size()])
 	ev.rpc("roster", [_roster])
 	ev.rpc_id(who, "takes", [takes, selected])
+	ev.rpc_id(who, "order", [order])
+	ev.rpc_id(who, "absent", [_absent_kinds()])
 	ev.rpc_id(who, "state", [state])
 	for p: RigidBody3D in props.values():
 		if p.holder != 0:
@@ -194,7 +219,8 @@ func _apply_roster() -> void:
 			pl.is_local = r[0] == Net.my_id()
 			pl.name = "P%d" % r[0]
 			pl.setup(PLAYER_CASTS[r[1]])
-			pl.position = SPAWN + Vector3(float(r[1]) * 1.2, 0, 0)
+			pl.position = SPAWN + Vector3(0, 0, (float(r[1]) - 1.5) * 1.3)
+			pl.aim_yaw = -PI * 0.5     # 軽トラのほうを向く
 			add_child(pl)
 			players[r[0]] = pl
 	for id: int in players.keys():
@@ -232,6 +258,10 @@ func act_aim(pid: int, a: float, b: float, c: float) -> void:
 	h_aim.rpc_id(1, pid, a, b, c)
 
 
+func act_use() -> void:
+	h_use.rpc_id(1)
+
+
 func act_dolly(pid: int, v: Vector3) -> void:
 	h_dolly.rpc_id(1, pid, v)
 
@@ -244,6 +274,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		help_open = not help_open
 		return
 	if help_open:
+		return
+	if state == S.ORDER:
+		var opt: Dictionary = OPTIONS[order_cursor]
+		var have: int = order.get(opt["id"], 0)
+		match key:
+			KEY_UP, KEY_W:
+				order_cursor = posmod(order_cursor - 1, OPTIONS.size())
+			KEY_DOWN, KEY_S:
+				order_cursor = posmod(order_cursor + 1, OPTIONS.size())
+			KEY_SPACE:
+				h_order_set.rpc_id(1, opt["id"], 0 if have >= int(opt["max"]) else have + 1)
+			KEY_RIGHT, KEY_D:
+				h_order_set.rpc_id(1, opt["id"], have + 1)
+			KEY_LEFT, KEY_A:
+				h_order_set.rpc_id(1, opt["id"], have - 1)
+			KEY_ENTER, KEY_KP_ENTER:
+				h_order_confirm.rpc_id(1)
 		return
 	if state == S.RESULT:
 		match key:
@@ -266,7 +313,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	else:
 		match key:
 			KEY_T:
-				h_take.rpc_id(1)
+				if state == S.TAKE:
+					h_take.rpc_id(1)
+				else:
+					hud.show_toast("カチンコを持って F で本番開始", Hud.YELLOW)
 			KEY_1:
 				h_cue.rpc_id(1, 1)
 			KEY_2:
@@ -289,7 +339,8 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 	if pl == null:
 		return null
 	var dist := maxf(pl.hold_dist, prop.hold_min)
-	var pos: Vector3 = pl.global_position + Vector3(0, 1.15, 0) + pl.aim_forward() * dist
+	var fwd: Vector3 = pl.flat_forward() if prop.kind == "spot" or prop.rolls else pl.aim_forward()
+	var pos: Vector3 = pl.global_position + Vector3(0, 1.15, 0) + fwd * dist
 	return [pos, pl.aim_yaw + pl.hold_yaw + prop.carry_yaw, pl.global_position.y]
 
 
@@ -306,14 +357,24 @@ func h_grab(pid: int) -> void:
 		return
 	var who := Net.sender()
 	var p: RigidBody3D = props[pid]
-	if p.holder != 0 or _held_by(who) != null:
+	if p.immovable or p.absent or _held_by(who) != null:
 		return
+	if p.holder != 0:
+		# カチンコは奪い合える（持った直後の1秒は取られない）
+		var now := Time.get_ticks_msec() / 1000.0
+		if p.kind != "clapper" or p.holder == who or now - p.grab_time < 1.0 or state == S.COUNTDOWN:
+			return
+		ev.rpc_id(p.holder, "toast", ["カチンコを取られた！", 1])
+		host_release(p)
 	if "operator" in p and p.operator != 0:
 		return
 	if p.fixed:
 		ev.rpc_id(who, "toast", ["固定されている（Gで外す）", 0])
 		return
+	if p.rider_of != 0:
+		host_unload(p)
 	p.set_holder(who)
+	p.grab_time = Time.get_ticks_msec() / 1000.0
 	host_ev("hold", [who, pid])
 	host_ev("sfx", ["pickup", p.global_position])
 
@@ -332,6 +393,54 @@ func host_release(p: RigidBody3D) -> void:
 	p.set_holder(0)
 	host_ev("hold", [who, 0])
 	host_ev("sfx", ["drop", p.global_position])
+	_try_load(p)
+
+
+# 手を離した物が台車の荷台の上なら載せる
+func _try_load(p: RigidBody3D) -> void:
+	if p.deck_top >= 0.0 or p.fixed or p.rider_of != 0 or p.absent:
+		return
+	for d: RigidBody3D in props.values():
+		if d.deck_top < 0.0 or d == p or d.absent or d.global_basis.y.y < 0.8:
+			continue
+		var c: Vector3 = d.global_transform.affine_inverse() * p.center_global()
+		if absf(c.x - d.deck_c.x) < d.deck_half.x and absf(c.z - d.deck_c.y) < d.deck_half.y and c.y > d.deck_top - 0.25 and c.y < d.deck_top + 2.2:
+			host_load(p, d)
+			return
+
+
+func host_load(p: RigidBody3D, d: RigidBody3D) -> void:
+	var local: Transform3D = d.global_transform.affine_inverse() * p.global_transform
+	var top: float = d.deck_top
+	for r: RigidBody3D in props.values():
+		if r.rider_of == d.pid and r != p:
+			var o: Vector3 = r.ride_local.origin
+			if absf(o.x - local.origin.x) < r.half.x + p.half.x and absf(o.z - local.origin.z) < r.half.z + p.half.z:
+				top = maxf(top, o.y + r.half.y * 2.0)
+	var mx: float = maxf(d.deck_half.x - 0.1, 0.05)
+	var mz: float = maxf(d.deck_half.y - 0.16, 0.05)
+	var at := Vector3(clampf(local.origin.x, d.deck_c.x - mx, d.deck_c.x + mx), top, clampf(local.origin.z, d.deck_c.y - mz, d.deck_c.y + mz))
+	_set_rider(p, d, Transform3D(Basis(Vector3.UP, local.basis.get_euler().y), at))
+	host_ev("sfx", ["thump", p.global_position])
+
+
+func _set_rider(p: RigidBody3D, d: RigidBody3D, local: Transform3D) -> void:
+	p.ride_local = local
+	p.rider_of = d.pid
+	p.linear_velocity = Vector3.ZERO
+	p.angular_velocity = Vector3.ZERO
+	p._apply_freeze()
+	p.add_collision_exception_with(d)
+	d.add_collision_exception_with(p)
+
+
+func host_unload(p: RigidBody3D) -> void:
+	var d: RigidBody3D = props.get(p.rider_of)
+	p.rider_of = 0
+	p._apply_freeze()
+	if d:
+		p.remove_collision_exception_with(d)
+		d.remove_collision_exception_with(p)
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -340,10 +449,21 @@ func h_fix(pid: int) -> void:
 		return
 	var who := Net.sender()
 	var p: RigidBody3D = props[pid]
-	if p.holder != 0 and p.holder != who:
+	if p.immovable or p.absent or (p.holder != 0 and p.holder != who):
 		return
+	if not p.fixed and int(order.get("fix", 0)) == 0:
+		var n := 0
+		for q: RigidBody3D in props.values():
+			if q.fixed and not q.immovable and not q.absent:
+				n += 1
+		if n >= FREE_FIXES:
+			ev.rpc_id(who, "toast", ["固定できるのは%dか所まで（固定用品を借りていない）" % FREE_FIXES, 1])
+			return
 	if p.holder == who:
 		host_release(p)
+	if p.rider_of != 0:
+		ev.rpc_id(who, "toast", ["台車に載っている物は固定できない", 0])
+		return
 	p.set_fixed(not p.fixed)
 	host_ev("sfx", ["fix" if p.fixed else "unfix", p.global_position])
 
@@ -395,6 +515,119 @@ func h_dolly(pid: int, v: Vector3) -> void:
 		p.dolly = v.limit_length(1.0)
 
 
+# ---- ホストの処理：依頼と軽トラ ----
+
+func order_cost(o: Dictionary = order) -> int:
+	var total := 0
+	for opt: Dictionary in OPTIONS:
+		total += int(opt["cost"]) * int(o.get(opt["id"], 0))
+	return total
+
+
+func _absent_kinds() -> Array:
+	var gone: Array = []
+	for opt: Dictionary in OPTIONS:
+		if int(order.get(opt["id"], 0)) == 0:
+			gone.append_array(opt["kinds"])
+	return gone
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_order_set(id: String, count: int) -> void:
+	if not Net.is_host() or state != S.ORDER:
+		return
+	var who := Net.sender()
+	for opt: Dictionary in OPTIONS:
+		if opt["id"] != id:
+			continue
+		var next: Dictionary = order.duplicate()
+		next[id] = clampi(count, 0, int(opt["max"]))
+		if int(next.get("fx", 0)) == 0:
+			if id == "refill" and int(next[id]) > 0:
+				ev.rpc_id(who, "toast", ["充填には効果機が必要", 1])
+				return
+			next["refill"] = 0
+		if order_cost(next) > BUDGET:
+			ev.rpc_id(who, "toast", ["制作費が足りない（%d コインまで）" % BUDGET, 1])
+			ev.rpc_id(who, "sfx", ["ui_fail", null])
+			return
+		order = next
+		ev.rpc("order", [order])
+		ev.rpc("sfx", ["pickup", null])
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_order_confirm() -> void:
+	if not Net.is_host() or state != S.ORDER:
+		return
+	_apply_order()
+	_set_state(S.PREP)
+	host_ev("sfx", ["ui_ok", null])
+	host_ev("toast", ["軽トラが着いた。搬入口の荷台から機材を降ろそう（Tab であそびかた）", 0])
+
+
+# 借りていない物を現場から外し、会社の機材と借りた物を軽トラと搬入口に並べる
+func _apply_order() -> void:
+	ev.rpc("absent", [_absent_kinds()])
+	for p: RigidBody3D in props.values():
+		if p.holder != 0:
+			host_release(p)
+		if "operator" in p and p.operator != 0:
+			_stop_operating(p)
+		if p.absent:
+			if p.rider_of != 0:
+				host_unload(p)
+			p.linear_velocity = Vector3.ZERO
+			p.angular_velocity = Vector3.ZERO
+			p.global_position = Vector3(float(p.pid) * 3.0, -60.0, 0.0)
+	fx.charges = 1 + int(order.get("refill", 0))
+	fx.fuse = -1.0
+	var bed := {"camera": [[Vector2(-0.34, -0.12), 0.0]], "spot": [[Vector2(0.34, -0.12), PI], [Vector2(-0.34, -0.92), PI]],
+		"fx": [[Vector2(0.34, -0.8), PI]], "clapper": [[Vector2(0.36, -1.4), PI]], "rose": [[Vector2(-0.05, -1.5), 0.0]]}
+	var bay := {"dolly": [[Vector3(12.4, 0, 3.6), 0.0]], "balcony": [[Vector3(10.2, 0, 10.4), PI]], "window": [[Vector3(13.6, 0, 10.9), PI]],
+		"sandbag": [[Vector3(12.0, 0, 8.6), 0.0], [Vector3(12.0, 0, 9.05), 0.0], [Vector3(12.5, 0, 8.8), 0.6]]}
+	var used := {}
+	for pid: int in props:
+		var p: RigidBody3D = props[pid]
+		if p.absent:
+			continue
+		var n: int = used.get(p.kind, 0)
+		if bed.has(p.kind) and n < (bed[p.kind] as Array).size():
+			used[p.kind] = n + 1
+			var slot: Array = bed[p.kind][n]
+			var local := Transform3D(Basis(Vector3.UP, slot[1]), Vector3(slot[0].x, truck.deck_top, slot[0].y))
+			var world: Transform3D = truck.global_transform * local
+			p.restore([world.origin, Quaternion(world.basis.orthonormalized()), false])
+			_set_rider(p, truck, local)
+		elif bay.has(p.kind) and n < (bay[p.kind] as Array).size():
+			used[p.kind] = n + 1
+			p.restore([bay[p.kind][n][0], Quaternion(Vector3.UP, bay[p.kind][n][1]), false])
+	for a: CharacterBody3D in actors:
+		a.set_state(a.St.STANDBY)
+	host_ev("slate", [1, "idle"])
+
+
+# いま爆発を出せる場所（効果機か、近い爆炎の書割）。無ければ null
+func boom_point() -> Variant:
+	if not fx.absent and (fx.charges > 0 or state != S.TAKE):
+		return fx.burst_point()
+	var flat := _pick_boom()
+	if flat:
+		return flat.burst_point()
+	return null if fx.absent else fx.burst_point()
+
+
+func _pick_boom() -> RigidBody3D:
+	var mid: Vector3 = (actors[0].global_position + actors[1].global_position) * 0.5
+	var best: RigidBody3D = null
+	for b: RigidBody3D in booms:
+		if b.absent or b.holder != 0 or b.global_basis.y.y < 0.7:
+			continue
+		if best == null or b.global_position.distance_to(mid) < best.global_position.distance_to(mid):
+			best = b
+	return best
+
+
 # ---- ホストの処理：本番の進行 ----
 
 func _set_state(s: int) -> void:
@@ -402,19 +635,36 @@ func _set_state(s: int) -> void:
 
 
 @rpc("any_peer", "call_local", "reliable")
-func h_take() -> void:
+func h_use() -> void:
 	if not Net.is_host():
 		return
+	var p := _held_by(Net.sender())
+	if p and p.kind == "clapper":
+		_take_or_cut(Net.sender())
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_take() -> void:
+	if Net.is_host():
+		_take_or_cut(Net.sender())
+
+
+func _take_or_cut(who: int) -> void:
 	if state == S.TAKE:
 		_cut()
 	elif state == S.PREP:
 		if takes.size() >= MAX_TAKES:
-			ev.rpc_id(Net.sender(), "toast", ["テイクを使い切った。納品するテイクを選ぶ", 1])
+			ev.rpc_id(who, "toast", ["テイクを使い切った。納品するテイクを選ぶ", 1])
 			return
 		for p: RigidBody3D in props.values():
-			if p.holder != 0:
+			if p.holder != 0 and p.kind != "clapper":
 				host_release(p)
 		_layout = capture()["p"]
+		_layout_riders = {}
+		for p: RigidBody3D in props.values():
+			if p.rider_of != 0:
+				_layout_riders[p.pid] = [p.rider_of, p.ride_local]
+		host_ev("slate", [takes.size() + 1, "ready"])
 		for a: CharacterBody3D in actors:
 			a.set_state(a.St.STANDBY)
 		host_ev("music", ["music_tension"])
@@ -426,7 +676,6 @@ func h_take() -> void:
 
 func _begin_take() -> void:
 	judge.reset()
-	fx.charges = fx.MAX_CHARGES
 	fx.fuse = -1.0
 	reunion_cued = false
 	take_t = 0.0
@@ -438,6 +687,7 @@ func _begin_take() -> void:
 		a.set_state(a.St.IDLE)
 	_set_state(S.TAKE)
 	host_ev("music", [""])
+	host_ev("slate", [takes.size() + 1, "clap"])
 	host_ev("sfx", ["clap", null])
 	host_ev("sfx", ["countdown_go", null])
 
@@ -455,6 +705,8 @@ func _cut() -> void:
 		if p.holder != 0:
 			host_release(p)
 	host_ev("music", [""])
+	host_ev("slate", [takes.size(), "cut"])
+	host_ev("sfx", ["clap", null])
 	host_ev("takes", [takes, selected])
 	_set_state(S.RESULT)
 	host_ev("sfx", ["ui_ok" if not false in ok else "ui_fail", null])
@@ -474,15 +726,31 @@ func h_cue(n: int) -> void:
 		2:
 			if fx.fuse >= 0.0:
 				return
-			if state == S.TAKE:
-				if fx.charges <= 0:
-					host_ev("sfx", ["explosion_fizzle", fx.global_position])
-					host_ev("toast", ["効果機の残りがない", 1])
+			if not fx.absent and (fx.charges > 0 or state == S.PREP):
+				if state == S.TAKE:
+					fx.charges -= 1
+				fx.fuse = fx.FUSE_SEC
+				host_ev("fuse", [fx.pid])
+				host_ev("sfx", ["countdown", fx.global_position])
+			else:
+				var flat := _pick_boom()
+				if flat == null:
+					host_ev("sfx", ["explosion_fizzle", null])
+					host_ev("toast", ["爆発を出せない（効果機の残りなし・爆炎の書割も立っていない）", 1])
 					return
-				fx.charges -= 1
-			fx.fuse = fx.FUSE_SEC
-			host_ev("fuse", [fx.pid])
-			host_ev("sfx", ["countdown", fx.global_position])
+				var pos: Vector3 = flat.burst_point()
+				var counted := true
+				if state == S.TAKE:
+					counted = judge.on_burst(pos)
+				host_ev("pop", [flat.pid])
+				host_ev("burst", [pos, 0.0])
+				host_ev("sfx", ["explosion", pos])
+				if state == S.TAKE:
+					if not counted:
+						host_ev("toast", ["告白が撮れる前に爆発した！（順序が違う）", 1])
+					for a: CharacterBody3D in actors:
+						if a.global_position.distance_to(pos) < 9.0:
+							a.knock(Vector3(0, 3.2, 0))
 		3:
 			reunion_cued = true
 			for a: CharacterBody3D in actors:
@@ -510,13 +778,15 @@ func host_burst(box: RigidBody3D) -> void:
 		host_ev("toast", ["告白が撮れる前に爆発した！（順序が違う）", 1])
 	var src: Vector3 = box.global_position + Vector3(0, 0.3, 0)
 	for p: RigidBody3D in props.values():
-		if p == box:
+		if p == box or p.immovable or p.absent:
 			continue
 		var d: Vector3 = p.center_global() - src
 		var dist := d.length()
 		if dist > 8.0:
 			continue
 		var fall := pow(1.0 - dist / 8.0, 1.5)
+		if p.rider_of != 0:
+			host_unload(p)
 		if p.fixed and dist < 3.0:
 			p.set_fixed(false)
 		if p.fixed:
@@ -564,12 +834,18 @@ func h_retake() -> void:
 
 
 func _back_to_prep() -> void:
+	var left: int = fx.charges
 	for pid: int in _layout:
-		if props.has(pid):
+		if props.has(pid) and not props[pid].absent and not props[pid].immovable:
 			props[pid].restore(_layout[pid])
-	fx.charges = fx.MAX_CHARGES
+	for pid: int in _layout_riders:
+		var r: Array = _layout_riders[pid]
+		if props.has(pid) and props.has(r[0]):
+			_set_rider(props[pid], props[r[0]], r[1])
+	fx.charges = left
 	for a: CharacterBody3D in actors:
 		a.set_state(a.St.STANDBY)
+	host_ev("slate", [takes.size() + 1, "idle"])
 	_set_state(S.PREP)
 
 
@@ -593,7 +869,9 @@ func h_next() -> void:
 	_take_data = []
 	selected = 0
 	host_ev("takes", [takes, selected])
-	_back_to_prep()
+	for a: CharacterBody3D in actors:
+		a.set_state(a.St.STANDBY)
+	_set_state(S.ORDER)
 
 
 # ---- 見返し ----
@@ -793,7 +1071,7 @@ func _update_live() -> void:
 	elif not takes.is_empty():
 		live["passed"] = takes[selected]["passed"]
 	live["hints"] = h
-	live["charges"] = fx.charges
+	live["charges"] = -1 if fx.absent else fx.charges
 
 
 # ---- 全員への知らせ ----
@@ -811,7 +1089,7 @@ func ev(n: String, a: Array) -> void:
 			state = a[0]
 			replaying = state == S.REPLAY
 			film.tally.visible = state == S.TAKE
-			_grab_mouse(state != S.RESULT and state != S.DELIVERED)
+			_grab_mouse(state != S.RESULT and state != S.DELIVERED and state != S.ORDER)
 		"roster":
 			_roster = a[0]
 			_apply_roster()
@@ -840,6 +1118,20 @@ func ev(n: String, a: Array) -> void:
 				Sfx.play_music(a[0])
 		"silence":
 			Sfx.silence_all()
+		"slate":
+			clapper.set_take(a[0])
+			if a[1] != "idle":
+				hud.show_slate(a[1], a[0])
+			if a[1] == "clap" or a[1] == "cut":
+				clapper.clap()
+		"order":
+			order = a[0]
+		"absent":
+			for p: RigidBody3D in props.values():
+				p.set_absent(p.kind in a[0])
+		"pop":
+			if props.has(a[0]):
+				props[a[0]].pop()
 		"fuse":
 			if props.has(a[0]):
 				props[a[0]].show_fuse()
@@ -880,12 +1172,12 @@ func _show_burst(pos: Vector3, power: float) -> void:
 	m.albedo_color = Color(1.0, 0.75, 0.25, 0.95)
 	m.emission_enabled = true
 	m.emission = Color(1.0, 0.55, 0.12)
-	m.emission_energy_multiplier = 5.0
+	m.emission_energy_multiplier = 9.0
 	ball.material_override = m
 	root.add_child(ball)
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.6, 0.25)
-	light.light_energy = 30.0 if big else 6.0
+	light.light_energy = 60.0 if big else 10.0
 	light.omni_range = 20.0 if big else 6.0
 	root.add_child(light)
 	var parts := CPUParticles3D.new()
@@ -911,7 +1203,7 @@ func _show_burst(pos: Vector3, power: float) -> void:
 	pmat.albedo_color = Color(1.0, 0.5, 0.1)
 	pmat.emission_enabled = true
 	pmat.emission = Color(1.0, 0.4, 0.05)
-	pmat.emission_energy_multiplier = 3.0
+	pmat.emission_energy_multiplier = 7.0
 	parts.material_override = pmat
 	root.add_child(parts)
 	parts.emitting = true
@@ -933,13 +1225,15 @@ func _show_burst(pos: Vector3, power: float) -> void:
 # ---- 確認画面の文面 ----
 
 func panel_bbcode() -> String:
+	if state == S.ORDER:
+		return _order_bbcode()
 	if takes.is_empty():
 		return ""
 	var t: Dictionary = takes[selected]
 	var out := ""
 	if state == S.DELIVERED:
 		if delivered_ok:
-			out += "[b][color=#7fff99]納品完了！[/color][/b]\n依頼どおりのクライマックスが撮れた。\n会社報酬　%d コイン\n\n" % REWARD
+			out += "[b][color=#7fff99]納品完了！[/color][/b]\n依頼どおりのクライマックスが撮れた。\n会社報酬　%d コイン　（制作費の残り %d コインは精算）\n\n" % [REWARD, BUDGET - order_cost()]
 		else:
 			out += "[b][color=#ff7366]納品したが、注文に届かなかった[/color][/b]\n報酬はなし。次の依頼の制作費は確保されている。\n\n"
 	else:
@@ -971,33 +1265,76 @@ func panel_bbcode() -> String:
 
 # ---- 見本のセット（F9）。置き方の一例を一瞬で組む ----
 
+func _order_bbcode() -> String:
+	var used := order_cost()
+	var out := "[b][color=#ffdb59]依頼　月下の城と大爆発[/color][/b]\n"
+	out += "[color=#c8ccd8]「月夜の城のバルコニーで愛を誓う二人。直後、背後で大爆発。\nそれでも駆け寄り、感動の再会。制作費は %d コインです」[/color]\n\n" % BUDGET
+	out += "[b]軽トラに積んでもらう物[/b]　　使う %d ／ 残り [color=%s]%d[/color] コイン\n" % [used, "#7fff99" if used <= BUDGET else "#ff7366", BUDGET - used]
+	for i in OPTIONS.size():
+		var o: Dictionary = OPTIONS[i]
+		var n: int = order.get(o["id"], 0)
+		var box := ("[color=#7fff99]■[/color]" if n > 0 else "□") if int(o["max"]) == 1 else ("[color=#7fff99]×%d[/color]" % n if n > 0 else "×0")
+		var line := "%s　%s　%d" % [box, o["name"], o["cost"]]
+		if i == order_cursor:
+			out += "[color=#ffdb59]▶ %s[/color]\n　　　[color=#c8ccd8]%s[/color]\n" % [line, o["desc"]]
+		else:
+			out += "　 %s\n" % line
+	out += "\n[color=#c8ccd8]無料：会社の機材（カメラ・ライト2台・カチンコ）は荷台に載っている。\n廃材置き場の廃板・足場・書割・月・爆炎の書割も自由に使える。[/color]\n\n"
+	out += "[color=#ffdb59][↑][↓][/color] 選ぶ　[color=#ffdb59][Space][/color] 入れる／外す　[color=#ffdb59][Enter][/color] この内容で現場へ"
+	return out
+
+
 @rpc("any_peer", "call_local", "reliable")
 func h_sample() -> void:
 	if not Net.is_host() or state != S.PREP:
 		return
-	var plan := {"balcony": [Vector3(0, 0, -3.0)], "window": [Vector3(0, 0, -4.1)],
-		"flat": [Vector3(-2.4, 0, -2.4), Vector3(2.4, 0, -2.4)],
-		"plywood": [Vector3(-3.2, 0, -4.3), Vector3(3.2, 0, -4.3)],
-		"moon": [Vector3(3.6, 0, -5.8)], "fx": [Vector3(-2.7, 0, -6.4)],
-		"camera": [Vector3(0, 0, 6.2)], "spot": [Vector3(-3.6, 0, 2.6), Vector3(3.6, 0, 2.6)]}
+	var has := {}
+	for q: RigidBody3D in props.values():
+		if not q.absent:
+			has[q.kind] = true
+	var plan := {"flat": [Vector3(-2.4, 0, -2.4), Vector3(2.4, 0, -2.4)], "moon": [Vector3(3.6, 0, -5.8)],
+		"spot": [Vector3(-3.6, 0, 2.6), Vector3(3.6, 0, 2.6)], "clapper": [Vector3(1.3, 0.05, 8.8)]}
+	var mark_a := Vector3(0, 0.92, -3.0)
+	if has.has("balcony"):
+		plan["balcony"] = [Vector3(0, 0, -3.0)]
+		plan["window"] = [Vector3(0, 0, -4.1)]
+		plan["plywood"] = [Vector3(3.2, 0, -4.3), Vector3(5.0, 0, -4.3)]
+	else:
+		# 借りていなければ、足場と廃板で城を作る
+		plan["riser"] = [Vector3(0, 0, -3.0)]
+		plan["plywood"] = [Vector3(-0.8, 0, -3.75), Vector3(0.8, 0, -3.75)]
+		mark_a = Vector3(0, 0.97, -3.0)
+	if has.has("fx"):
+		plan["fx"] = [Vector3(-2.7, 0, -6.4)]
+	else:
+		plan["boomflat"] = [Vector3(-2.7, 0, -4.4)]
+	if has.has("dolly"):
+		plan["dolly"] = [Vector3(0, 0, 6.2)]
+		plan["camera"] = [Vector3(0, 0.32, 6.2)]
+	else:
+		plan["camera"] = [Vector3(0, 0, 6.2)]
 	var used := {}
 	for pid: int in props:
 		var p: RigidBody3D = props[pid]
-		if plan.has(p.kind):
+		if plan.has(p.kind) and not p.absent:
 			var n: int = used.get(p.kind, 0)
 			if n < (plan[p.kind] as Array).size():
 				used[p.kind] = n + 1
-				var yaw := PI if p.kind == "spot" else 0.0
+				var yaw := PI if p.kind == "spot" or p.kind == "dolly" else 0.0
 				p.restore([plan[p.kind][n], Quaternion(Vector3.UP, yaw), false])
-	actors[0].mark.restore([Vector3(0, 0.92, -3.0), Quaternion.IDENTITY, false])
+	actors[0].mark.restore([mark_a, Quaternion.IDENTITY, false])
 	actors[1].mark.restore([Vector3(1.5, 0.05, -1.0), Quaternion.IDENTITY, false])
+	for d: RigidBody3D in props.values():
+		if d.kind == "dolly" and not d.absent:
+			_set_rider(film, d, d.global_transform.affine_inverse() * film.global_transform)
+			break
 	_aim_camera(Vector3(0.5, 1.55, -2.6), 50.0)
 	_aim_spot(spots[0], Vector3(0, 2.25, -3.0))
 	_aim_spot(spots[1], Vector3(1.5, 1.2, -1.0))
 	for a: CharacterBody3D in actors:
 		a.set_state(a.St.STANDBY)
 	host_ev("sfx", ["fix", null])
-	host_ev("toast", ["見本のセットを組んだ。T で本番、1→2→3 で合図", 0])
+	host_ev("toast", ["見本のセットを組んだ。カチンコを持って F で本番、1→2→3 で合図", 0])
 
 
 func _aim_camera(point: Vector3, fov: float) -> void:

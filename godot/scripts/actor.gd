@@ -8,6 +8,8 @@ enum St { STANDBY, IDLE, CONFESS, FLINCH, REUNION_MOVE, REUNION_HOLD }
 const CONFESS_SEC := 6.0
 const RUN_SPEED := 3.4
 const GRAVITY := 16.0
+const FACE_BY_STATE := {St.STANDBY: "neutral", St.IDLE: "neutral", St.CONFESS: "happy", St.FLINCH: "shock",
+	St.REUNION_MOVE: "sad", St.REUNION_HOLD: "happy"}
 
 var game: Node
 var aid := 0
@@ -66,6 +68,7 @@ func set_state(s: St) -> void:
 	_stuck = 0.0
 	_spec_i = 0
 	_spec_t = 0.0
+	vis.set_face(FACE_BY_STATE[s])
 
 
 func knock(impulse: Vector3) -> void:
@@ -182,7 +185,7 @@ func _reunion_move(delta: float) -> void:
 # ---- 同期と記録 ----
 
 func get_state() -> Array:
-	return [global_position, rotation.y, vis.current]
+	return [global_position, rotation.y, vis.current, vis.face]
 
 
 func apply_state(s: Array, immediate: bool = false) -> void:
@@ -190,6 +193,7 @@ func apply_state(s: Array, immediate: bool = false) -> void:
 		global_position = s[0]
 		rotation.y = s[1]
 		vis.play(s[2] as String, 0.12)
+		vis.set_face(s[3] as String)
 	else:
 		_net = s
 
@@ -201,3 +205,4 @@ func _follow_net(delta: float) -> void:
 	global_position = global_position.lerp(_net[0] as Vector3, w)
 	rotation.y = lerp_angle(rotation.y, _net[1] as float, w)
 	vis.play(_net[2] as String, 0.12)
+	vis.set_face(_net[3] as String)

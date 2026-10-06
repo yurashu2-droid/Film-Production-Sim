@@ -26,6 +26,7 @@ var panel: PanelContainer
 var panel_text: RichTextLabel
 var help: PanelContainer
 var _toast_t := 0.0
+var slate: Control
 
 
 func build() -> void:
@@ -51,6 +52,12 @@ func build() -> void:
 	vf_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vf_frame.visible = false
 	root.add_child(vf_frame)
+
+	slate = _Slate.new()
+	slate.game = game
+	slate.set_anchors_preset(Control.PRESET_FULL_RECT)
+	slate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(slate)
 
 	# 左上：依頼と三つの注文
 	var order := _panel(Vector2(18, 18), Vector2(430, 0))
@@ -151,9 +158,13 @@ const HELP_TEXT := """あそびかた（Tabで閉じる）
 移動 WASD ／ 走る Shift ／ ジャンプ Space ／ 視点 マウス
 持つ・置く 左クリック ／ 距離 ホイール ／ 回す Q・E
 固定・解除 G（倒れやすい物を留める）
-機材を操作 F（カメラ：首振り・ホイールでズーム・WASDで移動
+機材を操作 F（カメラ：首振り・ホイールでズーム
 　　　　　　　ライト：向き・ホイールで明るさ）
-本番開始・カット T ／ 合図 1 告白・2 爆発・3 再会
+台車：物を上で離すと載る。カメラを載せると WASD で移動撮影
+ライトは持って歩くと、見ている方向を照らす
+本番開始：カチンコを持って F ／ カット：T かカチンコ
+合図 1 告白・2 爆発・3 再会
+軽トラ：搬入口の荷台から機材を降ろす。物を戻して載せることもできる
 役者を立ち位置へ戻す B ／ 見本のセットを組む F9
 マウスを離す Esc"""
 
@@ -192,6 +203,10 @@ func _place(c: Control, preset: int, offset: Vector2, width: float) -> void:
 	c.offset_bottom = offset.y
 
 
+func show_slate(mode: String, take: int) -> void:
+	slate.start(mode, take)
+
+
 func show_toast(text: String, col: Color = YELLOW, sec: float = 2.6) -> void:
 	toast.text = text
 	toast.add_theme_color_override("font_color", col)
@@ -216,7 +231,7 @@ func _process(delta: float) -> void:
 	var full: bool = st == S.REPLAY or (op != null and op.kind == "camera")
 	viewfinder.visible = full
 	vf_frame.visible = full
-	monitor_box.visible = not full and st != S.RESULT and st != S.DELIVERED
+	monitor_box.visible = not full and st != S.RESULT and st != S.DELIVERED and st != S.ORDER
 	help.visible = game.help_open
 
 	# 注文
@@ -228,7 +243,7 @@ func _process(delta: float) -> void:
 		l.text = ("✔ " if on else "□ ") + titles[i]
 		l.add_theme_color_override("font_color", GREEN if on else Color.WHITE)
 	var names := {S.PREP: "仕込み中", S.COUNTDOWN: "まもなく本番", S.TAKE: "本番！", S.RESULT: "確認",
-		S.REPLAY: "見返し中", S.DELIVERED: "納品"}
+		S.REPLAY: "見返し中", S.DELIVERED: "納品", S.ORDER: "依頼を受ける"}
 	order_state.text = "%s　テイク %d／%d" % [names[st], game.takes.size() + (1 if st in [S.PREP, S.COUNTDOWN, S.TAKE] else 0), game.MAX_TAKES]
 	if Net.mode != "solo":
 		order_state.text += "　参加 %d人" % game.players.size()
@@ -251,7 +266,7 @@ func _process(delta: float) -> void:
 	if st == S.TAKE:
 		var left: float = maxf(game.TAKE_SEC - game.take_t, 0.0)
 		var ch: int = live.get("charges", 0)
-		take_bar.text = "● 残り %02d秒　　[1]告白　[2]爆発 %s　[3]再会　　[T]カット" % [int(ceil(left)), "●".repeat(ch) + "○".repeat(2 - ch)]
+		take_bar.text = "● 残り %02d秒　　[1]告白　[2]爆発 %s　[3]再会" % [int(ceil(left)), "（書割）" if ch < 0 else ("●".repeat(ch) if ch > 0 else "残りなし")]
 		take_bar.add_theme_color_override("font_color", RED if left < 10.0 else Color.WHITE)
 	elif st == S.REPLAY:
 		take_bar.text = "▶ 見返し中　%.1f秒　　[Esc]で戻る" % game.replay_t
@@ -261,7 +276,7 @@ func _process(delta: float) -> void:
 	if full and (st == S.PREP or st == S.TAKE) and not hl.is_empty():
 		take_bar.text += "\n" + "　".join(hl.slice(0, 3))
 
-	big.text = str(int(ceil(game.countdown_t))) if st == S.COUNTDOWN else ""
+	big.text = ""
 
 	# 照準と対象
 	var play: bool = st == S.PREP or st == S.TAKE or st == S.COUNTDOWN
@@ -277,17 +292,25 @@ func _process(delta: float) -> void:
 				tl += "（固定中）"
 			if t.holder != 0:
 				tl += "（誰かが持っている）"
-	target_label.text = tl
+	target_label.text = tl if slate.mode == "" else ""
 
 	# 操作の案内
 	var k := ""
 	if st == S.PREP or st == S.TAKE:
 		if op and op.kind == "camera":
-			k = "カメラ操作中：マウスで首振り ／ ホイールでズーム ／ WASDで移動 ／ F で離れる"
+			k = "カメラ操作中：マウスで首振り ／ ホイールでズーム ／ %s ／ F で離れる" % ("WASDで台車ごと移動" if op.rider_of != 0 else "台車に載せると移動撮影できる")
 		elif op:
 			k = "ライト操作中：マウスで向き ／ ホイールで明るさ（%d／3） ／ F で離れる" % op.level
 		elif me and me.held != 0:
-			k = "左クリックで置く ／ ホイールで距離 ／ Q・E で回す ／ G で固定"
+			var hk: String = game.props[me.held].kind if game.props.has(me.held) else ""
+			if hk == "clapper":
+				k = "F でカチンコを打つ（%s） ／ 左クリックで置く" % ("カット" if st == S.TAKE else "本番開始")
+			elif hk == "spot":
+				k = "見ている方向へ光が向く ／ 左クリックで置く ／ G で固定"
+			elif hk == "dolly":
+				k = "台車を押している ／ 左クリックで離す ／ G でブレーキ"
+			else:
+				k = "左クリックで置く（台車の上なら載る） ／ ホイールで距離 ／ Q・E で回す ／ G で固定"
 		elif me and me.target:
 			k = "左クリックで持つ ／ G で%s" % ("固定を外す" if me.target.fixed else "固定")
 			if me.target.kind in ["camera", "spot"]:
@@ -295,12 +318,12 @@ func _process(delta: float) -> void:
 		else:
 			k = "WASD 移動 ／ Shift 走る ／ Space ジャンプ"
 		if st == S.PREP:
-			k += "\nT 本番開始 ／ 1・2・3 合図のリハーサル ／ B 役者を戻す ／ F9 見本を組む ／ Tab あそびかた"
+			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル ／ B 役者を戻す ／ F9 見本を組む ／ Tab あそびかた"
 		else:
-			k += "\n1 告白 → 2 爆発 → 3 再会 ／ T カット"
+			k += "\n1 告白 → 2 爆発 → 3 再会 ／ T かカチンコでカット"
 	keys.text = k
 
-	panel.visible = st == S.RESULT or st == S.DELIVERED
+	panel.visible = st == S.RESULT or st == S.DELIVERED or st == S.ORDER
 	if panel.visible:
 		panel_text.text = game.panel_bbcode()
 
@@ -319,3 +342,87 @@ class _Frame extends Control:
 			draw_line(corner, corner + Vector2(0, l * sy), c, 3.0)
 		draw_line(Vector2(s.x * 0.5 - 14, s.y * 0.5), Vector2(s.x * 0.5 + 14, s.y * 0.5), c, 2.0)
 		draw_line(Vector2(s.x * 0.5, s.y * 0.5 - 14), Vector2(s.x * 0.5, s.y * 0.5 + 14), c, 2.0)
+
+
+# 画面に大きく出るカチンコ。本番前に出て、打って消える
+class _Slate extends Control:
+	var game: Node
+	var mode := ""
+	var take := 1
+	var t := 0.0
+
+	func start(m: String, n: int) -> void:
+		mode = m
+		take = n
+		t = 0.0
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		if mode == "":
+			return
+		t += delta
+		if (mode == "clap" and t > 0.95) or (mode == "cut" and t > 1.25):
+			mode = ""
+		queue_redraw()
+
+	func _draw() -> void:
+		if mode == "":
+			return
+		var font: Font = game.font
+		var w := 520.0
+		var h := 330.0
+		var bar := 54.0
+		var slide := 0.0          # 0=定位置、1=画面の下へ
+		var angle := -0.38        # 上の拍子木の開き
+		if mode == "ready":
+			slide = 1.0 - clampf(t / 0.22, 0.0, 1.0)
+		elif mode == "clap":
+			angle = lerpf(-0.38, 0.0, clampf(t / 0.06, 0.0, 1.0))
+			slide = clampf((t - 0.6) / 0.3, 0.0, 1.0)
+		else:
+			angle = lerpf(-0.38, 0.0, clampf((t - 0.14) / 0.06, 0.0, 1.0))
+			slide = (1.0 - clampf(t / 0.12, 0.0, 1.0)) + clampf((t - 0.9) / 0.3, 0.0, 1.0)
+		slide = slide * slide
+		var origin := Vector2(size.x * 0.5 - w * 0.5, size.y * 0.5 - h * 0.35 + slide * size.y * 0.8)
+		var tilt := -0.05 + (0.04 * sin(t * 30.0) * maxf(0.0, 0.25 - t) if mode != "ready" else 0.0)
+		draw_set_transform(origin, tilt, Vector2.ONE)
+		var black := Color(0.07, 0.07, 0.08)
+		var white := Color(0.96, 0.95, 0.9)
+		draw_rect(Rect2(-6, bar - 6, w + 12, h + 12), Color(0, 0, 0, 0.35))
+		draw_rect(Rect2(0, bar, w, h), black)
+		draw_rect(Rect2(0, bar, w, h), white, false, 4.0)
+		_stripes(Rect2(0, 0, w, bar), black, white)
+		draw_line(Vector2(0, bar + 92), Vector2(w, bar + 92), white, 3.0)
+		draw_line(Vector2(w * 0.5, bar + 92), Vector2(w * 0.5, bar + h), white, 3.0)
+		draw_string(font, Vector2(20, bar + 40), "格安アクション映画制作班", HORIZONTAL_ALIGNMENT_LEFT, w - 40, 24, Color(0.75, 0.75, 0.7))
+		draw_string(font, Vector2(20, bar + 78), "月下の城と大爆発", HORIZONTAL_ALIGNMENT_LEFT, w - 40, 32, white)
+		draw_string(font, Vector2(20, bar + 130), "TAKE", HORIZONTAL_ALIGNMENT_LEFT, 200, 26, Color(0.75, 0.75, 0.7))
+		draw_string(font, Vector2(0, bar + 262), str(take), HORIZONTAL_ALIGNMENT_CENTER, w * 0.5, 150, white)
+		var right := ""
+		var col := white
+		if mode == "ready":
+			right = str(int(ceil(game.countdown_t)))
+			draw_string(font, Vector2(w * 0.5 + 20, bar + 130), "本番まで", HORIZONTAL_ALIGNMENT_LEFT, 200, 26, Color(0.75, 0.75, 0.7))
+			draw_string(font, Vector2(w * 0.5, bar + 262), right, HORIZONTAL_ALIGNMENT_CENTER, w * 0.5, 150, Color(1.0, 0.86, 0.35))
+		else:
+			right = "本番！" if mode == "clap" else "カット！"
+			col = Color(1.0, 0.45, 0.4) if mode == "clap" else Color(1.0, 0.86, 0.35)
+			draw_string(font, Vector2(w * 0.5, bar + 222), right, HORIZONTAL_ALIGNMENT_CENTER, w * 0.5, 66, col)
+		# 上の拍子木（左端の蝶番で開く）
+		draw_set_transform(origin + Vector2(0, 0).rotated(tilt), tilt + angle, Vector2.ONE)
+		_stripes(Rect2(0, -bar, w, bar), black, white)
+		draw_circle(Vector2(10, 0), 9.0, Color(0.6, 0.6, 0.62))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	func _stripes(r: Rect2, black: Color, white: Color) -> void:
+		draw_rect(r, black)
+		var n := 7
+		var sw := r.size.x / n
+		for i in n:
+			var x := r.position.x + i * sw
+			var pts := PackedVector2Array([Vector2(x + sw * 0.15, r.position.y), Vector2(x + sw * 0.65, r.position.y),
+				Vector2(x + sw * 0.35, r.end.y), Vector2(x - sw * 0.15, r.end.y)])
+			for k in pts.size():
+				pts[k].x = clampf(pts[k].x, r.position.x, r.end.x)
+			draw_colored_polygon(pts, white)
+		draw_rect(r, white, false, 3.0)

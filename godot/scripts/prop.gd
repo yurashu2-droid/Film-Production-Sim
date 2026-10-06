@@ -18,6 +18,17 @@ var fixed := false
 var holder := 0              # 持っている参加者のID（0=誰も持っていない）
 var hold_min := 1.2
 var carry_yaw := 0.0          # 持ったときの向きの補正
+var rolls := false           # 持ち上げずに床を転がして運ぶ（台車）
+var rider_of := 0            # 載っている台車のID（0=載っていない）
+var ride_local := Transform3D.IDENTITY
+var deck_top := -1.0         # 物を載せられる荷台の高さ（-1=荷台なし）
+var deck_half := Vector2.ZERO
+var deck_c := Vector2.ZERO   # 荷台の中心（ローカルのx,z）
+var immovable := false       # 軽トラなど、動かせない物
+var absent := false          # 今回の依頼では借りていない物（現場に無い）
+var grab_time := 0.0
+var _layers: Array = []
+var _settle := 0
 var center := Vector3.ZERO   # 見た目の中心（ローカル）
 var half := Vector3.ONE * 0.2
 var visual: Node3D
@@ -43,16 +54,31 @@ func center_global() -> Vector3:
 
 
 func _apply_freeze() -> void:
-	if not is_host() or playback:
+	if not is_host() or playback or rider_of != 0:
 		freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 		freeze = true
 	else:
 		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
-		freeze = fixed
+		freeze = fixed or absent
 
 
 func set_fixed(v: bool) -> void:
 	fixed = v
+	_apply_freeze()
+
+
+func set_absent(v: bool) -> void:
+	if v == absent:
+		return
+	absent = v
+	visible = not v
+	if v:
+		_layers = [collision_layer, collision_mask]
+		collision_layer = 0
+		collision_mask = 0
+	elif not _layers.is_empty():
+		collision_layer = _layers[0]
+		collision_mask = _layers[1]
 	_apply_freeze()
 
 
@@ -66,7 +92,7 @@ func set_playback(v: bool) -> void:
 
 func set_holder(id: int) -> void:
 	holder = id
-	gravity_scale = 0.0 if id != 0 else 1.0
+	gravity_scale = 0.0 if id != 0 and not rolls else 1.0
 	if id == 0:
 		linear_velocity *= 0.25
 		angular_velocity *= 0.1
@@ -79,7 +105,20 @@ func _physics_process(delta: float) -> void:
 	if not is_host():
 		_follow_net(delta)
 		return
-	if holder != 0 and not fixed:
+	if _settle > 0:
+		# 置き直した直後は、瞬間移動ぶんの勢いが残らないように止める
+		_settle -= 1
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+	if rider_of != 0:
+		# 台車に載っている間は、台車と一緒に動く
+		var d: Node3D = game.props.get(rider_of)
+		if d == null:
+			rider_of = 0
+			_apply_freeze()
+		else:
+			global_transform = d.global_transform * ride_local
+	elif holder != 0 and not fixed:
 		_drive_hold()
 	_host_tick(delta)
 
@@ -100,8 +139,12 @@ func _drive_hold() -> void:
 	origin_goal.y = maxf(origin_goal.y, float(tgt[2]) + 0.03)
 	var max_speed := clampf(16.0 / (1.0 + mass * 0.07), 2.2, 11.0)
 	var v := (origin_goal - global_position) * 10.0
+	if rolls:
+		v.y = 0.0
 	if v.length() > max_speed:
 		v = v.normalized() * max_speed
+	if rolls:
+		v.y = linear_velocity.y
 	linear_velocity = v
 	var dq := (Quaternion(want_basis) * Quaternion(global_basis.orthonormalized()).inverse()).normalized()
 	if dq.w < 0.0:
@@ -142,10 +185,12 @@ func _follow_net(delta: float) -> void:
 
 # ホスト側で、置き直し用に元の状態へ戻す
 func restore(s: Array) -> void:
+	rider_of = 0
 	set_holder(0)
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	global_transform = Transform3D(Basis(s[1] as Quaternion), s[0] as Vector3)
 	set_fixed(s[2])
 	_apply_extra(s)
+	_settle = 3
 	reset_physics_interpolation()

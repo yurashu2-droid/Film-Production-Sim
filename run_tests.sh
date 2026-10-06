@@ -3,6 +3,7 @@
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
 timeout 150 $GD --headless --path godot -- --autotest 2>&1 | grep -E "SCRIPT ERROR|HANDS_ON_|AUTOTEST_"
+timeout 150 $GD --headless --path godot -- --autotest --route=balcony 2>&1 | grep -E "SCRIPT ERROR|AUTOTEST_" | sed "s/AUTOTEST_/AUTOTEST(balcony)_/"
 timeout 150 $GD --headless --path godot -- --failtest 2>&1 | grep -E "SCRIPT ERROR|FAILTEST_"
 (timeout 100 $GD --headless --path godot -- --host --nettest > /dev/null 2>&1 &)
 sleep 3

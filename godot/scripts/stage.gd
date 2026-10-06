@@ -7,6 +7,9 @@ const FilmCamera := preload("res://scripts/film_camera.gd")
 const SpotRig := preload("res://scripts/spot_rig.gd")
 const FxBox := preload("res://scripts/fx_box.gd")
 const Actor := preload("res://scripts/actor.gd")
+const Clapper := preload("res://scripts/clapper.gd")
+const Truck := preload("res://scripts/truck.gd")
+const BoomFlat := preload("res://scripts/boom_flat.gd")
 
 const ROOM := Vector2(34.0, 24.0)
 const WALL_H := 6.0
@@ -29,7 +32,6 @@ const DEFS := {
 	"letter": {"file": "P001_love_letter", "label": "恋文", "mass": 0.2},
 	"crown": {"file": "P027_paper_crown", "label": "紙の王冠", "mass": 0.3},
 	"fish": {"file": "P039_rubber_fish", "label": "ゴムの魚", "mass": 0.5},
-	"clapper": {"file": "P051_clapperboard", "label": "カチンコ", "mass": 0.6},
 	"filmcan": {"file": "P057_film_can", "label": "フィルム缶", "mass": 0.8},
 	"tape": {"file": "P067_gaffer_tape", "label": "養生テープ", "mass": 0.3},
 	# 実物寄りの機材（小物フォルダ）
@@ -37,7 +39,8 @@ const DEFS := {
 	"greenscreen": {"dir": "gear", "file": "GS06_Portable_Greenscreen", "label": "グリーンバック", "mass": 10.0,
 		"shapes": [[Vector3(0, 1.05, 0), Vector3(2.8, 2.0, 0.06), false],
 			[Vector3(-1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false], [Vector3(1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false]]},
-	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0},
+	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0, "rolls": true,
+		"shapes": [[Vector3(0, 0.16, 0), Vector3(0.92, 0.32, 1.2), false]]},
 	"boom": {"dir": "gear", "file": "B05_Boom_Microphone_Kit", "label": "ガンマイク", "mass": 2.0, "extra": "B05_Optional_Windjammer"},
 	"recorder": {"dir": "gear", "file": "AR04_Field_Recorder", "label": "録音機", "mass": 1.0},
 	"carton": {"dir": "gear", "file": "carton", "label": "段ボール箱", "mass": 1.5},
@@ -57,24 +60,42 @@ func build() -> void:
 # ---- 倉庫 ----
 
 func _build_room() -> void:
+	# 倉庫の照明：天井からの作業灯（影つき）と、弱い環境光。
+	# 撮影カメラ側は露出を下げて見るので、同じ光が「夜の薄明かり」に写る。
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.05, 0.055, 0.07)
+	e.background_color = Color(0.03, 0.035, 0.045)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.82, 0.85, 0.95)
-	e.ambient_light_energy = 1.0
+	e.ambient_light_color = Color(0.72, 0.78, 0.92)
+	e.ambient_light_energy = 0.48
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	e.tonemap_white = 6.0
 	e.ssao_enabled = true
+	e.ssao_radius = 0.9
+	e.ssao_intensity = 2.4
+	e.ssil_enabled = true
 	e.glow_enabled = true
-	e.glow_intensity = 0.4
+	e.glow_intensity = 0.25
+	e.glow_hdr_threshold = 1.6
 	env.environment = e
 	add_child(env)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-62, 28, 0)
-	sun.light_energy = 0.1
-	sun.shadow_enabled = false
-	add_child(sun)
+	var work := DirectionalLight3D.new()
+	work.rotation_degrees = Vector3(-58, 32, 0)
+	work.light_energy = 1.2
+	work.light_color = Color(1.0, 0.96, 0.9)
+	work.shadow_enabled = true
+	work.light_angular_distance = 2.0
+	work.shadow_blur = 1.6
+	work.directional_shadow_max_distance = 48.0
+	work.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	add_child(work)
+	var fill := DirectionalLight3D.new()
+	fill.rotation_degrees = Vector3(-35, -140, 0)
+	fill.light_energy = 0.22
+	fill.light_color = Color(0.75, 0.85, 1.0)
+	fill.shadow_enabled = false
+	add_child(fill)
 
 	var floor_mat := StandardMaterial3D.new()
 	floor_mat.albedo_color = Color(0.42, 0.42, 0.44)
@@ -102,7 +123,17 @@ func _build_room() -> void:
 	_static_box(Vector3(0, WALL_H * 0.5, -hz - 0.25), Vector3(ROOM.x + 1, WALL_H, 0.5), wall_mat)
 	_static_box(Vector3(0, WALL_H * 0.5, hz + 0.25), Vector3(ROOM.x + 1, WALL_H, 0.5), wall_mat)
 	_static_box(Vector3(-hx - 0.25, WALL_H * 0.5, 0), Vector3(0.5, WALL_H, ROOM.y), wall_mat)
-	_static_box(Vector3(hx + 0.25, WALL_H * 0.5, 0), Vector3(0.5, WALL_H, ROOM.y), wall_mat)
+	# 東の壁には搬入口を開ける（軽トラが頭を外に出して停まる）
+	_static_box(Vector3(hx + 0.25, WALL_H * 0.5, -3.7), Vector3(0.5, WALL_H, 16.6), wall_mat)
+	_static_box(Vector3(hx + 0.25, WALL_H * 0.5, 10.2), Vector3(0.5, WALL_H, 3.6), wall_mat)
+	_static_box(Vector3(hx + 0.25, 4.4, 6.5), Vector3(0.5, 3.2, 3.8), wall_mat)
+	var outside := StandardMaterial3D.new()
+	outside.albedo_color = Color(0.16, 0.17, 0.19)
+	outside.roughness = 1.0
+	_static_box(Vector3(hx + 5.0, -0.5, 6.5), Vector3(10.0, 1.0, 10.0), outside)
+	_static_box(Vector3(hx + 10.25, 2.0, 6.5), Vector3(0.5, 5.0, 10.0), outside)
+	_static_box(Vector3(hx + 5.0, 2.0, 1.25), Vector3(10.0, 5.0, 0.5), outside)
+	_static_box(Vector3(hx + 5.0, 2.0, 11.75), Vector3(10.0, 5.0, 0.5), outside)
 
 	# 撮影エリアの目印（床のテープ）
 	var tape := StandardMaterial3D.new()
@@ -118,6 +149,7 @@ func _build_room() -> void:
 		mi.position = seg[0]
 		add_child(mi)
 	_sign("廃材置き場", Vector3(-16.7, 3.4, 0), PI * 0.5, Color(1, 0.85, 0.4))
+	_sign("搬入口", Vector3(16.7, 3.7, 6.5), -PI * 0.5, Color(0.7, 1.0, 0.8))
 
 
 func _static_box(pos: Vector3, size: Vector3, mat: Material) -> void:
@@ -189,6 +221,17 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 		_shape(p, box.get_center(), box.size * 0.97, false)
 	if p.mass >= 20.0:
 		p.angular_damp = 2.0
+	if d.get("rolls", false):
+		# 台車：倒れず、押す人のほうへ取っ手を向けて転がす
+		p.rolls = true
+		p.carry_yaw = PI
+		p.hold_min = 1.5
+		p.axis_lock_angular_x = true
+		p.axis_lock_angular_z = true
+		p.angular_damp = 4.0
+		p.linear_damp = 1.5
+		p.deck_top = 0.32
+		p.deck_half = Vector2(0.5, 0.66)
 	return _register(p, pos, yaw)
 
 
@@ -362,7 +405,7 @@ func spawn_moon(pos: Vector3, yaw: float) -> RigidBody3D:
 	glow.albedo_color = Color(1.0, 0.95, 0.7)
 	glow.emission_enabled = true
 	glow.emission = Color(1.0, 0.93, 0.62)
-	glow.emission_energy_multiplier = 2.2
+	glow.emission_energy_multiplier = 5.0
 	var disc := SphereMesh.new()
 	disc.radius = 0.55
 	disc.height = 1.1
@@ -371,7 +414,7 @@ func spawn_moon(pos: Vector3, yaw: float) -> RigidBody3D:
 	var ol := OmniLight3D.new()
 	ol.position = Vector3(0, 3.0, 0.4)
 	ol.light_color = Color(0.8, 0.85, 1.0)
-	ol.light_energy = 1.2
+	ol.light_energy = 2.5
 	ol.omni_range = 6.0
 	p.add_child(ol)
 	var cs := CollisionShape3D.new()
@@ -428,6 +471,10 @@ func spawn_mark(index: int, pos: Vector3) -> RigidBody3D:
 
 
 func _spawn_equipment() -> void:
+	var truck: RigidBody3D = Truck.new()
+	truck.build()
+	_register(truck, Vector3(16.3, 0, 6.5), PI * 0.5)
+	game.truck = truck
 	var cam: RigidBody3D = FilmCamera.new()
 	cam.build()
 	_register(cam, Vector3(0, 0, 7.0), 0.0)
@@ -437,6 +484,11 @@ func _spawn_equipment() -> void:
 		rig.build()
 		_register(rig, Vector3(x, 0, 5.5), PI)
 		game.spots.append(rig)
+	var clap: RigidBody3D = Clapper.new()
+	clap.game = game
+	clap.build()
+	_register(clap, Vector3(1.3, 0.02, 8.8), 0.0)
+	game.clapper = clap
 	var fx: RigidBody3D = FxBox.new()
 	fx.build()
 	_register(fx, Vector3(3.0, 0, 8.5), 0.0)
@@ -445,6 +497,11 @@ func _spawn_equipment() -> void:
 
 func _spawn_storage() -> void:
 	var y := PI * 0.5     # 正面を部屋の中央へ向ける
+	for at: Vector3 in [Vector3(-13.6, 0, 10.6), Vector3(-11.2, 0, -10.8)]:
+		var bf: RigidBody3D = BoomFlat.new()
+		bf.build()
+		_register(bf, at, y)
+		game.booms.append(bf)
 	spawn("balcony", Vector3(-13.5, 0, -8.5), y)
 	spawn("window", Vector3(-14.5, 0, -4.6), y)
 	spawn("ruin", Vector3(-14.3, 0, -1.2), y)
@@ -468,7 +525,7 @@ func _spawn_storage() -> void:
 	spawn("boom", Vector3(-4.8, 0, 10.6), y)
 	for i in 4:
 		spawn("carton", Vector3(-6.8 - (i % 2) * 0.55, 0.02, 4.4 + (i / 2) * 0.6), y + i * 0.3)
-	var small := ["rose", "letter", "crown", "fish", "clapper", "filmcan", "tape", "basket"]
+	var small := ["rose", "letter", "crown", "fish", "filmcan", "tape", "basket"]
 	for i in small.size():
 		spawn(small[i], Vector3(-10.2 - 0.0, 0.02, 6.2 + i * 0.6), y)
 

@@ -94,11 +94,13 @@ func _film_environment() -> Environment:
 	e.background_color = Color(0.012, 0.016, 0.04)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.35, 0.45, 0.8)
-	e.ambient_light_energy = 0.28
+	e.ambient_light_energy = 0.5
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	e.tonemap_exposure = 0.85
+	e.tonemap_exposure = 0.28
+	e.tonemap_white = 3.0
 	e.glow_enabled = true
-	e.glow_intensity = 0.7
+	e.glow_intensity = 0.9
+	e.glow_hdr_threshold = 2.2
 	e.glow_bloom = 0.15
 	e.adjustment_enabled = true
 	e.adjustment_contrast = 1.12
@@ -124,11 +126,14 @@ func _process(_delta: float) -> void:
 
 
 func _host_tick(_delta: float) -> void:
-	if operator != 0 and holder == 0 and not fixed:
+	if operator == 0 or rider_of == 0:
+		return
+	var cart: RigidBody3D = game.props.get(rider_of)
+	if cart and cart.holder == 0 and not cart.fixed:
 		var v := dolly * 2.2
-		linear_velocity.x = v.x
-		linear_velocity.z = v.z
-		sleeping = false
+		cart.linear_velocity.x = v.x
+		cart.linear_velocity.z = v.z
+		cart.sleeping = false
 
 
 func get_state() -> Array:

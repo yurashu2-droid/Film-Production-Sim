@@ -1,7 +1,7 @@
 extends "res://scripts/prop.gd"
 # スタンドつきスポットライト。置けばその向きを照らし続ける。
 
-const ENERGY := [0.0, 3.0, 5.5, 9.0]
+const ENERGY := [0.0, 7.0, 13.0, 22.0]
 const FACTOR := [0.0, 0.6, 1.0, 1.6]   # 判定で使う明るさの係数
 const RANGE := 24.0
 const ANGLE := 21.0
@@ -95,6 +95,17 @@ func aim(dpan: float, dtilt: float, dlevel: int) -> void:
 	pan = wrapf(pan + dpan, -PI, PI)
 	tilt = clampf(tilt + dtilt, -1.1, 0.9)
 	level = clampi(level + dlevel, 0, 3)
+
+
+# 手で持っている間は、持ち手の見ている方向へ光が向く
+func _host_tick(delta: float) -> void:
+	if holder == 0:
+		return
+	var pl: Node = game.players.get(holder)
+	if pl:
+		var w := clampf(delta * 12.0, 0.0, 1.0)
+		pan = lerp_angle(pan, 0.0, w)
+		tilt = lerpf(tilt, clampf(pl.aim_pitch + 0.08, -1.1, 0.9), w)
 
 
 func beam_origin() -> Vector3:

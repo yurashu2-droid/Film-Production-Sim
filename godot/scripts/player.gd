@@ -29,6 +29,7 @@ var cam: Camera3D
 
 var _net: Array = []
 var _send_t := 0.0
+var _face_t := 0.0
 
 
 func setup(cast_tag: String) -> void:
@@ -76,6 +77,8 @@ func flat_forward() -> Vector3:
 func knock(impulse: Vector3) -> void:
 	if is_local and operating == 0:
 		velocity += impulse
+		vis.set_face("shock")
+		_face_t = 1.6
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,6 +114,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("operate"):
 		if operating != 0:
 			game.act_operate(operating, false)
+		elif held != 0 and game.props.has(held) and game.props[held].kind == "clapper":
+			game.act_use()
 		elif target and target.kind in ["camera", "spot"] and held == 0:
 			game.act_operate(target.pid, true)
 	elif event.is_action_pressed("fix"):
@@ -139,7 +144,12 @@ func _physics_process(delta: float) -> void:
 		f = f.normalized()
 		var r := Vector3(-f.z, 0.0, f.x)
 		game.act_dolly(operating, r * iv.x + f * iv.y)
-		global_position = op.global_position - f * 0.9
+		var back := 0.9
+		var stand: Vector3 = op.global_position
+		if op.rider_of != 0:
+			back = 1.35            # 台車の後ろに立つ
+			stand.y -= float(game.props[op.rider_of].deck_top)
+		global_position = stand - f * back
 		velocity = Vector3.ZERO
 		vis.rotation.y = atan2(f.x, f.z)
 		aim_yaw = atan2(-f.x, -f.z)
@@ -180,6 +190,10 @@ func _physics_process(delta: float) -> void:
 			vis.play("idle")
 
 	head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
+	if _face_t > 0.0:
+		_face_t -= delta
+		if _face_t <= 0.0:
+			vis.set_face("neutral")
 	if Input.is_action_pressed("rot_left") and held != 0 and not blocked:
 		hold_yaw += delta * 2.2
 	if Input.is_action_pressed("rot_right") and held != 0 and not blocked:
@@ -189,7 +203,7 @@ func _physics_process(delta: float) -> void:
 	_send_t -= delta
 	if _send_t <= 0.0 and Net.has_peers():
 		_send_t = 0.05
-		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, vis.current)
+		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, vis.current + "|" + vis.face)
 
 
 # 軽い物は歩いて押しのけられる（物理はホストだけが持つので、今はホスト側のみ）
@@ -228,7 +242,8 @@ func _find_target() -> void:
 # ---- 他の参加者の画面での表示 ----
 
 func apply_net(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, anim_name: String) -> void:
-	_net = [pos, body_yaw, anim_name]
+	_net = [pos, body_yaw, anim_name.get_slice("|", 0)]
+	vis.set_face(anim_name.get_slice("|", 1))
 	aim_yaw = a_yaw
 	aim_pitch = a_pitch
 	hold_dist = h_dist
@@ -245,10 +260,11 @@ func _follow_net(delta: float) -> void:
 
 
 func get_state() -> Array:
-	return [global_position, vis.rotation.y, vis.current]
+	return [global_position, vis.rotation.y, vis.current, vis.face]
 
 
 func apply_state(s: Array) -> void:
 	global_position = s[0]
 	vis.rotation.y = s[1]
 	vis.play(s[2] as String, 0.12)
+	vis.set_face(s[3] as String)

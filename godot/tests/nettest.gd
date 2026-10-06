@@ -37,7 +37,12 @@ func _run() -> void:
 		return
 
 	var me: Node = game.local_player()
-	var fx: Node3D = game.fx
+	for id in ["balcony", "dolly"]:
+		game.h_order_set.rpc_id(1, id, 1)
+	game.h_order_confirm.rpc_id(1)
+	await _wait(1.0)
+	print(who, " order state=", game.state, " fx_absent=", game.fx.absent, " balcony_visible=", game.order)
+	var fx: Node3D = game.clapper
 	await _wait(0.5)
 	var p0: Vector3 = fx.global_position
 	me.aim_yaw = -1.0
@@ -45,7 +50,7 @@ func _run() -> void:
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
-	var ok: bool = me.held == fx.pid and moved > 0.5
+	var ok: bool = me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
 	game.act_release()
 	await _wait(0.5)
 	ok = ok and me.held == 0
