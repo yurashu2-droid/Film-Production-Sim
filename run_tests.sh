@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 25 $GD --headless --path godot --script res://tests/labtest.gd 2>&1 | grep -E "SCRIPT ERROR|LAB_CHECK.*FAIL|LABTEST_"
 timeout 30 $GD --headless --path godot --script res://tests/choicetest.gd 2>&1 | grep -E "SCRIPT ERROR|CHOICE_CHECK.*FAIL|CHOICETEST_"
 timeout 40 $GD --headless --path godot --script res://tests/motiontest.gd 2>&1 | grep -E "SCRIPT ERROR|MOTION_CHECK.*FAIL|MOTIONTEST_"
 timeout 150 $GD --headless --path godot -- --autotest 2>&1 | grep -E "SCRIPT ERROR|HANDS_ON_|AUTOTEST_"
@@ -14,6 +15,7 @@ timeout 100 $GD --headless --path godot -- --join=127.0.0.1 --nettest 2>&1 | gre
 
 # 描画完了後の物理置き直しは画面なしでは再現しないため、画面つき確認も選べる。
 if [ "${1:-}" = "--graphics" ]; then
+  timeout 25 $GD --path godot --script res://tests/labtest.gd 2>&1 | grep -E "SCRIPT ERROR|LAB_CHECK.*FAIL|LABTEST_"
   timeout 30 $GD --path godot --script res://tests/choicetest.gd 2>&1 | grep -E "SCRIPT ERROR|CHOICE_CHECK.*FAIL|CHOICETEST_"
   timeout 40 $GD --path godot --script res://tests/carrytest.gd 2>&1 | grep -E "SCRIPT ERROR|CARRY_CHECK.*FAIL|CARRYTEST_"
   timeout 40 $GD --path godot --script res://tests/restoretest.gd 2>&1 | grep -E "SCRIPT ERROR|RESTORE"

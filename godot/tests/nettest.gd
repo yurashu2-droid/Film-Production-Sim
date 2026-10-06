@@ -47,6 +47,8 @@ func _process(_delta: float) -> void:
 		"client_collision": clap.get_collision_exceptions().has(client),
 		"pitch": client.hold_pitch, "animation": client.vis.current,
 		"host_cast": game.local_player().vis.tag, "client_cast": client.vis.tag,
+		"dust_count": get_tree().get_nodes_in_group("dash_dust").size(),
+		"recorded_dust": game._rec_events.filter(func(e: Array): return e[1] == "dash_dust").size(),
 		"carton_open": carton.opened, "carton_amount": carton.open_amount,
 	})
 
@@ -148,6 +150,8 @@ func _run() -> void:
 	game.input_locked = true
 	var motion_net_ok: bool = motion_sync.get("animation", "") == "run_start"
 	print("MOTION_NET_OK" if motion_net_ok else "MOTION_NET_FAIL")
+	var dust_net_ok: bool = motion_sync.get("dust_count", 0) == 1 and get_tree().get_nodes_in_group("dash_dust").size() == 1
+	print("DUST_NET_OK" if dust_net_ok else "DUST_NET_FAIL")
 	var fx: Node3D = game.clapper
 	await _wait(0.5)
 	var p0: Vector3 = fx.global_position
@@ -156,7 +160,7 @@ func _run() -> void:
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
-	var ok: bool = choice_ok and motion_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
+	var ok: bool = choice_ok and motion_net_ok and dust_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
 	me.hold_yaw = 0.45
 	me.hold_pitch = 0.35
 	await _wait(0.8)
@@ -210,6 +214,11 @@ func _run() -> void:
 	await _wait(0.2)
 	print("CLAPPER_NET_OK" if steal_ok else "CLAPPER_NET_FAIL")
 	ok = ok and steal_ok and game.state == S.TAKE
+	game.act_dash_dust()
+	var dust_record: Dictionary = await _ask_host()
+	var dust_record_ok: bool = dust_record.get("recorded_dust", 0) == 1
+	print("DUST_RECORD_OK" if dust_record_ok else "DUST_RECORD_FAIL")
+	ok = ok and dust_record_ok
 	game.h_cue.rpc_id(1, 1)
 	await _wait(4.5)
 	game.h_cue.rpc_id(1, 2)

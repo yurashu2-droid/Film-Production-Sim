@@ -37,6 +37,7 @@ var _run_requested := false
 var _run_start_elapsed := 0.0
 var _run_entry_speed := 0.0
 var _ground_y := 0.0
+var _dash_dust_pending := false
 
 
 func setup(cast_tag: String) -> void:
@@ -260,6 +261,7 @@ func _start_motion(name: String) -> void:
 	if not vis.has(name):
 		return
 	_motion = name
+	_dash_dust_pending = name == "run_start"
 	_motion_t = vis.length(name)
 	vis.play(name, 0.06, true)
 
@@ -287,6 +289,11 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 			_start_motion(pose + "run_stop")
 	if is_on_floor():
 		_ground_y = global_position.y
+	if not wants_run or not is_on_floor() or _motion != "run_start":
+		_dash_dust_pending = false
+	elif _dash_dust_pending and _run_start_elapsed >= vis.length("run_start") * 0.2:
+		_dash_dust_pending = false
+		game.act_dash_dust()
 	_run_requested = wants_run
 	if not is_on_floor():
 		vis.play(pose + "jump")

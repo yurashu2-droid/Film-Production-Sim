@@ -4,6 +4,7 @@
 !/README.md
 !/.gitattributes
 !/godot/
+!/play_lab.bat
 !/play_solo.bat
 !/play_host.bat
 !/play_join.bat

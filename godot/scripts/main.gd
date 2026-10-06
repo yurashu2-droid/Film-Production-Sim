@@ -8,6 +8,7 @@ extends Node3D
 const Stage := preload("res://scripts/stage.gd")
 const Player := preload("res://scripts/player.gd")
 const Judge := preload("res://scripts/judge.gd")
+const ToonDust := preload("res://scripts/toon_dust.gd")
 const Hud := preload("res://scripts/hud.gd")
 
 const S := {"PREP": 0, "COUNTDOWN": 1, "TAKE": 2, "RESULT": 3, "REPLAY": 4, "DELIVERED": 5, "ORDER": 6}
@@ -16,7 +17,7 @@ const MAX_TAKES := 3
 const REWARD := 1200
 const PLAYER_CASTS := ["M02", "04", "09", "03", "01", "02", "06"]
 const PLAYER_NAMES := ["ロボット", "ベレー帽の人", "段ボール頭", "手帳の人", "ドレスの人", "カエルの警官", "モップの王様"]
-const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton"]
+const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust"]
 const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
 const BUDGET := 600
 const FREE_FIXES := 4           # 固定用品を借りないときに固定できる数
@@ -266,6 +267,33 @@ func rx_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_di
 
 
 # ---- 各参加者の操作（ホストへの依頼） ----
+
+func act_dash_dust() -> void:
+	h_dash_dust.rpc_id(1)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_dash_dust() -> void:
+	if not Net.is_host() or replaying or state not in [S.PREP, S.COUNTDOWN, S.TAKE]:
+		return
+	var pl: Node = players.get(Net.sender())
+	if pl == null or pl.held != 0 or pl.operating != 0:
+		return
+	host_ev("dash_dust", [pl.global_position, pl.vis.global_basis.z.normalized()])
+
+
+func _show_dash_dust(pos: Vector3, direction: Vector3) -> void:
+	var dust := ToonDust.new()
+	add_child(dust)
+	dust.global_position = pos
+	dust.burst(direction)
+
+
+func _clear_dash_dust() -> void:
+	for dust in get_tree().get_nodes_in_group("dash_dust"):
+		if is_ancestor_of(dust):
+			dust.queue_free()
+
 
 func act_grab(pid: int) -> void:
 	h_grab.rpc_id(1, pid)
@@ -1155,6 +1183,7 @@ func host_ev(n: String, a: Array) -> void:
 func ev(n: String, a: Array) -> void:
 	match n:
 		"state":
+			_clear_dash_dust()
 			state = a[0]
 			if character_open and state not in [S.ORDER, S.PREP]:
 				set_character_menu(false)
@@ -1214,6 +1243,8 @@ func ev(n: String, a: Array) -> void:
 		"fuse":
 			if props.has(a[0]):
 				props[a[0]].show_fuse()
+		"dash_dust":
+			_show_dash_dust(a[0], a[1])
 		"burst":
 			_show_burst(a[0], a[1])
 		"toast":
