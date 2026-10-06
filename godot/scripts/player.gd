@@ -71,6 +71,22 @@ func setup(cast_tag: String) -> void:
 		al.make_current()
 
 
+func set_cast(cast_tag: String) -> void:
+	if vis.tag == cast_tag:
+		return
+	var yaw: float = vis.rotation.y
+	var animation: String = vis.current
+	var face: String = vis.face
+	remove_child(vis)
+	vis.queue_free()
+	vis = CastVisual.new()
+	add_child(vis)
+	vis.setup(cast_tag)
+	vis.rotation.y = yaw
+	vis.play(animation)
+	vis.set_face(face)
+
+
 func aim_forward() -> Vector3:
 	return Basis.from_euler(Vector3(aim_pitch, aim_yaw, 0.0)) * Vector3.FORWARD
 
@@ -126,6 +142,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			game.act_operate(operating, false)
 		elif held != 0 and game.props.has(held) and game.props[held].kind == "clapper":
 			game.act_use()
+		elif held != 0 and game.props.has(held) and game.props[held].kind == "carton":
+			game.act_toggle_carton(held)
+		elif target and target.kind == "carton" and held == 0:
+			game.act_toggle_carton(target.pid)
 		elif target and target.kind in ["camera", "spot"] and held == 0:
 			game.act_operate(target.pid, true)
 	elif event.is_action_pressed("fix"):
@@ -312,10 +332,12 @@ func _follow_net(delta: float) -> void:
 
 
 func get_state() -> Array:
-	return [global_position, vis.rotation.y, vis.current, vis.face]
+	return [global_position, vis.rotation.y, vis.current, vis.face, vis.tag]
 
 
 func apply_state(s: Array) -> void:
+	if s.size() >= 5:
+		set_cast(s[4] as String)
 	_motion = ""
 	_run_requested = false
 	_ground_y = (s[0] as Vector3).y

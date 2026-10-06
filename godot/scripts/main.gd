@@ -14,8 +14,9 @@ const S := {"PREP": 0, "COUNTDOWN": 1, "TAKE": 2, "RESULT": 3, "REPLAY": 4, "DEL
 const TAKE_SEC := 60.0
 const MAX_TAKES := 3
 const REWARD := 1200
-const PLAYER_CASTS := ["M02", "04", "09", "03"]
-const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop"]
+const PLAYER_CASTS := ["M02", "04", "09", "03", "01", "02", "06"]
+const PLAYER_NAMES := ["ロボット", "ベレー帽の人", "段ボール頭", "手帳の人", "ドレスの人", "カエルの警官", "モップの王様"]
+const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton"]
 const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
 const BUDGET := 600
 const FREE_FIXES := 4           # 固定用品を借りないときに固定できる数
@@ -56,6 +57,7 @@ var delivered_ok := false
 var reunion_cued := false
 var replaying := false
 var replay_t := 0.0
+var character_open := false
 var help_open := false
 var input_locked := false      # 自動確認中は手元の入力を受けない
 var live: Dictionary = {"hints": [], "passed": [false, false, false], "charges": 2}
@@ -163,7 +165,7 @@ func _setup_input() -> void:
 func _grab_mouse(on: bool) -> void:
 	if _headless:
 		return
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on else Input.MOUSE_MODE_VISIBLE
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on and not character_open else Input.MOUSE_MODE_VISIBLE
 
 
 func local_player() -> Node:
@@ -171,7 +173,16 @@ func local_player() -> Node:
 
 
 func ui_blocking() -> bool:
-	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or help_open or input_locked
+	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked
+
+
+func set_character_menu(on: bool) -> void:
+	if on and (state not in [S.ORDER, S.PREP] or local_player() == null):
+		return
+	character_open = on
+	help_open = false
+	hud.character_picker.set_open(on)
+	_grab_mouse(not on and state == S.PREP)
 
 
 # ---- 参加者 ----
@@ -191,7 +202,11 @@ func h_hello() -> void:
 	ev.rpc_id(who, "order", [order])
 	ev.rpc_id(who, "absent", [_absent_kinds()])
 	ev.rpc_id(who, "state", [state])
+	if replaying:
+		ev.rpc_id(who, "replay_casts", [_replay_casts()])
 	for p: RigidBody3D in props.values():
+		if p.kind == "carton":
+			ev.rpc_id(who, "carton", [p.pid, p.opened])
 		if p.holder != 0:
 			ev.rpc_id(who, "hold", [p.holder, p.pid])
 
@@ -223,10 +238,24 @@ func _apply_roster() -> void:
 			pl.aim_yaw = -PI * 0.5     # 軽トラのほうを向く
 			add_child(pl)
 			players[r[0]] = pl
+		else:
+			players[r[0]].set_cast(PLAYER_CASTS[r[1]])
 	for id: int in players.keys():
 		if not id in ids:
 			players[id].queue_free()
 			players.erase(id)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_select_cast(index: int) -> void:
+	if not Net.is_host() or state not in [S.ORDER, S.PREP] or index < 0 or index >= PLAYER_CASTS.size():
+		return
+	var who := Net.sender()
+	for r: Array in _roster:
+		if r[0] == who:
+			r[1] = index
+			ev.rpc("roster", [_roster])
+			return
 
 
 @rpc("any_peer", "call_remote", "unreliable")
@@ -258,6 +287,24 @@ func act_aim(pid: int, a: float, b: float, c: float) -> void:
 	h_aim.rpc_id(1, pid, a, b, c)
 
 
+func act_toggle_carton(pid: int) -> void:
+	h_toggle_carton.rpc_id(1, pid)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_toggle_carton(pid: int) -> void:
+	if not Net.is_host() or replaying or state not in [S.PREP, S.TAKE]:
+		return
+	var p: Node = props.get(pid)
+	var who := Net.sender()
+	var pl: Node = players.get(who)
+	if p == null or p.kind != "carton" or p.absent or pl == null or p.holder not in [0, who]:
+		return
+	if p.holder != who and pl.global_position.distance_to(p.center_global()) > Player.REACH:
+		return
+	host_ev("carton", [pid, not p.opened])
+
+
 func act_use() -> void:
 	h_use.rpc_id(1)
 
@@ -270,6 +317,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if input_locked or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var key: int = (event as InputEventKey).physical_keycode
+	if character_open:
+		hud.character_picker.handle_key(key)
+		get_viewport().set_input_as_handled()
+		return
+	if key == KEY_C:
+		set_character_menu(true)
+		return
 	if key == KEY_TAB:
 		help_open = not help_open
 		return
@@ -892,6 +946,7 @@ func h_replay(i: int) -> void:
 	_replay_ev = 0
 	_set_playback(true)
 	_set_state(S.REPLAY)
+	host_ev("replay_casts", [_replay_casts()])
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -900,8 +955,18 @@ func h_stop_replay() -> void:
 		_end_replay()
 
 
+func _replay_casts() -> Dictionary:
+	var casts := {}
+	var recorded: Dictionary = _replay["frames"][0][1]["pl"]
+	for id: int in recorded:
+		if (recorded[id] as Array).size() >= 5:
+			casts[id] = recorded[id][4]
+	return casts
+
+
 func _end_replay() -> void:
 	_set_playback(false)
+	ev.rpc("roster", [_roster])
 	host_ev("silence", [])
 	_set_state(S.RESULT)
 
@@ -1091,9 +1156,18 @@ func ev(n: String, a: Array) -> void:
 	match n:
 		"state":
 			state = a[0]
+			if character_open and state not in [S.ORDER, S.PREP]:
+				set_character_menu(false)
 			replaying = state == S.REPLAY
 			film.tally.visible = state == S.TAKE
 			_grab_mouse(state != S.RESULT and state != S.DELIVERED and state != S.ORDER)
+		"carton":
+			if props.has(a[0]) and props[a[0]].kind == "carton":
+				props[a[0]].opened = a[1]
+		"replay_casts":
+			for id: int in a[0]:
+				if players.has(id):
+					players[id].set_cast(a[0][id])
 		"roster":
 			_roster = a[0]
 			_apply_roster()

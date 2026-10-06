@@ -6,6 +6,10 @@ const GREEN := Color(0.5, 1.0, 0.6)
 const RED := Color(1.0, 0.45, 0.4)
 const DIM := Color(0.8, 0.82, 0.88)
 
+const CharacterPicker := preload("res://scripts/character_picker.gd")
+var character_picker: Control
+var character_button: Button
+
 var game: Node
 var root: Control
 var viewfinder: TextureRect
@@ -71,6 +75,11 @@ func build() -> void:
 		order_lines.append(l)
 	order_state = _label("", 17, DIM)
 	ov.add_child(order_state)
+	character_button = Button.new()
+	character_button.text = "[C] キャラクターを選ぶ"
+	character_button.focus_mode = Control.FOCUS_NONE
+	character_button.pressed.connect(func(): game.set_character_menu(true))
+	ov.add_child(character_button)
 
 	# 右上：カメラ映像と足りないこと
 	monitor_box = _panel(Vector2(0, 18), Vector2(440, 0))
@@ -146,6 +155,10 @@ func build() -> void:
 	var ht := _label(HELP_TEXT, 20, Color.WHITE)
 	help.add_child(ht)
 	help.visible = false
+	character_picker = CharacterPicker.new()
+	character_picker.game = game
+	root.add_child(character_picker)
+	character_picker.build()
 
 
 const HELP_TEXT := """あそびかた（Tabで閉じる）
@@ -157,6 +170,8 @@ const HELP_TEXT := """あそびかた（Tabで閉じる）
 
 移動 WASD ／ 走る Shift ／ ジャンプ Space ／ 視点 マウス
 持つ・置く 左クリック ／ 距離 ホイール ／ 回す 右ドラッグ（Q・Eも可）
+段ボールの開閉 F（持っている箱、または照準の箱）
+キャラクターを選ぶ C（依頼画面・仕込み中）
 固定・解除 G（倒れやすい物を留める）
 機材を操作 F（カメラ：首振り・ホイールでズーム
 　　　　　　　ライト：向き・ホイールで明るさ）
@@ -226,6 +241,8 @@ func _process(delta: float) -> void:
 	var st: int = game.state
 	var S: Dictionary = game.S
 	var live: Dictionary = game.live
+	character_button.visible = st in [S.ORDER, S.PREP]
+	character_button.disabled = game.local_player() == null
 	var me: Node = game.local_player()
 	var op: Node3D = game.props.get(me.operating) if me and me.operating != 0 else null
 	var full: bool = st == S.REPLAY or (op != null and op.kind == "camera")
@@ -284,10 +301,15 @@ func _process(delta: float) -> void:
 	var tl := ""
 	if play and me and op == null:
 		if me.held != 0 and game.props.has(me.held):
-			tl = "%s を持っている" % game.props[me.held].label
+			var held: Node = game.props[me.held]
+			tl = "%s を持っている" % held.label
+			if held.kind == "carton":
+				tl += "　[F] " + ("閉じる" if held.opened else "開く")
 		elif me.target:
 			var t: Node3D = me.target
 			tl = t.label
+			if t.kind == "carton" and t.holder == 0:
+				tl += "　[F] " + ("閉じる" if t.opened else "開く")
 			if t.fixed:
 				tl += "（固定中）"
 			if t.holder != 0:

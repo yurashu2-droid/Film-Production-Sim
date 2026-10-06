@@ -23,10 +23,22 @@ func _process(_delta: float) -> void:
 	match request[1]:
 		"grab": game.act_grab(game.clapper.pid)
 		"release": game.act_release()
+		"choices":
+			game.h_select_cast(3)
+			for p in game.props.values():
+				if p.kind == "carton":
+					p.set_fixed(true)
+					p.position = game.players[request[0]].position + Vector3(1, 0, 0)
+					break
 	await _wait(0.1)
 	var client: Node = game.players.get(request[0])
 	if client == null:
 		return
+	var carton: Node
+	for p in game.props.values():
+		if p.kind == "carton":
+			carton = p
+			break
 	var clap: Node = game.clapper
 	_host_reply.rpc_id(request[0], {
 		"holder": clap.holder, "host": game.local_player().held, "client": client.held,
@@ -34,6 +46,8 @@ func _process(_delta: float) -> void:
 		"host_collision": clap.get_collision_exceptions().has(game.local_player()),
 		"client_collision": clap.get_collision_exceptions().has(client),
 		"pitch": client.hold_pitch, "animation": client.vis.current,
+		"host_cast": game.local_player().vis.tag, "client_cast": client.vis.tag,
+		"carton_open": carton.opened, "carton_amount": carton.open_amount,
 	})
 
 
@@ -97,11 +111,32 @@ func _run() -> void:
 		return
 
 	var me: Node = game.local_player()
+	game.h_select_cast.rpc_id(1, 5)
 	for id in ["balcony", "dolly"]:
 		game.h_order_set.rpc_id(1, id, 1)
 	game.h_order_confirm.rpc_id(1)
 	await _wait(1.0)
 	print(who, " order state=", game.state, " fx_absent=", game.fx.absent, " balcony_visible=", game.order)
+	var choice_sync: Dictionary = await _ask_host("choices")
+	var choice_ok: bool = choice_sync.get("host_cast", "") == "03" and choice_sync.get("client_cast", "") == "02"
+	choice_ok = choice_ok and me.vis.tag == "02" and game.players[1].vis.tag == "03"
+	print("CHOICE_PHASE_CAST ", choice_ok, " host=", game.players[1].vis.tag, " client=", me.vis.tag, " ", choice_sync)
+	var carton: Node
+	for p in game.props.values():
+		if p.kind == "carton":
+			carton = p
+			break
+	game.act_toggle_carton(carton.pid)
+	await _wait(0.8)
+	choice_sync = await _ask_host()
+	choice_ok = choice_ok and not choice_sync.get("carton_open", true) and float(choice_sync.get("carton_amount", 1.0)) == 0.0
+	choice_ok = choice_ok and not carton.opened and carton.open_amount == 0.0
+	print("CHOICE_PHASE_CLOSE ", carton.opened, " ", carton.open_amount, " ", choice_sync)
+	game.act_toggle_carton(carton.pid)
+	await _wait(0.8)
+	print("CHOICE_PHASE_OPEN ", carton.opened, " ", carton.open_amount)
+	choice_ok = choice_ok and carton.opened and carton.open_amount == 1.0
+	print("CHOICE_NET_OK" if choice_ok else "CHOICE_NET_FAIL", " ", choice_sync)
 	# 短い走り出しのクリップ名も相手側まで届く。
 	game.input_locked = false
 	Input.action_press("run")
@@ -121,7 +156,7 @@ func _run() -> void:
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
-	var ok: bool = motion_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
+	var ok: bool = choice_ok and motion_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
 	me.hold_yaw = 0.45
 	me.hold_pitch = 0.35
 	await _wait(0.8)

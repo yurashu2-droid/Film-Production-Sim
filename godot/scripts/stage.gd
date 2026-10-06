@@ -2,6 +2,7 @@ extends Node3D
 # 撮影現場（倉庫）と、そこに置く物の生成。
 # 物は決まった順番で作るので、どの参加者の画面でも同じIDになる。
 
+const Carton := preload("res://scripts/carton.gd")
 const Prop := preload("res://scripts/prop.gd")
 const FilmCamera := preload("res://scripts/film_camera.gd")
 const SpotRig := preload("res://scripts/spot_rig.gd")
@@ -200,7 +201,7 @@ func _register(p: RigidBody3D, pos: Vector3, yaw: float) -> RigidBody3D:
 
 func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 	var d: Dictionary = DEFS[kind]
-	var p: RigidBody3D = Prop.new()
+	var p: RigidBody3D = Carton.new() if kind == "carton" else Prop.new()
 	p.kind = kind
 	p.label = d["label"]
 	p.mass = d["mass"]
@@ -217,7 +218,9 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 	p.center = box.get_center()
 	p.half = box.size * 0.5
 	p.hold_min = maxf(1.1, p.half.z + 0.95)
-	if d.has("shapes"):
+	if kind == "carton":
+		p.configure()
+	elif d.has("shapes"):
 		for s: Array in d["shapes"]:
 			_shape(p, s[0] * size_scale, s[1] * size_scale, s[2])
 	else:
