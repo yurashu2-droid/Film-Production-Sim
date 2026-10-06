@@ -34,6 +34,8 @@ var _face_t := 0.0
 var _motion := ""
 var _motion_t := 0.0
 var _run_requested := false
+var _run_start_elapsed := 0.0
+var _run_entry_speed := 0.0
 var _ground_y := 0.0
 
 
@@ -197,7 +199,7 @@ func _physics_process(delta: float) -> void:
 		var ff := flat_forward()
 		var right := Vector3(-ff.z, 0.0, ff.x)
 		var dir := (right * iv.x + ff * iv.y).limit_length(1.0)
-		var speed := RUN if Input.is_action_pressed("run") and held == 0 else WALK
+		var speed := _movement_speed(delta, dir, blocked)
 		var k := clampf(delta * (12.0 if is_on_floor() else 3.0), 0.0, 1.0)
 		velocity.x = lerpf(velocity.x, dir.x * speed, k)
 		velocity.z = lerpf(velocity.z, dir.z * speed, k)
@@ -235,6 +237,25 @@ func _physics_process(delta: float) -> void:
 		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
 
 
+# Keep movement responsive while matching the short anticipation / push-off clip.
+func _movement_speed(delta: float, dir: Vector3, blocked: bool) -> float:
+	var wants_run := dir.length() > 0.1 and Input.is_action_pressed("run") and held == 0 and operating == 0 and not blocked
+	if not wants_run:
+		_run_start_elapsed = 0.0
+		return WALK
+	var duration: float = vis.length("run_start")
+	if not is_on_floor():
+		_run_start_elapsed = duration
+		return RUN
+	if not _run_requested:
+		_run_start_elapsed = 0.0
+		_run_entry_speed = clampf(Vector2(velocity.x, velocity.z).length(), RUN * 0.15, RUN)
+	_run_start_elapsed += delta
+	# The existing velocity smoothing supplies the final part of acceleration.
+	var push := smoothstep(duration * 0.2, duration * 0.7, _run_start_elapsed)
+	return lerpf(_run_entry_speed, RUN, push)
+
+
 func _start_motion(name: String) -> void:
 	if not vis.has(name):
 		return
@@ -246,6 +267,9 @@ func _start_motion(name: String) -> void:
 func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) -> void:
 	var moving := dir.length() > 0.1
 	var wants_run := moving and Input.is_action_pressed("run") and held == 0 and operating == 0 and not blocked
+	var hs := Vector2(velocity.x, velocity.z).length()
+	if not wants_run and _motion == "run_start":
+		_motion = ""
 	_motion_t -= delta
 	if _motion_t <= 0.0 or not is_on_floor() or blocked or operating != 0:
 		_motion = ""
@@ -259,12 +283,11 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 			_start_motion(pose + "step_down")
 		elif wants_run and not _run_requested:
 			_start_motion("run_start")
-		elif not moving and _run_requested:
+		elif not moving and _run_requested and hs > WALK * 0.65:
 			_start_motion(pose + "run_stop")
 	if is_on_floor():
 		_ground_y = global_position.y
 	_run_requested = wants_run
-	var hs := Vector2(velocity.x, velocity.z).length()
 	if not is_on_floor():
 		vis.play(pose + "jump")
 	elif _motion != "":
