@@ -5,9 +5,66 @@ extends Node
 # 参加者側が「持つ → 見本 → 本番 → 合図」を出し、両方の画面で同じ結果になるかを見る。
 
 var game: Node
+var _host_actions: Array = []
+var _reply: Dictionary = {}
+
+
+# テスト用の要求はRPC外のフレームで実行し、ホスト本人の操作にする。
+@rpc("any_peer", "call_remote", "reliable")
+func _queue_host(action: String) -> void:
+	if Net.is_host():
+		_host_actions.append([multiplayer.get_remote_sender_id(), action])
+
+
+func _process(_delta: float) -> void:
+	if _host_actions.is_empty():
+		return
+	var request: Array = _host_actions.pop_front()
+	match request[1]:
+		"grab": game.act_grab(game.clapper.pid)
+		"release": game.act_release()
+	await _wait(0.1)
+	var client: Node = game.players.get(request[0])
+	if client == null:
+		return
+	var clap: Node = game.clapper
+	_host_reply.rpc_id(request[0], {
+		"holder": clap.holder, "host": game.local_player().held, "client": client.held,
+		"age": Time.get_ticks_msec() / 1000.0 - clap.grab_time, "state": game.state,
+		"host_collision": clap.get_collision_exceptions().has(game.local_player()),
+		"client_collision": clap.get_collision_exceptions().has(client),
+	})
+
+
+@rpc("authority", "call_remote", "reliable")
+func _host_reply(snapshot: Dictionary) -> void:
+	_reply = snapshot
+
+
+func _ask_host(action: String = "snapshot") -> Dictionary:
+	_reply = {}
+	_queue_host.rpc_id(1, action)
+	var elapsed := 0.0
+	while _reply.is_empty() and elapsed < 3.0:
+		await _wait(0.05)
+		elapsed += 0.05
+	return _reply
+
+
+func _clapper_is(s: Dictionary, owner: int, phase: String) -> bool:
+	var pid: int = game.clapper.pid
+	var host_held: int = pid if owner == 1 else 0
+	var client_held: int = pid if owner == Net.my_id() else 0
+	var ok: bool = s.get("holder", -1) == owner and s.get("host", -1) == host_held and s.get("client", -1) == client_held
+	ok = ok and game.players[1].held == host_held and game.local_player().held == client_held
+	ok = ok and s.get("host_collision", false) == (owner == 1) and s.get("client_collision", false) == (owner == Net.my_id())
+	print("CLAPPER_NET ", phase, " ", "OK" if ok else "FAIL", " ", s)
+	return ok
+
 
 
 func _ready() -> void:
+	name = "NetTest"
 	_run.call_deferred()
 
 
@@ -32,8 +89,10 @@ func _run() -> void:
 			await _wait(0.5)
 			t += 0.5
 		_report(who)
+		var host_ok: bool = game.state == S.RESULT and not game.takes.is_empty() and not false in game.takes[0]["passed"]
+		print(who, " NETTEST_OK" if host_ok else " NETTEST_FAIL")
 		await _wait(2.0)
-		get_tree().quit(0)
+		get_tree().quit(0 if host_ok else 1)
 		return
 
 	var me: Node = game.local_player()
@@ -54,6 +113,28 @@ func _run() -> void:
 	game.act_release()
 	await _wait(0.5)
 	ok = ok and me.held == 0
+	var s := await _ask_host("grab")
+	var steal_ok := _clapper_is(s, 1, "host_pickup")
+	game.act_grab(game.clapper.pid)
+	await _wait(0.15)
+	s = await _ask_host()
+	steal_ok = _clapper_is(s, 1, "first_second_protected") and float(s.get("age", 2.0)) < 1.0 and steal_ok
+	await _wait(1.1)
+	game.act_grab(game.clapper.pid)
+	await _wait(0.15)
+	s = await _ask_host()
+	steal_ok = _clapper_is(s, Net.my_id(), "client_steals") and steal_ok
+	s = await _ask_host("grab")
+	steal_ok = _clapper_is(s, Net.my_id(), "client_first_second_protected") and float(s.get("age", 2.0)) < 1.0 and steal_ok
+	await _wait(1.1)
+	s = await _ask_host("grab")
+	steal_ok = _clapper_is(s, 1, "host_steals_back") and steal_ok
+	game.act_release()  # 元の持ち主が離しても、取り返した人の物は落ちない
+	await _wait(0.15)
+	s = await _ask_host()
+	steal_ok = _clapper_is(s, 1, "former_owner_release") and steal_ok
+	s = await _ask_host("release")
+	steal_ok = _clapper_is(s, 0, "release") and steal_ok
 	game.h_sample.rpc_id(1)
 	await _wait(2.0)
 	var balcony: Node3D
@@ -62,9 +143,17 @@ func _run() -> void:
 			balcony = p
 	print(who, " sample balcony=", balcony.global_position, " actorA=", game.actors[0].global_position, " hints=", game.live["hints"])
 	ok = ok and balcony.global_position.distance_to(Vector3(0, 0, -3)) < 0.2 and game.actors[0].global_position.y > 0.7
-	game.h_take.rpc_id(1)
-	await _wait(4.0)
-	ok = ok and game.state == S.TAKE
+	game.act_grab(game.clapper.pid)
+	await _wait(0.2)
+	game.act_use()
+	await _wait(1.3)
+	s = await _ask_host("grab")
+	steal_ok = _clapper_is(s, Net.my_id(), "countdown_protected") and s.get("state", -1) == S.COUNTDOWN and float(s.get("age", 0.0)) >= 1.0 and steal_ok
+	await _wait(2.0)
+	game.act_release()
+	await _wait(0.2)
+	print("CLAPPER_NET_OK" if steal_ok else "CLAPPER_NET_FAIL")
+	ok = ok and steal_ok and game.state == S.TAKE
 	game.h_cue.rpc_id(1, 1)
 	await _wait(4.5)
 	game.h_cue.rpc_id(1, 2)

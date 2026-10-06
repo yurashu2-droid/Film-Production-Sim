@@ -28,7 +28,8 @@ var immovable := false       # 軽トラなど、動かせない物
 var absent := false          # 今回の依頼では借りていない物（現場に無い）
 var grab_time := 0.0
 var _layers: Array = []
-var _settle := 0
+var _restore_pending := false
+var _restore_transform := Transform3D.IDENTITY
 var center := Vector3.ZERO   # 見た目の中心（ローカル）
 var half := Vector3.ONE * 0.2
 var visual: Node3D
@@ -60,6 +61,8 @@ func _apply_freeze() -> void:
 	else:
 		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 		freeze = fixed or absent
+	if freeze:
+		_restore_pending = false
 
 
 func set_fixed(v: bool) -> void:
@@ -105,11 +108,6 @@ func _physics_process(delta: float) -> void:
 	if not is_host():
 		_follow_net(delta)
 		return
-	if _settle > 0:
-		# 置き直した直後は、瞬間移動ぶんの勢いが残らないように止める
-		_settle -= 1
-		linear_velocity = Vector3.ZERO
-		angular_velocity = Vector3.ZERO
 	if rider_of != 0:
 		# 台車に載っている間は、台車と一緒に動く
 		var d: Node3D = game.props.get(rider_of)
@@ -121,6 +119,17 @@ func _physics_process(delta: float) -> void:
 	elif holder != 0 and not fixed:
 		_drive_hold()
 	_host_tick(delta)
+
+
+# 描画完了時の置き直しは、次の物理同期で古い位置に上書きされる。
+# 物理状態にも移動先を渡し、荷台の移動速度を引き継がずに再開する。
+func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	if not _restore_pending:
+		return
+	state.transform = _restore_transform
+	state.linear_velocity = Vector3.ZERO
+	state.angular_velocity = Vector3.ZERO
+	_restore_pending = false
 
 
 func _host_tick(_delta: float) -> void:
@@ -192,5 +201,6 @@ func restore(s: Array) -> void:
 	global_transform = Transform3D(Basis(s[1] as Quaternion), s[0] as Vector3)
 	set_fixed(s[2])
 	_apply_extra(s)
-	_settle = 3
+	_restore_transform = global_transform
+	_restore_pending = not freeze
 	reset_physics_interpolation()

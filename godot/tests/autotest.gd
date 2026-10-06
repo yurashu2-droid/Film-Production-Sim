@@ -64,6 +64,7 @@ func _run() -> void:
 	for p in game.props.values():
 		if p.kind in ["balcony", "mark", "window", "camera", "spot", "plywood", "flat", "moon", "fx"]:
 			print("  ", p.kind, " pos=", p.global_position, " up=%.2f" % p.global_basis.y.y, " layer=", p.collision_layer, " mask=", p.collision_mask, " freeze=", p.freeze)
+	await _measure_performance()
 	await _shot("sample")
 	# カチンコを持って打つと本番が始まる
 	game.h_use()
@@ -72,7 +73,6 @@ func _run() -> void:
 	game.h_grab(game.clapper.pid)
 	await _wait(0.4)
 	await _shot("clapper_held")
-	print("PERF fps=", Engine.get_frames_per_second(), " draw_calls=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), " prims=", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	game.h_use()
 	await _wait(1.2)
 	print("CLAPPER start_without=", not no_clapper_start, " countdown=", game.state == S.COUNTDOWN)
@@ -128,6 +128,31 @@ func _run() -> void:
 	var all_ok: bool = not false in game.takes[0]["passed"]
 	print("AUTOTEST_OK" if all_ok and game.delivered_ok else "AUTOTEST_FAIL")
 	get_tree().quit(0 if all_ok else 1)
+
+
+# PNGの保存直後の瞬間値には保存処理の停止時間が混ざるため、
+# 画像を保存しない連続2秒の通常描画を測る。
+func _measure_performance() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var main_view: Viewport = get_viewport()
+	var film_view: Viewport = game.film.view
+	for vp: Viewport in [main_view, film_view]:
+		RenderingServer.viewport_set_measure_render_time(vp.get_viewport_rid(), true)
+	var start := Time.get_ticks_usec()
+	var count := 0
+	var draws := 0.0
+	var gpu_ms := 0.0
+	while Time.get_ticks_usec() - start < 2000000:
+		await get_tree().process_frame
+		count += 1
+		draws += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+		for vp: Viewport in [main_view, film_view]:
+			gpu_ms += RenderingServer.viewport_get_measured_render_time_gpu(vp.get_viewport_rid())
+	var fps := count * 1000000.0 / (Time.get_ticks_usec() - start)
+	print("PERF steady fps=%.1f draw_calls=%.0f gpu_ms=%.2f" % [fps, draws / count, gpu_ms / count])
+	for vp: Viewport in [main_view, film_view]:
+		RenderingServer.viewport_set_measure_render_time(vp.get_viewport_rid(), false)
 
 
 # 持つ・回す・置く・固定・機材操作の確認
