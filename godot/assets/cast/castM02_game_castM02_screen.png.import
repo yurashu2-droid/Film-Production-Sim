@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dpnqx252hi5hk"
-path="res://.godot/imported/cast09_game_cast09_roughness.png-0003ad29fd1f4bcabaaf602799c65bb0.ctex"
+uid="uid://dhwbc0c13t85r"
+path="res://.godot/imported/castM02_game_castM02_screen.png-479caf0f53c4b47750c624efe01485d6.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "782e20e919d4c4e90dc5ebb10f2184b9"
+"md5": "b875f31788de8da7f4bf12b7bc6aacf2"
 }
 
 [deps]
 
-source_file="res://assets/cast/cast09_game_cast09_roughness.png"
-dest_files=["res://.godot/imported/cast09_game_cast09_roughness.png-0003ad29fd1f4bcabaaf602799c65bb0.ctex"]
+source_file="res://assets/cast/castM02_game_castM02_screen.png"
+dest_files=["res://.godot/imported/castM02_game_castM02_screen.png-479caf0f53c4b47750c624efe01485d6.ctex"]
 
 [params]
 

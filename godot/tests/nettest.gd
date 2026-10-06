@@ -102,6 +102,17 @@ func _run() -> void:
 	game.h_order_confirm.rpc_id(1)
 	await _wait(1.0)
 	print(who, " order state=", game.state, " fx_absent=", game.fx.absent, " balcony_visible=", game.order)
+	# 短い走り出しのクリップ名も相手側まで届く。
+	game.input_locked = false
+	Input.action_press("run")
+	Input.action_press("move_forward")
+	await _wait(0.06)
+	var motion_sync: Dictionary = await _ask_host()
+	Input.action_release("move_forward")
+	Input.action_release("run")
+	game.input_locked = true
+	var motion_net_ok: bool = motion_sync.get("animation", "") == "run_start"
+	print("MOTION_NET_OK" if motion_net_ok else "MOTION_NET_FAIL")
 	var fx: Node3D = game.clapper
 	await _wait(0.5)
 	var p0: Vector3 = fx.global_position
@@ -110,7 +121,7 @@ func _run() -> void:
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
-	var ok: bool = me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
+	var ok: bool = motion_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
 	me.hold_yaw = 0.45
 	me.hold_pitch = 0.35
 	await _wait(0.8)

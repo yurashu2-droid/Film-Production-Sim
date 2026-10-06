@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 40 $GD --headless --path godot --script res://tests/motiontest.gd 2>&1 | grep -E "SCRIPT ERROR|MOTION_CHECK.*FAIL|MOTIONTEST_"
 timeout 150 $GD --headless --path godot -- --autotest 2>&1 | grep -E "SCRIPT ERROR|HANDS_ON_|AUTOTEST_"
 timeout 150 $GD --headless --path godot -- --autotest --route=balcony 2>&1 | grep -E "SCRIPT ERROR|AUTOTEST_" | sed "s/AUTOTEST_/AUTOTEST(balcony)_/"
 timeout 150 $GD --headless --path godot -- --failtest 2>&1 | grep -E "SCRIPT ERROR|FAILTEST_"

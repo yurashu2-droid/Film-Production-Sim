@@ -31,6 +31,10 @@ var cam: Camera3D
 var _net: Array = []
 var _send_t := 0.0
 var _face_t := 0.0
+var _motion := ""
+var _motion_t := 0.0
+var _run_requested := false
+var _ground_y := 0.0
 
 
 func setup(cast_tag: String) -> void:
@@ -163,6 +167,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		vis.rotation.y = atan2(f.x, f.z)
 		aim_yaw = atan2(-f.x, -f.z)
+		_motion = ""
+		_run_requested = false
+		_ground_y = global_position.y
 		vis.play(pose + "idle")
 	else:
 		if op:
@@ -189,15 +196,7 @@ func _physics_process(delta: float) -> void:
 			face = ff
 		if face.length() > 0.1:
 			vis.rotation.y = lerp_angle(vis.rotation.y, atan2(face.x, face.z), clampf(delta * 12.0, 0.0, 1.0))
-		var hs := Vector2(velocity.x, velocity.z).length()
-		if not is_on_floor():
-			vis.play(pose + "jump")
-		elif hs > 4.4:
-			vis.play(pose + "run")
-		elif hs > 0.4:
-			vis.play(pose + "walk")
-		else:
-			vis.play(pose + "idle")
+		_animate_movement(delta, pose, dir, blocked)
 
 	head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
 	if _face_t > 0.0:
@@ -214,6 +213,48 @@ func _physics_process(delta: float) -> void:
 	if _send_t <= 0.0 and Net.has_peers():
 		_send_t = 0.05
 		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
+
+
+func _start_motion(name: String) -> void:
+	if not vis.has(name):
+		return
+	_motion = name
+	_motion_t = vis.length(name)
+	vis.play(name, 0.06, true)
+
+
+func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) -> void:
+	var moving := dir.length() > 0.1
+	var wants_run := moving and Input.is_action_pressed("run") and held == 0 and operating == 0 and not blocked
+	_motion_t -= delta
+	if _motion_t <= 0.0 or not is_on_floor() or blocked or operating != 0:
+		_motion = ""
+	# 物を持ち始めたら腕の構えを優先する。離した後に持つ構えを残さない。
+	if pose != "" and not _motion.begins_with(pose):
+		_motion = ""
+	if (pose != "carry_" and _motion.begins_with("carry_")) or (pose != "onehand_" and _motion.begins_with("onehand_")):
+		_motion = ""
+	if is_on_floor() and not blocked and operating == 0:
+		if _ground_y - global_position.y > 0.18:
+			_start_motion(pose + "step_down")
+		elif wants_run and not _run_requested:
+			_start_motion("run_start")
+		elif not moving and _run_requested:
+			_start_motion(pose + "run_stop")
+	if is_on_floor():
+		_ground_y = global_position.y
+	_run_requested = wants_run
+	var hs := Vector2(velocity.x, velocity.z).length()
+	if not is_on_floor():
+		vis.play(pose + "jump")
+	elif _motion != "":
+		vis.play(_motion, 0.06)
+	elif hs > 4.4:
+		vis.play(pose + "run")
+	elif hs > 0.4:
+		vis.play(pose + "walk")
+	else:
+		vis.play(pose + "idle")
 
 
 # 軽い物は歩いて押しのけられる（物理はホストだけが持つので、今はホスト側のみ）
@@ -275,6 +316,9 @@ func get_state() -> Array:
 
 
 func apply_state(s: Array) -> void:
+	_motion = ""
+	_run_requested = false
+	_ground_y = (s[0] as Vector3).y
 	global_position = s[0]
 	vis.rotation.y = s[1]
 	vis.play(s[2] as String, 0.12)

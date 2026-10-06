@@ -35,6 +35,7 @@ func setup(cast_tag: String) -> void:
 	if _head >= 0:
 		height = (skel.get_bone_global_rest(_head).origin.y + 0.5) * SCALE
 	_setup_face()
+	_setup_transitions()
 	_setup_carry()
 	play("idle")
 	_blink = randf_range(1.0, 4.0)
@@ -73,6 +74,23 @@ func _setup_face() -> void:
 	face_anim.play("neutral")
 
 
+# 一瞬のリアクションは全編を短く再生する。途中で通常の移動に上書きしない。
+func _setup_transitions() -> void:
+	var lib := anim.get_animation_library("")
+	var clips := {"run_start": ["dash", 0.4], "run_stop": ["brake", 0.32], "step_down": ["flinch", 0.28]}
+	for name: String in clips:
+		if has(name) or not has(clips[name][0]):
+			continue
+		var clip := anim.get_animation(tag + "_" + clips[name][0]).duplicate(true) as Animation
+		var speed: float = float(clips[name][1]) / clip.length
+		for t in clip.get_track_count():
+			for k in clip.track_get_key_count(t):
+				clip.track_set_key_time(t, k, clip.track_get_key_time(t, k) * speed)
+		clip.length = float(clips[name][1])
+		clip.loop_mode = Animation.LOOP_NONE
+		lib.add_animation(tag + "_" + name, clip)
+
+
 # 既存の「手を伸ばす」動きから腕だけを保持し、歩行・ジャンプの脚と体は残す。
 # 生成したクリップ名をそのまま同期・録画できるので、別の状態同期は要らない。
 func _setup_carry() -> void:
@@ -80,7 +98,9 @@ func _setup_carry() -> void:
 		return
 	var grab := anim.get_animation(tag + "_grab")
 	var lib := anim.get_animation_library("")
-	for base: String in ["idle", "walk", "run", "jump"]:
+	for base: String in ["idle", "walk", "run", "jump", "step_down", "run_stop"]:
+		if not has(base):
+			continue
 		for mode: String in ["carry", "onehand"]:
 			var clip := anim.get_animation(tag + "_" + base).duplicate(true) as Animation
 			for t in range(clip.get_track_count()):
