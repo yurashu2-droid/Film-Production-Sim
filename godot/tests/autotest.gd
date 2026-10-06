@@ -162,6 +162,12 @@ func _hands_on() -> void:
 	var ok := true
 	me.aim_yaw = -1.2
 	me.aim_pitch = -0.1
+	# 持つ・回す確認は床の空いた場所で行う。荷台の他の積み荷で進路を塞がない。
+	game.host_unload(fx)
+	var pick_pos: Vector3 = me.global_position + me.flat_forward() * 2.0
+	pick_pos.y = 0.02
+	fx.restore([pick_pos, Quaternion.IDENTITY, false, fx.charges])
+	await _wait(0.2)
 	game.h_grab(fx.pid)
 	await _wait(1.2)
 	var tgt: Array = game.hold_target(me.peer_id, fx)
@@ -216,8 +222,8 @@ func _hands_on() -> void:
 	game.h_release()
 	me.aim_pitch = -0.1
 	# カメラを台車に載せて移動撮影
-	cart.restore([film.global_position, Quaternion(Vector3.UP, PI), false])
-	film.restore([film.global_position + Vector3(0, 0.32, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
+	cart.restore([Vector3(film.global_position.x, 0, film.global_position.z), Quaternion(Vector3.UP, PI), false])
+	film.restore([cart.global_position + Vector3(0, cart.deck_top, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
 	game.host_load(film, cart)
 	await _wait(0.3)
 	var p0: Vector3 = film.global_position

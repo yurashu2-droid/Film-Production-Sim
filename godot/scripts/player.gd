@@ -18,6 +18,7 @@ var aim_yaw := 0.0
 var aim_pitch := -0.25
 var hold_dist := 1.6
 var hold_yaw := 0.0
+var hold_pitch := 0.0
 var held := 0           # 持っている物のID
 var operating := 0      # 操作中の機材のID
 var target: Node3D      # 照準が合っている物
@@ -86,7 +87,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var rel: Vector2 = (event as InputEventMouseMotion).relative
-		if operating != 0:
+		if held != 0 and operating == 0 and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_RIGHT:
+			hold_yaw = wrapf(hold_yaw - rel.x * MOUSE_SENS * 2.0, -PI, PI)
+			var prop: Node = game.props.get(held)
+			if prop and not prop.axis_lock_angular_x:
+				hold_pitch = clampf(hold_pitch - rel.y * MOUSE_SENS * 2.0, -PI * 0.48, PI * 0.48)
+		elif operating != 0:
 			game.act_aim(operating, -rel.x * MOUSE_SENS * 0.6, -rel.y * MOUSE_SENS * 0.6, 0.0)
 		else:
 			aim_yaw = wrapf(aim_yaw - rel.x * MOUSE_SENS, -PI, PI)
@@ -105,7 +111,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if operating != 0:
 				game.act_aim(operating, 0.0, 0.0, float(wheel))
 			elif held != 0:
-				hold_dist = clampf(hold_dist + wheel * 0.2, 0.9, 4.0)
+				hold_dist = clampf(hold_dist + wheel * 0.2, 1.6, 4.0)
 		elif mb.button_index == MOUSE_BUTTON_LEFT and operating == 0:
 			if held != 0:
 				game.act_release()
@@ -136,6 +142,10 @@ func _physics_process(delta: float) -> void:
 	if not blocked:
 		iv = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
 	var op: Node3D = game.props.get(operating) if operating != 0 else null
+	var carried: Node = game.props.get(held)
+	var pose := ""
+	if carried:
+		pose = "onehand_" if carried.kind in CastVisual.ONE_HAND_PROPS else "carry_"
 
 	if op and op.kind == "camera":
 		# カメラ操作中は台車のようにカメラごと動く。自分はカメラの後ろに付く
@@ -147,13 +157,13 @@ func _physics_process(delta: float) -> void:
 		var back := 0.9
 		var stand: Vector3 = op.global_position
 		if op.rider_of != 0:
-			back = 1.35            # 台車の後ろに立つ
+			back = maxf(1.35, game.props[op.rider_of].deck_half.y + 0.5) # 台車の後ろに立つ
 			stand.y -= float(game.props[op.rider_of].deck_top)
 		global_position = stand - f * back
 		velocity = Vector3.ZERO
 		vis.rotation.y = atan2(f.x, f.z)
 		aim_yaw = atan2(-f.x, -f.z)
-		vis.play("idle")
+		vis.play(pose + "idle")
 	else:
 		if op:
 			iv = Vector2.ZERO
@@ -181,13 +191,13 @@ func _physics_process(delta: float) -> void:
 			vis.rotation.y = lerp_angle(vis.rotation.y, atan2(face.x, face.z), clampf(delta * 12.0, 0.0, 1.0))
 		var hs := Vector2(velocity.x, velocity.z).length()
 		if not is_on_floor():
-			vis.play("jump")
+			vis.play(pose + "jump")
 		elif hs > 4.4:
-			vis.play("run")
+			vis.play(pose + "run")
 		elif hs > 0.4:
-			vis.play("walk")
+			vis.play(pose + "walk")
 		else:
-			vis.play("idle")
+			vis.play(pose + "idle")
 
 	head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
 	if _face_t > 0.0:
@@ -203,7 +213,7 @@ func _physics_process(delta: float) -> void:
 	_send_t -= delta
 	if _send_t <= 0.0 and Net.has_peers():
 		_send_t = 0.05
-		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, vis.current + "|" + vis.face)
+		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
 
 
 # 軽い物は歩いて押しのけられる（物理はホストだけが持つので、今はホスト側のみ）
@@ -241,13 +251,14 @@ func _find_target() -> void:
 
 # ---- 他の参加者の画面での表示 ----
 
-func apply_net(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, anim_name: String) -> void:
+func apply_net(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, h_pitch: float, anim_name: String) -> void:
 	_net = [pos, body_yaw, anim_name.get_slice("|", 0)]
 	vis.set_face(anim_name.get_slice("|", 1))
 	aim_yaw = a_yaw
 	aim_pitch = a_pitch
 	hold_dist = h_dist
 	hold_yaw = h_yaw
+	hold_pitch = h_pitch
 
 
 func _follow_net(delta: float) -> void:

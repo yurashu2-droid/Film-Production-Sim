@@ -4,6 +4,7 @@ extends Node3D
 
 const SCALE := 0.62
 const LOOPS := ["idle", "walk", "run", "crouch_idle", "crouch_walk"]
+const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "crown", "fish"]
 const FACE_BONES := ["FACE", "EYE.", "LID.", "PUPIL.", "MOUTH.", "JAW"]
 
 var tag := ""
@@ -34,6 +35,7 @@ func setup(cast_tag: String) -> void:
 	if _head >= 0:
 		height = (skel.get_bone_global_rest(_head).origin.y + 0.5) * SCALE
 	_setup_face()
+	_setup_carry()
 	play("idle")
 	_blink = randf_range(1.0, 4.0)
 
@@ -69,6 +71,35 @@ func _setup_face() -> void:
 		lib.add_animation(a.trim_prefix(prefix), anim.get_animation(a))
 	face_anim.add_animation_library("", lib)
 	face_anim.play("neutral")
+
+
+# 既存の「手を伸ばす」動きから腕だけを保持し、歩行・ジャンプの脚と体は残す。
+# 生成したクリップ名をそのまま同期・録画できるので、別の状態同期は要らない。
+func _setup_carry() -> void:
+	if has("carry_idle") or not has("grab"):
+		return
+	var grab := anim.get_animation(tag + "_grab")
+	var lib := anim.get_animation_library("")
+	for base: String in ["idle", "walk", "run", "jump"]:
+		for mode: String in ["carry", "onehand"]:
+			var clip := anim.get_animation(tag + "_" + base).duplicate(true) as Animation
+			for t in range(clip.get_track_count()):
+				var bone := str(clip.track_get_path(t)).get_slice(":", 1)
+				var side := bone.right(1)
+				var is_arm := bone.begins_with("UPPER_ARM.") or bone.begins_with("FOREARM.") or bone.begins_with("HAND.") or bone.begins_with("FINGERS.") or bone.begins_with("THUMB.") or bone.begins_with("JAW_UP.") or bone.begins_with("JAW_DOWN.")
+				if not is_arm or (mode == "onehand" and side != "R") or clip.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+					continue
+				var source_path := str(clip.track_get_path(t)).trim_suffix("L") + "R" if side == "L" else str(clip.track_get_path(t))
+				var source := grab.find_track(NodePath(source_path), Animation.TYPE_ROTATION_3D)
+				if source < 0:
+					continue
+				var q := grab.rotation_track_interpolate(source, grab.length * 0.45)
+				if side == "L":
+					q = Quaternion(q.x, -q.y, -q.z, q.w) # 左右対称の骨の構え
+				while clip.track_get_key_count(t) > 0:
+					clip.track_remove_key(t, 0)
+				clip.rotation_track_insert_key(t, 0.0, q)
+			lib.add_animation(tag + "_" + mode + "_" + base, clip)
 
 
 func has(a: String) -> bool:
@@ -126,3 +157,11 @@ func chest_pos() -> Vector3:
 	if _body < 0:
 		return global_position + Vector3(0, height * 0.55, 0)
 	return skel.global_transform * (skel.get_bone_global_pose(_body).origin + Vector3(0, 0.75, 0))
+
+
+func grip_pos(one_hand: bool) -> Vector3:
+	var right := skel.get_bone_global_pose(skel.find_bone("HAND.R")).origin
+	if one_hand:
+		return skel.global_transform * right
+	var left := skel.get_bone_global_pose(skel.find_bone("HAND.L")).origin
+	return skel.global_transform * ((left + right) * 0.5)

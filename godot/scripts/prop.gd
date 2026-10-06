@@ -143,7 +143,7 @@ func _drive_hold() -> void:
 		return
 	var want: Vector3 = tgt[0]
 	var want_yaw: float = tgt[1]
-	var want_basis := Basis(Vector3.UP, want_yaw)
+	var want_basis := Basis.from_euler(Vector3(float(tgt[3]), want_yaw, 0.0))
 	var origin_goal: Vector3 = want - want_basis * center
 	origin_goal.y = maxf(origin_goal.y, float(tgt[2]) + 0.03)
 	var max_speed := clampf(16.0 / (1.0 + mass * 0.07), 2.2, 11.0)

@@ -230,10 +230,10 @@ func _apply_roster() -> void:
 
 
 @rpc("any_peer", "call_remote", "unreliable")
-func rx_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, anim_name: String) -> void:
+func rx_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, h_pitch: float, anim_name: String) -> void:
 	var pl: Node = players.get(multiplayer.get_remote_sender_id())
 	if pl and not pl.is_local:
-		pl.apply_net(pos, body_yaw, a_yaw, a_pitch, h_dist, h_yaw, anim_name)
+		pl.apply_net(pos, body_yaw, a_yaw, a_pitch, h_dist, h_yaw, h_pitch, anim_name)
 
 
 # ---- 各参加者の操作（ホストへの依頼） ----
@@ -338,10 +338,14 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 	var pl: CharacterBody3D = players.get(holder)
 	if pl == null:
 		return null
-	var dist := maxf(pl.hold_dist, prop.hold_min)
 	var fwd: Vector3 = pl.flat_forward() if prop.kind == "spot" or prop.rolls else pl.aim_forward()
-	var pos: Vector3 = pl.global_position + Vector3(0, 1.15, 0) + fwd * dist
-	return [pos, pl.aim_yaw + pl.hold_yaw + prop.carry_yaw, pl.global_position.y]
+	var pitch: float = 0.0 if prop.axis_lock_angular_x else pl.hold_pitch
+	var basis := Basis.from_euler(Vector3(pitch, pl.aim_yaw + pl.hold_yaw + prop.carry_yaw, 0))
+	# 手から持ち物の手前の面までを合わせる。回転しても、大きい箱が体へ入り込まない。
+	var depth: float = (basis.inverse() * fwd).abs().dot(prop.half)
+	var grip: Vector3 = pl.vis.grip_pos(prop.kind in pl.vis.ONE_HAND_PROPS)
+	var pos: Vector3 = grip + fwd * (depth + maxf(0.0, pl.hold_dist - 1.6))
+	return [pos, pl.aim_yaw + pl.hold_yaw + prop.carry_yaw, pl.global_position.y, pitch]
 
 
 func _held_by(who: int) -> RigidBody3D:
@@ -1104,6 +1108,7 @@ func ev(n: String, a: Array) -> void:
 				_hold_exception(pl, pl.held, false)
 				pl.held = a[1]
 				pl.hold_yaw = 0.0
+				pl.hold_pitch = 0.0
 				_hold_exception(pl, pl.held, true)
 		"operate":
 			var pl2: Node = players.get(a[0])
@@ -1310,7 +1315,10 @@ func h_sample() -> void:
 		plan["boomflat"] = [Vector3(-2.7, 0, -4.4)]
 	if has.has("dolly"):
 		plan["dolly"] = [Vector3(0, 0, 6.2)]
-		plan["camera"] = [Vector3(0, 0.32, 6.2)]
+		for p: RigidBody3D in props.values():
+			if p.kind == "dolly":
+				plan["camera"] = [Vector3(0, p.deck_top, 6.2)]
+				break
 	else:
 		plan["camera"] = [Vector3(0, 0, 6.2)]
 	var used := {}

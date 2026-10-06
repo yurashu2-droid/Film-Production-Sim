@@ -39,11 +39,11 @@ const DEFS := {
 	"greenscreen": {"dir": "gear", "file": "GS06_Portable_Greenscreen", "label": "グリーンバック", "mass": 10.0,
 		"shapes": [[Vector3(0, 1.05, 0), Vector3(2.8, 2.0, 0.06), false],
 			[Vector3(-1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false], [Vector3(1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false]]},
-	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0, "rolls": true,
+	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0, "rolls": true, "scale": 2.0,
 		"shapes": [[Vector3(0, 0.16, 0), Vector3(0.92, 0.32, 1.2), false]]},
 	"boom": {"dir": "gear", "file": "B05_Boom_Microphone_Kit", "label": "ガンマイク", "mass": 2.0, "extra": "B05_Optional_Windjammer"},
 	"recorder": {"dir": "gear", "file": "AR04_Field_Recorder", "label": "録音機", "mass": 1.0},
-	"carton": {"dir": "gear", "file": "carton", "label": "段ボール箱", "mass": 1.5},
+	"carton": {"dir": "gear", "file": "carton", "label": "段ボール箱", "mass": 1.5, "scale": 2.0},
 }
 
 var game: Node
@@ -210,13 +210,16 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 	p.add_child(p.visual)
 	if d.has("extra"):
 		p.visual.add_child((load("res://assets/%s/%s.glb" % [d.get("dir", "props"), d["extra"]]) as PackedScene).instantiate())
+	var size_scale: float = d.get("scale", 1.0)
 	var box := merged_aabb(p.visual)
+	p.visual.scale *= size_scale
+	box = AABB(box.position * size_scale, box.size * size_scale)
 	p.center = box.get_center()
 	p.half = box.size * 0.5
 	p.hold_min = maxf(1.1, p.half.z + 0.95)
 	if d.has("shapes"):
 		for s: Array in d["shapes"]:
-			_shape(p, s[0], s[1], s[2])
+			_shape(p, s[0] * size_scale, s[1] * size_scale, s[2])
 	else:
 		_shape(p, box.get_center(), box.size * 0.97, false)
 	if p.mass >= 20.0:
@@ -225,13 +228,13 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 		# 台車：倒れず、押す人のほうへ取っ手を向けて転がす
 		p.rolls = true
 		p.carry_yaw = PI
-		p.hold_min = 1.5
+		p.hold_min = maxf(1.5, p.half.z + 0.65)
 		p.axis_lock_angular_x = true
 		p.axis_lock_angular_z = true
 		p.angular_damp = 4.0
 		p.linear_damp = 1.5
-		p.deck_top = 0.32
-		p.deck_half = Vector2(0.5, 0.66)
+		p.deck_top = 0.32 * size_scale
+		p.deck_half = Vector2(0.5, 0.66) * size_scale
 	return _register(p, pos, yaw)
 
 
@@ -524,7 +527,7 @@ func _spawn_storage() -> void:
 	spawn("recorder", Vector3(-5.4, 0, 10.6), y)
 	spawn("boom", Vector3(-4.8, 0, 10.6), y)
 	for i in 4:
-		spawn("carton", Vector3(-6.8 - (i % 2) * 0.55, 0.02, 4.4 + (i / 2) * 0.6), y + i * 0.3)
+		spawn("carton", Vector3(-6.8 - (i % 2) * 1.2, 0.02, 4.4 + (i / 2) * 1.3), y)
 	var small := ["rose", "letter", "crown", "fish", "filmcan", "tape", "basket"]
 	for i in small.size():
 		spawn(small[i], Vector3(-10.2 - 0.0, 0.02, 6.2 + i * 0.6), y)

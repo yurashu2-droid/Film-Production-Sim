@@ -33,6 +33,7 @@ func _process(_delta: float) -> void:
 		"age": Time.get_ticks_msec() / 1000.0 - clap.grab_time, "state": game.state,
 		"host_collision": clap.get_collision_exceptions().has(game.local_player()),
 		"client_collision": clap.get_collision_exceptions().has(client),
+		"pitch": client.hold_pitch, "animation": client.vis.current,
 	})
 
 
@@ -110,6 +111,15 @@ func _run() -> void:
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
 	var ok: bool = me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
+	me.hold_yaw = 0.45
+	me.hold_pitch = 0.35
+	await _wait(0.8)
+	var carry_sync: Dictionary = await _ask_host()
+	var rotated := Basis.from_euler(Vector3(me.hold_pitch, me.aim_yaw + me.hold_yaw, 0.0))
+	var carry_ok: bool = absf(carry_sync.get("pitch", -10.0) - 0.35) < 0.01 and carry_sync.get("animation", "").begins_with("onehand_")
+	carry_ok = carry_ok and fx.global_basis.orthonormalized().get_rotation_quaternion().angle_to(rotated.get_rotation_quaternion()) < 0.2
+	print("CARRY_NET_OK" if carry_ok else "CARRY_NET_FAIL", " ", carry_sync)
+	ok = ok and carry_ok
 	game.act_release()
 	await _wait(0.5)
 	ok = ok and me.held == 0
