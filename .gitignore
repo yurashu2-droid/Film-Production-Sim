@@ -1,0 +1,14 @@
+# ゲーム本体だけを載せる。制作途中の素材や資料、Godot本体は載せない
+/*
+!/.gitignore
+!/README.md
+!/.gitattributes
+!/godot/
+!/play_solo.bat
+!/play_host.bat
+!/play_join.bat
+!/run_tests.sh
+
+# Godotが自動で作るもの
+godot/.godot/
+godot/tests/shots/

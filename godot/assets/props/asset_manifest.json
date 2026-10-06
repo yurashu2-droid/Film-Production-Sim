@@ -1,0 +1,2729 @@
+{
+  "pack": "filmcrew_godot_asset_handoff_v01",
+  "created": "2026-10-06",
+  "status": "Unmodified model reuse and measured metadata. Engine import, physics, colliders, breakage and gameplay have not been implemented or tested here.",
+  "coordinates": {
+    "units": "metres",
+    "axis_order": [
+      "X width",
+      "Y height",
+      "Z depth"
+    ],
+    "gltf_to_godot": "Identity orientation and scale for models",
+    "blender_manifest_to_godot": "(x,y,z) -> (x,z,-y). Do not apply this conversion again to the GLB.",
+    "source_dimensions_caution": "Old manifests measure Blender-oriented object boxes; this pack measures actual transformed GLB vertices. Axis order differs and bevel/rotation can change bounds by a few millimetres."
+  },
+  "core_count": 18,
+  "optional_character_count": 1,
+  "assets": [
+    {
+      "id": "camera",
+      "label": "camera",
+      "role": "Carry / point / film using a separate engine Camera3D",
+      "file": "models/core/camera.glb",
+      "bytes": 402896,
+      "sha256": "785ccd35e9ffe526e0eba674b5a00caded9d9287271bba27ba7c9d5c999446f5",
+      "source_relative_path": "props/exports/camera.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.2925,
+          0.0,
+          -0.3745
+        ],
+        "max": [
+          0.52,
+          0.6465,
+          0.5835
+        ],
+        "size": [
+          0.8125,
+          0.6465,
+          0.958
+        ],
+        "center": [
+          0.11375,
+          0.32325,
+          0.1045
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 4796,
+      "mesh_node_count": 38,
+      "material_names": [
+        "paint_teal",
+        "rubber",
+        "orange_grip",
+        "steel",
+        "screen_aqua",
+        "paint_cream",
+        "lens_blue",
+        "red_control"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "camera",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Shoulder or handheld film camera with folding side monitor and carry handle.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "camera_grip_mount",
+          "position_m": [
+            0.0,
+            0.0475,
+            -0.04
+          ],
+          "source_extras": {
+            "interaction": "Shoulder attach / tripod mount"
+          }
+        },
+        {
+          "name": "camera_hand_hold",
+          "position_m": [
+            0.0,
+            0.6025,
+            -0.065
+          ],
+          "source_extras": {
+            "interaction": "Carry with one or two hands"
+          }
+        },
+        {
+          "name": "camera_lens_aim",
+          "position_m": [
+            0.0,
+            0.2825,
+            0.59
+          ],
+          "source_extras": {
+            "interaction": "Virtual filming axis",
+            "axis_local": "-Y"
+          }
+        },
+        {
+          "name": "camera_monitor_pivot",
+          "position_m": [
+            0.21,
+            0.3925,
+            -0.18
+          ],
+          "source_extras": {
+            "interaction": "Fold monitor about Z",
+            "axis_local": "Z",
+            "range_degrees": "0..110"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.11375,
+              0.32325,
+              0.1045
+            ],
+            "size_m": [
+              0.8125,
+              0.6465,
+              0.958
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original",
+      "engine_aim_adapter": {
+        "rotation_degrees": [
+          0,
+          180,
+          0
+        ],
+        "reason": "Engine Camera3D / SpotLight3D aim local -Z; visible lens/emitter points +Z",
+        "marker": "camera_lens_aim"
+      }
+    },
+    {
+      "id": "spotlight",
+      "label": "spotlight",
+      "role": "Move / aim using a separate engine SpotLight3D",
+      "file": "models/core/spotlight.glb",
+      "bytes": 426972,
+      "sha256": "6bd6285f5d0d74eb43034bcf1c992a4fcd84c14a83f1a252e107e391f644c8fd",
+      "source_relative_path": "props/exports/spotlight.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.4696608,
+          0.0,
+          -0.2957988
+        ],
+        "max": [
+          0.4696608,
+          2.1360191,
+          0.5250001
+        ],
+        "size": [
+          0.9393216,
+          2.1360191,
+          0.8207989
+        ],
+        "center": [
+          0.0,
+          1.0680096,
+          0.1146006
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 5248,
+      "mesh_node_count": 36,
+      "material_names": [
+        "paint_teal",
+        "orange_grip",
+        "rubber",
+        "steel",
+        "paint_cream",
+        "warm_lamp"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast. Emissive lamp mesh is visual only; add a real engine light at light_emitter_socket.",
+      "markers": [
+        {
+          "name": "spotlight",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Compact practical spotlight; folding tripod, pan/tilt head and four barn doors.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "light_carry_grip",
+          "position_m": [
+            0.0,
+            0.935,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Grab / move stand"
+          }
+        },
+        {
+          "name": "light_leg_0_fold",
+          "position_m": [
+            0.0649519,
+            0.415,
+            -0.0375
+          ],
+          "source_extras": {
+            "interaction": "Fold stand leg",
+            "axis_local": "Y",
+            "fold_degrees": 65
+          }
+        },
+        {
+          "name": "light_leg_1_fold",
+          "position_m": [
+            -0.0649519,
+            0.415,
+            -0.0375
+          ],
+          "source_extras": {
+            "interaction": "Fold stand leg",
+            "axis_local": "Y",
+            "fold_degrees": 65
+          }
+        },
+        {
+          "name": "light_leg_2_fold",
+          "position_m": [
+            0.0,
+            0.415,
+            0.075
+          ],
+          "source_extras": {
+            "interaction": "Fold stand leg",
+            "axis_local": "Y",
+            "fold_degrees": 65
+          }
+        },
+        {
+          "name": "light_pan_pivot",
+          "position_m": [
+            0.0,
+            1.585,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Pan head",
+            "axis_local": "Z",
+            "range_degrees": "-180..180"
+          }
+        },
+        {
+          "name": "light_tilt_pivot",
+          "position_m": [
+            0.0,
+            1.825,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Tilt light",
+            "axis_local": "X",
+            "range_degrees": "-60..60"
+          }
+        },
+        {
+          "name": "light_bottom_barn_pivot",
+          "position_m": [
+            0.0,
+            1.62,
+            0.18
+          ],
+          "source_extras": {
+            "interaction": "Fold barn door",
+            "axis_local": "X"
+          }
+        },
+        {
+          "name": "light_emitter_socket",
+          "position_m": [
+            0.0,
+            1.825,
+            0.22
+          ],
+          "source_extras": {
+            "interaction": "Engine spotlight origin",
+            "axis_local": "-Y"
+          }
+        },
+        {
+          "name": "light_left_barn_pivot",
+          "position_m": [
+            -0.205,
+            1.825,
+            0.18
+          ],
+          "source_extras": {
+            "interaction": "Fold barn door",
+            "axis_local": "Z"
+          }
+        },
+        {
+          "name": "light_right_barn_pivot",
+          "position_m": [
+            0.205,
+            1.825,
+            0.18
+          ],
+          "source_extras": {
+            "interaction": "Fold barn door",
+            "axis_local": "Z"
+          }
+        },
+        {
+          "name": "light_top_barn_pivot",
+          "position_m": [
+            0.0,
+            2.0300002,
+            0.18
+          ],
+          "source_extras": {
+            "interaction": "Fold barn door",
+            "axis_local": "X"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              1.0680096,
+              0.1146006
+            ],
+            "size_m": [
+              0.9393216,
+              2.1360191,
+              0.8207989
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original",
+      "engine_aim_adapter": {
+        "rotation_degrees": [
+          0,
+          180,
+          0
+        ],
+        "reason": "Engine Camera3D / SpotLight3D aim local -Z; visible lens/emitter points +Z",
+        "marker": "light_emitter_socket"
+      }
+    },
+    {
+      "id": "fx_box",
+      "label": "fx_box",
+      "role": "Game-only fictional effects cue button",
+      "file": "models/core/fx_box.glb",
+      "bytes": 400460,
+      "sha256": "e5a6388a101eba2cf30811a0fd16ed7271e39077aaa05ce07d6a341f7f3bf7ee",
+      "source_relative_path": "props/exports/fx_box.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.33,
+          0.0,
+          -0.1828
+        ],
+        "max": [
+          0.33,
+          0.654,
+          0.2925
+        ],
+        "size": [
+          0.66,
+          0.654,
+          0.4753
+        ],
+        "center": [
+          0.0,
+          0.327,
+          0.05485
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 5508,
+      "mesh_node_count": 32,
+      "material_names": [
+        "paint_cream",
+        "paint_teal",
+        "rubber",
+        "screen_aqua",
+        "orange_grip",
+        "red_control"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "fx_box",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Comically oversized fictional cartoon effects selector. No real-world device design.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "fx_carry_grip",
+          "position_m": [
+            0.0,
+            0.6289999,
+            -0.025
+          ],
+          "source_extras": {
+            "interaction": "Carry with handle"
+          }
+        },
+        {
+          "name": "fx_go_button_pivot",
+          "position_m": [
+            0.166,
+            0.198,
+            0.235
+          ],
+          "source_extras": {
+            "interaction": "Press effect button",
+            "axis_local": "Y",
+            "travel_metres": 0.015
+          }
+        },
+        {
+          "name": "fx_intensity_dial_pivot",
+          "position_m": [
+            -0.115,
+            0.257,
+            0.225
+          ],
+          "source_extras": {
+            "interaction": "Turn intensity dial",
+            "axis_local": "Y",
+            "range_degrees": "-130..130",
+            "default_setting": "middle"
+          }
+        },
+        {
+          "name": "fx_vfx_socket",
+          "position_m": [
+            0.0,
+            0.493,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Game-only visual feedback socket"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.327,
+              0.05485
+            ],
+            "size_m": [
+              0.66,
+              0.654,
+              0.4753
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original"
+    },
+    {
+      "id": "scenic_flat",
+      "label": "scenic_flat",
+      "role": "Cheap painted cardboard wall; optional two-panel topple",
+      "file": "models/core/scenic_flat.glb",
+      "bytes": 283748,
+      "sha256": "71b8879ce4fe6211ad7615a9864c6151522ff0ae80e358d8a8ed7af270ab2730",
+      "source_relative_path": "props/exports/scenic_flat.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.915,
+          0.0,
+          -0.575
+        ],
+        "max": [
+          0.915,
+          1.087,
+          0.083
+        ],
+        "size": [
+          1.83,
+          1.087,
+          0.658
+        ],
+        "center": [
+          0.0,
+          0.5435,
+          -0.246
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 3352,
+      "mesh_node_count": 30,
+      "material_names": [
+        "orange_grip",
+        "cardboard",
+        "paper_edge",
+        "paint_cream",
+        "scenic_blue"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "scenic_flat",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Two hinged cardboard rooftop parapet panels with painted face and raw reverse.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "flat_grip",
+          "position_m": [
+            -0.45,
+            1.0555,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Carry set panel by top rail"
+          }
+        },
+        {
+          "name": "flat_panel_0_hinge",
+          "position_m": [
+            -0.9,
+            0.0055,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Fold scenic panel",
+            "axis_local": "Z",
+            "range_degrees": "0..120"
+          }
+        },
+        {
+          "name": "flat_brace_0_pivot",
+          "position_m": [
+            -0.45,
+            0.7455,
+            -0.078
+          ],
+          "source_extras": {
+            "interaction": "Fold triangular support",
+            "axis_local": "X"
+          }
+        },
+        {
+          "name": "flat_panel_1_hinge",
+          "position_m": [
+            0.0,
+            0.0055,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Fold scenic panel",
+            "axis_local": "Z",
+            "range_degrees": "0..120"
+          }
+        },
+        {
+          "name": "flat_brace_1_pivot",
+          "position_m": [
+            0.45,
+            0.7455,
+            -0.078
+          ],
+          "source_extras": {
+            "interaction": "Fold triangular support",
+            "axis_local": "X"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "Frozen RigidBody3D per panel, or one body for portable whole flat",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "panel_0",
+            "center_m": [
+              -0.45,
+              0.551,
+              0.018
+            ],
+            "size_m": [
+              0.93,
+              1.072,
+              0.13
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "panel_1",
+            "center_m": [
+              0.45,
+              0.551,
+              0.018
+            ],
+            "size_m": [
+              0.93,
+              1.072,
+              0.13
+            ]
+          }
+        ],
+        "notes": "Rear braces are visual or separate small boxes if needed. Do not make one full AABB block over the empty space behind the flat."
+      },
+      "breakable_groups_proposal": [
+        {
+          "id": "flat_panel_0",
+          "mesh_node_names": [
+            "flat_brace_foot",
+            "flat_diagonal_brace",
+            "flat_cap_rail_0",
+            "flat_cardboard_panel_0",
+            "flat_horizontal_mortar",
+            "flat_horizontal_mortar.001",
+            "flat_painted_front_0",
+            "flat_rear_crossbar",
+            "flat_rear_timber",
+            "flat_rear_timber.001",
+            "flat_reverse_stamp",
+            "flat_vertical_mortar",
+            "flat_vertical_mortar.001",
+            "flat_vertical_mortar.002"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "panel_0",
+            "center_m": [
+              -0.45,
+              0.551,
+              0.018
+            ],
+            "size_m": [
+              0.93,
+              1.072,
+              0.13
+            ]
+          },
+          "on_cue": "Optional whole-panel topple; preserve each panel assembly. This is not simulated cardboard fracture."
+        },
+        {
+          "id": "flat_panel_1",
+          "mesh_node_names": [
+            "flat_brace_foot.001",
+            "flat_diagonal_brace.001",
+            "flat_cap_rail_1",
+            "flat_cardboard_panel_1",
+            "flat_horizontal_mortar.002",
+            "flat_horizontal_mortar.003",
+            "flat_painted_front_1",
+            "flat_rear_crossbar.001",
+            "flat_rear_timber.002",
+            "flat_rear_timber.003",
+            "flat_reverse_stamp.001",
+            "flat_vertical_mortar.003",
+            "flat_vertical_mortar.004",
+            "flat_vertical_mortar.005"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "panel_1",
+            "center_m": [
+              0.45,
+              0.551,
+              0.018
+            ],
+            "size_m": [
+              0.93,
+              1.072,
+              0.13
+            ]
+          },
+          "on_cue": "Optional whole-panel topple; preserve each panel assembly. This is not simulated cardboard fracture."
+        }
+      ],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original"
+    },
+    {
+      "id": "foam_rock",
+      "label": "foam_rock",
+      "role": "Portable soft-looking comedy debris",
+      "file": "models/core/foam_rock.glb",
+      "bytes": 50476,
+      "sha256": "ba7a4327f5d409b042aa3ae73d0e94ddb87266af8e7d3278543bc29efca29fe4",
+      "source_relative_path": "props/exports/foam_rock.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.6155093,
+          0.0,
+          -0.25
+        ],
+        "max": [
+          0.5231872,
+          0.69,
+          0.368673
+        ],
+        "size": [
+          1.1386965,
+          0.69,
+          0.618673
+        ],
+        "center": [
+          -0.0461611,
+          0.345,
+          0.0593365
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 482,
+      "mesh_node_count": 2,
+      "material_names": [
+        "paper_edge",
+        "foam_gray",
+        "foam_light"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "foam_rock",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Soft faceted foam scenery boulder with stable flat base and flattened back.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "foam_grip",
+          "position_m": [
+            0.0,
+            0.28,
+            -0.15
+          ],
+          "source_extras": {
+            "interaction": "Carry / throw soft scenery"
+          }
+        },
+        {
+          "name": "foam_top_contact",
+          "position_m": [
+            0.0,
+            0.68,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Optional actor pose / landing reference"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              -0.0461611,
+              0.345,
+              0.0593365
+            ],
+            "size_m": [
+              1.1386965,
+              0.69,
+              0.618673
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original"
+    },
+    {
+      "id": "promise_rose",
+      "label": "promise_rose",
+      "role": "Confession handoff / actor objective",
+      "file": "models/core/promise_rose.glb",
+      "bytes": 280916,
+      "sha256": "029f02ef9d3b1bd4704e8c0447de8ace24d803c1846df7e9a4eb62bec9ad33cf",
+      "source_relative_path": "props/exports/promise_rose.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.1653043,
+          0.0004929,
+          -0.1210473
+        ],
+        "max": [
+          0.1602404,
+          0.5481146,
+          0.1314467
+        ],
+        "size": [
+          0.3255447,
+          0.5476217,
+          0.252494
+        ],
+        "center": [
+          -0.0025319,
+          0.2743038,
+          0.0051997
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 2740,
+      "mesh_node_count": 20,
+      "material_names": [
+        "leaf_green",
+        "rose_light",
+        "rose_pink"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "promise_rose",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset": 1,
+            "description": "Original stylized paper rose, the reunion promise prop; broad leaves and faceted petals.",
+            "unit": "metre",
+            "prototype": true,
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "rose_flower_tip",
+          "position_m": [
+            0.03,
+            0.5557746,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Story marker; held rose framing"
+          }
+        },
+        {
+          "name": "rose_hand_grip",
+          "position_m": [
+            0.006,
+            0.1057746,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "Actor hand attach; promise / offer / catch"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              -0.0025319,
+              0.2743038,
+              0.0051997
+            ],
+            "size_m": [
+              0.3255447,
+              0.5476217,
+              0.252494
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "core_original"
+    },
+    {
+      "id": "P001",
+      "label": "封蝋つき恋文",
+      "role": "Love-letter alternative confession prop",
+      "file": "models/hand_props/P001_love_letter.glb",
+      "bytes": 66876,
+      "sha256": "415538d0bc2f9b15bf5b6db214fae0654fb2dc8c14e54c4c8facbdef065dad3a",
+      "source_relative_path": "asset_expansion/hand_props/exports/P001_love_letter.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.14,
+          0.0,
+          -0.008
+        ],
+        "max": [
+          0.14,
+          0.19,
+          0.0315
+        ],
+        "size": [
+          0.28,
+          0.19,
+          0.0395
+        ],
+        "center": [
+          0.0,
+          0.095,
+          0.01175
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 932,
+      "mesh_node_count": 4,
+      "material_names": [
+        "cream",
+        "white",
+        "gold",
+        "red"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P001_love_letter",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P001",
+            "name_ja": "封蝋つき恋文",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "渡す／読む",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P001_grip",
+          "position_m": [
+            0.08,
+            0.095,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "渡す／読む / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.095,
+              0.01175
+            ],
+            "size_m": [
+              0.28,
+              0.19,
+              0.0395
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P027",
+      "label": "紙の王冠",
+      "role": "Paper crown for low-budget royalty",
+      "file": "models/hand_props/P027_paper_crown.glb",
+      "bytes": 153076,
+      "sha256": "ccf75878f63f5dda56b53b93da628802368218cfde1a4c8cacad805f6e2b41dc",
+      "source_relative_path": "asset_expansion/hand_props/exports/P027_paper_crown.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.15089,
+          0.0,
+          -0.1417407
+        ],
+        "max": [
+          0.15089,
+          0.1889175,
+          0.1417407
+        ],
+        "size": [
+          0.30178,
+          0.1889175,
+          0.2834814
+        ],
+        "center": [
+          0.0,
+          0.0944587,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 2016,
+      "mesh_node_count": 13,
+      "material_names": [
+        "gold",
+        "pink"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P027_paper_crown",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P027",
+            "name_ja": "紙の王冠",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "かぶる／渡す",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P027_grip",
+          "position_m": [
+            0.13,
+            0.05,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "かぶる／渡す / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.0944587,
+              0.0
+            ],
+            "size_m": [
+              0.30178,
+              0.1889175,
+              0.2834814
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P039",
+      "label": "ゴムの魚",
+      "role": "Rubber-fish junk prop / comic mistake",
+      "file": "models/hand_props/P039_rubber_fish.glb",
+      "bytes": 284556,
+      "sha256": "3e0d44df23125b209c6b039548f50e0ac99d30f78ab75dca7d4c136bb819fadc",
+      "source_relative_path": "asset_expansion/hand_props/exports/P039_rubber_fish.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.23,
+          0.0,
+          -0.05711
+        ],
+        "max": [
+          0.155,
+          0.1804455,
+          0.05711
+        ],
+        "size": [
+          0.385,
+          0.1804455,
+          0.11422
+        ],
+        "center": [
+          -0.0375,
+          0.0902228,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 3920,
+      "mesh_node_count": 19,
+      "material_names": [
+        "cream",
+        "aqua",
+        "teal",
+        "rubber"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P039_rubber_fish",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P039",
+            "name_ja": "ゴムの魚",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "持つ／渡す",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P039_grip",
+          "position_m": [
+            -0.12,
+            0.0712177,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "持つ／渡す / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              -0.0375,
+              0.0902228,
+              0.0
+            ],
+            "size_m": [
+              0.385,
+              0.1804455,
+              0.11422
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P051",
+      "label": "カチンコ",
+      "role": "Clapperboard / take-start prop",
+      "file": "models/hand_props/P051_clapperboard.glb",
+      "bytes": 199748,
+      "sha256": "1df67bd05e7d7e6a7b746066efeb1384b1bb35239029de2c9da4069915c69b93",
+      "source_relative_path": "asset_expansion/hand_props/exports/P051_clapperboard.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.164,
+          0.0,
+          -0.0225
+        ],
+        "max": [
+          0.155,
+          0.3293729,
+          0.023
+        ],
+        "size": [
+          0.319,
+          0.3293729,
+          0.0455
+        ],
+        "center": [
+          -0.0045,
+          0.1646865,
+          0.00025
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 2744,
+      "mesh_node_count": 18,
+      "material_names": [
+        "cream",
+        "rubber",
+        "white",
+        "steel"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P051_clapperboard",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P051",
+            "name_ja": "カチンコ",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "開く／閉じる演技",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P051_grip",
+          "position_m": [
+            0.11,
+            0.09,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "開く／閉じる演技 / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              -0.0045,
+              0.1646865,
+              0.00025
+            ],
+            "size_m": [
+              0.319,
+              0.3293729,
+              0.0455
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P057",
+      "label": "丸いフィルム缶",
+      "role": "Film-can portable junk",
+      "file": "models/hand_props/P057_film_can.glb",
+      "bytes": 109360,
+      "sha256": "ac34be3f73884e1156b8cc6a6ce10b45864bdbe46be8f900a4f6a544ef5317d1",
+      "source_relative_path": "asset_expansion/hand_props/exports/P057_film_can.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.155,
+          0.0,
+          -0.155
+        ],
+        "max": [
+          0.155,
+          0.08085,
+          0.155
+        ],
+        "size": [
+          0.31,
+          0.08085,
+          0.31
+        ],
+        "center": [
+          0.0,
+          0.040425,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 1564,
+      "mesh_node_count": 5,
+      "material_names": [
+        "steel",
+        "cream",
+        "teal",
+        "rubber",
+        "silver"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P057_film_can",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P057",
+            "name_ja": "丸いフィルム缶",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "運ぶ",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P057_grip",
+          "position_m": [
+            0.0,
+            0.0305,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "運ぶ / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.040425,
+              0.0
+            ],
+            "size_m": [
+              0.31,
+              0.08085,
+              0.31
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P067",
+      "label": "養生テープロール",
+      "role": "Tape-roll portable junk",
+      "file": "models/hand_props/P067_gaffer_tape.glb",
+      "bytes": 32892,
+      "sha256": "4d795a4a8f0c8b62bba7803c3077bab611fc951d2c3a4fffaff923a577d831a6",
+      "source_relative_path": "asset_expansion/hand_props/exports/P067_gaffer_tape.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.067,
+          0.0,
+          -0.067
+        ],
+        "max": [
+          0.067,
+          0.055,
+          0.1023724
+        ],
+        "size": [
+          0.134,
+          0.055,
+          0.1693724
+        ],
+        "center": [
+          0.0,
+          0.0275,
+          0.0176862
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 540,
+      "mesh_node_count": 3,
+      "material_names": [
+        "cardboard",
+        "teal"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P067_gaffer_tape",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P067",
+            "name_ja": "養生テープロール",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "持つ",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P067_grip",
+          "position_m": [
+            0.0,
+            0.027,
+            0.053
+          ],
+          "source_extras": {
+            "interaction": "持つ / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.0275,
+              0.0176862
+            ],
+            "size_m": [
+              0.134,
+              0.055,
+              0.1693724
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P068",
+      "label": "機材用サンドバッグ",
+      "role": "Sandbag / light-stand dressing",
+      "file": "models/hand_props/P068_sandbag.glb",
+      "bytes": 351292,
+      "sha256": "4860949ad5e4b840cc8e2c1aba2834e152f326f065cde6b087a89ac38b775932",
+      "source_relative_path": "asset_expansion/hand_props/exports/P068_sandbag.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.176,
+          0.0,
+          -0.115
+        ],
+        "max": [
+          0.176,
+          0.1475365,
+          0.1174976
+        ],
+        "size": [
+          0.352,
+          0.1475365,
+          0.2324976
+        ],
+        "center": [
+          0.0,
+          0.0737682,
+          0.0012488
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 5056,
+      "mesh_node_count": 26,
+      "material_names": [
+        "woodlight",
+        "rubber",
+        "wood"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P068_sandbag",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P068",
+            "name_ja": "機材用サンドバッグ",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "運ぶ",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P068_grip",
+          "position_m": [
+            0.0,
+            0.14,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "運ぶ / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.0737682,
+              0.0012488
+            ],
+            "size_m": [
+              0.352,
+              0.1475365,
+              0.2324976
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P069",
+      "label": "小型アップルボックス",
+      "role": "Apple box / small step prop, not camera tripod",
+      "file": "models/hand_props/P069_apple_box.glb",
+      "bytes": 75060,
+      "sha256": "4da6b0646dbd00bb2d8fda213fc4c4534534ad2b604b9450f1eefd56e0ead2c7",
+      "source_relative_path": "asset_expansion/hand_props/exports/P069_apple_box.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.2,
+          0.0,
+          -0.1465
+        ],
+        "max": [
+          0.2,
+          0.182,
+          0.14935
+        ],
+        "size": [
+          0.4,
+          0.182,
+          0.29585
+        ],
+        "center": [
+          0.0,
+          0.091,
+          0.001425
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 1020,
+      "mesh_node_count": 9,
+      "material_names": [
+        "woodlight",
+        "wood",
+        "brown"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P069_apple_box",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P069",
+            "name_ja": "小型アップルボックス",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "運ぶ／積む",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P069_grip",
+          "position_m": [
+            0.0,
+            0.095,
+            0.125
+          ],
+          "source_extras": {
+            "interaction": "運ぶ／積む / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.091,
+              0.001425
+            ],
+            "size_m": [
+              0.4,
+              0.182,
+              0.29585
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "P070",
+      "label": "小道具の運搬かご",
+      "role": "Prop basket / portable junk staging",
+      "file": "models/hand_props/P070_prop_basket.glb",
+      "bytes": 342048,
+      "sha256": "22a15d4b883444eaa1928022de6e243443c4ed591ea76d67bd2c708be8df031a",
+      "source_relative_path": "asset_expansion/hand_props/exports/P070_prop_basket.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -0.186,
+          0.0,
+          -0.1305
+        ],
+        "max": [
+          0.186,
+          0.3325605,
+          0.1305
+        ],
+        "size": [
+          0.372,
+          0.3325605,
+          0.261
+        ],
+        "center": [
+          0.0,
+          0.1662802,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 4884,
+      "mesh_node_count": 31,
+      "material_names": [
+        "wood",
+        "teal",
+        "woodlight"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "P070_prop_basket",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "asset_id": "P070",
+            "name_ja": "小道具の運搬かご",
+            "prototype": true,
+            "units": "metres",
+            "main_interaction": "運ぶ",
+            "forward": "-Y",
+            "up": "+Z"
+          }
+        },
+        {
+          "name": "P070_grip",
+          "position_m": [
+            0.0,
+            0.324,
+            0.0
+          ],
+          "source_extras": {
+            "interaction": "運ぶ / provisional grip; no IK"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "RigidBody3D for grabbables, frozen until grabbed; tune in prototype",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "coarse_pickup_box",
+            "center_m": [
+              0.0,
+              0.1662802,
+              0.0
+            ],
+            "size_m": [
+              0.372,
+              0.3325605,
+              0.261
+            ]
+          }
+        ],
+        "notes": "Coarse interaction box only; it can include empty space. Do not use a concave trimesh for dynamic props."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "prototype_model_verified"
+    },
+    {
+      "id": "S007",
+      "label": "アーチ窓の壁",
+      "role": "Decorative window wall behind balcony, not a doorway",
+      "file": "models/large_sets/S007_arched_window.glb",
+      "bytes": 143108,
+      "sha256": "cbba2045f30a41ff772ed340b98eef1dade88f789f026742df3e34f1ab94d02d",
+      "source_relative_path": "asset_expansion/large_sets/exports/S007_arched_window.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -1.1,
+          0.0,
+          -0.52
+        ],
+        "max": [
+          1.1,
+          2.77,
+          0.52
+        ],
+        "size": [
+          2.2,
+          2.77,
+          1.04
+        ],
+        "center": [
+          0.0,
+          1.385,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 1692,
+      "mesh_node_count": 37,
+      "material_names": [
+        "FC_pink",
+        "FC_cream",
+        "FC_glass",
+        "FC_wood",
+        "FC_edge"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast. FC_glass is a stylized material; it is not an open window.",
+      "markers": [
+        {
+          "name": "S007_arched_window",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "purpose": "洋館や礼拝堂の窓",
+            "asset_id": "S007",
+            "name_ja": "アーチ窓の壁",
+            "units": "metres",
+            "gameplay_implemented": false
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "StaticBody3D",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "closed_window_face",
+            "center_m": [
+              0,
+              1.385,
+              0.22
+            ],
+            "size_m": [
+              2.2,
+              2.77,
+              0.28
+            ]
+          }
+        ],
+        "notes": "Decorative glazed window, not a traversable opening. Rear braces remain visual for rapid prototype. Do not place a stair access route through it."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "complete_verified"
+    },
+    {
+      "id": "S016",
+      "label": "張り出しバルコニー",
+      "role": "Confession balcony with walkable deck proposal",
+      "file": "models/large_sets/S016_balcony_module.glb",
+      "bytes": 150220,
+      "sha256": "e62117c3aebfc3a2ac950d84389f1dad073a0e0ad426b3748276a14743ac1ceb",
+      "source_relative_path": "asset_expansion/large_sets/exports/S016_balcony_module.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -1.3,
+          0.0059608,
+          -0.7
+        ],
+        "max": [
+          1.3,
+          1.9108422,
+          0.7
+        ],
+        "size": [
+          2.6,
+          1.9048814,
+          1.4
+        ],
+        "center": [
+          0.0,
+          0.9584015,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 2052,
+      "mesh_node_count": 19,
+      "material_names": [
+        "FC_wood",
+        "FC_cream",
+        "FC_edge",
+        "FC_teal"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "S016_balcony_module",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "purpose": "窓辺の告白や呼びかけ",
+            "asset_id": "S016",
+            "name_ja": "張り出しバルコニー",
+            "units": "metres",
+            "gameplay_implemented": false
+          }
+        },
+        {
+          "name": "attach_wall",
+          "position_m": [
+            0.0,
+            0.6658422,
+            -0.7
+          ],
+          "source_extras": {
+            "purpose": "attachment"
+          }
+        },
+        {
+          "name": "stand",
+          "position_m": [
+            0.0,
+            0.8458422,
+            0.0
+          ],
+          "source_extras": {
+            "purpose": "actor stand"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "StaticBody3D",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "deck",
+            "center_m": [
+              0.0,
+              0.7558422,
+              0.0
+            ],
+            "size_m": [
+              2.5999999,
+              0.18,
+              1.4
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "front_rail_barrier",
+            "center_m": [
+              0,
+              1.36,
+              0.62
+            ],
+            "size_m": [
+              2.6,
+              1.04,
+              0.12
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "left_rail_barrier",
+            "center_m": [
+              -1.22,
+              1.36,
+              0
+            ],
+            "size_m": [
+              0.12,
+              1.04,
+              1.4
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "right_rail_barrier",
+            "center_m": [
+              1.22,
+              1.36,
+              0
+            ],
+            "size_m": [
+              0.12,
+              1.04,
+              1.4
+            ]
+          }
+        ],
+        "notes": "Keep the area above the deck hollow. Back side is open at -Z. Whole-model collision box would block the actor. Deck top Y=0.8458422."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "complete_verified"
+    },
+    {
+      "id": "S073",
+      "label": "欠けた遺跡の壁",
+      "role": "Foam ruin wall with reusable game-only breakaway pieces",
+      "file": "models/large_sets/S073_ruined_stone_wall.glb",
+      "bytes": 184932,
+      "sha256": "6a7b9a6c69f1a0c692f7352344ee02fb12c1669db71a56c2bfff196bbbb895f0",
+      "source_relative_path": "asset_expansion/large_sets/exports/S073_ruined_stone_wall.glb",
+      "original_unchanged": true,
+      "optional": false,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -1.3725,
+          0.0,
+          -0.7970768
+        ],
+        "max": [
+          1.3725,
+          1.605,
+          0.7970768
+        ],
+        "size": [
+          2.745,
+          1.605,
+          1.5941536
+        ],
+        "center": [
+          0.0,
+          0.8025,
+          0.0
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 2504,
+      "mesh_node_count": 24,
+      "material_names": [
+        "FC_wood",
+        "FC_edge",
+        "FC_foam",
+        "FC_stone"
+      ],
+      "material_notes": "Embedded named PBR materials, no external bitmap textures. Keep the painted cream/teal/pink and raw plywood/cardboard contrast.",
+      "markers": [
+        {
+          "name": "S073_ruined_stone_wall",
+          "position_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "source_extras": {
+            "purpose": "廃墟の背景や隠れ場所",
+            "asset_id": "S073",
+            "name_ja": "欠けた遺跡の壁",
+            "units": "metres",
+            "gameplay_implemented": false
+          }
+        },
+        {
+          "name": "attach_left",
+          "position_m": [
+            -1.4275,
+            0.02,
+            0.0829232
+          ],
+          "source_extras": {
+            "purpose": "attachment"
+          }
+        },
+        {
+          "name": "attach_right",
+          "position_m": [
+            1.3724999,
+            0.02,
+            0.0829232
+          ],
+          "source_extras": {
+            "purpose": "attachment"
+          }
+        },
+        {
+          "name": "carry_back",
+          "position_m": [
+            -0.0275,
+            0.8200001,
+            -0.3170768
+          ],
+          "source_extras": {
+            "purpose": "carry or move scenery"
+          }
+        }
+      ],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "GLB root-local, Godot Y-up, metres",
+        "body": "Frozen RigidBody3D per proposed foam group, or static until fictional cue",
+        "shapes": [
+          {
+            "type": "BoxShape3D",
+            "name": "chunk_1",
+            "center_m": [
+              -0.9,
+              0.82,
+              0.0829232
+            ],
+            "size_m": [
+              0.9450000000000001,
+              1.57,
+              0.55
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "chunk_2",
+            "center_m": [
+              0.0,
+              0.82,
+              0.0829232
+            ],
+            "size_m": [
+              0.945,
+              1.57,
+              0.55
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "chunk_3",
+            "center_m": [
+              0.9,
+              0.62,
+              0.0829232
+            ],
+            "size_m": [
+              0.9450000000000001,
+              1.1700000000000002,
+              0.55
+            ]
+          },
+          {
+            "type": "BoxShape3D",
+            "name": "chunk_4",
+            "center_m": [
+              0.47250005,
+              0.18,
+              0.5929232
+            ],
+            "size_m": [
+              0.48298950000000007,
+              0.36,
+              0.40830720000000004
+            ]
+          }
+        ],
+        "notes": "Four coarse chunks reuse existing meshes; no new fracture geometry. Rear support braces should stay static. Avoid an enclosing box for the full scene."
+      },
+      "breakable_groups_proposal": [
+        {
+          "id": "S073_foam_chunk_1",
+          "mesh_node_names": [
+            "ruin_foam_block",
+            "ruin_foam_block.001",
+            "ruin_foam_block.002",
+            "ruin_foam_block.003",
+            "ruin_foam_block.004",
+            "ruin_foam_block.005",
+            "ruin_foam_block.006"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "chunk_1",
+            "center_m": [
+              -0.9,
+              0.82,
+              0.0829232
+            ],
+            "size_m": [
+              0.9450000000000001,
+              1.57,
+              0.55
+            ]
+          },
+          "on_cue": "Optional game-only topple / bounded impulse; reset to saved transforms. No real device information."
+        },
+        {
+          "id": "S073_foam_chunk_2",
+          "mesh_node_names": [
+            "ruin_foam_block.007",
+            "ruin_foam_block.008",
+            "ruin_foam_block.009",
+            "ruin_foam_block.010",
+            "ruin_foam_block.011",
+            "ruin_foam_block.012",
+            "ruin_foam_block.013"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "chunk_2",
+            "center_m": [
+              0.0,
+              0.82,
+              0.0829232
+            ],
+            "size_m": [
+              0.945,
+              1.57,
+              0.55
+            ]
+          },
+          "on_cue": "Optional game-only topple / bounded impulse; reset to saved transforms. No real device information."
+        },
+        {
+          "id": "S073_foam_chunk_3",
+          "mesh_node_names": [
+            "ruin_foam_block.014",
+            "ruin_foam_block.015",
+            "ruin_foam_block.016",
+            "ruin_foam_block.017",
+            "ruin_foam_block.018"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "chunk_3",
+            "center_m": [
+              0.9,
+              0.62,
+              0.0829232
+            ],
+            "size_m": [
+              0.9450000000000001,
+              1.1700000000000002,
+              0.55
+            ]
+          },
+          "on_cue": "Optional game-only topple / bounded impulse; reset to saved transforms. No real device information."
+        },
+        {
+          "id": "S073_foam_chunk_4",
+          "mesh_node_names": [
+            "fallen_block"
+          ],
+          "collider_proposal": {
+            "type": "BoxShape3D",
+            "name": "chunk_4",
+            "center_m": [
+              0.47250005,
+              0.18,
+              0.5929232
+            ],
+            "size_m": [
+              0.48298950000000007,
+              0.36,
+              0.40830720000000004
+            ]
+          },
+          "on_cue": "Optional game-only topple / bounded impulse; reset to saved transforms. No real device information."
+        }
+      ],
+      "runtime_implemented": false,
+      "animations": [],
+      "source_status": "complete_verified"
+    },
+    {
+      "id": "M02",
+      "label": "クリーム色の三輪ロボット",
+      "role": "Optional ground-level crew robot; technical pose animation only",
+      "file": "models/optional_character/M02_pose_foundation_tested.glb",
+      "bytes": 4028436,
+      "sha256": "57a1019751c77a929475283fd5eeb1fc78a92344eb97550a9f7d1c4afcd51566",
+      "source_relative_path": "pose_foundation_oct06/m02/export/M02_pose_foundation_tested.glb",
+      "original_unchanged": true,
+      "optional": true,
+      "import_transform": {
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "rotation_degrees": [
+          0,
+          0,
+          0
+        ],
+        "up": "+Y",
+        "visual_front": "+Z",
+        "units": "metres"
+      },
+      "glb_vertex_bounds_m": {
+        "min": [
+          -1.6896226,
+          -0.007,
+          -0.634
+        ],
+        "max": [
+          1.6896226,
+          2.4873285,
+          0.987
+        ],
+        "size": [
+          3.3792452,
+          2.4943285,
+          1.621
+        ],
+        "center": [
+          0.0,
+          1.2401642,
+          0.1765
+        ]
+      },
+      "bounds_kind": "Transformed POSITION vertices in exported GLB rest pose; no animation evaluation",
+      "triangles": 82104,
+      "mesh_node_count": 148,
+      "material_names": [
+        "Purple molded rubber bellows",
+        "Cream satin painted hard shell",
+        "Recess seam",
+        "Cream satin painted hard shell",
+        "Frosted belly glass ONLY",
+        "Warm gray internal backing",
+        "Muted dusty blue metal",
+        "Black display glass",
+        "Amber display pixels",
+        "Brushed dull hardware",
+        "Charcoal matte rubber tires",
+        "Charcoal matte rubber tires",
+        "Warm internal core",
+        "Warm brown leather saddle",
+        "Purple molded rubber bellows",
+        "Terracotta painted front fork"
+      ],
+      "material_notes": "Ten embedded textures. Transmission/IOR on belly glass and emissive-strength extensions may need runtime material fallback; keep this optional.",
+      "markers": [],
+      "collider_proposal": {
+        "implemented": false,
+        "space": "Runtime root local, tune after character scale chosen",
+        "body": "CharacterBody3D or ground-level kinematic stand-in",
+        "shapes": [],
+        "notes": "Author a simple body collider in engine. Do not use 3.379 m T-pose arm span as navigation width. Optional 82,104 triangles and 10 embedded textures; core loop does not depend on this asset."
+      },
+      "breakable_groups_proposal": [],
+      "runtime_implemented": false,
+      "animations": [
+        {
+          "name": "Animation",
+          "channels": 111
+        }
+      ],
+      "source_status": "optional_pose_foundation",
+      "optional_character_notes": "Disable imported Animation auto-play; this is a mechanical pose-range demonstration, not idle/walk/gameplay. Rest bounds height 2.494 m and span 3.379 m. Stage balcony role is not recommended without scaling and clearance tests."
+    }
+  ]
+}

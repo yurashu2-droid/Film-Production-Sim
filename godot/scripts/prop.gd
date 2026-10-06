@@ -1,0 +1,151 @@
+extends RigidBody3D
+# 持てる物の共通部分。
+# 物理はホストだけが計算する。他の参加者は固めた状態で、受け取った位置へ寄せるだけ。
+
+const L_WORLD := 1
+const L_PROP := 2
+const L_THIN := 4    # 手すりなど、当たるが撮影では透けて見える物
+const L_CHAR := 8
+const L_MARK := 16
+
+var game: Node
+var pid := 0
+var kind := ""
+var label := ""
+var tags: Array = []
+var one_sided := false       # 塗った面（+Z）だけが「城」に見える
+var fixed := false
+var holder := 0              # 持っている参加者のID（0=誰も持っていない）
+var hold_min := 1.2
+var carry_yaw := 0.0          # 持ったときの向きの補正
+var center := Vector3.ZERO   # 見た目の中心（ローカル）
+var half := Vector3.ONE * 0.2
+var visual: Node3D
+var playback := false        # 見返し中は記録どおりに動かす
+
+var _net: Array = []
+
+
+func _ready() -> void:
+	collision_layer = L_PROP
+	collision_mask = L_WORLD | L_PROP | L_CHAR
+	continuous_cd = false
+	can_sleep = true
+	_apply_freeze()
+
+
+func is_host() -> bool:
+	return multiplayer.is_server()
+
+
+func center_global() -> Vector3:
+	return global_transform * center
+
+
+func _apply_freeze() -> void:
+	if not is_host() or playback:
+		freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		freeze = true
+	else:
+		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+		freeze = fixed
+
+
+func set_fixed(v: bool) -> void:
+	fixed = v
+	_apply_freeze()
+
+
+func set_playback(v: bool) -> void:
+	playback = v
+	_apply_freeze()
+	if not v:
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+
+
+func set_holder(id: int) -> void:
+	holder = id
+	gravity_scale = 0.0 if id != 0 else 1.0
+	if id == 0:
+		linear_velocity *= 0.25
+		angular_velocity *= 0.1
+	sleeping = false
+
+
+func _physics_process(delta: float) -> void:
+	if playback:
+		return
+	if not is_host():
+		_follow_net(delta)
+		return
+	if holder != 0 and not fixed:
+		_drive_hold()
+	_host_tick(delta)
+
+
+func _host_tick(_delta: float) -> void:
+	pass
+
+
+func _drive_hold() -> void:
+	var tgt: Variant = game.hold_target(holder, self)
+	if tgt == null:
+		game.host_release(self)
+		return
+	var want: Vector3 = tgt[0]
+	var want_yaw: float = tgt[1]
+	var want_basis := Basis(Vector3.UP, want_yaw)
+	var origin_goal: Vector3 = want - want_basis * center
+	origin_goal.y = maxf(origin_goal.y, float(tgt[2]) + 0.03)
+	var max_speed := clampf(16.0 / (1.0 + mass * 0.07), 2.2, 11.0)
+	var v := (origin_goal - global_position) * 10.0
+	if v.length() > max_speed:
+		v = v.normalized() * max_speed
+	linear_velocity = v
+	var dq := (Quaternion(want_basis) * Quaternion(global_basis.orthonormalized()).inverse()).normalized()
+	if dq.w < 0.0:
+		dq = -dq
+	var ang := dq.get_angle()
+	angular_velocity = dq.get_axis() * ang * 9.0 if ang > 0.001 else Vector3.ZERO
+
+
+# ---- 同期と記録 ----
+
+func get_state() -> Array:
+	return [global_position, Quaternion(global_basis.orthonormalized()), fixed]
+
+
+func apply_state(s: Array, immediate: bool = false) -> void:
+	if immediate:
+		global_transform = Transform3D(Basis(s[1] as Quaternion), s[0] as Vector3)
+		fixed = s[2]
+		_apply_extra(s)
+	else:
+		_net = s
+
+
+func _apply_extra(_s: Array) -> void:
+	pass
+
+
+func _follow_net(delta: float) -> void:
+	if _net.is_empty():
+		return
+	var w := clampf(delta * 14.0, 0.0, 1.0)
+	var p: Vector3 = global_position.lerp(_net[0] as Vector3, w)
+	var q: Quaternion = Quaternion(global_basis.orthonormalized()).slerp(_net[1] as Quaternion, w)
+	global_transform = Transform3D(Basis(q), p)
+	fixed = _net[2]
+	_apply_extra(_net)
+
+
+# ホスト側で、置き直し用に元の状態へ戻す
+func restore(s: Array) -> void:
+	set_holder(0)
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	global_transform = Transform3D(Basis(s[1] as Quaternion), s[0] as Vector3)
+	set_fixed(s[2])
+	_apply_extra(s)
+	reset_physics_interpolation()

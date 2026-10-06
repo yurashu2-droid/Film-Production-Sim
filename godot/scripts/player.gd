@@ -1,0 +1,254 @@
+extends CharacterBody3D
+# 制作班のメンバー。自分の移動は各自の手元で動かし、位置だけ他の参加者へ送る。
+# 物を持つ・固定する・機材を操作する、はホストへの依頼として game 経由で出す。
+
+const CastVisual := preload("res://scripts/cast_visual.gd")
+
+const WALK := 3.4
+const RUN := 5.8
+const JUMP := 5.8
+const GRAVITY := 16.0
+const REACH := 3.8
+const MOUSE_SENS := 0.0026
+
+var game: Node
+var peer_id := 1
+var is_local := false
+var aim_yaw := 0.0
+var aim_pitch := -0.25
+var hold_dist := 1.6
+var hold_yaw := 0.0
+var held := 0           # 持っている物のID
+var operating := 0      # 操作中の機材のID
+var target: Node3D      # 照準が合っている物
+
+var vis: Node3D
+var head: Node3D
+var arm: SpringArm3D
+var cam: Camera3D
+
+var _net: Array = []
+var _send_t := 0.0
+
+
+func setup(cast_tag: String) -> void:
+	collision_layer = 8
+	collision_mask = 1 | 2 | 4 | 8
+	floor_snap_length = 0.25
+	var cs := CollisionShape3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.32
+	cap.height = 1.5
+	cs.shape = cap
+	cs.position = Vector3(0, 0.75, 0)
+	add_child(cs)
+	vis = CastVisual.new()
+	add_child(vis)
+	vis.setup(cast_tag)
+	head = Node3D.new()
+	head.position = Vector3(0, 1.85, 0)
+	add_child(head)
+	if is_local:
+		arm = SpringArm3D.new()
+		arm.spring_length = 4.0
+		arm.margin = 0.2
+		arm.collision_mask = 1
+		arm.position = Vector3(0.9, 0.1, 0)
+		head.add_child(arm)
+		cam = Camera3D.new()
+		cam.fov = 68.0
+		cam.near = 0.1
+		arm.add_child(cam)
+		cam.current = true
+		var al := AudioListener3D.new()
+		cam.add_child(al)
+		al.make_current()
+
+
+func aim_forward() -> Vector3:
+	return Basis.from_euler(Vector3(aim_pitch, aim_yaw, 0.0)) * Vector3.FORWARD
+
+
+func flat_forward() -> Vector3:
+	return Vector3(-sin(aim_yaw), 0.0, -cos(aim_yaw))
+
+
+func knock(impulse: Vector3) -> void:
+	if is_local and operating == 0:
+		velocity += impulse
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_local or game.ui_blocking():
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		var rel: Vector2 = (event as InputEventMouseMotion).relative
+		if operating != 0:
+			game.act_aim(operating, -rel.x * MOUSE_SENS * 0.6, -rel.y * MOUSE_SENS * 0.6, 0.0)
+		else:
+			aim_yaw = wrapf(aim_yaw - rel.x * MOUSE_SENS, -PI, PI)
+			aim_pitch = clampf(aim_pitch - rel.y * MOUSE_SENS, -1.2, 1.0)
+	elif event is InputEventMouseButton and event.pressed:
+		var mb := event as InputEventMouseButton
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			return
+		var wheel := 0
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			wheel = 1
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			wheel = -1
+		if wheel != 0:
+			if operating != 0:
+				game.act_aim(operating, 0.0, 0.0, float(wheel))
+			elif held != 0:
+				hold_dist = clampf(hold_dist + wheel * 0.2, 0.9, 4.0)
+		elif mb.button_index == MOUSE_BUTTON_LEFT and operating == 0:
+			if held != 0:
+				game.act_release()
+			elif target:
+				game.act_grab(target.pid)
+	elif event.is_action_pressed("operate"):
+		if operating != 0:
+			game.act_operate(operating, false)
+		elif target and target.kind in ["camera", "spot"] and held == 0:
+			game.act_operate(target.pid, true)
+	elif event.is_action_pressed("fix"):
+		if held != 0:
+			game.act_fix(held)
+		elif target:
+			game.act_fix(target.pid)
+
+
+func _physics_process(delta: float) -> void:
+	if not is_local:
+		_follow_net(delta)
+		return
+	if game.replaying:
+		return
+	var blocked: bool = game.ui_blocking()
+	var iv := Vector2.ZERO
+	if not blocked:
+		iv = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	var op: Node3D = game.props.get(operating) if operating != 0 else null
+
+	if op and op.kind == "camera":
+		# カメラ操作中は台車のようにカメラごと動く。自分はカメラの後ろに付く
+		var f: Vector3 = op.shoot_dir()
+		f.y = 0.0
+		f = f.normalized()
+		var r := Vector3(-f.z, 0.0, f.x)
+		game.act_dolly(operating, r * iv.x + f * iv.y)
+		global_position = op.global_position - f * 0.9
+		velocity = Vector3.ZERO
+		vis.rotation.y = atan2(f.x, f.z)
+		aim_yaw = atan2(-f.x, -f.z)
+		vis.play("idle")
+	else:
+		if op:
+			iv = Vector2.ZERO
+		var ff := flat_forward()
+		var right := Vector3(-ff.z, 0.0, ff.x)
+		var dir := (right * iv.x + ff * iv.y).limit_length(1.0)
+		var speed := RUN if Input.is_action_pressed("run") and held == 0 else WALK
+		var k := clampf(delta * (12.0 if is_on_floor() else 3.0), 0.0, 1.0)
+		velocity.x = lerpf(velocity.x, dir.x * speed, k)
+		velocity.z = lerpf(velocity.z, dir.z * speed, k)
+		if is_on_floor():
+			if not blocked and op == null and Input.is_action_just_pressed("jump"):
+				velocity.y = JUMP
+		else:
+			velocity.y -= GRAVITY * delta
+		move_and_slide()
+		_push_light_props()
+		if global_position.y < -20.0:
+			global_position = Vector3(0, 1, 8)
+			velocity = Vector3.ZERO
+		var face := dir
+		if held != 0 or op:
+			face = ff
+		if face.length() > 0.1:
+			vis.rotation.y = lerp_angle(vis.rotation.y, atan2(face.x, face.z), clampf(delta * 12.0, 0.0, 1.0))
+		var hs := Vector2(velocity.x, velocity.z).length()
+		if not is_on_floor():
+			vis.play("jump")
+		elif hs > 4.4:
+			vis.play("run")
+		elif hs > 0.4:
+			vis.play("walk")
+		else:
+			vis.play("idle")
+
+	head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
+	if Input.is_action_pressed("rot_left") and held != 0 and not blocked:
+		hold_yaw += delta * 2.2
+	if Input.is_action_pressed("rot_right") and held != 0 and not blocked:
+		hold_yaw -= delta * 2.2
+	_find_target()
+
+	_send_t -= delta
+	if _send_t <= 0.0 and Net.has_peers():
+		_send_t = 0.05
+		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, vis.current)
+
+
+# 軽い物は歩いて押しのけられる（物理はホストだけが持つので、今はホスト側のみ）
+func _push_light_props() -> void:
+	if not multiplayer.is_server():
+		return
+	for i in get_slide_collision_count():
+		var c := get_slide_collision(i)
+		var b := c.get_collider() as RigidBody3D
+		if b and b.mass <= 8.0 and not b.freeze and "pid" in b and b.pid != held:
+			var n := -c.get_normal()
+			n.y = 0.0
+			b.apply_central_impulse(n * minf(b.mass, 3.0) * 0.6)
+
+
+func _find_target() -> void:
+	target = null
+	if cam == null or operating != 0:
+		return
+	var from := cam.global_position
+	var q := PhysicsRayQueryParameters3D.create(from, from - cam.global_basis.z * 9.0, 1 | 2 | 4 | 16)
+	var ex: Array[RID] = []
+	if held != 0 and game.props.has(held):
+		ex.append((game.props[held] as CollisionObject3D).get_rid())
+	q.exclude = ex
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var c: Object = hit.collider
+	if c is RigidBody3D and "pid" in c:
+		var p: Vector3 = hit.position
+		if p.distance_to(global_position + Vector3(0, 1.0, 0)) <= REACH:
+			target = c
+
+
+# ---- 他の参加者の画面での表示 ----
+
+func apply_net(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, anim_name: String) -> void:
+	_net = [pos, body_yaw, anim_name]
+	aim_yaw = a_yaw
+	aim_pitch = a_pitch
+	hold_dist = h_dist
+	hold_yaw = h_yaw
+
+
+func _follow_net(delta: float) -> void:
+	if _net.is_empty():
+		return
+	var w := clampf(delta * 14.0, 0.0, 1.0)
+	global_position = global_position.lerp(_net[0] as Vector3, w)
+	vis.rotation.y = lerp_angle(vis.rotation.y, _net[1] as float, w)
+	vis.play(_net[2] as String, 0.12)
+
+
+func get_state() -> Array:
+	return [global_position, vis.rotation.y, vis.current]
+
+
+func apply_state(s: Array) -> void:
+	global_position = s[0]
+	vis.rotation.y = s[1]
+	vis.play(s[2] as String, 0.12)
