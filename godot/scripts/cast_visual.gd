@@ -5,6 +5,9 @@ extends Node3D
 const SCALE := 0.62
 const LOOPS := ["idle", "walk", "run", "crouch_idle", "crouch_walk"]
 const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "crown", "fish"]
+const GROUNDED := ["idle", "walk", "run", "run_start", "run_stop", "step_down", "crouch_idle", "crouch_walk"]
+const SOLE_CLEARANCE := 0.002
+static var _foot_support_cache: Dictionary = {}
 const FACE_BONES := ["FACE", "EYE.", "LID.", "PUPIL.", "MOUTH.", "JAW"]
 
 var tag := ""
@@ -14,6 +17,13 @@ var skel: Skeleton3D
 var height := 1.6
 var current := ""
 var face := "neutral"
+var grounding_enabled := bool(ProjectSettings.get_setting("animation/foot_grounding", true)):
+	set(value):
+		grounding_enabled = value
+		if is_instance_valid(_model):
+			_update_grounding()
+var _model: Node3D
+var _foot_points: Dictionary = {}
 var _head := -1
 var _body := -1
 var _blink := 2.0
@@ -23,6 +33,7 @@ var _blinking := 0.0
 func setup(cast_tag: String) -> void:
 	tag = cast_tag
 	var model: Node3D = (load("res://assets/cast/cast%s_game.glb" % tag) as PackedScene).instantiate()
+	_model = model
 	model.scale = Vector3.ONE * SCALE
 	add_child(model)
 	anim = model.find_children("*", "AnimationPlayer", true, false)[0]
@@ -37,6 +48,8 @@ func setup(cast_tag: String) -> void:
 	_setup_face()
 	_setup_transitions()
 	_setup_carry()
+	_setup_grounding()
+	skel.skeleton_updated.connect(_update_grounding)
 	play("idle")
 	_blink = randf_range(1.0, 4.0)
 
@@ -122,6 +135,62 @@ func _setup_carry() -> void:
 			lib.add_animation(tag + "_" + mode + "_" + base, clip)
 
 
+# 元のアニメーションを編集せず、靴の外周が埋まる分だけ表示を上げる。
+# 凸包は素材ごとに一度作る。接地判定・移動速度・骨の姿勢には触れない。
+func _setup_grounding() -> void:
+	if _foot_support_cache.has(tag):
+		_foot_points = _foot_support_cache[tag]
+		return
+	var vertices_by_bone := {}
+	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if mesh.skin == null:
+			continue
+		for surface in mesh.mesh.get_surface_count():
+			var arrays := mesh.mesh.surface_get_arrays(surface)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			var influences := bones.size() / vertices.size()
+			for i in vertices.size():
+				for j in influences:
+					if weights[i * influences + j] < 0.999:
+						continue
+					var bind: int = bones[i * influences + j]
+					var bone := skel.find_bone(mesh.skin.get_bind_name(bind)) if mesh.skin.get_bind_name(bind) != "" else mesh.skin.get_bind_bone(bind)
+					if not skel.get_bone_name(bone).begins_with("FOOT."):
+						continue
+					if not vertices_by_bone.has(bone):
+						vertices_by_bone[bone] = PackedVector3Array()
+					vertices_by_bone[bone].append(mesh.skin.get_bind_pose(bind) * vertices[i])
+	for bone in vertices_by_bone:
+		var hull := ConvexPolygonShape3D.new()
+		hull.points = vertices_by_bone[bone]
+		var unique := {}
+		for p: Vector3 in hull.get_debug_mesh().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			unique[p] = true
+		_foot_points[bone] = PackedVector3Array(unique.keys())
+	_foot_support_cache[tag] = _foot_points
+
+
+func _update_grounding() -> void:
+	if not is_inside_tree():
+		return
+	var base := current.trim_prefix("carry_").trim_prefix("onehand_")
+	if not grounding_enabled or base not in GROUNDED or _foot_points.is_empty():
+		_model.position.y = 0.0
+		return
+	# 前の補正を引き、アニメーション本来の足の高さから毎回計算する。
+	var to_visual := global_transform.affine_inverse() * skel.global_transform
+	to_visual.origin.y -= _model.position.y
+	var bottom := INF
+	for bone in _foot_points:
+		var tr := to_visual * skel.get_bone_global_pose(bone)
+		var y_axis := Vector3(tr.basis.x.y, tr.basis.y.y, tr.basis.z.y)
+		for point: Vector3 in _foot_points[bone]:
+			bottom = minf(bottom, y_axis.dot(point) + tr.origin.y)
+	_model.position.y = maxf(0.0, SOLE_CLEARANCE - bottom)
+
+
 func has(a: String) -> bool:
 	return anim.has_animation(tag + "_" + a)
 
@@ -132,6 +201,7 @@ func play(a: String, blend: float = 0.18, restart: bool = false) -> void:
 	if not has(a):
 		a = "idle"
 	current = a
+	_update_grounding()
 	anim.play(tag + "_" + a, blend)
 	if restart:
 		anim.seek(0.0)

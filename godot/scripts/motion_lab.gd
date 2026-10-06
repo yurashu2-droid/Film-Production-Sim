@@ -1,10 +1,12 @@
 extends "res://scripts/main.gd"
 # ゲームと同じプレイヤーを、独立したスタジオで再生する。
 var trial_time := 0.0
+var foot_grounding_enabled := bool(ProjectSettings.get_setting("animation/foot_grounding", true))
 var dust_enabled := true
 var dust_scale := 1.0
 var playback_speed := 1.0
 var loop_enabled := false
+var sustain_run := false
 var _active := false
 var _arming := 0
 var _released := false
@@ -41,6 +43,7 @@ func _configure_player() -> void:
 	var me: Node = local_player()
 	me.process_mode = Node.PROCESS_MODE_PAUSABLE
 	me.set_process_unhandled_input(false)
+	me.vis.grounding_enabled = foot_grounding_enabled
 	me.vis.anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
 	if me.vis.face_anim:
 		me.vis.face_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
@@ -173,10 +176,20 @@ func _build_panel() -> void:
 	speed.add_item("再生速度  0.5 ×")
 	speed.item_selected.connect(func(index: int): set_playback_speed(1.0 if index == 0 else 0.5))
 	col.add_child(speed)
+	var motion := OptionButton.new()
+	motion.add_item("走り始め → 走行 → 停止")
+	motion.add_item("走行ループを確認（走り続ける）")
+	motion.item_selected.connect(func(index: int): sustain_run = index == 1; start_trial())
+	col.add_child(motion)
 	var loop := CheckBox.new()
 	loop.text = "繰り返し再生"
 	loop.toggled.connect(func(on: bool): loop_enabled = on)
 	col.add_child(loop)
+	var grounding := CheckBox.new()
+	grounding.text = "足の埋まり補正（OFFで元に戻す）"
+	grounding.button_pressed = foot_grounding_enabled
+	grounding.toggled.connect(func(on: bool): foot_grounding_enabled = on; local_player().vis.grounding_enabled = on)
+	col.add_child(grounding)
 	var dust := CheckBox.new()
 	dust.text = "トゥーン土ぼこり"
 	dust.button_pressed = true
@@ -228,14 +241,18 @@ func _physics_process(delta: float) -> void:
 				Input.action_press("move_forward")
 	elif _active:
 		trial_time += delta
-		if trial_time >= 1.0 and not _released:
+		if trial_time >= 1.0 and not _released and not sustain_run:
 			_release_input()
 			_released = true
-		if trial_time >= 1.6:
+		if trial_time >= 1.6 and not sustain_run:
 			_active = false
 			input_locked = true
 			if loop_enabled:
 				start_trial()
+	# 1mグリッドに揃えて位置だけ戻す。速度・アニメーション位相は維持。
+	if sustain_run and local_player().position.z < -12.4:
+		local_player().position.z += 16.0
+		_clear_dash_dust()
 	if _step_requested:
 		_step_requested = false
 		get_tree().paused = true
@@ -318,7 +335,7 @@ func save_frame() -> void:
 	if error == OK:
 		var json := FileAccess.open(file + ".json", FileAccess.WRITE)
 		if json:
-			json.store_string(JSON.stringify({"cast": local_player().vis.tag, "frame": roundi(trial_time * 60), "time": trial_time, "animation": local_player().vis.current, "velocity": var_to_str(local_player().velocity), "dust_scale": dust_scale, "dust_enabled": dust_enabled}, "\t"))
+			json.store_string(JSON.stringify({"cast": local_player().vis.tag, "frame": roundi(trial_time * 60), "time": trial_time, "animation": local_player().vis.current, "velocity": var_to_str(local_player().velocity), "dust_scale": dust_scale, "dust_enabled": dust_enabled, "foot_grounding": foot_grounding_enabled}, "\t"))
 		_status.text = "保存しました: " + file + ".png"
 	else:
 		_status.text = "保存できませんでした（エラー %d）" % error

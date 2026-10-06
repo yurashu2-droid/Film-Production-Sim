@@ -92,6 +92,17 @@ func run() -> void:
 	await wait(0.12)
 	check(get_nodes_in_group("dash_dust").is_empty(), "cancelled anticipation emits no dust")
 	lab.reset_trial()
+	lab.sustain_run = true
+	lab.start_trial()
+	await wait(1.85)
+	check(lab._active and lab.local_player().vis.current == "run", "sustained run previews full loop")
+	var runner: Node = lab.local_player()
+	var speed_before: Vector3 = runner.velocity
+	runner.position.z = -20.0
+	lab._physics_process(1.0 / 60.0)
+	check(runner.position.z > -12.4 and runner.velocity.is_equal_approx(speed_before) and runner.vis.current == "run", "sustained run stays on floor without restarting pose")
+	lab.sustain_run = false
+	lab.reset_trial()
 	lab.loop_enabled = true
 	lab.start_trial()
 	await wait(1.85)
