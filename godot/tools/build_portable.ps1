@@ -19,6 +19,16 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $packPath)) {
     throw "ゲーム資源の書き出しに失敗しました（終了 $LASTEXITCODE）。"
 }
 Copy-Item -LiteralPath $engineWindow -Destination (Join-Path $packageDirectory 'FilmProductionCrew.exe')
+# 本編と同じPCKに入っている試作室も、ソースなしで開ける。
+$labLaunchers = @{
+    'MotionLab.bat' = 'res://motion_lab.tscn'
+    'VFXLab.bat' = 'res://vfx_lab.tscn -- %*'
+    'FilmOnly.bat' = '-- --legacy'
+}
+foreach ($launcherName in $labLaunchers.Keys) {
+    $launcherText = '@echo off' + "`r`n" + 'start "" "%~dp0FilmProductionCrew.exe" --path "%~dp0." ' + $labLaunchers[$launcherName] + "`r`n"
+    Set-Content -LiteralPath (Join-Path $packageDirectory $launcherName) -Value $launcherText -Encoding ascii
+}
 $noticesDirectory = Join-Path $packageDirectory 'Notices'
 New-Item -ItemType Directory -Force -Path $noticesDirectory | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $projectDirectory 'licenses') -File | ForEach-Object {
@@ -53,6 +63,10 @@ Rで見返す、Enterで納品。Pで見返しの8コマを画像として保存
 
 これはGodot 4.7.2の既存Windows本体とゲーム資源を組み合わせた試作版です。
 エンジン・同梱素材の出典やライセンス文書はNoticesにあります。
+
+MotionLab.bat：7人の走り・足の補正・土ぼこりを見比べる試作室。
+VFXLab.bat：爆発・炎・走りの演出などを、止めたりスローにして見る試作室。
+FilmOnly.bat：従来の撮影だけモード。F9の見本セットも使えます。
 '@
 Set-Content -LiteralPath (Join-Path $packageDirectory 'はじめに.txt') -Value $instructions -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $projectDirectory 'docs/production/first-game.md') -Destination (Join-Path $packageDirectory '最初の一本.txt')

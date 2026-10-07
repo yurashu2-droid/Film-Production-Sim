@@ -11,6 +11,7 @@ Godot 4.7.2（Windows 64bit）が必要です。本体は容量が大きいた�
 2. `play_solo.bat` を実行し、「ひとりで遊ぶ」「友達を招く」「友達の会社へ」を選ぶ（初回は素材の取り込みに少し時間がかかります）
 
 友達へフォルダごと渡せるWindows版は `godot/tools/build_portable.ps1` で作れます。生成先と起動方法は [持ち運び版の説明](godot/docs/production/portable.md) にまとめています。
+持ち運び版の `MotionLab.bat` / `VFXLab.bat` / `FilmOnly.bat` から、試作室と従来の撮影モードも開けます。
 
 Godotのエディタから `godot/project.godot` を開いて実行しても動きます。
 
@@ -25,6 +26,7 @@ Godotのエディタから `godot/project.godot` を開いて実行しても動�
 ## 制作会社の一日
 
 初回の荷物選び・役割分担・撮影の順番は [最初の一本](godot/docs/production/first-game.md) にまとめています。
+次に友達と遊ぶときの観察点と制作の優先順は [次のプレイ確認](godot/docs/production/next-playtest.md) に記録しています。
 
 通常起動は「事務所 → 依頼 → 購入と積み込み → 軽トラ移動 → 現場 → 精算 → 帰社」。同じ脚本を倉庫・小さな室内スタジオ・野外ロケの3現場で撮れます。初期資金600コイン、道具は1仕事あたり最大600コイン。無料廃材も使い、積んだ物だけ現場へ運びます。
 
