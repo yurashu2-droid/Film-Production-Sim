@@ -531,6 +531,8 @@ func _try_load(p: RigidBody3D) -> void:
 	if p.deck_top >= 0.0 or p.fixed or p.rider_of != 0 or p.absent:
 		return
 	for d: RigidBody3D in props.values():
+		if d.has_method("can_board") and not d.can_board():
+			continue
 		if d.deck_top < 0.0 or d == p or d.absent or d.global_basis.y.y < 0.8:
 			continue
 		var c: Vector3 = d.global_transform.affine_inverse() * p.center_global()
@@ -1103,7 +1105,16 @@ func capture() -> Dictionary:
 
 
 @rpc("authority", "call_remote", "unreliable")
-func rx_world(p: Dictionary, a: Array) -> void:
+func rx_world(p: Dictionary, a: Array, mounts: Dictionary = {}) -> void:
+	for pid: int in mounts:
+		if not props.has(pid):
+			continue
+		var prop: Node = props[pid]
+		var carrier: int = mounts[pid][0]
+		if prop.rider_of != carrier and prop.rider_of != 0:
+			host_unload(prop)
+		if carrier != 0 and props.has(carrier):
+			_set_rider(prop,props[carrier],mounts[pid][1])
 	for pid: int in p:
 		if props.has(pid):
 			props[pid].apply_state(p[pid])
@@ -1165,19 +1176,24 @@ func _send_world() -> void:
 	for a: CharacterBody3D in actors:
 		acts.append(a.get_state())
 	var chunk := {}
+	var mounts := {}
 	var sent := false
 	for pid: int in props:
 		var st: Array = props[pid].get_state()
-		if not full and _last_sent.has(pid) and _last_sent[pid] == st:
+		var mount: Array = [props[pid].rider_of,props[pid].ride_local]
+		var packet: Array = [st,mount]
+		if not full and _last_sent.has(pid) and _last_sent[pid] == packet:
 			continue
-		_last_sent[pid] = st
+		_last_sent[pid] = packet
 		chunk[pid] = st
-		if chunk.size() >= 10:
-			rx_world.rpc(chunk, acts)
+		mounts[pid] = mount
+		if chunk.size() >= 7:
+			rx_world.rpc(chunk, acts, mounts)
 			chunk = {}
+			mounts = {}
 			sent = true
 	if not chunk.is_empty() or not sent:
-		rx_world.rpc(chunk, acts)
+		rx_world.rpc(chunk, acts, mounts)
 
 
 func _update_live() -> void:

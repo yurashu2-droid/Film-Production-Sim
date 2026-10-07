@@ -3,6 +3,16 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 30 $GD --headless --path godot --fixed-fps 60 --script res://tests/productiontest.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|PRODUCTION_CHECK.*FAIL|PRODUCTIONTEST_"
+# 制作会社の一周と昇降台を実ENet二人で確認。両プロセスの終了も待つ。
+PRODUCTION_LOG=$(mktemp)
+timeout 65 $GD --headless --path godot -- --host --productionnettest > "$PRODUCTION_LOG" 2>&1 &
+PRODUCTION_HOST=$!
+sleep 2
+timeout 65 $GD --headless --path godot -- --join=127.0.0.1 --productionnettest 2>&1 | grep -E "SCRIPT ERROR|ERROR:|PRODUCTION_NET.*FAIL|PRODUCTIONNET_"
+wait "$PRODUCTION_HOST"
+grep -E "SCRIPT ERROR|ERROR:|PRODUCTIONNET_|above the MTU" "$PRODUCTION_LOG"
+rm -f "$PRODUCTION_LOG"
 timeout 25 $GD --headless --path godot --fixed-fps 60 --script res://tests/footgroundtest.gd 2>&1 | grep -E "SCRIPT ERROR|FOOT_CHECK.*FAIL|FOOTTEST_"
 timeout 25 $GD --headless --path godot --script res://tests/labtest.gd 2>&1 | grep -E "SCRIPT ERROR|LAB_CHECK.*FAIL|LABTEST_"
 timeout 30 $GD --headless --path godot --script res://tests/choicetest.gd 2>&1 | grep -E "SCRIPT ERROR|CHOICE_CHECK.*FAIL|CHOICETEST_"
