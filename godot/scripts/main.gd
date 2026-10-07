@@ -11,6 +11,18 @@ const Judge := preload("res://scripts/judge.gd")
 const KenneyDust := preload("res://scripts/kenney_dust.gd")
 const SculptedDust := preload("res://scripts/sculpted_dust.gd")
 const ToonDust := preload("res://scripts/toon_dust.gd")
+const VfxLib := preload("res://vfx/vfx_lib.gd")
+const VfxExplosion := preload("res://vfx/vfx_explosion.gd")
+# 走りの演出。先の3つは元からの土ぼこり、次の3つはアニメ調（スミア・スミア×雷・雷の疾走）、最後の2つは蹴り上げの土ぼこりと、脚ぐるぐる＋土ぼこり
+const DUST_STYLES: Array[String] = ["sculpted", "mesh", "kenney", "smear", "volt", "thunder", "kick", "scramble"]
+const STEP_STYLES: Array[String] = ["sculpted", "smear", "volt", "thunder", "kick", "scramble"]     # 走行中の一歩ごとにも出すもの
+const RUN_FX := {
+	"smear": preload("res://vfx/vfx_run_gale.gd"),
+	"volt": preload("res://vfx/vfx_run_volt.gd"),
+	"thunder": preload("res://vfx/vfx_run_thunder.gd"),
+	"kick": preload("res://vfx/vfx_run_dust.gd"),
+	"scramble": preload("res://vfx/vfx_run_scramble.gd"),
+}
 const Hud := preload("res://scripts/hud.gd")
 
 const S := {"PREP": 0, "COUNTDOWN": 1, "TAKE": 2, "RESULT": 3, "REPLAY": 4, "DELIVERED": 5, "ORDER": 6}
@@ -87,6 +99,8 @@ var _headless := false
 
 func _ready() -> void:
 	_headless = DisplayServer.get_name() == "headless"
+	if not _headless:
+		VfxLib.warm()
 	var sf := SystemFont.new()
 	sf.font_names = PackedStringArray(["Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", "sans-serif"])
 	font = sf
@@ -294,6 +308,13 @@ func _show_dash_dust(pos: Vector3, direction: Vector3, foot: int = -1) -> void:
 
 
 func _spawn_dash_dust(pos: Vector3, direction: Vector3, style: String, size: float = 1.0, trail: bool = false) -> Node3D:
+	if RUN_FX.has(style):
+		var fx: Node3D = RUN_FX[style].new()
+		add_child(fx)
+		fx.global_position = pos
+		fx.runner = _nearest_player(pos)
+		fx.burst(direction, size, trail)
+		return fx
 	var dust: Node3D = SculptedDust.new() if style == "sculpted" else (KenneyDust.new() if style == "kenney" else ToonDust.new())
 	add_child(dust)
 	dust.global_position = pos
@@ -302,6 +323,14 @@ func _spawn_dash_dust(pos: Vector3, direction: Vector3, style: String, size: flo
 	else:
 		dust.burst(direction, size)
 	return dust
+
+
+func _nearest_player(pos: Vector3) -> Node3D:
+	var best: Node3D = null
+	for pl: Node3D in players.values():
+		if best == null or pl.global_position.distance_squared_to(pos) < best.global_position.distance_squared_to(pos):
+			best = pl
+	return best
 
 
 func _clear_dash_dust() -> void:
@@ -1258,6 +1287,7 @@ func ev(n: String, a: Array) -> void:
 		"fuse":
 			if props.has(a[0]):
 				props[a[0]].show_fuse()
+				VfxExplosion.fuse(props[a[0]], props[a[0]].global_position + Vector3(0, 0.55, 0), props[a[0]].FUSE_SEC)
 		"dash_dust":
 			_show_dash_dust(a[0], a[1], a[2] if a.size() > 2 else -1)
 		"burst":
@@ -1283,62 +1313,7 @@ func _hold_exception(pl: Node, pid: int, on: bool) -> void:
 # 架空の爆発の見た目。power が 0 のときは小さなテスト発火
 func _show_burst(pos: Vector3, power: float) -> void:
 	var big: bool = power > 0.0
-	var root := Node3D.new()
-	add_child(root)
-	root.global_position = pos
-	var ball := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.5
-	sm.height = 1.0
-	ball.mesh = sm
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(1.0, 0.75, 0.25, 0.95)
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.55, 0.12)
-	m.emission_energy_multiplier = 9.0
-	ball.material_override = m
-	root.add_child(ball)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.6, 0.25)
-	light.light_energy = 60.0 if big else 10.0
-	light.omni_range = 20.0 if big else 6.0
-	root.add_child(light)
-	var parts := CPUParticles3D.new()
-	parts.one_shot = true
-	parts.explosiveness = 0.95
-	parts.amount = 90 if big else 20
-	parts.lifetime = 1.8
-	parts.direction = Vector3.UP
-	parts.spread = 75.0
-	parts.initial_velocity_min = 4.0 if big else 1.5
-	parts.initial_velocity_max = 11.0 if big else 3.0
-	parts.gravity = Vector3(0, -6, 0)
-	parts.scale_amount_min = 0.25
-	parts.scale_amount_max = 0.7
-	var pm := SphereMesh.new()
-	pm.radius = 0.25
-	pm.height = 0.5
-	pm.radial_segments = 8
-	pm.rings = 4
-	parts.mesh = pm
-	var pmat := StandardMaterial3D.new()
-	pmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pmat.albedo_color = Color(1.0, 0.5, 0.1)
-	pmat.emission_enabled = true
-	pmat.emission = Color(1.0, 0.4, 0.05)
-	pmat.emission_energy_multiplier = 7.0
-	parts.material_override = pmat
-	root.add_child(parts)
-	parts.emitting = true
-	var size := 7.0 if big else 1.6
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(ball, "scale", Vector3.ONE * size, 0.35).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tw.tween_property(m, "albedo_color", Color(0.9, 0.25, 0.05, 0.0), 1.5).set_delay(0.25)
-	tw.tween_property(light, "light_energy", 0.0, 1.3)
-	tw.chain().tween_callback(root.queue_free).set_delay(0.8)
+	VfxExplosion.spawn(self, pos, 3.2 if big else 0.9, 1.25, big)
 	if big and not replaying:
 		var me: Node = local_player()
 		if me:

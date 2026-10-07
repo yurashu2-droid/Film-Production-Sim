@@ -1,0 +1,12 @@
+# エージェント向けの案内
+
+このリポジトリは Godot 4.7 の試作ゲーム「格安アクション映画制作班」。プロジェクト本体は `godot/`、
+Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディタは使わず、テキストだけで作る。
+変更後は `bash run_tests.sh` で自動確認する。
+
+## スキル
+
+作業の種類ごとの手順書を `.claude/skills/<名前>/SKILL.md` に置いている（Claude Code はここを自動で読む。
+ほかのエージェントは、該当する作業の前にそのファイルを開いて読むこと）。
+
+- **VFX（爆発・炎・煙・飛び道具・落雷・走りの演出）を作る・直す** → `.claude/skills/godot-vfx/SKILL.md`

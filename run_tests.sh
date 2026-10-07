@@ -6,6 +6,8 @@ GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
 timeout 25 $GD --headless --path godot --fixed-fps 60 --script res://tests/footgroundtest.gd 2>&1 | grep -E "SCRIPT ERROR|FOOT_CHECK.*FAIL|FOOTTEST_"
 timeout 25 $GD --headless --path godot --script res://tests/labtest.gd 2>&1 | grep -E "SCRIPT ERROR|LAB_CHECK.*FAIL|LABTEST_"
 timeout 30 $GD --headless --path godot --script res://tests/choicetest.gd 2>&1 | grep -E "SCRIPT ERROR|CHOICE_CHECK.*FAIL|CHOICETEST_"
+timeout 25 $GD --headless --path godot --script res://tests/vfxtest.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|VFX_CHECK.*FAIL|VFXTEST_"
+timeout 25 $GD --headless --path godot --script res://tests/pxtest.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|PX_CHECK.*FAIL|PXTEST_"
 timeout 40 $GD --headless --path godot --script res://tests/motiontest.gd 2>&1 | grep -E "SCRIPT ERROR|MOTION_CHECK.*FAIL|MOTIONTEST_"
 timeout 150 $GD --headless --path godot -- --autotest 2>&1 | grep -E "SCRIPT ERROR|HANDS_ON_|AUTOTEST_"
 timeout 150 $GD --headless --path godot -- --autotest --route=balcony 2>&1 | grep -E "SCRIPT ERROR|AUTOTEST_" | sed "s/AUTOTEST_/AUTOTEST(balcony)_/"

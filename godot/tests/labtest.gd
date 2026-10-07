@@ -94,7 +94,10 @@ func run() -> void:
 		DirAccess.make_dir_recursive_absolute(dir)
 		root.get_texture().get_image().save_png(dir.path_join("motion_lab.png"))
 		lab.toggle_pause()
-	await wait(1.8)
+	# Release at 1.0s + contact-cloud lifetime 0.84s, measured in simulation frames.
+	# Wall-clock timers can finish before physics catches up under rendering load.
+	for frame in 130:
+		await physics_frame
 	check(get_nodes_in_group("dash_dust").is_empty(), "dust geometry expires")
 	# A tap shorter than the anticipation must not puff.
 	lab.reset_trial()

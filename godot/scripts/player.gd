@@ -311,7 +311,7 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 
 
 func _update_running_dust(delta: float, running: bool) -> void:
-	if not running or game.dash_dust_style != "sculpted":
+	if not running or game.dash_dust_style not in game.STEP_STYLES:
 		_dust_contacts = [true, true]
 		_wheel_dust_distance = 0.0
 		return

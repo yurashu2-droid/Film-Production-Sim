@@ -9,6 +9,11 @@
 !/play_host.bat
 !/play_join.bat
 !/run_tests.sh
+!/play_vfx.bat
+!/AGENTS.md
+!/.claude/
+/.claude/*
+!/.claude/skills/
 
 # Godotが自動で作るもの
 godot/.godot/

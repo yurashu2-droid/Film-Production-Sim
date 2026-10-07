@@ -58,6 +58,12 @@ func _build_studio() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("cbd9e4")
 	env.ambient_light_energy = 0.7
+	# 光る演出を現場（stage.gd）と同じ条件で見るため、トーンマップとグローを揃える
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 6.0
+	env.glow_enabled = true
+	env.glow_intensity = 0.25
+	env.glow_hdr_threshold = 1.6
 	environment.environment = env
 	add_child(environment)
 	var light := DirectionalLight3D.new()
@@ -192,7 +198,7 @@ func _build_panel() -> void:
 	grounding.toggled.connect(func(on: bool): foot_grounding_enabled = on; local_player().vis.grounding_enabled = on)
 	col.add_child(grounding)
 	var dust := CheckBox.new()
-	dust.text = "トゥーン土ぼこり"
+	dust.text = "走りの演出"
 	dust.button_pressed = true
 	dust.toggled.connect(func(on: bool): dust_enabled = on; _clear_dash_dust())
 	col.add_child(dust)
@@ -200,8 +206,13 @@ func _build_panel() -> void:
 	_dust_picker.add_item("煙：自作・塊と余韻（改良版）")
 	_dust_picker.add_item("煙：元の自作の丸い煙")
 	_dust_picker.add_item("煙：Kenneyの無料素材")
-	_dust_picker.select(["sculpted", "mesh", "kenney"].find(dash_dust_style))
-	_dust_picker.item_selected.connect(func(index: int): set_dust_style(["sculpted", "mesh", "kenney"][index]))
+	_dust_picker.add_item("アニメ調：スミア（体が伸びる）")
+	_dust_picker.add_item("アニメ調：スミア × 雷")
+	_dust_picker.add_item("アニメ調：雷の疾走")
+	_dust_picker.add_item("煙：蹴り上げ（輪郭つき・コマ打ち）")
+	_dust_picker.add_item("脚ぐるぐる ＋ 蹴り上げの煙")
+	_dust_picker.select(DUST_STYLES.find(dash_dust_style))
+	_dust_picker.item_selected.connect(func(index: int): set_dust_style(DUST_STYLES[index]))
 	col.add_child(_dust_picker)
 	var size_label := _panel_label(col, "土ぼこりの大きさ  1.00 ×", 16)
 	var size_slider := HSlider.new()
@@ -332,8 +343,8 @@ func _show_dash_dust(pos: Vector3, direction: Vector3, foot: int = -1) -> void:
 		_spawn_dash_dust(pos, direction, dash_dust_style, dust_scale, foot >= 0)
 
 func set_dust_style(style: String) -> void:
-	dash_dust_style = style if style in ["sculpted", "mesh", "kenney"] else "sculpted"
-	_dust_picker.select(["sculpted", "mesh", "kenney"].find(dash_dust_style))
+	dash_dust_style = style if style in DUST_STYLES else "sculpted"
+	_dust_picker.select(DUST_STYLES.find(dash_dust_style))
 	start_trial()
 
 func save_frame() -> void:
