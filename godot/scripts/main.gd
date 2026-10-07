@@ -9,6 +9,7 @@ const Stage := preload("res://scripts/stage.gd")
 const Player := preload("res://scripts/player.gd")
 const Judge := preload("res://scripts/judge.gd")
 const KenneyDust := preload("res://scripts/kenney_dust.gd")
+const SculptedDust := preload("res://scripts/sculpted_dust.gd")
 const ToonDust := preload("res://scripts/toon_dust.gd")
 const Hud := preload("res://scripts/hud.gd")
 
@@ -32,7 +33,7 @@ const OPTIONS := [
 	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"]},
 ]
 
-var dash_dust_style := str(ProjectSettings.get_setting("vfx/dash_dust_style", "kenney"))
+var dash_dust_style := str(ProjectSettings.get_setting("vfx/dash_dust_style", "sculpted"))
 var font: Font
 var stage: Node3D
 var hud: CanvasLayer
@@ -270,29 +271,36 @@ func rx_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_di
 
 # ---- 各参加者の操作（ホストへの依頼） ----
 
-func act_dash_dust() -> void:
-	h_dash_dust.rpc_id(1)
+func act_dash_dust(foot: int = -1) -> void:
+	h_dash_dust.rpc_id(1, foot)
 
 
 @rpc("any_peer", "call_local", "reliable")
-func h_dash_dust() -> void:
+func h_dash_dust(foot: int = -1) -> void:
 	if not Net.is_host() or replaying or state not in [S.PREP, S.COUNTDOWN, S.TAKE]:
 		return
 	var pl: Node = players.get(Net.sender())
 	if pl == null or pl.held != 0 or pl.operating != 0:
 		return
-	host_ev("dash_dust", [pl.global_position, pl.vis.global_basis.z.normalized()])
+	var pos: Vector3 = pl.global_position
+	if foot >= 0:
+		pos = pl.vis.foot_position("L" if foot == 0 else "R")
+		pos.y = pl.global_position.y
+	host_ev("dash_dust", [pos, pl.vis.global_basis.z.normalized(), foot])
 
 
-func _show_dash_dust(pos: Vector3, direction: Vector3) -> void:
-	_spawn_dash_dust(pos, direction, dash_dust_style)
+func _show_dash_dust(pos: Vector3, direction: Vector3, foot: int = -1) -> void:
+	_spawn_dash_dust(pos, direction, dash_dust_style, 1.0, foot >= 0)
 
 
-func _spawn_dash_dust(pos: Vector3, direction: Vector3, style: String, size: float = 1.0) -> Node3D:
-	var dust: Node3D = KenneyDust.new() if style == "kenney" else ToonDust.new()
+func _spawn_dash_dust(pos: Vector3, direction: Vector3, style: String, size: float = 1.0, trail: bool = false) -> Node3D:
+	var dust: Node3D = SculptedDust.new() if style == "sculpted" else (KenneyDust.new() if style == "kenney" else ToonDust.new())
 	add_child(dust)
 	dust.global_position = pos
-	dust.burst(direction, size)
+	if style == "sculpted":
+		dust.burst(direction, size * (0.48 if trail else 1.22), trail)
+	else:
+		dust.burst(direction, size)
 	return dust
 
 
@@ -1251,7 +1259,7 @@ func ev(n: String, a: Array) -> void:
 			if props.has(a[0]):
 				props[a[0]].show_fuse()
 		"dash_dust":
-			_show_dash_dust(a[0], a[1])
+			_show_dash_dust(a[0], a[1], a[2] if a.size() > 2 else -1)
 		"burst":
 			_show_burst(a[0], a[1])
 		"toast":

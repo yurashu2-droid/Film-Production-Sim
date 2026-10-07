@@ -38,6 +38,8 @@ var _run_start_elapsed := 0.0
 var _run_entry_speed := 0.0
 var _ground_y := 0.0
 var _dash_dust_pending := false
+var _dust_contacts: Array[bool] = [true, true]
+var _wheel_dust_distance := 0.0
 
 
 func setup(cast_tag: String) -> void:
@@ -305,6 +307,28 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 		vis.play(pose + "walk")
 	else:
 		vis.play(pose + "idle")
+	_update_running_dust(delta, wants_run and is_on_floor() and _motion == "" and hs > 4.4)
+
+
+func _update_running_dust(delta: float, running: bool) -> void:
+	if not running or game.dash_dust_style != "sculpted":
+		_dust_contacts = [true, true]
+		_wheel_dust_distance = 0.0
+		return
+	if vis.tag == "M02":
+		# 車輪のキャラは足の代わりに移動距離で小さく巻き上げる。
+		_wheel_dust_distance += Vector2(velocity.x, velocity.z).length() * delta
+		if _wheel_dust_distance >= 1.3:
+			_wheel_dust_distance -= 1.3
+			game.act_dash_dust(0)
+		return
+	for i in 2:
+		var height: float = vis.foot_position("L" if i == 0 else "R").y - global_position.y
+		if height > 0.13:
+			_dust_contacts[i] = false
+		elif height < 0.065 and not _dust_contacts[i]:
+			_dust_contacts[i] = true
+			game.act_dash_dust(i)
 
 
 # 軽い物は歩いて押しのけられる（物理はホストだけが持つので、今はホスト側のみ）

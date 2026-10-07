@@ -255,3 +255,17 @@ func grip_pos(one_hand: bool) -> Vector3:
 		return skel.global_transform * right
 	var left := skel.get_bone_global_pose(skel.find_bone("HAND.L")).origin
 	return skel.global_transform * ((left + right) * 0.5)
+
+
+func foot_position(side: String) -> Vector3:
+	var bone := skel.find_bone("FOOT." + side)
+	if bone < 0 or not _foot_points.has(bone):
+		return global_position + global_basis.x * (-0.15 if side == "L" else 0.15)
+	var tr := skel.global_transform * skel.get_bone_global_pose(bone)
+	var bottom := tr.origin
+	bottom.y = INF
+	for point: Vector3 in _foot_points[bone]:
+		var world := tr * point
+		if world.y < bottom.y:
+			bottom = world
+	return bottom

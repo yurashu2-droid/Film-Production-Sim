@@ -47,9 +47,11 @@ Godotのエディタから `godot/project.godot` を開いて実行しても動�
 
 元のGLB素材・アニメーションは変更していません。Labの「足の埋まり補正」をOFFにすれば即座に元の表示へ戻せます。ゲーム全体を元へ戻す場合は `godot/project.godot` の `[animation]` にある `foot_grounding=true` を `false` に変更します。この修正前の状態はタグ `motion-before-foot-fix-20261007`（コミット `9788a88`）にも残っています。
 
-足元のトゥーン土ぼこりは、[Kenney Smoke Particles](https://kenney.nl/assets/smoke-particles) の無料素材（CC0）を使っています。ための後の蹴り出しで1回出て、後ろへ膨らみながら縮んで消えます。通常ゲームにも入り、参加者へ同期し、本番の見返しにも記録されます。Labの「煙」で無料素材版と元の自作の丸い煙を切り替えられ、演出のON/OFFと大きさ（0.5〜1.5倍）も比較できます。調整値はLab内で試すためのもので、ゲーム本体には自動保存されません。
+足元のトゥーン土ぼこりは自作の改良版を標準にしています。蹴り出しでは地面を擦る短い筋と大きめの煙が出て、凹凸のある塊が転がり、小片へ崩れながら約1.2秒で消えます。走行中は左右の靴底が接地したときに小さな煙を出します（車輪のキャラは移動距離に合わせて出ます）。ジャンプ中・歩行中・物を持っている間には出ません。通常ゲームでも同期し、本番の見返しへ記録されます。
 
-ゲーム全体を元の自作版へ戻す場合は `godot/project.godot` の `[vfx]` にある `dash_dust_style="kenney"` を `"mesh"` に変更します。原画とライセンス・出典は `godot/assets/vfx/kenney_smoke/` に収録しています。
+Labの「煙」で「自作・塊と余韻（改良版）」「元の自作の丸い煙」「Kenneyの無料素材」を比較できます。元の2方式は蹴り出しだけの演出をそのまま残しています。演出のON/OFF、大きさ（0.5〜1.5倍）、通常速度と0.5倍速も選べます。Labでの調整はゲーム本体には自動保存されません。
+
+ゲーム全体を元の自作版へ戻す場合は `godot/project.godot` の `[vfx]` にある `dash_dust_style="sculpted"` を `"mesh"` に、無料素材版なら `"kenney"` に変更します。[Kenney Smoke Particles](https://kenney.nl/assets/smoke-particles) は無料素材（CC0）で、原画・ライセンス・出典を `godot/assets/vfx/kenney_smoke/` に収録しています。
 
 「現在のコマをPNG保存」で、画像とフレーム・速度などのJSONを `%APPDATA%/Godot/app_userdata/格安アクション映画制作班/motion_lab/` に保存します。画面にも保存先が表示されます。床表示を外して足の動きも確認できます（接地判定は維持）。
 

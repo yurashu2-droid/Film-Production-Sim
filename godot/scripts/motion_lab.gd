@@ -197,10 +197,11 @@ func _build_panel() -> void:
 	dust.toggled.connect(func(on: bool): dust_enabled = on; _clear_dash_dust())
 	col.add_child(dust)
 	_dust_picker = OptionButton.new()
+	_dust_picker.add_item("煙：自作・塊と余韻（改良版）")
+	_dust_picker.add_item("煙：元の自作の丸い煙")
 	_dust_picker.add_item("煙：Kenneyの無料素材")
-	_dust_picker.add_item("煙：自作の丸い煙")
-	_dust_picker.select(0 if dash_dust_style == "kenney" else 1)
-	_dust_picker.item_selected.connect(func(index: int): set_dust_style("kenney" if index == 0 else "mesh"))
+	_dust_picker.select(["sculpted", "mesh", "kenney"].find(dash_dust_style))
+	_dust_picker.item_selected.connect(func(index: int): set_dust_style(["sculpted", "mesh", "kenney"][index]))
 	col.add_child(_dust_picker)
 	var size_label := _panel_label(col, "土ぼこりの大きさ  1.00 ×", 16)
 	var size_slider := HSlider.new()
@@ -289,6 +290,8 @@ func reset_trial() -> void:
 	me._run_requested = false
 	me._run_start_elapsed = 0.0
 	me._dash_dust_pending = false
+	me._dust_contacts.fill(true)
+	me._wheel_dust_distance = 0.0
 	me._ground_y = 0.0
 	me.vis.rotation.y = PI
 	me.vis.play("idle", 0.0, true)
@@ -320,17 +323,17 @@ func set_playback_speed(value: float) -> void:
 	if not _step_requested:
 		Engine.time_scale = value
 
-func act_dash_dust() -> void:
+func act_dash_dust(foot: int = -1) -> void:
 	if dust_enabled:
-		super.act_dash_dust()
+		super.act_dash_dust(foot)
 
-func _show_dash_dust(pos: Vector3, direction: Vector3) -> void:
+func _show_dash_dust(pos: Vector3, direction: Vector3, foot: int = -1) -> void:
 	if dust_enabled:
-		_spawn_dash_dust(pos, direction, dash_dust_style, dust_scale)
+		_spawn_dash_dust(pos, direction, dash_dust_style, dust_scale, foot >= 0)
 
 func set_dust_style(style: String) -> void:
-	dash_dust_style = "kenney" if style == "kenney" else "mesh"
-	_dust_picker.select(0 if dash_dust_style == "kenney" else 1)
+	dash_dust_style = style if style in ["sculpted", "mesh", "kenney"] else "sculpted"
+	_dust_picker.select(["sculpted", "mesh", "kenney"].find(dash_dust_style))
 	start_trial()
 
 func save_frame() -> void:

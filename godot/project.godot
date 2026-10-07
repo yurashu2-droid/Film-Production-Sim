@@ -16,7 +16,7 @@ foot_grounding=true
 
 [vfx]
 
-dash_dust_style="kenney"
+dash_dust_style="sculpted"
 
 [autoload]
 

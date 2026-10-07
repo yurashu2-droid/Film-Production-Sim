@@ -18,7 +18,7 @@ func run() -> void:
 	root.add_child(lab)
 	current_scene = lab
 	await wait(0.15)
-	check("dash_dust_style" in lab and lab.get("dash_dust_style") == "kenney", "free asset style is the default")
+	check("dash_dust_style" in lab and lab.get("dash_dust_style") == "sculpted", "sculpted smoke is the default")
 	if failed:
 		quit(1)
 		return
@@ -38,7 +38,7 @@ func run() -> void:
 		quit(1)
 		return
 	var cloud: Node = get_nodes_in_group("dash_dust")[0]
-	check(cloud.get_script().resource_path.ends_with("kenney_dust.gd") and cloud.get_child(0).texture.resource_path.contains("kenney_smoke"), "real Kenney texture is rendered")
+	check(cloud.get_script().resource_path.ends_with("sculpted_dust.gd") and cloud.lifetime > 1.0, "sculpted smoke has longer follow-through")
 	var age: float = cloud.age
 	var clip_time: float = lab.local_player().vis.anim.current_animation_position
 	await wait(0.08)
@@ -57,7 +57,10 @@ func run() -> void:
 	check(mesh_clouds.size() == 1 and mesh_clouds[0].get_script().resource_path.ends_with("toon_dust.gd"), "original effect remains selectable")
 	lab.set_dust_style("kenney")
 	await wait(0.22)
-	check(get_nodes_in_group("dash_dust").size() == 1 and lab.dash_dust_style == "kenney", "switch back clears previous effect")
+	check(get_nodes_in_group("dash_dust").size() == 1 and get_nodes_in_group("dash_dust")[0].get_child(0).texture.resource_path.contains("kenney_smoke"), "Kenney texture remains selectable")
+	lab.set_dust_style("sculpted")
+	await wait(0.22)
+	check(get_nodes_in_group("dash_dust").size() == 1 and lab.dash_dust_style == "sculpted", "switch back clears previous effect")
 	lab.reset_trial()
 	lab.choose_character(0)
 	check(lab.local_player().vis.tag == "M02", "character selection")
@@ -109,6 +112,14 @@ func run() -> void:
 	lab.start_trial()
 	await wait(1.85)
 	check(lab._active and lab.local_player().vis.current == "run", "sustained run previews full loop")
+	var trails := get_nodes_in_group("dash_dust")
+	check(not trails.is_empty() and trails.all(func(d: Node): return d._trail and d._size < 0.6), "continued contact smoke is smaller than startup")
+	lab._release_input()
+	await wait(1.5)
+	check(get_nodes_in_group("dash_dust").is_empty(), "stopping ends contact smoke and cleans geometry")
+	Input.action_press("run")
+	Input.action_press("move_forward")
+	await wait(0.65)
 	var runner: Node = lab.local_player()
 	var speed_before: Vector3 = runner.velocity
 	runner.position.z = -20.0
