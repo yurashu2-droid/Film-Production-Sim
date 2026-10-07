@@ -8,6 +8,8 @@
 473C7866EF35FAFE6865259C03417154D49F34B90CF12FEFBAA4D53457EC3219
 ```
 
+その後、Tab案内の余分なCR改行とパネル重なりだけを修正して配布PCKを更新した。配布PCKは `F34CD39049EAD7E002C049B5E7247ED0B0F6ACFCFEE8C0EB456832DA3AAC8EF0`。進行・物理・RPCは上記の四人検証対象と同じ。更新分はportableの実描画で全文が画面内へ収まり、Tabで開閉できることを確認した（HELP_LAYOUT_OK、終了0）。
+
 ## 確認した経路
 
 起動画面を全peerで生成してから接続し、同じ `/root/StartMenu/Game` を一度だけ生成した。専用ポート24683への接続・出発前の集合位置・lease短縮をfixtureとし、menu接続成功処理・hello・roster・Gameの進行/RPC・cargo同期は本番経路を使った。

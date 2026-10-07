@@ -69,6 +69,9 @@ C キャラクター選択 ／ Esc マウスを離す
 Spaceで撮り直す、Enterで納品。
 期限が切れたら、撮れたテイクを納品して事務所へ帰ろう。
 """
+	# Windows の複数行文字列の CR は、Label で余分な行になってしまう。
+	game.hud.help.get_child(0).text = game.hud.help.get_child(0).text.replace("\r","")
+	game.hud._place(game.hud.help,Control.PRESET_CENTER,Vector2(-380,-360),760)
 
 	_strip = _panel(Control.PRESET_CENTER_TOP, Vector2(-330, 18), 660)
 	var row := HBoxContainer.new()
@@ -225,14 +228,14 @@ func _refresh() -> void:
 			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ G 固定 ／ F " + game.prop_action_hint(action_prop)
 	if phase in [0,2,4]:
 		legacy.keys.text += " ／ V・中クリック 目印"
-	_office.visible = phase == 0 and not picker_open
+	_office.visible = phase == 0 and not picker_open and not game.help_open
 	if _lobby:
 		_lobby.visible = phase == 0 and not picker_open and not game.help_open
 		_lobby_status.text = "制作班 %d / 4 人　%s" % [game.players.size(),"会社を開いています" if Net.mode == "host" else "友達の会社" if Net.mode == "client" else "ひとりで準備中"]
-	_shop.visible = phase == 1 and not picker_open
-	_packing.visible = phase == 2 and not picker_open
+	_shop.visible = phase == 1 and not picker_open and not game.help_open
+	_packing.visible = phase == 2 and not picker_open and not game.help_open
 	_travel.visible = phase == 3
-	_settled.visible = phase == 5
+	_settled.visible = phase == 5 and not game.help_open
 	_strip.offset_top = 60 if phase == 4 else 18
 	_strip.offset_bottom = _strip.offset_top
 	_status.text = "会社 %dコイン   ／   %d人   ／   %s" % [production.wallet, game.players.size(), PHASE_NAMES[clampi(phase, 0, 5)]]
