@@ -14,6 +14,10 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 
 foot_grounding=true
 
+[vfx]
+
+dash_dust_style="kenney"
+
 [autoload]
 
 Net="*res://scripts/net.gd"

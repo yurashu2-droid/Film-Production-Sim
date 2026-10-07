@@ -18,6 +18,10 @@ func run() -> void:
 	root.add_child(lab)
 	current_scene = lab
 	await wait(0.15)
+	check("dash_dust_style" in lab and lab.get("dash_dust_style") == "kenney", "free asset style is the default")
+	if failed:
+		quit(1)
+		return
 	lab.start_trial()
 	await wait(0.22)
 	check(lab.local_player().vis.current == "run_start", "lab uses real controller startup")
@@ -34,6 +38,7 @@ func run() -> void:
 		quit(1)
 		return
 	var cloud: Node = get_nodes_in_group("dash_dust")[0]
+	check(cloud.get_script().resource_path.ends_with("kenney_dust.gd") and cloud.get_child(0).texture.resource_path.contains("kenney_smoke"), "real Kenney texture is rendered")
 	var age: float = cloud.age
 	var clip_time: float = lab.local_player().vis.anim.current_animation_position
 	await wait(0.08)
@@ -46,6 +51,14 @@ func run() -> void:
 	lab.reset_trial()
 	await wait(0.1)
 	check(not paused and get_nodes_in_group("dash_dust").is_empty(), "reset clears preview effects")
+	lab.set_dust_style("mesh")
+	await wait(0.22)
+	var mesh_clouds := get_nodes_in_group("dash_dust")
+	check(mesh_clouds.size() == 1 and mesh_clouds[0].get_script().resource_path.ends_with("toon_dust.gd"), "original effect remains selectable")
+	lab.set_dust_style("kenney")
+	await wait(0.22)
+	check(get_nodes_in_group("dash_dust").size() == 1 and lab.dash_dust_style == "kenney", "switch back clears previous effect")
+	lab.reset_trial()
 	lab.choose_character(0)
 	check(lab.local_player().vis.tag == "M02", "character selection")
 	lab.dust_enabled = false

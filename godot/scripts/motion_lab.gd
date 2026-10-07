@@ -20,6 +20,7 @@ var _status: Label
 var _timeline: ProgressBar
 var _pause_button: Button
 var _character_picker: OptionButton
+var _dust_picker: OptionButton
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -140,7 +141,7 @@ func _build_panel() -> void:
 	panel.add_theme_stylebox_override("panel", style)
 	hud.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", 8)
 	panel.add_child(col)
 	_panel_label(col, "MOTION LAB", 30)
 	_panel_label(col, "走り始め・加速・土ぼこりを確認", 16)
@@ -195,6 +196,12 @@ func _build_panel() -> void:
 	dust.button_pressed = true
 	dust.toggled.connect(func(on: bool): dust_enabled = on; _clear_dash_dust())
 	col.add_child(dust)
+	_dust_picker = OptionButton.new()
+	_dust_picker.add_item("煙：Kenneyの無料素材")
+	_dust_picker.add_item("煙：自作の丸い煙")
+	_dust_picker.select(0 if dash_dust_style == "kenney" else 1)
+	_dust_picker.item_selected.connect(func(index: int): set_dust_style("kenney" if index == 0 else "mesh"))
+	col.add_child(_dust_picker)
 	var size_label := _panel_label(col, "土ぼこりの大きさ  1.00 ×", 16)
 	var size_slider := HSlider.new()
 	size_slider.min_value = 0.5
@@ -319,10 +326,12 @@ func act_dash_dust() -> void:
 
 func _show_dash_dust(pos: Vector3, direction: Vector3) -> void:
 	if dust_enabled:
-		var dust := ToonDust.new()
-		add_child(dust)
-		dust.global_position = pos
-		dust.burst(direction, dust_scale)
+		_spawn_dash_dust(pos, direction, dash_dust_style, dust_scale)
+
+func set_dust_style(style: String) -> void:
+	dash_dust_style = "kenney" if style == "kenney" else "mesh"
+	_dust_picker.select(0 if dash_dust_style == "kenney" else 1)
+	start_trial()
 
 func save_frame() -> void:
 	if _headless:
@@ -335,7 +344,7 @@ func save_frame() -> void:
 	if error == OK:
 		var json := FileAccess.open(file + ".json", FileAccess.WRITE)
 		if json:
-			json.store_string(JSON.stringify({"cast": local_player().vis.tag, "frame": roundi(trial_time * 60), "time": trial_time, "animation": local_player().vis.current, "velocity": var_to_str(local_player().velocity), "dust_scale": dust_scale, "dust_enabled": dust_enabled, "foot_grounding": foot_grounding_enabled}, "\t"))
+			json.store_string(JSON.stringify({"cast": local_player().vis.tag, "frame": roundi(trial_time * 60), "time": trial_time, "animation": local_player().vis.current, "velocity": var_to_str(local_player().velocity), "dust_style": dash_dust_style, "dust_scale": dust_scale, "dust_enabled": dust_enabled, "foot_grounding": foot_grounding_enabled}, "\t"))
 		_status.text = "保存しました: " + file + ".png"
 	else:
 		_status.text = "保存できませんでした（エラー %d）" % error

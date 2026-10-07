@@ -8,6 +8,7 @@ extends Node3D
 const Stage := preload("res://scripts/stage.gd")
 const Player := preload("res://scripts/player.gd")
 const Judge := preload("res://scripts/judge.gd")
+const KenneyDust := preload("res://scripts/kenney_dust.gd")
 const ToonDust := preload("res://scripts/toon_dust.gd")
 const Hud := preload("res://scripts/hud.gd")
 
@@ -31,6 +32,7 @@ const OPTIONS := [
 	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"]},
 ]
 
+var dash_dust_style := str(ProjectSettings.get_setting("vfx/dash_dust_style", "kenney"))
 var font: Font
 var stage: Node3D
 var hud: CanvasLayer
@@ -283,10 +285,15 @@ func h_dash_dust() -> void:
 
 
 func _show_dash_dust(pos: Vector3, direction: Vector3) -> void:
-	var dust := ToonDust.new()
+	_spawn_dash_dust(pos, direction, dash_dust_style)
+
+
+func _spawn_dash_dust(pos: Vector3, direction: Vector3, style: String, size: float = 1.0) -> Node3D:
+	var dust: Node3D = KenneyDust.new() if style == "kenney" else ToonDust.new()
 	add_child(dust)
 	dust.global_position = pos
-	dust.burst(direction)
+	dust.burst(direction, size)
+	return dust
 
 
 func _clear_dash_dust() -> void:
