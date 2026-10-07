@@ -37,3 +37,15 @@ Check the phase4 transition revives the film image; no VFX change is indicated h
 Reproduce a case:
 Godot_v4.7.2-stable_win64_console.exe --path godot --script res://tests/shots/perf_production/benchmark.gd --resolution 1600x900 -- --bench=office
 Cases: office, legacy, studio, yard, yard_nohose, office_nofilm.
+
+## 最終portableの通常描画（2026-10-08 06:58）
+
+RTX4060 / Vulkan Forward+ / 1600×900、VSyncをこの計測processだけ無効にし、画像保存・固定FPS指定を使わず2秒間の実frame数を測った。portable EXE/PCKだけを作業場所にして、起動画面からsolo、購入0で積載、通常8秒移動後の未設営倉庫へ進めた。
+
+| 場面 | frames | 秒 | 実FPS | film SubViewport更新 |
+| --- | ---: | ---: | ---: | --- |
+| 事務所 | 811 | 2.000519 | 405.4 | DISABLED |
+| 積み込み | 719 | 2.004775 | 358.6 | DISABLED |
+| 到着後の未設営倉庫 | 280 | 2.011890 | 139.2 | ALWAYS |
+
+ログはignored `tools/diagnostics/portable-fps.log`。既知の42〜53fpsは今回の静止場面でも再現していない。爆発中・重い積載・四人の同時実描画の負荷や、他のPCでの性能の保証には使わない。
