@@ -33,15 +33,61 @@ func _input(event: InputEvent) -> void:
 		if production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
 			h_load_truck.rpc_id(1,me.held)
 			get_viewport().set_input_as_handled()
-		elif me.target and me.target.has_method("set_active"):
-			h_prop_action.rpc_id(1,me.target.pid)
-			get_viewport().set_input_as_handled()
-		elif me.held != 0 and props[me.held].has_method("set_active"):
+		elif me.held != 0 and is_action_prop(props[me.held]):
 			h_prop_action.rpc_id(1,me.held)
+			get_viewport().set_input_as_handled()
+		elif is_action_prop(me.target):
+			h_prop_action.rpc_id(1,me.target.pid)
 			get_viewport().set_input_as_handled()
 		elif production.phase == 2 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.0 and me.held == 0:
 			h_depart.rpc_id(1)
 			get_viewport().set_input_as_handled()
+
+func is_action_prop(prop: Node) -> bool:
+	return prop != null and prop.has_method("set_active") and (not prop.has_method("can_activate") or prop.can_activate())
+
+func prop_action_hint(prop: Node) -> String:
+	if prop.kind == "dragon_skull":
+		return "口を閉じる" if prop.active else "口を開く"
+	if prop.kind == "cleaning_cart":
+		return "絞り機を動かす"
+	return "下げる" if prop.active else "上げる"
+
+func _recovery_point() -> Vector3:
+	if production.phase in [0,1]:
+		return Flow.Office.SPAWN_POINT + Vector3(0,0.9,0)
+	if production.phase == 2:
+		return Flow.HOME_TRUCK + Vector3(-3,1,1)
+	if production.phase == 3:
+		return truck.global_position + Vector3(-3,1,0)
+	return SPAWN + Vector3(0,0.9,0)
+
+func recover_player(player: Node3D) -> void:
+	if not production:
+		super.recover_player(player)
+		return
+	player.global_position = _recovery_point()
+	player.velocity = Vector3.ZERO
+	h_recover_crew.rpc_id(1)
+
+@rpc("any_peer","call_local","reliable")
+func h_recover_crew() -> void:
+	if not Net.is_host() or not production or replaying:
+		return
+	var who := Net.sender()
+	var player: Node = players.get(who)
+	if player == null:
+		return
+	var point := _recovery_point()
+	production_move.rpc(point,player.aim_yaw,who)
+	var prop := _held_by(who)
+	if prop:
+		var saved: Array = prop.get_state()
+		saved[0] = point + player.flat_forward() * 2.2
+		prop.restore(saved)
+		prop.set_holder(who)
+		prop.grab_time = Time.get_ticks_msec() / 1000.0
+	host_ev("toast",["場外に落ちた制作班を回収。撮影は続行です！",0])
 
 @rpc("any_peer","call_local","reliable")
 func h_load_truck(pid: int) -> void:
@@ -63,9 +109,9 @@ func h_prop_action(pid: int) -> void:
 		return
 	var me: Node = players.get(Net.sender())
 	var prop: Node = props.get(pid)
-	if me == null or prop == null or prop.absent or not prop.has_method("set_active") or prop.holder not in [0,Net.sender()]:
+	if me == null or prop == null or prop.absent or not is_action_prop(prop) or prop.holder not in [0,Net.sender()]:
 		return
-	if me.global_position.distance_to(prop.center_global()) > Player.REACH:
+	if prop.holder != Net.sender() and me.global_position.distance_to(prop.center_global()) > Player.REACH:
 		return
 	host_ev("production_prop",[pid,not prop.active])
 	host_ev("sfx",["thump",prop.global_position])
@@ -159,6 +205,21 @@ func _take_or_cut(who: int) -> void:
 		return
 	super._take_or_cut(who)
 
+func _begin_take() -> void:
+	if production:
+		production.notes.reset()
+		production.bonus_progress = ""
+	super._begin_take()
+
+func _cut() -> void:
+	var extras := {}
+	if production:
+		extras = production.notes.finish(production.chosen_job,takes.size(),judge.passed())
+	super._cut()
+	if production:
+		takes[-1]["extras"] = extras
+		host_ev("takes",[takes,selected])
+
 @rpc("any_peer","call_local","reliable")
 func h_retake() -> void:
 	if production and production.expired:
@@ -183,7 +244,14 @@ func h_next() -> void:
 func _order_bbcode() -> String:
 	var text := super._order_bbcode()
 	if production:
-		text = "[b]" + production.job()["title"] + "[/b]　／　" + production.job()["location"] + "\n会社の残金 %d コイン　（道具は最大600コインまで）\n\n" % production.wallet + text
+		text = text.replace("この内容で現場へ","この内容で積み込みへ")
+		text = "[b]" + production.job()["title"] + "[/b]　／　" + production.job()["location"] + "\n会社の残金 %d コイン　（道具は最大600コインまで）\n追加注文 +150コイン：" % production.wallet + production.BONUS_TITLES[production.chosen_job] + "\n\n" + text
+	return text
+
+func panel_bbcode() -> String:
+	var text := super.panel_bbcode()
+	if production and production.expired and state == S.RESULT and takes.size() < MAX_TAKES:
+		text = text.replace("[color=#ffdb59][Space][/color] 撮り直す（あと%d回）" % (MAX_TAKES-takes.size()),"借り時間終了・撮り直し不可")
 	return text
 
 

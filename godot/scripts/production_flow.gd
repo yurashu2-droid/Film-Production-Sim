@@ -3,6 +3,8 @@ const Office := preload("res://scripts/production_office.gd")
 const Assets := preload("res://scripts/production_assets.gd")
 const Location := preload("res://scripts/production_location.gd")
 const ProductionProp := preload("res://scripts/production_prop.gd")
+const MovieProp := preload("res://scripts/production_movie_prop.gd")
+const Notes := preload("res://scripts/production_notes.gd")
 const JOBS := [
 	{"title":"月下の城と大爆発", "location":"倉庫", "description":"廃材で城を作り、告白 → 背後の爆発 → 再会を撮る。見えない裏側は節約していい。"},
 	{"title":"スタジオで月下の城", "location":"室内スタジオ", "description":"狭い貸しスタジオで大作を撮る。機材を通し、光と構図を工夫しよう。"},
@@ -21,6 +23,9 @@ var trip_time := 0.0
 var last_payment := 0
 var expenses := 0
 var last_flubs: Array[String] = []
+var notes: RefCounted
+var bonus_progress := ""
+const BONUS_TITLES := ["一発OKで撮り切る", "スタッフ映り込み0.5秒以内", "月を合計2秒映す"]
 var _sync := 0.0
 var _notice := 0
 var _loaded: Array[int] = []
@@ -35,10 +40,16 @@ var _world_environment: Environment
 
 func setup(owner_game: Node) -> void:
 	game = owner_game
+	notes = Notes.new()
+	notes.game = game
 	for item in [["lift_cart",Vector3(68,0,18)],["cleaning_cart",Vector3(66,0,18)]]:
 		var cart: Node = ProductionProp.new()
 		cart.build_model(item[0])
 		game.stage._register(cart,item[1]-OFFSET,0.0)
+	for item in [["dragon_skull",Vector3(51,0.05,17)],["witch_cauldron",Vector3(54,0.05,19)]]:
+		var prop: Node = MovieProp.new()
+		prop.build_model(item[0])
+		game.stage._register(prop,item[1]-OFFSET,0.0)
 	_office_root = Office.build(game, game.font)
 	var decor := Assets.decorate(_office_root, "office")
 	decor.position = Vector3(74, 0, -4)
@@ -74,7 +85,7 @@ func job() -> Dictionary:
 	return JOBS[chosen_job]
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress}
 
 func apply(data: Dictionary) -> void:
 	var old := phase
@@ -87,6 +98,9 @@ func apply(data: Dictionary) -> void:
 	last_payment = int(data["last_payment"])
 	expenses = int(data["expenses"])
 	last_flubs.assign(data["last_flubs"])
+	bonus_progress = str(data.get("bonus_progress",""))
+	# 事務所・買い物・積み込み・移動中は撮影映像を表示しない。
+	game.film.view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if phase in [4,5] else SubViewport.UPDATE_DISABLED
 	if phase in [4,5] and (_site_root == null or _configured_job != chosen_job):
 		_configure_site()
 	game.hud.root.visible = true
@@ -106,6 +120,8 @@ func accept(index: int) -> void:
 	expenses = 0
 	last_payment = 0
 	last_flubs.clear()
+	notes.reset()
+	bonus_progress = ""
 	game.order = {}
 	game.takes = []
 	game._take_data = []
@@ -132,6 +148,10 @@ func pack() -> void:
 
 func cargo() -> Array[int]:
 	var result: Array[int] = []
+	var held_ids: Array[int] = []
+	for player: Node in game.players.values():
+		if player.held != 0:
+			held_ids.append(player.held)
 	for pid: int in game.props:
 		var prop: Node = game.props[pid]
 		if prop.absent or prop.kind in ["truck","mark"]:
@@ -145,7 +165,7 @@ func cargo() -> Array[int]:
 			var parent_prop: Node = game.props.get(carrier)
 			carrier = parent_prop.rider_of if parent_prop else 0
 			seen += 1
-		if prop.holder != 0 and not pid in result:
+		if (prop.holder != 0 or pid in held_ids) and not pid in result:
 			result.append(pid)
 	return result
 
@@ -215,6 +235,9 @@ func _physics_process(delta: float) -> void:
 		if trip_time >= 8.0:
 			arrive()
 	elif phase == 4 and not expired and game.state != game.S.DELIVERED:
+		if game.state == game.S.TAKE:
+			notes.tick(delta)
+			bonus_progress = "映り込み %.1f秒" % notes.crew_seconds if chosen_job == 1 else ("月 %.1f / 2秒" % notes.moon_seconds if chosen_job == 2 else "最初のテイク" if game.takes.is_empty() else "撮り直し中")
 		lease_left = maxf(0.0,lease_left - delta)
 		if _notice < _warnings.size() and lease_left <= _warnings[_notice]:
 			game.host_ev("toast", ["スタジオ返却まで %d秒！" % int(_warnings[_notice]),0])
@@ -257,9 +280,12 @@ func expire() -> void:
 func settle(index: int) -> void:
 	var passed: Array = game.takes[index]["passed"]
 	var count := passed.count(true)
-	last_payment = 150 + count * 250 + (300 if count == 3 else 0)
+	last_payment = take_fee(index)
+	var extras: Dictionary = game.takes[index].get("extras",{})
 	wallet += last_payment
 	last_flubs.clear()
+	last_flubs.append("追加注文『%s』：%s" % [BONUS_TITLES[chosen_job],"達成！ +150コイン" if extras.get("bonus_ok",false) else "今回は未達"])
+	last_flubs.append_array(notes.observations(extras))
 	for result: Dictionary in game.takes[index]["results"]:
 		if not result["ok"]:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
@@ -269,7 +295,22 @@ func settle(index: int) -> void:
 		last_flubs.append("依頼主『予告編の素材としては…味がある』")
 	phase = 5
 	game.production_sync.rpc(snapshot())
+	game.host_ev("toast",["納品完了！ %dコイン。事務所に帰って次の一本へ" % last_payment,0])
 	game._grab_mouse(false)
+
+func take_fee(index: int) -> int:
+	var take: Dictionary = game.takes[index]
+	var count: int = take["passed"].count(true)
+	return 150 + count * 250 + (300 if count == 3 else 0) + (150 if take.get("extras",{}).get("bonus_ok",false) else 0)
+
+func bonus_status() -> String:
+	var text: String = "追加注文 +150コイン：" + BONUS_TITLES[chosen_job]
+	if game.state in [game.S.RESULT,game.S.REPLAY] and not game.takes.is_empty():
+		var extra: Dictionary = game.takes[game.selected].get("extras",{})
+		return text + ("　✔ 達成" if extra.get("bonus_ok",false) else "　未達") + "\n納品料見込み：%dコイン" % take_fee(game.selected)
+	if game.state == game.S.TAKE:
+		return text + "　" + bonus_progress
+	return text + "（本編3場面の成立も必要）"
 
 func return_office() -> void:
 	if phase != 5:

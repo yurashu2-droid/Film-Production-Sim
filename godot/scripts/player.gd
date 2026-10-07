@@ -214,8 +214,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_push_light_props()
 		if global_position.y < -20.0:
-			global_position = Vector3(0, 1, 8)
-			velocity = Vector3.ZERO
+			game.recover_player(self)
 		var face := dir
 		if held != 0 or op:
 			face = ff

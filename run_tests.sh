@@ -13,6 +13,15 @@ timeout 65 $GD --headless --path godot -- --join=127.0.0.1 --productionnettest 2
 wait "$PRODUCTION_HOST"
 grep -E "SCRIPT ERROR|ERROR:|PRODUCTIONNET_|above the MTU" "$PRODUCTION_LOG"
 rm -f "$PRODUCTION_LOG"
+# 起動画面の実ボタン経路でも、ホストと参加者のidentityとNodeパスを確認。
+MENU_LOG=$(mktemp)
+timeout 35 $GD --headless --path godot -- --menutest=host > "$MENU_LOG" 2>&1 &
+MENU_HOST=$!
+sleep 2
+timeout 35 $GD --headless --path godot -- --menutest=client 2>&1 | grep -E "SCRIPT ERROR|ERROR:|START_MENU_CHECK.*FAIL|STARTMENUTEST_"
+wait "$MENU_HOST"
+grep -E "SCRIPT ERROR|ERROR:|STARTMENUTEST_" "$MENU_LOG"
+rm -f "$MENU_LOG"
 timeout 25 $GD --headless --path godot --fixed-fps 60 --script res://tests/footgroundtest.gd 2>&1 | grep -E "SCRIPT ERROR|FOOT_CHECK.*FAIL|FOOTTEST_"
 timeout 25 $GD --headless --path godot --script res://tests/labtest.gd 2>&1 | grep -E "SCRIPT ERROR|LAB_CHECK.*FAIL|LABTEST_"
 timeout 30 $GD --headless --path godot --script res://tests/choicetest.gd 2>&1 | grep -E "SCRIPT ERROR|CHOICE_CHECK.*FAIL|CHOICETEST_"

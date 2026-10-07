@@ -16,7 +16,11 @@ func run() -> void:
 	await frames(10)
 	var flow: Node = game.production
 	check(flow != null and flow.phase == 0 and flow.wallet == 600,"office starts with company cash")
+	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_DISABLED,"hidden film viewport sleeps in office")
 	check(game.local_player().position.x > 60,"crew arrives in physical office")
+	game.local_player().position = Vector3(72,-21,5)
+	await frames(3)
+	check(game.local_player().position.x > 60 and game.local_player().position.y > -1,"falling from office returns to current company")
 	game.set_character_menu(true)
 	check(game.hud.root.visible and game.character_open,"office character picker is visible")
 	game.set_character_menu(false)
@@ -48,6 +52,7 @@ func run() -> void:
 	check(flow.phase == 3,"departure starts journey")
 	await frames(490)
 	check(flow.phase == 4 and game.truck.position.distance_to(flow.SITE_TRUCK)<0.1,"journey reaches filming location")
+	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_ALWAYS,"film viewport resumes at actual location")
 	check(game.film.rider_of == lift.pid and lift.rider_of == game.truck.pid and game.film.position.x < 25,"nested cargo arrives attached at location")
 	game.local_player().position = lift.position + Vector3(1.5,0,0)
 	var low: float = lift.deck_top
@@ -68,6 +73,27 @@ func run() -> void:
 	game.h_return_office()
 	await frames(6)
 	check(flow.phase == 0 and game.local_player().position.x > 60,"return to company with earnings")
+	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_DISABLED,"hidden film viewport sleeps again after return")
+	var dragon: Node
+	var cauldron: Node
+	for prop: Node in game.props.values():
+		if prop.kind == "dragon_skull": dragon = prop
+		if prop.kind == "witch_cauldron": cauldron = prop
+	game.local_player().position = dragon.position + Vector3(0,0.1,1)
+	await frames(3)
+	game.h_grab(dragon.pid)
+	dragon.position = game.local_player().position + Vector3(0,1,5)
+	var use := InputEventKey.new()
+	use.physical_keycode = KEY_F
+	use.pressed = true
+	game._input(use)
+	check(dragon.active and game.local_player().held == dragon.pid,"held dragon jaw uses normal F input")
+	game.local_player().position.y = -21
+	dragon.position.y = -15
+	await frames(4)
+	check(game.local_player().position.x > 60 and dragon.position.y > -1 and dragon.active and dragon.holder == 1,"fallen crew returns with held movie prop and jaw state")
+	game.h_release()
+	check(not game.is_action_prop(cauldron),"single mesh cauldron offers carrying without false open action")
 	flow.wallet = 0
 	game.h_accept_job(1)
 	game.h_order_set("fx",1)
@@ -75,6 +101,60 @@ func run() -> void:
 	game.h_order_confirm()
 	await frames(5)
 	check(flow.phase == 2 and flow.wallet == 0,"free loadout never goes negative")
+	# 実カメラの映り込み・遮蔽と、選んだテイクだけの追加報酬。
+	game.host_unload(game.film)
+	var camera_state: Array = game.film.get_state()
+	camera_state[0] = Vector3(30,0,6)
+	camera_state[2] = true
+	game.film.restore(camera_state)
+	game._aim_camera(Vector3(30,1.2,0),50.0)
+	game.local_player().position = Vector3(30,0.1,3)
+	await frames(4)
+	flow.notes.reset()
+	flow.notes.tick(1.0)
+	check(flow.notes.crew_seconds > 0.9,"staff in actual film frame is recorded")
+	game.local_player().position = Vector3(40,0.1,3)
+	await frames(3)
+	flow.notes.reset()
+	flow.notes.tick(1.0)
+	check(flow.notes.crew_seconds == 0.0,"staff outside film frame is not recorded")
+	var moon: Node = game.moons[0]
+	var moon_state: Array = moon.get_state()
+	moon_state[0] = Vector3(30,0,0)
+	moon_state[2] = true
+	moon.restore(moon_state)
+	game._aim_camera(moon.center_global(),50.0)
+	await frames(3)
+	flow.notes.reset()
+	flow.notes.tick(2.1)
+	check(flow.notes.moon_seconds >= 2.0,"visible moon time is measured")
+	var blocker := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(6,10,0.4)
+	shape.shape = box
+	blocker.add_child(shape)
+	game.add_child(blocker)
+	blocker.position = Vector3(30,3,3)
+	await frames(3)
+	flow.notes.reset()
+	flow.notes.tick(2.1)
+	check(flow.notes.moon_seconds == 0.0,"occluded moon does not count")
+	blocker.queue_free()
+	var pass_all := [true,true,true]
+	check(flow.notes.finish(0,0,pass_all).bonus_ok and not flow.notes.finish(0,1,pass_all).bonus_ok,"warehouse bonus requires first take")
+	check(not flow.notes.finish(1,0,[false,true,true]).bonus_ok,"extra condition cannot reward failed main film")
+	flow.notes.moon_seconds = 2.1
+	var bonus: Dictionary = flow.notes.finish(2,0,pass_all)
+	var no_bonus: Dictionary = flow.notes.finish(2,1,[true,true,false])
+	game.takes = [{"passed":pass_all,"results":[],"extras":bonus},{"passed":[true,true,false],"results":[],"extras":no_bonus}]
+	flow.chosen_job = 2
+	game.selected = 0
+	flow.settle(1)
+	check(flow.last_payment == 650,"payment uses delivered take rather than currently selected bonus take")
+	flow.phase = 4
+	flow.settle(0)
+	check(flow.last_payment == 1350,"complete film plus extra earns 150 coin bonus")
 	print("PRODUCTIONTEST_FAIL" if failed else "PRODUCTIONTEST_OK")
 	game.queue_free()
 	await process_frame

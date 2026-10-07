@@ -26,6 +26,10 @@ var _settled: PanelContainer
 var _settled_text: Label
 var _shop: PanelContainer
 var _warning: Label
+var _bonus: Label
+var _lobby: PanelContainer
+var _lobby_status: Label
+var _addresses: Array[String] = []
 
 
 func build() -> void:
@@ -41,6 +45,7 @@ func build() -> void:
 
 事務所で依頼を選ぶ → 道具を買う → 廃材も軽トラへ → 現場
 会社の財布から購入。廃材・昇降台・清掃カートは無料。
+竜の頭や魔女の鍋も自由に使える。竜はFで口が開く。
 持った物は軽トラのそばで F：荷台に積む。
 全員が軽トラのそばへ集まり、手ぶらで F：出発。
 現場を借りられるのは10分。3場面を1テイクで撮り切ろう。
@@ -52,7 +57,7 @@ F カメラ・ライト操作、箱の開閉、昇降台・絞り機を動かす
 C キャラクター選択 ／ Esc マウスを離す
 役者の印を持って動かすと、役者も立ち位置へ移る。Bで戻す。
 
-カチンコを持って F：本番（Tでも開始・カット）
+カチンコを持って F：本番 ／ T：カット
 1 告白：城・高低差・明るさ → 2 背後で爆発 → 3 再会
 カメラ操作中はマウスで首振り、ホイールでズーム。
 台車にカメラを載せると WASD で移動撮影もできる。
@@ -71,13 +76,33 @@ C キャラクター選択 ／ Esc マウスを離す
 	_clock = _label("", 18, GOLD)
 	_clock.custom_minimum_size.x = 132
 	row.add_child(_clock)
+	var menu: Node = game.get_parent()
+	if menu.has_method("return_to_menu"):
+		_lobby = _panel(Control.PRESET_TOP_LEFT,Vector2(18,18),370)
+		var lobby_rows := _rows(_lobby)
+		_lobby_status = _label("",19,GOLD)
+		lobby_rows.add_child(_lobby_status)
+		if Net.mode == "host":
+			_addresses = menu.host_addresses()
+			lobby_rows.add_child(_label("同じネットワークの友達へ\nIP：" + (" / ".join(_addresses) if not _addresses.is_empty() else "見つかりませんでした"),17,MUTED))
+			if not _addresses.is_empty():
+				var copy_button := _button("IPをコピー")
+				copy_button.pressed.connect(func():
+					if DisplayServer.get_name() != "headless": DisplayServer.clipboard_set(_addresses[0])
+					game.hud.show_toast("IPをコピーしました。友達の参加画面へ",game.hud.YELLOW))
+				lobby_rows.add_child(copy_button)
+		var leave_button := _button("会社を閉じる" if Net.mode in ["solo","host"] else "会社を出る")
+		leave_button.tooltip_text = "現在の会社の残金と撮影は終了します。"
+		leave_button.pressed.connect(func(): menu.return_to_menu())
+		lobby_rows.add_child(leave_button)
 
 	_office = _panel(Control.PRESET_BOTTOM_RIGHT, Vector2(-438, -456), 414)
 	var office_rows := _rows(_office)
 	office_rows.add_child(_label("今日の一本を選ぶ", 25, GOLD))
 	office_rows.add_child(_label("会社方針：10分で撮り切る", 18, MUTED))
 	for index in 3:
-		var job_button := _button("%s\n%s  ／  城・月・大爆発を撮影" % [JOB_TITLES[index], JOB_PLACES[index]])
+		var job_button := _button("%s　／　%s\n追加 +150：%s" % [JOB_TITLES[index], JOB_PLACES[index], game.production.BONUS_TITLES[index]])
+		job_button.add_theme_font_size_override("font_size",18)
 		job_button.custom_minimum_size.y = 74
 		job_button.pressed.connect(func(): game.rpc_id(1, "h_accept_job", index))
 		office_rows.add_child(job_button)
@@ -136,6 +161,10 @@ C キャラクター選択 ／ Esc マウスを離す
 	_warning.offset_bottom = 108
 	_warning.custom_minimum_size = Vector2(680, 0)
 	_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bonus = _label("",16,GOLD)
+	var orders: VBoxContainer = game.hud.order_state.get_parent()
+	orders.add_child(_bonus)
+	orders.move_child(_bonus,orders.get_child_count()-2)
 	_refresh()
 
 
@@ -161,6 +190,12 @@ func _refresh() -> void:
 	else:
 		legacy.target_label.visible = true
 		legacy.order_lines[0].get_parent().get_child(0).text = "依頼　" + production.job()["title"]
+		if game.state in [game.S.RESULT,game.S.REPLAY] and not game.takes.is_empty():
+			var chosen: Array = game.takes[game.selected]["passed"]
+			for index in 3:
+				var line: Label = legacy.order_lines[index]
+				line.text = ("✔ " if chosen[index] else "□ ") + line.text.substr(2)
+				line.add_theme_color_override("font_color",legacy.GREEN if chosen[index] else Color.WHITE)
 	legacy.keys.visible = phase in [0,2,4] and not picker_open and not game.help_open
 	if phase in [0,2]:
 		legacy._place(legacy.keys,Control.PRESET_BOTTOM_LEFT,Vector2(18,-72),minf(900,game.get_viewport().get_visible_rect().size.x-480))
@@ -173,17 +208,21 @@ func _refresh() -> void:
 			legacy.keys.text = "左クリックで置く ／ 右ドラッグで回す ／ G 固定\n軽トラのそばで F：荷台に積む"
 		else:
 			legacy.keys.text += "\n左クリックで持つ ／ 廃材も忘れずに！ 軽トラのそばで F 出発"
-		if me and me.target and me.target.has_method("set_active"):
-			legacy.target_label.text = me.target.label + ("　[F] 下げる" if me.target.active else "　[F] 動かす")
+		if me and game.is_action_prop(me.target):
+			legacy.target_label.text = me.target.label + "　[F] " + game.prop_action_hint(me.target)
 	elif phase == 4:
 		legacy._place(legacy.keys,Control.PRESET_CENTER_BOTTOM,Vector2(-700,-64),1400)
 		legacy.keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		legacy.keys.text = legacy.keys.text.replace(" ／ F9 見本を組む","")
 		var me: Node = game.local_player()
-		if me and me.target and me.target.has_method("set_active"):
-			legacy.target_label.text = me.target.label + ("　[F] 下げる" if me.target.active else "　[F] 動かす")
-			legacy.keys.text = "左クリックで押す ／ G ブレーキ ／ F 昇降・絞り機"
+		var action_prop: Node = game.props.get(me.held) if me and me.held != 0 else (me.target if me else null)
+		if game.is_action_prop(action_prop):
+			legacy.target_label.text = action_prop.label + "　[F] " + game.prop_action_hint(action_prop)
+			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ G 固定 ／ F " + game.prop_action_hint(action_prop)
 	_office.visible = phase == 0 and not picker_open
+	if _lobby:
+		_lobby.visible = phase == 0 and not picker_open and not game.help_open
+		_lobby_status.text = "制作班 %d / 4 人　%s" % [game.players.size(),"会社を開いています" if Net.mode == "host" else "友達の会社" if Net.mode == "client" else "ひとりで準備中"]
 	_shop.visible = phase == 1 and not picker_open
 	_packing.visible = phase == 2 and not picker_open
 	_travel.visible = phase == 3
@@ -197,6 +236,8 @@ func _refresh() -> void:
 	_clock.modulate = RED if seconds < 60 else GOLD
 	_warning.visible = phase == 4 and (production.expired or seconds < 60)
 	_warning.text = "管理人が来た！いまあるテイクを納品しよう" if production.expired else "あと少しで借り時間終了！ 撮れたテイクを確かめよう"
+	_bonus.visible = phase == 4 and not picker_open and not game.help_open
+	_bonus.text = production.bonus_status()
 	if phase == 2:
 		_packing_text.text = "%s\n購入額  %dコイン\n\n%s" % [production.job().get("title", "今日の撮影"), production.expenses, production.loadout_status()]
 		_crew.text = production.crew_ready()

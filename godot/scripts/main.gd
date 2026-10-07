@@ -189,6 +189,10 @@ func _grab_mouse(on: bool) -> void:
 func local_player() -> Node:
 	return players.get(Net.my_id())
 
+func recover_player(player: Node3D) -> void:
+	player.global_position = Vector3(0,1,8)
+	player.velocity = Vector3.ZERO
+
 
 func ui_blocking() -> bool:
 	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked

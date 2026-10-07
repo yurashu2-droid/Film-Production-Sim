@@ -7,7 +7,7 @@ config_version=5
 
 config/name="格安アクション映画制作班"
 config/description="月下の城と大爆発 - 協力撮影の試作"
-run/main_scene="res://production_game.tscn"
+run/main_scene="res://start_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [animation]
