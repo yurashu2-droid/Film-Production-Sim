@@ -7,6 +7,8 @@ extends Node
 var game: Node
 var _host_actions: Array = []
 var _reply: Dictionary = {}
+var _motion_peer := 0
+var _run_start_seen := false
 
 
 # テスト用の要求はRPC外のフレームで実行し、ホスト本人の操作にする。
@@ -17,18 +19,26 @@ func _queue_host(action: String) -> void:
 
 
 func _process(_delta: float) -> void:
+	# 短いクリップを単一の返答時刻で判定せず、届いた瞬間を記録する。
+	var observed: Node = game.players.get(_motion_peer)
+	if Net.is_host() and observed != null and observed.vis.current == "run_start":
+		_run_start_seen = true
 	if _host_actions.is_empty():
 		return
 	var request: Array = _host_actions.pop_front()
 	match request[1]:
 		"grab": game.act_grab(game.clapper.pid)
 		"release": game.act_release()
+		"watch_motion":
+			_motion_peer = request[0]
+			_run_start_seen = false
 		"choices":
 			game.h_select_cast(3)
 			for p in game.props.values():
 				if p.kind == "carton":
 					p.set_fixed(true)
-					p.position = game.players[request[0]].position + Vector3(1, 0, 0)
+					# この後に回すカチンコの経路を塞がない側へ置く。
+					p.position = game.players[request[0]].position + Vector3(-1, 0, 0)
 					break
 	await _wait(0.1)
 	var client: Node = game.players.get(request[0])
@@ -46,6 +56,7 @@ func _process(_delta: float) -> void:
 		"host_collision": clap.get_collision_exceptions().has(game.local_player()),
 		"client_collision": clap.get_collision_exceptions().has(client),
 		"pitch": client.hold_pitch, "animation": client.vis.current,
+		"run_start_seen": _run_start_seen,
 		"host_cast": game.local_player().vis.tag, "client_cast": client.vis.tag,
 		"dust_count": get_tree().get_nodes_in_group("dash_dust").size(),
 		"recorded_dust": game._rec_events.filter(func(e: Array): return e[1] == "dash_dust").size(),
@@ -140,6 +151,7 @@ func _run() -> void:
 	choice_ok = choice_ok and carton.opened and carton.open_amount == 1.0
 	print("CHOICE_NET_OK" if choice_ok else "CHOICE_NET_FAIL", " ", choice_sync)
 	# 短い走り出しのクリップ名も相手側まで届く。
+	await _ask_host("watch_motion")
 	game.input_locked = false
 	Input.action_press("run")
 	Input.action_press("move_forward")
@@ -148,7 +160,7 @@ func _run() -> void:
 	Input.action_release("move_forward")
 	Input.action_release("run")
 	game.input_locked = true
-	var motion_net_ok: bool = motion_sync.get("animation", "") == "run_start"
+	var motion_net_ok: bool = motion_sync.get("run_start_seen", false)
 	print("MOTION_NET_OK" if motion_net_ok else "MOTION_NET_FAIL")
 	var dust_net_ok: bool = motion_sync.get("dust_count", 0) == 1 and get_tree().get_nodes_in_group("dash_dust").size() == 1
 	print("DUST_NET_OK" if dust_net_ok else "DUST_NET_FAIL")

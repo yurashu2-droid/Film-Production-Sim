@@ -25,16 +25,18 @@ func _process(_delta: float) -> void:
 	var request: Array = _requests.pop_front()
 	match request[1]:
 		"host_far":
-			game.production_move.rpc(game.production.Office.SPAWN_POINT, 0.0, 1)
+			game.move_crew(game.production.Office.SPAWN_POINT, 0.0, 1)
 		"host_near":
-			game.production_move.rpc(game.production.HOME_TRUCK + Vector3(-3,0.1,0), 0.0, 1)
+			game.move_crew(game.production.HOME_TRUCK + Vector3(-3,0.1,0), 0.0, 1)
+		"client_near":
+			game.move_crew(game.production.HOME_TRUCK + Vector3(-3,0.1,1), 0.0, request[0])
 		"lift_fixture":
 			var lift := _lift()
 			game.production._move(lift, Vector3(12,0.1,4))
 			lift.set_fixed(true)
 			game.host_unload(game.film)
 			game.host_load(game.film,lift)
-			game.production_move.rpc(Vector3(11,0.1,4),0.0,request[0])
+			game.move_crew(Vector3(11,0.1,4),0.0,request[0])
 		"expire":
 			game.production.lease_left = 0.01
 		"done":
@@ -48,6 +50,10 @@ func _process(_delta: float) -> void:
 	data["clapper_rider"] = game.clapper.rider_of
 	data["truck_position"] = game.truck.global_position
 	data["cargo"] = game.production.cargo()
+	data["can_depart"] = game.production.can_depart()
+	data["crew_ready"] = game.production.crew_ready()
+	if game.get("production_ping") != null:
+		data["pings"] = game.production_ping.snapshot()
 	data["site"] = _site_status()
 	var lift := _lift()
 	data["lift"] = {"active":lift.active,"time":lift.action_time,"top":lift.deck_top}
@@ -115,6 +121,31 @@ func _phase(expected: int, timeout: float = 4.0) -> bool:
 		elapsed += 0.1
 	return game.production.phase == expected
 
+func _ping_case() -> void:
+	var from: Vector3 = game.local_player().global_position + Vector3(0,2,0)
+	game.h_ping.rpc_id(1,from,Vector3.DOWN)
+	await _wait(0.2)
+	var s := await _ask()
+	var id := Net.my_id()
+	var local: Dictionary = game.production_ping.snapshot()
+	var remote: Dictionary = s.get("pings",{})
+	_check(local.has(id) and remote.has(id) and local[id]["position"].distance_to(remote[id]["position"]) < 0.05 and local[id]["text"] == remote[id]["text"],"ping delivered to both crew screens")
+	var first: Vector3 = local.get(id,{}).get("position",Vector3.ZERO)
+	game.h_ping.rpc_id(1,from+Vector3(0.3,0,0),Vector3.DOWN)
+	game.h_ping.rpc_id(1,from+Vector3(0.6,0,0),Vector3.DOWN)
+	await _wait(0.2)
+	s = await _ask()
+	local = game.production_ping.snapshot()
+	remote = s.get("pings",{})
+	_check(local.size() == 1 and remote.size() == 1 and absf(local.get(id,{}).get("position",first).x-first.x-0.3) < 0.05 and local[id]["position"].distance_to(remote[id]["position"]) < 0.05,"ping updates same sender once and limits rapid requests")
+	await _wait(5.1)
+	s = await _ask()
+	_check(game.production_ping.snapshot().is_empty() and s.get("pings",{}).is_empty(),"ping expires on both peers after five seconds")
+	game.h_ping.rpc_id(1,from+Vector3(50,0,0),Vector3.DOWN)
+	await _wait(0.2)
+	s = await _ask()
+	_check(game.production_ping.snapshot().is_empty() and s.get("pings",{}).is_empty(),"host rejects remote ping origin outside crew reach")
+
 func _run() -> void:
 	var elapsed := 0.0
 	while game.players.size() < 2 and elapsed < 25.0:
@@ -139,8 +170,18 @@ func _run() -> void:
 	var s := await _ask()
 	_check(s.get("phase") == 0 and game.production.phase == 0 and s.get("wallet") == 600 and game.production.wallet == 600, "office cash synchronized")
 	_check(game.local_player().position.x > 60 and s.get("client_position", Vector3.ZERO).x > 60 and game.players[1].position.x > 60, "late join spawns in office on both peers")
+	if game.get("production_ping") == null:
+		_check(false,"co-op ping overlay exists")
+		await _ask("done")
+		get_tree().quit(1)
+		return
+	await _ping_case()
 	game.h_accept_job.rpc_id(1, 1)
 	_check(await _phase(1), "client accepts studio job")
+	game.h_ping.rpc_id(1,game.local_player().global_position+Vector3(0,2,0),Vector3.DOWN)
+	await _wait(0.2)
+	s = await _ask()
+	_check(game.production_ping.snapshot().is_empty() and s.get("pings",{}).is_empty(),"shop UI phase rejects ping requests")
 	game.h_order_set.rpc_id(1, "fx", 1)
 	game.h_order_set.rpc_id(1, "dolly", 1)
 	await _wait(0.25)
@@ -148,8 +189,8 @@ func _run() -> void:
 	_check(await _phase(2), "client confirms purchase")
 	s = await _ask("host_far")
 	_check(s.get("wallet") == 160 and game.production.wallet == 160 and s.get("expenses") == 440 and game.production.expenses == 440, "purchase cash synchronized")
-	game.local_player().global_position = game.production.HOME_TRUCK + Vector3(-3,0.1,1)
-	game.local_player().velocity = Vector3.ZERO
+	# 集合fixtureも本体の一斉移動経路へ揃え、remoteの高速補間で台車を押さない。
+	s = await _ask("client_near")
 	await _wait(0.5)
 	game.h_depart.rpc_id(1)
 	await _wait(0.4)
@@ -165,8 +206,16 @@ func _run() -> void:
 	await _wait(0.3)
 	_check(s.get("cargo", []).has(game.film.pid) and game.production.cargo().has(game.film.pid), "cargo synchronized")
 	var started := Time.get_ticks_msec()
+	var old_epoch: int = game._crew_epoch
 	game.h_depart.rpc_id(1)
-	_check(await _phase(3), "client departs with crew")
+	var departed := await _phase(3)
+	_check(departed, "client departs with crew")
+	if not departed:
+		print("PRODUCTION_DEPART_FAILURE ",await _ask())
+		await _ask("done")
+		print("CLIENT PRODUCTIONNET_FAIL")
+		get_tree().quit(1)
+		return
 	await _wait(1.0)
 	s = await _ask()
 	_check(s.get("phase") == 3 and game.production.trip_time > 0 and game.truck.position.distance_to(s.get("truck_position", Vector3.ZERO)) < 4.0, "travel progress and truck synchronized")
@@ -175,6 +224,18 @@ func _run() -> void:
 	s = await _ask()
 	_check(game.production.lease_left > 590 and float(s.get("lease_left", 0)) > 590 and game.production.chosen_job == 1, "ten minute studio lease synchronized")
 	_check(game.film.rider_of == game.truck.pid and game.film.position.x < 25 and game.truck.position.distance_to(game.production.SITE_TRUCK) < 0.2, "cargo arrives attached")
+	# 普通の新規送信で上書きされない時間を作り、移動前の遅延パケットを送る。
+	var me: Node = game.local_player()
+	me._send_t = 1000.0
+	game.rx_production_player.rpc_id(1,game.production.HOME_TRUCK,0.0,0.0,0.0,1.6,0.0,0.0,"idle|neutral",old_epoch)
+	s = await _ask()
+	var host_client: Vector3 = s.get("client_position",Vector3.ZERO)
+	_check(s.get("crew_epoch",-1) == game._crew_epoch and host_client.distance_to(me.global_position)<0.2,"old travel position packets cannot undo arrival")
+	me.global_position.x += 0.7
+	game.rx_production_player.rpc_id(1,me.global_position,0.0,0.0,0.0,1.6,0.0,0.0,"idle|neutral",game._crew_epoch)
+	s = await _ask()
+	_check((s.get("client_position",Vector3.ZERO) as Vector3).distance_to(me.global_position)<0.2,"current arrival epoch still accepts crew movement")
+	me._send_t = 0.0
 	var site_expected := {"root":true,"studio":true,"walls_disabled":true}
 	_check(_site_status() == site_expected and s.get("site",{}) == site_expected,"studio model and old wall colliders synchronized")
 	s = await _ask("lift_fixture")

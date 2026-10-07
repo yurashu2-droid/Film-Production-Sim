@@ -54,6 +54,7 @@ WASD 移動 ／ Shift 走る ／ Space ジャンプ ／ 視点 マウス
 左クリック 持つ・置く ／ ホイール 距離 ／ 右ドラッグ 回す
 G 固定・解除（固定用品なしなら4か所まで）
 F カメラ・ライト操作、箱の開閉、昇降台・絞り機を動かす
+V・中クリック ここ！目印（5秒、撮影映像には映らない）
 C キャラクター選択 ／ Esc マウスを離す
 役者の印を持って動かすと、役者も立ち位置へ移る。Bで戻す。
 
@@ -62,7 +63,10 @@ C キャラクター選択 ／ Esc マウスを離す
 カメラ操作中はマウスで首振り、ホイールでズーム。
 台車にカメラを載せると WASD で移動撮影もできる。
 
-結果画面：Rで見返す、Spaceで撮り直す、Enterで納品。
+結果画面：Rで見返す、Pで見返して8コマPNG保存。
+保存先はユーザーデータの film_stills フォルダ。
+保存できたら O：保存先を開く。
+Spaceで撮り直す、Enterで納品。
 期限が切れたら、撮れたテイクを納品して事務所へ帰ろう。
 """
 
@@ -219,6 +223,8 @@ func _refresh() -> void:
 		if game.is_action_prop(action_prop):
 			legacy.target_label.text = action_prop.label + "　[F] " + game.prop_action_hint(action_prop)
 			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ G 固定 ／ F " + game.prop_action_hint(action_prop)
+	if phase in [0,2,4]:
+		legacy.keys.text += " ／ V・中クリック 目印"
 	_office.visible = phase == 0 and not picker_open
 	if _lobby:
 		_lobby.visible = phase == 0 and not picker_open and not game.help_open
@@ -250,6 +256,8 @@ func _refresh() -> void:
 		if not production.last_flubs.is_empty():
 			observations = "現場のこぼれ話\n・" + "\n・".join(production.last_flubs)
 		_settled_text.text = "出演・撮影料  %dコイン\n道具の購入額  %dコイン\n会社の財布    %dコイン\n\n%s" % [production.last_payment, production.expenses, production.wallet, observations]
+		if game.production_export != null and not game.production_export.last_saved.is_empty():
+			_settled_text.text += "\n\n[O] 保存した8コマのフォルダを開く"
 
 
 func _panel(anchor: int, position_at: Vector2, width: float) -> PanelContainer:

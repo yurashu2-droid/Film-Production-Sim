@@ -56,3 +56,26 @@ HOST_EXIT=0 CLIENT_EXIT=0
 室内スタジオ到着時、両側にJobLocationとstudioモデルが存在し、旧壁のCollisionShape3Dが無効になっていることをホストsnapshotと参加者で確認。無料昇降台にカメラを載せたfixtureを用意し、参加者のF入力から本体h_prop_action RPCを通して上昇・下降させた。途中と上下端でactive/action_time/deck_top、カメラの積載元と相対高さを照合し、上昇量と元の高さへの復帰も確認した。
 
 この再実行ではホスト・参加者ともstderrは空。MTU超過警告も発生しなかった。昇降台への積載準備はホストfixtureで行うため、手操作でカメラを載せる入力経路自体はこのテストの対象外。
+
+制作班の「ここ！」目印（2026-10-08）:
+
+`production_ping.gd` はGameのプレイヤー用CanvasLayerだけを作り、3Dノードや撮影SubViewportへ表示を追加しない。発信はV/中クリック、本体h_ping RPCでホストへ視線の原点と方向を送る。ホストが参加者・会社フェーズ・撮影状態・期限・原点距離・0.7秒間隔を確認し、30mの物理raycast結果から位置と道具名を決めて全員へ送る。受信者の札は各発信者1つ、5秒で破棄。画面外・UI・全面撮影映像・移動中は札を表示しない。
+
+既存二人検証へまとめて追加した結果:
+
+```text
+PRODUCTION_NET ping delivered to both crew screens OK
+PRODUCTION_NET ping updates same sender once and limits rapid requests OK
+PRODUCTION_NET ping expires on both peers after five seconds OK
+PRODUCTION_NET host rejects remote ping origin outside crew reach OK
+PRODUCTION_NET shop UI phase rejects ping requests OK
+HOST PRODUCTIONNET_OK
+CLIENT PRODUCTIONNET_OK
+HOST_EXIT=0 CLIENT_EXIT=0
+```
+
+両stderr空。初回は目印未実装でoverlayの存在確認がFAILすることを確認してから実装した。
+
+到着位置の移動世代についても既存二人検証へ二項目を追加した。到着前の世代で会社位置を送ってもホストが位置を戻さないことと、現在の世代の歩行座標は採用することを実RPCで確認した。最終の `bash run_tests.sh` で両項目を含めPRODUCTIONNET_OK。四processの継続座標と途中参加は別記録にまとめた。
+
+描画確認はignored `tests/shots/production_ping_review.gd` からV入力を通した。`production-ping-screen.png` に「ロボット：ここ！」の札が読みやすく表示された。撮影SubViewportを実際に描画した `production-ping-film.png` は札が無く、静止した同じ3D場面の発信前後ピクセルが完全一致した（`PING_RENDER visible=true film_pixels_unchanged=true`、終了0、stderr空）。撮影イベント・テイク記録・映り込み判定には目印を追加していない。

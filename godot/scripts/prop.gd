@@ -30,6 +30,7 @@ var grab_time := 0.0
 var _layers: Array = []
 var _restore_pending := false
 var _restore_transform := Transform3D.IDENTITY
+var _teleport_ticks := 0
 var center := Vector3.ZERO   # 見た目の中心（ローカル）
 var half := Vector3.ONE * 0.2
 var visual: Node3D
@@ -56,7 +57,7 @@ func center_global() -> Vector3:
 
 func _apply_freeze() -> void:
 	if not is_host() or playback or rider_of != 0:
-		freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC if _teleport_ticks > 0 else RigidBody3D.FREEZE_MODE_KINEMATIC
 		freeze = true
 	else:
 		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
@@ -103,6 +104,10 @@ func set_holder(id: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _teleport_ticks > 0:
+		_teleport_ticks -= 1
+		if _teleport_ticks == 0:
+			_apply_freeze()
 	if playback:
 		return
 	if not is_host():
@@ -184,16 +189,31 @@ func _apply_extra(_s: Array) -> void:
 func _follow_net(delta: float) -> void:
 	if _net.is_empty():
 		return
-	var w := clampf(delta * 14.0, 0.0, 1.0)
+	# 現場へのワープは補間せず、移動する足場の速度として扱わせない。
+	var distant := global_position.distance_to(_net[0] as Vector3) > 8.0
+	if distant:
+		_begin_teleport()
+	var w := 1.0 if distant else clampf(delta * 14.0, 0.0, 1.0)
 	var p: Vector3 = global_position.lerp(_net[0] as Vector3, w)
 	var q: Quaternion = Quaternion(global_basis.orthonormalized()).slerp(_net[1] as Quaternion, w)
 	global_transform = Transform3D(Basis(q), p)
 	fixed = _net[2]
 	_apply_extra(_net)
+	if distant:
+		reset_physics_interpolation()
+
+
+func _begin_teleport() -> void:
+	# KINEMATIC の瞬間移動は経路上の物を押し、足場速度も発生する。
+	# 二度の物理同期だけ STATIC にしてから、通常の台車追従へ戻す。
+	_teleport_ticks = 2
+	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 
 
 # ホスト側で、置き直し用に元の状態へ戻す
 func restore(s: Array) -> void:
+	if global_position.distance_to(s[0] as Vector3) > 8.0:
+		_begin_teleport()
 	rider_of = 0
 	set_holder(0)
 	linear_velocity = Vector3.ZERO

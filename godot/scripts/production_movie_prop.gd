@@ -6,10 +6,10 @@ var _jaw_rest := Transform3D.IDENTITY
 var source_bounds := AABB()
 
 func build_model(model_kind: String) -> void:
-	assert(model_kind in ["dragon_skull", "witch_cauldron"])
+	assert(model_kind in ["dragon_skull", "witch_cauldron", "tomato_monster"])
 	kind = model_kind
-	label = "竜の頭・手持ち特撮" if kind == "dragon_skull" else "魔女の鍋"
-	mass = 2.5 if kind == "dragon_skull" else 8.0
+	label = {"dragon_skull": "竜の頭・手持ち特撮", "witch_cauldron": "魔女の鍋", "tomato_monster": "トマト怪獣・抱える役者"}[kind]
+	mass = {"dragon_skull": 2.5, "witch_cauldron": 8.0, "tomato_monster": 10.0}[kind]
 	rolls = false
 	hold_min = 0.9 if kind == "dragon_skull" else 1.2
 	visual = load("res://assets/production/movie_props/" + kind + ".glb").instantiate() as Node3D
@@ -25,7 +25,8 @@ func build_model(model_kind: String) -> void:
 		source_bounds = bounds if first else source_bounds.merge(bounds)
 		first = false
 	var extent := maxf(source_bounds.size.x, maxf(source_bounds.size.y, source_bounds.size.z))
-	var factor := (0.7 if kind == "dragon_skull" else 1.0) / extent
+	var target_size: float = {"dragon_skull": 0.7, "witch_cauldron": 1.0, "tomato_monster": 1.4}[kind]
+	var factor := target_size / extent
 	visual.scale = Vector3.ONE * factor
 	visual.position = Vector3(-source_bounds.get_center().x, -source_bounds.position.y, -source_bounds.get_center().z) * factor
 	var size := source_bounds.size * factor
@@ -71,4 +72,3 @@ func get_state() -> Array:
 
 func _apply_extra(state: Array) -> void:
 	set_active(bool(state[3]) if state.size() > 3 else false)
-

@@ -289,6 +289,9 @@ func rx_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_di
 
 # ---- 各参加者の操作（ホストへの依頼） ----
 
+func send_player_state(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, h_pitch: float, anim_name: String) -> void:
+	rx_player.rpc(pos,body_yaw,a_yaw,a_pitch,h_dist,h_yaw,h_pitch,anim_name)
+
 func act_dash_dust(foot: int = -1) -> void:
 	h_dash_dust.rpc_id(1, foot)
 

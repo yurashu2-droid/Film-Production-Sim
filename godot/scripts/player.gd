@@ -236,7 +236,7 @@ func _physics_process(delta: float) -> void:
 	_send_t -= delta
 	if _send_t <= 0.0 and Net.has_peers():
 		_send_t = 0.05
-		game.rx_player.rpc(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
+		game.send_player_state(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
 
 
 # Keep movement responsive while matching the short anticipation / push-off clip.

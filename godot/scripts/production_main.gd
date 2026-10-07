@@ -1,9 +1,16 @@
 extends "res://scripts/main.gd"
 const Flow := preload("res://scripts/production_flow.gd")
 const ProductionHud := preload("res://scripts/production_hud.gd")
+const ProductionPing := preload("res://scripts/production_ping.gd")
+const ProductionExport := preload("res://scripts/production_export.gd")
+var production_export: Node
+var production_ping: CanvasLayer
+var _ping_last: Dictionary = {}
+var _ping_local_next := 0.0
 var production: Node
 var production_hud: CanvasLayer
 var _legacy_mode := false
+var _crew_epoch := 0
 
 func _ready() -> void:
 	for flag in ["--autotest","--failtest","--nettest","--faceshot","--gearshot","--legacy"]:
@@ -20,12 +27,39 @@ func _ready() -> void:
 	production_hud.game = self
 	add_child(production_hud)
 	production_hud.build()
+	production_ping = ProductionPing.new()
+	production_ping.game = self
+	add_child(production_ping)
+	production_export = ProductionExport.new()
+	production_export.game = self
+	add_child(production_export)
 	if "--productionnettest" in OS.get_cmdline_user_args():
 		var test: Node = load("res://tests/productionnettest.gd").new()
 		test.game = self
 		add_child(test)
 
 func _input(event: InputEvent) -> void:
+	if production_export != null and not production_export.last_saved.is_empty() and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O and not character_open and not help_open:
+		production_export.open_saved()
+		get_viewport().set_input_as_handled()
+		return
+	if production_export != null and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_P and state == S.RESULT and not character_open and not help_open:
+		production_export.begin()
+		get_viewport().set_input_as_handled()
+		return
+	if production != null and not ui_blocking() and local_player() != null:
+		var ping_key: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_V
+		var ping_mouse: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE
+		if (ping_key or ping_mouse) and _ping_phase_allowed():
+			var now := Time.get_ticks_msec()/1000.0
+			if now < _ping_local_next:
+				return
+			_ping_local_next = now + 0.7
+			var me: Node = local_player()
+			var camera: Camera3D = film.view_cam if me.operating == film.pid else me.cam
+			h_ping.rpc_id(1,camera.global_position,-camera.global_basis.z)
+			get_viewport().set_input_as_handled()
+			return
 	if production == null or not event is InputEventKey or not event.pressed or event.echo or ui_blocking() or local_player() == null:
 		return
 	var me: Node = local_player()
@@ -79,7 +113,7 @@ func h_recover_crew() -> void:
 	if player == null:
 		return
 	var point := _recovery_point()
-	production_move.rpc(point,player.aim_yaw,who)
+	move_crew(point,player.aim_yaw,who)
 	var prop := _held_by(who)
 	if prop:
 		var saved: Array = prop.get_state()
@@ -123,6 +157,8 @@ func ev(n: String, a: Array) -> void:
 			props[a[0]].set_active(a[1])
 	else:
 		super.ev(n,a)
+		if n == "state" and production_export != null:
+			production_export.replay_state_changed(state)
 
 @rpc("any_peer","call_local","reliable")
 func h_accept_job(index: int) -> void:
@@ -149,8 +185,24 @@ func h_hello() -> void:
 func h_production_hello() -> void:
 	if Net.is_host() and production:
 		production_sync.rpc_id(Net.sender(),production.snapshot())
-		var point: Vector3 = Flow.HOME_TRUCK if production.phase in [2,3] else (SPAWN if production.phase in [4,5] else Flow.Office.SPAWN_POINT)
-		production_move.rpc(point,0.0,Net.sender())
+		var point: Vector3 = Flow.HOME_TRUCK + Vector3(-3,0.1,1) if production.phase in [2,3] else (SPAWN if production.phase in [4,5] else Flow.Office.SPAWN_POINT)
+		point = _open_join_point(point,Net.sender())
+		production_move.rpc(point,0.0,Net.sender(),_crew_epoch)
+
+
+func _open_join_point(base: Vector3, joining: int) -> Vector3:
+	# 途中参加でIDの並びが変わっても、既に立っている仲間を押さない。
+	for offset in [Vector3.ZERO,Vector3(-1.2,0,0),Vector3(1.2,0,0),Vector3(0,0,1.2),Vector3(-1.2,0,1.2),Vector3(1.2,0,1.2)]:
+		var point: Vector3 = base + offset
+		var occupied := false
+		for peer_id in players:
+			if peer_id == joining: continue
+			var other: Vector3 = players[peer_id].global_position
+			if Vector2(other.x-point.x,other.z-point.z).length() < 0.8:
+				occupied = true
+				break
+		if not occupied: return point
+	return base
 
 @rpc("authority","call_local","reliable")
 func production_sync(data: Dictionary) -> void:
@@ -158,13 +210,18 @@ func production_sync(data: Dictionary) -> void:
 		production.apply(data)
 
 @rpc("authority","call_local","reliable")
-func production_move(point: Vector3, yaw: float, only_peer: int = 0) -> void:
-	var i := 0
-	for player: Node in players.values():
+func production_move(point: Vector3, yaw: float, only_peer: int = 0, epoch: int = -1) -> void:
+	if epoch >= 0:
+		_crew_epoch = epoch
+	# 接続順によるDictionaryの並びの違いで、仲間と同じ場所に出ないようにする。
+	var member_ids := players.keys()
+	member_ids.sort()
+	for i in member_ids.size():
+		var player: Node = players[member_ids[i]]
 		if only_peer != 0 and player.peer_id != only_peer:
 			continue
 		player._net.clear()
-		player.global_position = point + Vector3(float(i)*0.8,0,0)
+		player.global_position = point if only_peer != 0 else point + Vector3(float(i)*0.8,0,0)
 		player.velocity = Vector3.ZERO
 		player.aim_yaw = yaw
 		player.vis.rotation.y = yaw + PI
@@ -172,9 +229,27 @@ func production_move(point: Vector3, yaw: float, only_peer: int = 0) -> void:
 		player._motion = ""
 		player._run_requested = false
 		player.vis.play("idle",0.0,true)
-		i += 1
 	if production:
 		_grab_mouse(production.phase in [2,4])
+
+
+func move_crew(point: Vector3, yaw: float, only_peer: int = 0) -> void:
+	_crew_epoch += 1
+	production_move.rpc(point,yaw,only_peer,_crew_epoch)
+
+
+func send_player_state(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, h_pitch: float, anim_name: String) -> void:
+	if _legacy_mode:
+		super.send_player_state(pos,body_yaw,a_yaw,a_pitch,h_dist,h_yaw,h_pitch,anim_name)
+	else:
+		rx_production_player.rpc(pos,body_yaw,a_yaw,a_pitch,h_dist,h_yaw,h_pitch,anim_name,_crew_epoch)
+
+
+@rpc("any_peer","call_remote","unreliable_ordered")
+func rx_production_player(pos: Vector3, body_yaw: float, a_yaw: float, a_pitch: float, h_dist: float, h_yaw: float, h_pitch: float, anim_name: String, epoch: int) -> void:
+	# 車移動前の遅延パケットを到着後のプレイヤー位置へ適用しない。
+	if epoch == _crew_epoch:
+		super.rx_player(pos,body_yaw,a_yaw,a_pitch,h_dist,h_yaw,h_pitch,anim_name)
 
 @rpc("any_peer","call_local","reliable")
 func h_order_set(id: String, count: int) -> void:
@@ -250,6 +325,14 @@ func _order_bbcode() -> String:
 
 func panel_bbcode() -> String:
 	var text := super.panel_bbcode()
+	if production and state == S.RESULT and not takes.is_empty():
+		var comments: Array[String] = production.notes.observations(takes[selected].get("extras",{}))
+		if not comments.is_empty():
+			text = text.replace("[color=#ffdb59][R][/color]", "[color=#efbf6b]NG日誌[/color]\n" + "\n".join(comments) + "\n\n[color=#ffdb59][R][/color]")
+	if production and state == S.RESULT and not takes.is_empty():
+		text += "\n[color=#ffdb59][P][/color] 見返して8コマ保存（画像・一覧PNG）\n保存先：ユーザーデータの film_stills フォルダ"
+		if production_export != null and not production_export.last_saved.is_empty():
+			text += "\n[color=#ffdb59][O][/color] 保存した8コマのフォルダを開く"
 	if production and production.expired and state == S.RESULT and takes.size() < MAX_TAKES:
 		text = text.replace("[color=#ffdb59][Space][/color] 撮り直す（あと%d回）" % (MAX_TAKES-takes.size()),"借り時間終了・撮り直し不可")
 	return text
@@ -276,3 +359,68 @@ func _unhandled_input(event: InputEvent) -> void:
 	super._unhandled_input(event)
 	if production:
 		hud.root.visible = true
+
+
+func _ping_phase_allowed() -> bool:
+	return production != null and production.phase in [0,2,4] and state in [S.PREP,S.COUNTDOWN,S.TAKE] and not replaying and not production.expired
+
+
+@rpc("any_peer","call_local","reliable")
+func h_ping(from: Vector3, direction: Vector3) -> void:
+	if not Net.is_host() or production_ping == null or not _ping_phase_allowed():
+		return
+	var who := Net.sender()
+	var player: Node = players.get(who)
+	if player == null or not from.is_finite() or not direction.is_finite() or direction.length_squared() < 0.9 or direction.length_squared() > 1.1:
+		return
+	var origin: Vector3 = film.lens.global_position if player.operating == film.pid else player.global_position + Vector3(0,1.85,0)
+	if origin.distance_to(from) > 6.0:
+		return
+	var now := Time.get_ticks_msec()/1000.0
+	if now - float(_ping_last.get(who,-10.0)) < 0.7:
+		return
+	var query := PhysicsRayQueryParameters3D.create(from,from+direction.normalized()*30.0,1|2|4|16)
+	var excluded: Array[RID] = [player.get_rid()]
+	if player.held != 0 and props.has(player.held):
+		excluded.append(props[player.held].get_rid())
+	query.exclude = excluded
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return
+	_ping_last[who] = now
+	var name_of_sender := "制作班"
+	for member: Array in _roster:
+		if member[0] == who:
+			name_of_sender = PLAYER_NAMES[member[1]]
+			break
+	var item_name := "ここ！"
+	var collider: Object = hit["collider"]
+	if collider is Node and "pid" in collider and props.has(collider.pid):
+		item_name = collider.label
+	production_ping_event.rpc(who,hit["position"],name_of_sender+"："+item_name)
+
+
+@rpc("authority","call_local","reliable")
+func production_ping_event(sender: int, point: Vector3, text: String) -> void:
+	if production_ping != null:
+		production_ping.show_ping(sender,point,text)
+
+
+@rpc("any_peer","call_local","reliable")
+func h_export_replay(index: int, token: int) -> void:
+	if not Net.is_host():
+		return
+	var who := Net.sender()
+	var allowed: bool = production != null and production.phase == 4 and players.has(who) and state == S.RESULT and index >= 0 and index < _take_data.size()
+	if allowed:
+		allowed = (_take_data[index]["frames"] as Array).size() >= 2
+	if allowed:
+		super.h_replay(index)
+		allowed = state == S.REPLAY
+	export_ready.rpc_id(who,allowed,token)
+
+
+@rpc("authority","call_local","reliable")
+func export_ready(success: bool, token: int) -> void:
+	if production_export != null:
+		production_export.accept_reply(success,token)

@@ -1,0 +1,11 @@
+# Free tomato monster prop
+
+Selected Downloads/tomato_monster.glb unchanged as tomato_monster.glb. SHA256 f2ac51aa990906f8f27d47fac5d5343e0b6cdb0f31fe88992ee3ea37a3807659. Source146052bytes,7208triangles,one mesh,two nodes,no skins/animation clips/materials/textures. COLOR_0 stores the original red body,green arms/feet/leaf and dark face; runtime vertex-colour material enables these colours and stays opaque.
+
+Compared alternative tomato_monster_regen.glb:176408bytes,8716triangles,one mesh,two nodes,no clips/materials/textures; raw1.92x1.8772x1.812113m. SHA2560f0f88c3866207c70389e7f5201c385e06a873fd7067c801a9242626b6025eb5. Original lighter version is about17%smaller in triangles/bytes and already has readable cute monster face. No LOD conversion needed. Original Downloads variants unchanged, only lighter variant imported.
+
+Raw chosen bounds:1.96x1.845x1.543164m (Yminimum0). Runtime uniform scale0.7142857 normalizes largest extent1.4m:1.4wide x1.317857high x1.102260deep. Source base normalized to floor0; current body can be hugged without hiding a full-height standing player. Gameplay scenic foam weight10kg, rollsfalse, hold_min1.2m. Coarse CylinderShape radius0.396814m,height1.317857m,base0; avoids costly triangle collisions. It is a silly rigid prop, no actor AI,new scoring or dynamic face animation.
+
+API inherited from production_movie_prop.gd: build_model("tomato_monster") then normal stage._register; registered free at world(56,.05,21) by Flow.setup, without any rental expense. Existing carry/fix/yaw/load/restore/impulse handling remains inherited Prop. can_activatefalse; F adds no invented motion. State still uses existing movie-prop4fields. No VFX or explosion rules changed.
+
+Narrow production_tomato_testshot.gd passed Godot4.7.2 actual rendering plus physics: constructed source model,settled at floor (no buried feet),opaque vertex colours,held through inherited hold_target to(.6,.691071,0),loaded via rider_of/ride_local to deck and restored original transform/holder/rider state. PNG artifacts/production_tomato_floor.png and production_tomato_held.png show source colours, feet,face and proxy outlines. No full gameplaytest expansion or repeat suite. Standalone source GLB contains no license declaration; redistribution rights unverified as with other user-provided assets.

@@ -46,7 +46,7 @@ func setup(owner_game: Node) -> void:
 		var cart: Node = ProductionProp.new()
 		cart.build_model(item[0])
 		game.stage._register(cart,item[1]-OFFSET,0.0)
-	for item in [["dragon_skull",Vector3(51,0.05,17)],["witch_cauldron",Vector3(54,0.05,19)]]:
+	for item in [["dragon_skull",Vector3(51,0.05,17)],["witch_cauldron",Vector3(54,0.05,19)],["tomato_monster",Vector3(56,0.05,21)]]:
 		var prop: Node = MovieProp.new()
 		prop.build_model(item[0])
 		game.stage._register(prop,item[1]-OFFSET,0.0)
@@ -78,16 +78,17 @@ func setup(owner_game: Node) -> void:
 			_home_layout[pid] = prop.get_state()
 		game._set_state(game.S.PREP)
 		game.production_sync.rpc(snapshot())
-		game.production_move.rpc(Office.SPAWN_POINT, 0.0)
+		game.move_crew(Office.SPAWN_POINT, 0.0)
 		game._grab_mouse(false)
 
 func job() -> Dictionary:
 	return JOBS[chosen_job]
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"crew_epoch":game._crew_epoch}
 
 func apply(data: Dictionary) -> void:
+	game._crew_epoch = maxi(game._crew_epoch,int(data.get("crew_epoch",0)))
 	var old := phase
 	phase = int(data["phase"])
 	wallet = int(data["wallet"])
@@ -220,7 +221,7 @@ func depart() -> void:
 	phase = 3
 	trip_time = 0.0
 	game.production_sync.rpc(snapshot())
-	game.production_move.rpc(HOME_TRUCK + Vector3(-1.0,1.0,0), -PI/2)
+	game.move_crew(HOME_TRUCK + Vector3(-1.0,1.0,0), -PI/2)
 
 func _physics_process(delta: float) -> void:
 	if phase == 3:
@@ -260,7 +261,7 @@ func arrive() -> void:
 	_notice = 0
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
-	game.production_move.rpc(game.SPAWN, -PI/2)
+	game.move_crew(game.SPAWN, -PI/2)
 	game.host_ev("toast", ["スタジオ返却まで10分！ まず荷下ろし。Tabで操作確認",0])
 
 func expire() -> void:
@@ -335,7 +336,7 @@ func return_office() -> void:
 	phase = 0
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
-	game.production_move.rpc(Office.SPAWN_POINT, 0.0)
+	game.move_crew(Office.SPAWN_POINT, 0.0)
 
 func _move(prop: Node3D, pos: Vector3) -> void:
 	var carrier: int = prop.rider_of
@@ -371,4 +372,3 @@ func _configure_site() -> void:
 		label.position = Vector3(0,3.0,-10.0)
 		_site_root.add_child(label)
 	Location.build(_site_root,game.font,chosen_job)
-

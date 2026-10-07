@@ -52,6 +52,16 @@ func run() -> void:
 	check(flow.phase == 3,"departure starts journey")
 	await frames(490)
 	check(flow.phase == 4 and game.truck.position.distance_to(flow.SITE_TRUCK)<0.1,"journey reaches filming location")
+	var landed: Vector3 = game.local_player().global_position
+	check(Vector2(landed.x-game.SPAWN.x,landed.z-game.SPAWN.z).length()<0.5 and landed.y>-0.2,"cargo teleport does not launch crew away from arrival")
+	var waiting := Node3D.new()
+	game.add_child(waiting)
+	waiting.global_position = game.SPAWN + Vector3(0.8,0,0)
+	game.players[200] = waiting
+	var join_point: Vector3 = game._open_join_point(game.SPAWN,100)
+	check(join_point.distance_to(waiting.global_position)>=0.8 and join_point.distance_to(landed)>=0.8,"late peer with lower ID gets an unoccupied arrival point")
+	game.players.erase(200)
+	waiting.queue_free()
 	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_ALWAYS,"film viewport resumes at actual location")
 	check(game.film.rider_of == lift.pid and lift.rider_of == game.truck.pid and game.film.position.x < 25,"nested cargo arrives attached at location")
 	game.local_player().position = lift.position + Vector3(1.5,0,0)
