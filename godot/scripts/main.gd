@@ -76,6 +76,9 @@ var replay_t := 0.0
 var character_open := false
 var help_open := false
 var input_locked := false      # 自動確認中は手元の入力を受けない
+signal startup_ready
+var startup_incremental := false
+var startup_complete := false
 var live: Dictionary = {"hints": [], "passed": [false, false, false], "charges": 2}
 
 var _roster: Array = []          # [参加者ID, 見た目の番号]
@@ -112,11 +115,16 @@ func _ready() -> void:
 	stage.game = self
 	stage.name = "Stage"
 	add_child(stage)
-	stage.build()
+	if startup_incremental:
+		await stage.build(true)
+	else:
+		stage.build()
 	hud = Hud.new()
 	hud.game = self
 	add_child(hud)
 	hud.build()
+	if startup_incremental:
+		await get_tree().process_frame
 	Net.peer_left.connect(_on_peer_left)
 	Net.joined_host.connect(func() -> void: h_hello.rpc_id(1))
 	Net.join_failed.connect(func() -> void: hud.show_toast("ホストに接続できなかった", Hud.RED, 6.0))
@@ -195,7 +203,7 @@ func recover_player(player: Node3D) -> void:
 
 
 func ui_blocking() -> bool:
-	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked or (hud != null and hud.slate.mode == "intro")
+	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked
 
 
 func set_character_menu(on: bool) -> void:

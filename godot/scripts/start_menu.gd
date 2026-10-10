@@ -1,6 +1,9 @@
 extends Node
 # 接続を先に決め、ゲームは一度だけ生成する。
 const GAME_SCENE := preload("res://production_game.tscn")
+const StartupResources := preload("res://scripts/startup_resources.gd")
+var _startup_resources: Node
+var _startup_poll_paused := false
 var game_node: Node
 var solo_button: Button
 var host_button: Button
@@ -19,6 +22,8 @@ func _ready() -> void:
 			_launch(false)
 			return
 	_build()
+	_startup_resources = StartupResources.new()
+	add_child(_startup_resources)
 	Net.joined_host.connect(_joined)
 	Net.join_failed.connect(_join_failed)
 	multiplayer.server_disconnected.connect(_host_closed)
@@ -111,16 +116,15 @@ func _solo() -> void:
 	if _busy or game_node != null:
 		return
 	_set_busy(true)
+	await _prepare_resources()
 	_launch(false)
 
 func _host() -> void:
 	if _busy or game_node != null:
 		return
 	_set_busy(true)
-	if Net.host() != OK:
-		_reset_connection("会社を開けませんでした。もう一度試してください。")
-		return
-	_launch(false)
+	await _prepare_resources()
+	_launch(false, true)
 
 func _join() -> void:
 	if _busy or game_node != null:
@@ -130,6 +134,7 @@ func _join() -> void:
 		status.text = "IPアドレスを確かめてください。例：192.168.1.10"
 		return
 	_set_busy(true)
+	await _prepare_resources()
 	_joining = true
 	_elapsed = 0.0
 	status.text = "友達の会社につないでいます…"
@@ -162,17 +167,47 @@ func _reset_connection(message: String) -> void:
 	_set_busy(false)
 	status.text = message
 
-func _launch(send_hello: bool) -> void:
+func _prepare_resources() -> void:
+	if _startup_resources != null and not _startup_resources.is_prepared:
+		status.text = "機材を準備しています…"
+		await _startup_resources.completed
+	status.text = "撮影班、入室準備中…"
+
+func _launch(send_hello: bool, host_requested: bool = false) -> void:
 	if _returning or game_node != null:
 		return
 	game_node = GAME_SCENE.instantiate()
 	game_node.name = "Game"
-	add_child(game_node)
 	if _canvas != null:
-		_canvas.visible = false
-		game_node.hud.show_slate("intro", 1)
+		game_node.startup_incremental = true
+		game_node.process_mode = Node.PROCESS_MODE_DISABLED
+		# 分割生成中のゲームへのRPC配送を待たせ、完成後にまとめて受け取る。
+		if Net.mode == "client" and get_tree().multiplayer_poll:
+			get_tree().multiplayer_poll = false
+			_startup_poll_paused = true
+		game_node.startup_ready.connect(_finish_launch.bind(send_hello, host_requested), CONNECT_ONE_SHOT)
+	add_child(game_node)
+	if _canvas == null and send_hello:
+		game_node.h_hello.rpc_id(1)
+
+func _finish_launch(send_hello: bool, host_requested: bool) -> void:
+	if _returning or not is_instance_valid(game_node):
+		return
+	_resume_network_poll()
+	# ゲーム生成前に接続を受けると、参加者のRPCが未完成のGameに届いてしまう。
+	if host_requested and Net.host() != OK:
+		return_to_menu("会社を開けませんでした。もう一度試してください。")
+		return
+	game_node.process_mode = Node.PROCESS_MODE_INHERIT
+	_canvas.visible = false
+	game_node.hud.show_slate("intro", 1)
 	if send_hello:
 		game_node.h_hello.rpc_id(1)
+
+func _resume_network_poll() -> void:
+	if _startup_poll_paused:
+		get_tree().multiplayer_poll = true
+		_startup_poll_paused = false
 
 
 func _host_closed() -> void:
@@ -188,6 +223,7 @@ func return_to_menu(message: String = "会社を閉じました。次の制作�
 		get_tree().quit()
 		return
 	_returning = true
+	_resume_network_poll()
 	_set_busy(true)
 	_joining = false
 	var old_game: Node = game_node

@@ -16,13 +16,15 @@ func _ready() -> void:
 	for flag in ["--autotest","--failtest","--nettest","--faceshot","--gearshot","--legacy"]:
 		if flag in OS.get_cmdline_user_args():
 			_legacy_mode = true
-	super._ready()
+	await super._ready()
 	if _legacy_mode:
+		startup_complete = true
+		startup_ready.emit()
 		return
 	production = Flow.new()
 	production.name = "Production"
 	add_child(production)
-	production.setup(self)
+	await production.setup(self, startup_incremental)
 	production_hud = ProductionHud.new()
 	production_hud.game = self
 	add_child(production_hud)
@@ -37,6 +39,9 @@ func _ready() -> void:
 		var test: Node = load("res://tests/productionnettest.gd").new()
 		test.game = self
 		add_child(test)
+
+	startup_complete = true
+	startup_ready.emit()
 
 func _input(event: InputEvent) -> void:
 	if production_export != null and not production_export.last_saved.is_empty() and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O and not character_open and not help_open:

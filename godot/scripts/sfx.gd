@@ -1,5 +1,6 @@
 extends Node
-## 全サウンドをコードで合成するSEとBGMのシングルトン (autoload "Sfx")
+## フリーSE素材・加工音と、既存の仮の合成音を再生するシングルトン (autoload "Sfx")
+const SAMPLED_SFX := {"clap": preload("res://assets/audio/clapper_wood.tres")}
 
 signal played(sound: String, position: Variant)
 signal music_changed(track: String)
@@ -37,6 +38,7 @@ func resynthesize() -> void:
 	_rng.seed = 20240607
 	_streams.clear()
 	_synth_sfx()
+	_streams.merge(SAMPLED_SFX, true)
 	_synth_music()
 	synth_ms = Time.get_ticks_msec() - t0
 

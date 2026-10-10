@@ -51,11 +51,17 @@ var game: Node
 var _next_id := 1
 
 
-func build() -> void:
+func build(incremental: bool = false) -> void:
 	_build_room()
-	_spawn_equipment()
-	_spawn_storage()
-	_spawn_actors()
+	await _startup_step(incremental)
+	await _spawn_equipment(incremental)
+	await _spawn_storage(incremental)
+	await _spawn_actors(incremental)
+
+
+func _startup_step(incremental: bool) -> void:
+	if incremental:
+		await get_tree().process_frame
 
 
 # ---- 倉庫 ----
@@ -476,67 +482,93 @@ func spawn_mark(index: int, pos: Vector3) -> RigidBody3D:
 	return p
 
 
-func _spawn_equipment() -> void:
+func _spawn_equipment(incremental: bool = false) -> void:
 	var truck: RigidBody3D = Truck.new()
 	truck.build()
 	_register(truck, Vector3(16.3, 0, 6.5), PI * 0.5)
 	game.truck = truck
+	await _startup_step(incremental)
 	var cam: RigidBody3D = FilmCamera.new()
 	cam.build()
 	_register(cam, Vector3(0, 0, 7.0), 0.0)
 	game.film = cam
+	await _startup_step(incremental)
 	for x: float in [-4.5, 4.5]:
 		var rig: RigidBody3D = SpotRig.new()
 		rig.build()
 		_register(rig, Vector3(x, 0, 5.5), PI)
 		game.spots.append(rig)
+		await _startup_step(incremental)
 	var clap: RigidBody3D = Clapper.new()
 	clap.game = game
 	clap.build()
 	_register(clap, Vector3(1.3, 0.02, 8.8), 0.0)
 	game.clapper = clap
+	await _startup_step(incremental)
 	var fx: RigidBody3D = FxBox.new()
 	fx.build()
 	_register(fx, Vector3(3.0, 0, 8.5), 0.0)
 	game.fx = fx
+	await _startup_step(incremental)
 
 
-func _spawn_storage() -> void:
+func _spawn_storage(incremental: bool = false) -> void:
 	var y := PI * 0.5     # 正面を部屋の中央へ向ける
 	for at: Vector3 in [Vector3(-13.6, 0, 10.6), Vector3(-11.2, 0, -10.8)]:
 		var bf: RigidBody3D = BoomFlat.new()
 		bf.build()
 		_register(bf, at, y)
 		game.booms.append(bf)
+		await _startup_step(incremental)
 	spawn("balcony", Vector3(-13.5, 0, -8.5), y)
+	await _startup_step(incremental)
 	spawn("window", Vector3(-14.5, 0, -4.6), y)
+	await _startup_step(incremental)
 	spawn("ruin", Vector3(-14.3, 0, -1.2), y)
+	await _startup_step(incremental)
 	spawn_plywood(Vector3(-14.8, 0, 2.2), y)
+	await _startup_step(incremental)
 	spawn_plywood(Vector3(-14.8, 0, 4.2), y)
+	await _startup_step(incremental)
 	spawn_riser(Vector3(-14.0, 0, 7.2), y)
+	await _startup_step(incremental)
 	spawn("flat", Vector3(-10.5, 0, -8.5), y)
+	await _startup_step(incremental)
 	spawn("flat", Vector3(-10.5, 0, -6.0), y)
+	await _startup_step(incremental)
 	spawn_moon(Vector3(-10.5, 0, -3.6), y)
+	await _startup_step(incremental)
 	spawn("rock", Vector3(-10.5, 0, -1.6), y)
+	await _startup_step(incremental)
 	spawn("rock", Vector3(-10.5, 0, 0.2), y)
+	await _startup_step(incremental)
 	for i in 3:
 		spawn("applebox", Vector3(-10.5, 0, 1.8 + i * 0.6), y)
+		await _startup_step(incremental)
 	for i in 3:
 		spawn("sandbag", Vector3(-10.5, 0, 4.0 + i * 0.5), y)
+		await _startup_step(incremental)
 	# 実物寄りの機材は、見本のカメラ位置から映り込まない手前側に置く
 	spawn("partition", Vector3(-8.6, 0, 3.4), y)
+	await _startup_step(incremental)
 	spawn("greenscreen", Vector3(-8.6, 0, 7.6), y)
+	await _startup_step(incremental)
 	spawn("dolly", Vector3(-6.6, 0, 10.4), y)
+	await _startup_step(incremental)
 	spawn("recorder", Vector3(-5.4, 0, 10.6), y)
+	await _startup_step(incremental)
 	spawn("boom", Vector3(-4.8, 0, 10.6), y)
+	await _startup_step(incremental)
 	for i in 4:
 		spawn("carton", Vector3(-6.8 - (i % 2) * 1.2, 0.02, 4.4 + (i / 2) * 1.3), y)
+		await _startup_step(incremental)
 	var small := ["rose", "letter", "crown", "fish", "filmcan", "tape", "basket"]
 	for i in small.size():
 		spawn(small[i], Vector3(-10.2 - 0.0, 0.02, 6.2 + i * 0.6), y)
+		await _startup_step(incremental)
 
 
-func _spawn_actors() -> void:
+func _spawn_actors(incremental: bool = false) -> void:
 	var mark_a := spawn_mark(0, Vector3(-1.2, 0.0, -2.0))
 	var mark_b := spawn_mark(1, Vector3(1.2, 0.0, 0.2))
 	var specs := [["01", "役者A", ["curtsy", "rose"], mark_a], ["02", "役者B", ["ticket", "halt"], mark_b]]
@@ -551,5 +583,6 @@ func _spawn_actors() -> void:
 		a.position = (specs[i][3] as Node3D).position
 		add_child(a)
 		game.actors.append(a)
+		await _startup_step(incremental)
 	game.actors[0].partner = game.actors[1]
 	game.actors[1].partner = game.actors[0]

@@ -38,7 +38,7 @@ var _original_walls: Array[StaticBody3D] = []
 var _warnings := [120.0, 60.0, 30.0]
 var _world_environment: Environment
 
-func setup(owner_game: Node) -> void:
+func setup(owner_game: Node, incremental: bool = false) -> void:
 	game = owner_game
 	notes = Notes.new()
 	notes.game = game
@@ -46,13 +46,19 @@ func setup(owner_game: Node) -> void:
 		var cart: Node = ProductionProp.new()
 		cart.build_model(item[0])
 		game.stage._register(cart,item[1]-OFFSET,0.0)
+		if incremental:
+			await get_tree().process_frame
 	for item in [["dragon_skull",Vector3(51,0.05,17)],["witch_cauldron",Vector3(54,0.05,19)],["tomato_monster",Vector3(56,0.05,21)]]:
 		var prop: Node = MovieProp.new()
 		prop.build_model(item[0])
 		game.stage._register(prop,item[1]-OFFSET,0.0)
+		if incremental:
+			await get_tree().process_frame
 	_office_root = Office.build(game, game.font)
 	var decor := Assets.decorate(_office_root, "office")
 	decor.position = Vector3(74, 0, -4)
+	if incremental:
+		await get_tree().process_frame
 	for child in game.stage.get_children():
 		if child is WorldEnvironment:
 			_world_environment = child.environment

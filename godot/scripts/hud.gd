@@ -387,7 +387,7 @@ class _Slate extends Control:
 			game.add_child(_entry_layer)
 			reparent(_entry_layer)
 			set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		mouse_filter = Control.MOUSE_FILTER_STOP if mode == "intro" else Control.MOUSE_FILTER_IGNORE
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		queue_redraw()
 
 	func _restore_parent() -> void:
@@ -398,10 +398,6 @@ class _Slate extends Control:
 		_entry_layer.queue_free()
 		_entry_layer = null
 		_home_parent = null
-
-	func _input(event: InputEvent) -> void:
-		if mode == "intro" and (event is InputEventKey or event is InputEventMouseButton or event is InputEventMouseMotion):
-			get_viewport().set_input_as_handled()
 
 	func _process(delta: float) -> void:
 		if mode == "":

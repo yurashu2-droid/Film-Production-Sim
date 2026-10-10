@@ -18,16 +18,24 @@ func run() -> void:
 	root.get_node("Sfx").played.connect(func(sound: String, _position: Variant):
 		if sound == "clap": claps += 1)
 	menu.solo_button.pressed.emit()
+	check(menu.game_node == null or not menu.game_node.startup_complete, "start returns before construction finishes")
+	var preparing_frames := 0
+	while menu.game_node == null or not menu.game_node.startup_complete:
+		await process_frame
+		preparing_frames += 1
+	check(preparing_frames > 3, "construction yields across frames")
 	var game: Node = menu.game_node
-	check(game != null, "game starts immediately")
+	check(game != null, "game starts after preparation")
 	check(game.hud.slate.mode == "intro", "entry displays clapperboard")
-	check(game.ui_blocking(), "entry blocks gameplay briefly")
+	check(not game.ui_blocking(), "entry leaves gameplay responsive")
 	check(claps == 0, "sound waits for closing bar")
+	check(root.get_node("Sfx").get_stream("clap").resource_path == "res://assets/audio/clapper_wood.tres", "clapper uses processed free sample")
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_1
 	key.pressed = true
 	root.push_input(key, true)
-	check(game.production.phase == 0, "entry blocks job shortcut")
+	check(game.production.phase == 1, "job shortcut works during entry")
+	game.h_order_confirm()
 	await create_timer(0.5).timeout
 	check(claps == 1, "closing bar sounds once")
 	if DisplayServer.get_name() != "headless":
@@ -40,6 +48,8 @@ func run() -> void:
 	menu.return_to_menu()
 	await create_timer(0.1).timeout
 	menu.solo_button.pressed.emit()
+	while menu.game_node == null or not menu.game_node.startup_complete:
+		await process_frame
 	check(menu.game_node.hud.slate.mode == "intro", "next entry also displays clapperboard")
 	menu.return_to_menu()
 	await create_timer(0.6).timeout

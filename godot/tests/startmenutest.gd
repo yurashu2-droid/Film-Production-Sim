@@ -55,6 +55,8 @@ func _run() -> void:
 		return
 	if role in ["host","host-disconnect"]:
 		menu.host_button.pressed.emit()
+		while menu.game_node == null or not menu.game_node.startup_complete:
+			await _wait(0.05)
 		_check(menu.game_node != null and Net.mode == "host","host button opens company")
 		var elapsed := 0.0
 		while not _done and elapsed < 25.0:
@@ -85,6 +87,7 @@ func _run() -> void:
 		return
 	await _wait(0.7)
 	var game: Node = menu.game_node
+	_check(game.startup_complete and get_tree().multiplayer_poll, "joining resumes network only after game is ready")
 	var locals := 0
 	for player: Node in game.players.values():
 		locals += int(player.is_local)
