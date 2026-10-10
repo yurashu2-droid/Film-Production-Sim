@@ -195,7 +195,7 @@ func recover_player(player: Node3D) -> void:
 
 
 func ui_blocking() -> bool:
-	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked
+	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or state == S.ORDER or character_open or help_open or input_locked or (hud != null and hud.slate.mode == "intro")
 
 
 func set_character_menu(on: bool) -> void:

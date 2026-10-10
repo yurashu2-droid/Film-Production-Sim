@@ -170,6 +170,7 @@ func _launch(send_hello: bool) -> void:
 	add_child(game_node)
 	if _canvas != null:
 		_canvas.visible = false
+		game_node.hud.show_slate("intro", 1)
 	if send_hello:
 		game_node.h_hello.rpc_id(1)
 
