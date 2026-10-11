@@ -193,6 +193,10 @@ def main():
     step.add_argument("frames", type=int, nargs="?", default=1)
     capture = commands.add_parser("capture")
     capture.add_argument("path", type=Path)
+    review = commands.add_parser("review", help="Run scheduled multi-view review and return compact evidence")
+    review.add_argument("scenario", type=Path)
+    review.add_argument("--output", type=Path, required=True)
+    review.add_argument("--limit", type=int, default=6, help="Representative times, 3..8")
     args = parser.parse_args()
     try:
         session = Session(args.project, args.name, args.engine)
@@ -209,6 +213,9 @@ def main():
         elif args.command == "request":
             payload = json.load(sys.stdin) if args.json == "-" else json.loads(args.json)
             result = session.request(payload)
+        elif args.command == "review":
+            from dev_review import review
+            result = review(session, json.loads(args.scenario.read_text(encoding="utf-8")), args.output, limit=args.limit)
         elif args.command == "capture":
             args.path.parent.mkdir(parents=True, exist_ok=True)
             result = session.request({"op": "capture", "path": str(args.path.resolve())})

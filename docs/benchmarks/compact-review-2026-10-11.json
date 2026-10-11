@@ -1,0 +1,137 @@
+{
+  "recorded_at": "2026-10-11T07:35:39.239381+00:00",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10",
+  "engine": "Godot 4.7.2",
+  "timing": "Includes load, simulation, PNG readback/save and compact-summary assembly for both paths; excludes worker startup and pixel comparison.",
+  "note": "Model tokens not measured; compare exposed JSON characters and image pixels only.",
+  "baseline": "Individual RPCs exposing every image/check vs one review with compact evidence; both use a warm persistent engine.",
+  "pairs": [
+    {
+      "revision": 1,
+      "order": [
+        "individual",
+        "review"
+      ],
+      "individual": {
+        "elapsed_s": 5.253695799969137,
+        "rpc_calls": 44,
+        "visible_text_chars": 27315,
+        "input_images": 63,
+        "input_pixels": 14515200
+      },
+      "review": {
+        "elapsed_s": 2.219770200084895,
+        "rpc_calls": 1,
+        "visible_text_chars": 968,
+        "input_images": 2,
+        "input_pixels": 1366272
+      },
+      "matched_images": 63
+    },
+    {
+      "revision": 2,
+      "order": [
+        "review",
+        "individual"
+      ],
+      "review": {
+        "elapsed_s": 2.2460272000171244,
+        "rpc_calls": 1,
+        "visible_text_chars": 968,
+        "input_images": 2,
+        "input_pixels": 1366272
+      },
+      "individual": {
+        "elapsed_s": 5.264824999962002,
+        "rpc_calls": 44,
+        "visible_text_chars": 27315,
+        "input_images": 63,
+        "input_pixels": 14515200
+      },
+      "matched_images": 63
+    },
+    {
+      "revision": 3,
+      "order": [
+        "individual",
+        "review"
+      ],
+      "individual": {
+        "elapsed_s": 5.228707100031897,
+        "rpc_calls": 44,
+        "visible_text_chars": 27315,
+        "input_images": 63,
+        "input_pixels": 14515200
+      },
+      "review": {
+        "elapsed_s": 2.22462290013209,
+        "rpc_calls": 1,
+        "visible_text_chars": 968,
+        "input_images": 2,
+        "input_pixels": 1366272
+      },
+      "matched_images": 63
+    },
+    {
+      "revision": 4,
+      "order": [
+        "review",
+        "individual"
+      ],
+      "review": {
+        "elapsed_s": 2.271663000108674,
+        "rpc_calls": 1,
+        "visible_text_chars": 968,
+        "input_images": 2,
+        "input_pixels": 1366272
+      },
+      "individual": {
+        "elapsed_s": 5.465371900005266,
+        "rpc_calls": 44,
+        "visible_text_chars": 27419,
+        "input_images": 63,
+        "input_pixels": 14515200
+      },
+      "matched_images": 63
+    },
+    {
+      "revision": 5,
+      "order": [
+        "individual",
+        "review"
+      ],
+      "individual": {
+        "elapsed_s": 4.965853500179946,
+        "rpc_calls": 44,
+        "visible_text_chars": 27419,
+        "input_images": 63,
+        "input_pixels": 14515200
+      },
+      "review": {
+        "elapsed_s": 2.11869899998419,
+        "rpc_calls": 1,
+        "visible_text_chars": 968,
+        "input_images": 2,
+        "input_pixels": 1366272
+      },
+      "matched_images": 63
+    }
+  ],
+  "medians": {
+    "individual": {
+      "elapsed_s": 5.253695799969137,
+      "rpc_calls": 44,
+      "visible_text_chars": 27315,
+      "input_images": 63,
+      "input_pixels": 14515200
+    },
+    "review": {
+      "elapsed_s": 2.22462290013209,
+      "rpc_calls": 1,
+      "visible_text_chars": 968,
+      "input_images": 2,
+      "input_pixels": 1366272
+    }
+  }
+}

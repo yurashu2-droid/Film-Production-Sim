@@ -150,6 +150,8 @@ func _dispatch(request: Dictionary) -> Dictionary:
 			return _ok(action)
 		"reload":
 			return _reload_script(str(request.get("path", "")))
+		"review", "capture_views":
+			return await preload("res://addons/dev_session/review_capture.gd").new().run(self, request)
 		"capture":
 			if DisplayServer.get_name() == "headless":
 				return _error("PNG needs a session started with --mode render")

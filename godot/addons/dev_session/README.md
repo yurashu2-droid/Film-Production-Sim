@@ -1,6 +1,6 @@
 # Godot Dev Session
 
-エディタを開かず、Godot を裏で常駐させて、コード更新・ゲーム操作・状態確認・画像保存を行う開発用アドオン。通常起動の autoload や設定を変更せず、専用ランナーを明示的に起動した場合だけ動く。Python 標準ライブラリのみを使用する。
+エディタを開かず、Godot を裏で常駐させて、コード更新・ゲーム操作・状態確認・画像保存を行う開発用アドオン。通常起動の autoload や設定を変更せず、専用ランナーを明示的に起動した場合だけ動く。接続・更新には Python 標準ライブラリ、画像の一覧生成には Pillow を使用する。
 
 ## 起動と更新
 
@@ -77,6 +77,8 @@ s.request({"op": "capture", "path": "C:/path/to/check.png"})
 | `pause` | `paused: true/false` | 停止・連続実行 |
 | `reload` | `path: res://…gd` | コード更新。構文エラー時は前のコードへ戻す |
 | `capture` | `path: 保存先.png` | render モードの画像を書き出す |
+| `capture_views` | `output`、`views`、`size`、`checks` | 現在の停止コマを複数方向から撮影。物理コマを進めない |
+| `review` | `output`、`frames`、`events`、`views`、`checks`、任意の `scene` | 操作・コマ送り・同期撮影・数値確認を一度の要求で実行 |
 | `shutdown` | なし | 開発セッションを終了 |
 
 `node` はシーンからの相対パス（既定 `.`）。`tree` に出る絶対パスも指定できる。TCP は `127.0.0.1` のみで待ち受け、CLI が生成するセッション用トークンで接続する。
@@ -91,6 +93,40 @@ s.request({"op": "capture", "path": "C:/path/to/check.png"})
 - 本アドオン自身の変更はセッションを停止・起動して反映する。
 
 通常のゲーム操作とは別の開発専用経路である。配布時は `addons/dev_session/*` を export の除外対象にできる。
+
+## 操作から確認資料までをまとめて実行
+
+```powershell
+python tools/dev_session.py --name review start --mode render
+python tools/dev_session.py --name review review godot/addons/dev_session/scenarios/motion_dash.json --output tools/diagnostics/dash-review
+python tools/dev_session.py --name review stop
+```
+
+起動済みなら中央のコマンドだけで、走り始めから停止までを本来の再生速度で確認できる。シーンをカメラごとに再実行せず、同じ停止コマをゲーム画面・横・上から撮影する。ゲーム画面は元の解像度で描画し、保存時に縮小するため、UI の配置を変えない。横・上の追加カメラにはゲームの UI は映らない。
+
+全 PNG と測定値はローカルに残し、AI へは `contact.png` と短い結果だけを渡す。既定では開始・中間・終了など6時点を選び、数値異常があればその時点と周囲を優先する。足の異常箇所はカメラ上の位置から切り出して `worst_detail.png` に保存する。詳細な調査が必要になった場合だけ、元の PNG・`manifest.json`・ログを読む。`--limit 3`〜`--limit 8` で一覧の時点数を変更できる。
+
+シナリオのフィールドは次の通り。作成例は [motion_dash.json](scenarios/motion_dash.json)。
+
+| フィールド | 内容 |
+|---|---|
+| `scene` | 任意。指定したシーンをロードしてから開始 |
+| `frames` | 開始からの物理コマ。昇順・重複なし、0〜600。操作コマも含め最大120時点 |
+| `events` | `frame` を添えた `call` / `set` / `input`。そのコマの撮影前に実行し、入力は次の物理コマに渡す |
+| `views` | 最大4方向。`id: game` は既存カメラ。他は `position` / `target`、または `follow` ノードと `offset` / `look_offset` を指定。ベクトルは `[x,y,z]` |
+| `size` | 保存画像の `[幅,高さ]`。既定 `[640,360]`、各64〜1600 |
+| `checks` | `feet` は足底位置と明示した `ground_y` の差、`property` は数値プロパティ、`group_count` はシーン内のグループ所属数。許容範囲を指定 |
+
+足底チェックには `foot_position("L"/"R")` を返すノードを指定する。プレイヤーの `vis` などを使う場合は `visual_property` も指定する。固定した地面の高さとの比較なので、平らな検証用ステージで使う。撮影・操作の時点だけを測定し、間のコマは判定しない。エフェクトの見栄えや動きの自然さは一覧画像で確認する。
+
+結果は `summary.json` / `report.md`。一覧画像・最悪値・短いエラー抜粋を含み、全体のログは別に保存する。追加カメラは実行後に削除し、停止状態・入力を元に戻す。シーンの進行やプロパティ変更は結果確認用に残る。画像量・文字数は実際のモデルのトークン数とは異なる。
+
+```powershell
+# 同じ描画・測定結果を得られることと、個別操作との所要時間を比較
+python tools/benchmark_dev_review.py --pairs 5
+```
+
+[2026-10-11 の比較結果](../../../docs/benchmarks/compact-review-2026-10-11.md)
 
 ## VFX の作業時間比較
 
@@ -107,9 +143,10 @@ python tools/benchmark_vfx_session.py --pairs 5
 ## 検証
 
 ```powershell
-python -m unittest discover -s tools/tests -p test_dev_session.py
+python -m unittest discover -s tools/tests -p "test_dev*.py"
 ```
 
 実エンジンで、同一 PID の再利用・入力・正確なコマ送り・コード更新と状態保持・構文エラーからの復帰・非表示ウィンドウの PNG 保存・停止を確認する。
+同期撮影についても、同じコマの位置変更・数値異常の検出・入力復元・途中で対象が消えた場合の復帰を確認する。
 
 参考: [Godot CLI](https://docs.godotengine.org/en/stable/tutorials/editor/command_line_tutorial.html)、[Script.reload](https://docs.godotengine.org/en/stable/classes/class_script.html)、[SubViewport](https://docs.godotengine.org/en/stable/classes/class_subviewport.html)。エディタ中心の制作には [Godot MCP Toolkit](https://github.com/NPGameDev/godot-mcp-toolkit) という既存の選択肢もある。
