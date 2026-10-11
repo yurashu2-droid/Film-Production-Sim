@@ -21,3 +21,11 @@ Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディ�
 SEはネット上の無料素材を探し、ゲームに合わせて切り出し・音量調整・重ね合わせなどを行う方針とする。
 採用時はゲームへの同梱・加工が可能な利用条件を確認し、配布元・作者・ライセンス・加工内容を記録する。
 コードによる合成音は仮音や補助として使い、主要なSEは素材を使った音へ順次置き換える。
+
+## Godot の常駐開発セッション
+
+繰り返しの操作・描画確認には `tools/dev_session.py` を使い、同じ Godot プロセスを再利用できる。
+画面を占有しない画像確認は `python tools/dev_session.py --name visual start --mode render --scene res://motion_lab.tscn`。
+挙動だけの確認は headless モードを使う。入力、状態の読み取り、物理コマ送り、PNG 保存、スクリプトの再読み込みに対応する。
+初期化済みの物体やシーン配置の変更は `load` で再構築する。コードの構造変更や新しい素材のインポートまで、状態保持で万能に反映できるとは扱わない。
+操作方法と制限は `godot/addons/dev_session/README.md`。通常のゲーム起動には介入しない。
