@@ -1,0 +1,15 @@
+{
+  "scene": "res://cardboard_stunt_lab.tscn",
+  "engine": "Godot 4.7.2",
+  "frames": 96,
+  "fps": 24,
+  "views": [
+    "front",
+    "left",
+    "right",
+    "back",
+    "top",
+    "hero"
+  ],
+  "contact_drift_m": 0
+}
