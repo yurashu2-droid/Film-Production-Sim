@@ -254,7 +254,7 @@ func _movement_speed(delta: float, dir: Vector3, blocked: bool) -> float:
 		_run_entry_speed = clampf(Vector2(velocity.x, velocity.z).length(), RUN * 0.15, RUN)
 	_run_start_elapsed += delta
 	# The existing velocity smoothing supplies the final part of acceleration.
-	var push := smoothstep(duration * 0.2, duration * 0.7, _run_start_elapsed)
+	var push := smoothstep(CastVisual.RUN_START_ANTICIPATION, CastVisual.RUN_START_ANTICIPATION + CastVisual.RUN_START_ACCELERATION, _run_start_elapsed)
 	return lerpf(_run_entry_speed, RUN, push)
 
 
@@ -292,7 +292,7 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 		_ground_y = global_position.y
 	if not wants_run or not is_on_floor() or _motion != "run_start":
 		_dash_dust_pending = false
-	elif _dash_dust_pending and _run_start_elapsed >= vis.length("run_start") * 0.2:
+	elif _dash_dust_pending and _run_start_elapsed >= CastVisual.RUN_START_ANTICIPATION:
 		_dash_dust_pending = false
 		game.act_dash_dust()
 	_run_requested = wants_run

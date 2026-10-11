@@ -6,6 +6,10 @@ func _initialize() -> void:
 	create_timer(20.0, true, false, true).timeout.connect(func(): quit(2))
 func wait(seconds: float) -> void:
 	await create_timer(seconds, true, false, true).timeout
+func wait_trial(seconds: float) -> void:
+	# 起動・接地待ちの負荷に左右されず、ゲーム内の踏み出し時刻まで進める。
+	while lab.trial_time < seconds:
+		await physics_frame
 func check(ok: bool, label: String) -> void:
 	print("LAB_CHECK ", label, " ", "OK" if ok else "FAIL")
 	failed = failed or not ok
@@ -23,7 +27,7 @@ func run() -> void:
 		quit(1)
 		return
 	lab.start_trial()
-	await wait(0.22)
+	await wait_trial(0.22)
 	check(lab.local_player().vis.current == "run_start", "lab uses real controller startup")
 	check(get_nodes_in_group("dash_dust").size() == 1, "one dust burst at push-off")
 	for key in [KEY_C, KEY_T, KEY_TAB, KEY_F9]:
@@ -52,14 +56,14 @@ func run() -> void:
 	await wait(0.1)
 	check(not paused and get_nodes_in_group("dash_dust").is_empty(), "reset clears preview effects")
 	lab.set_dust_style("mesh")
-	await wait(0.22)
+	await wait_trial(0.22)
 	var mesh_clouds := get_nodes_in_group("dash_dust")
 	check(mesh_clouds.size() == 1 and mesh_clouds[0].get_script().resource_path.ends_with("toon_dust.gd"), "original effect remains selectable")
 	lab.set_dust_style("kenney")
-	await wait(0.22)
+	await wait_trial(0.22)
 	check(get_nodes_in_group("dash_dust").size() == 1 and get_nodes_in_group("dash_dust")[0].get_child(0).texture.resource_path.contains("kenney_smoke"), "Kenney texture remains selectable")
 	lab.set_dust_style("sculpted")
-	await wait(0.22)
+	await wait_trial(0.22)
 	check(get_nodes_in_group("dash_dust").size() == 1 and lab.dash_dust_style == "sculpted", "switch back clears previous effect")
 	lab.reset_trial()
 	lab.choose_character(0)

@@ -3,6 +3,10 @@ extends Node3D
 # 体の動きと表情は別々の再生機で重ねる（走りながら驚く、など）。
 
 const SCALE := 0.62
+const RUN_START_BASE_DURATION := 0.4
+const RUN_START_ORIGINAL_ANTICIPATION := 0.08
+const RUN_START_ANTICIPATION := 0.16
+const RUN_START_ACCELERATION := 0.2
 const LOOPS := ["idle", "walk", "run", "crouch_idle", "crouch_walk"]
 const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "crown", "fish"]
 const GROUNDED := ["idle", "walk", "run", "run_start", "run_stop", "step_down", "crouch_idle", "crouch_walk"]
@@ -90,7 +94,7 @@ func _setup_face() -> void:
 # 一瞬のリアクションは全編を短く再生する。途中で通常の移動に上書きしない。
 func _setup_transitions() -> void:
 	var lib := anim.get_animation_library("")
-	var clips := {"run_start": ["dash", 0.4], "run_stop": ["brake", 0.32], "step_down": ["flinch", 0.28]}
+	var clips := {"run_start": ["dash", RUN_START_BASE_DURATION], "run_stop": ["brake", 0.32], "step_down": ["flinch", 0.28]}
 	for name: String in clips:
 		if has(name) or not has(clips[name][0]):
 			continue
@@ -100,6 +104,16 @@ func _setup_transitions() -> void:
 			for k in clip.track_get_key_count(t):
 				clip.track_set_key_time(t, k, clip.track_get_key_time(t, k) * speed)
 		clip.length = float(clips[name][1])
+		if name == "run_start":
+			# ためだけを2倍に伸ばし、蹴り出し以降は元の速さで再生する。
+			var extra := RUN_START_ANTICIPATION - RUN_START_ORIGINAL_ANTICIPATION
+			for t in clip.get_track_count():
+				# 後ろからずらすことで、キーの並び順を保つ。
+				for k in range(clip.track_get_key_count(t) - 1, -1, -1):
+					var time := clip.track_get_key_time(t, k)
+					var stretched := time * RUN_START_ANTICIPATION / RUN_START_ORIGINAL_ANTICIPATION if time < RUN_START_ORIGINAL_ANTICIPATION else time + extra
+					clip.track_set_key_time(t, k, stretched)
+			clip.length += extra
 		clip.loop_mode = Animation.LOOP_NONE
 		lib.add_animation(tag + "_" + name, clip)
 
