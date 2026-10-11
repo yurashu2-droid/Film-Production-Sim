@@ -7,6 +7,8 @@ const CameraSwitcher := preload("res://scripts/camera_switcher.gd")
 const MonitorPopup := preload("res://scripts/monitor_popup.gd")
 var camera_switcher: Node
 var monitor_popup: CanvasLayer
+const CueCards := preload("res://scripts/cue_cards.gd")
+var cue_cards: Node
 var production_export: Node
 var production_ping: CanvasLayer
 var _ping_last: Dictionary = {}
@@ -34,6 +36,11 @@ func _ready() -> void:
 	camera_switcher.game = self
 	add_child(camera_switcher)
 	camera_switcher.setup()
+	cue_cards = CueCards.new()
+	cue_cards.name = "CueCards"
+	cue_cards.game = self
+	add_child(cue_cards)
+	cue_cards.setup()
 	monitor_popup = MonitorPopup.new()
 	monitor_popup.name = "MonitorPopup"
 	monitor_popup.game = self
@@ -99,9 +106,12 @@ func h_monitor_stop() -> void:
 
 
 func ui_blocking() -> bool:
-	return super.ui_blocking() or (monitor_popup != null and monitor_popup.opened)
+	return super.ui_blocking() or (cue_cards != null and cue_cards.editor.opened) or (monitor_popup != null and monitor_popup.opened)
 
 func _input(event: InputEvent) -> void:
+	if cue_cards != null and cue_cards.editor.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if monitor_popup != null and monitor_popup.opened and monitor_popup.handle_input(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -131,7 +141,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var me: Node = local_player()
 	if event.physical_keycode == KEY_F:
-		if production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
+		if cue_cards != null and me.held == cue_cards.card.pid:
+			cue_cards.editor.open_card()
+			get_viewport().set_input_as_handled()
+		elif production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
 			h_load_truck.rpc_id(1,me.held)
 			get_viewport().set_input_as_handled()
 		elif me.held != 0 and is_action_prop(props[me.held]):
@@ -248,6 +261,7 @@ func h_return_office() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func h_hello() -> void:
 	super.h_hello()
+	if cue_cards != null: cue_cards.sync_to(Net.sender())
 	if Net.is_host() and production:
 		h_production_hello()
 
@@ -497,3 +511,6 @@ func h_export_replay(index: int, token: int) -> void:
 func export_ready(success: bool, token: int) -> void:
 	if production_export != null:
 		production_export.accept_reply(success,token)
+
+func _grab_mouse(on: bool) -> void:
+	super._grab_mouse(on and not (cue_cards != null and cue_cards.editor.opened))

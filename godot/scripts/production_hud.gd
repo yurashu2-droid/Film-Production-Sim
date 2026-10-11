@@ -48,6 +48,7 @@ func build() -> void:
 竜の頭や魔女の鍋も自由に使える。竜はFで口が開く。
 持った物は軽トラのそばで F：荷台に積む。
 全員が軽トラのそばへ集まり、手ぶらで F：出発。
+カンペは軽トラの横。持って F でペイント。書いた内容を正面の相手へ見せられる。
 現場を借りられるのは10分。3場面を1テイクで撮り切ろう。
 
 WASD 移動 ／ Shift 走る ／ Space ジャンプ ／ 視点 マウス
@@ -212,6 +213,8 @@ func _refresh() -> void:
 		legacy.keys.text = "WASD 移動 ／ Shift 走る ／ C キャラ変更 ／ Tab 操作 ／ Esc マウス"
 		if phase == 0:
 			legacy.keys.text += "\n右の依頼をクリック、または 1・2・3 で選ぶ"
+		elif me and game.props.has(me.held) and game.props[me.held].kind == "cue_card":
+			legacy.keys.text = "F カンペに書く ／ 正面の相手へ見せている ／ 左クリック 置く"
 		elif me and me.held != 0:
 			legacy.keys.text = "左クリックで置く ／ 右ドラッグで回す ／ G 固定\n軽トラのそばで F：荷台に積む"
 		else:

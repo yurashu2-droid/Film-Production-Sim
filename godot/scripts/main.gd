@@ -480,6 +480,8 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 	var pl: CharacterBody3D = players.get(holder)
 	if pl == null:
 		return null
+	if prop.has_method("carry_target"):
+		return prop.carry_target(pl)
 	var fwd: Vector3 = pl.flat_forward() if prop.kind == "spot" or prop.rolls else pl.aim_forward()
 	var pitch: float = 0.0 if prop.axis_lock_angular_x else pl.hold_pitch
 	var basis := Basis.from_euler(Vector3(pitch, pl.aim_yaw + pl.hold_yaw + prop.carry_yaw, 0))
@@ -1206,7 +1208,7 @@ func _send_world() -> void:
 	var mounts := {}
 	var sent := false
 	for pid: int in props:
-		var st: Array = props[pid].get_state()
+		var st: Array = props[pid].network_state() if props[pid].has_method("network_state") else props[pid].get_state()
 		var mount: Array = [props[pid].rider_of,props[pid].ride_local]
 		var packet: Array = [st,mount]
 		if not full and _last_sent.has(pid) and _last_sent[pid] == packet:

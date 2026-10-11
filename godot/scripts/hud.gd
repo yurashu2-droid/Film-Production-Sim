@@ -330,7 +330,9 @@ func _process(delta: float) -> void:
 			k = "ライト操作中：マウスで向き ／ ホイールで明るさ（%d／3） ／ F で離れる" % op.level
 		elif me and me.held != 0:
 			var hk: String = game.props[me.held].kind if game.props.has(me.held) else ""
-			if hk == "clapper":
+			if hk == "cue_card":
+				k = "F でカンペに書く ／ 正面の相手へ見せている ／ 左クリックで置く"
+			elif hk == "clapper":
 				k = "F でカチンコを打つ（%s） ／ 左クリックで置く" % ("カット" if st == S.TAKE else "本番開始")
 			elif hk == "spot":
 				k = "見ている方向へ光が向く ／ 左クリックで置く ／ G で固定"
