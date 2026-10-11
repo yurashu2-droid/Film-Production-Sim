@@ -1,0 +1,1107 @@
+{
+  "timestamp": "2026-10-11T15:32:40.206634+09:00",
+  "host": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10",
+  "resolution": [
+    1600,
+    900
+  ],
+  "physics_hz": 60,
+  "sample_frames": [
+    12,
+    30,
+    54,
+    72
+  ],
+  "baseline": "Fresh Godot --script per edit, no development runtime or TCP; no editor/UI overhead",
+  "authoring_time": "Excluded: scripted identical edits, no human design timing",
+  "source_sha256": "6429cead81d4addf354ef0282bd11692aab6345c655319eafe729282842cf83f",
+  "pairs": [
+    {
+      "kind": "motion",
+      "revision": 1,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "motion_01_fresh",
+        "pid": 16800,
+        "write_s": 0.0005937998648732901,
+        "update_s": 2.1464583000633866,
+        "simulation_s": 1.110629,
+        "capture_s": 0.121895,
+        "total_s": 3.399863999802619,
+        "shutdown_s": 0.35288390005007386,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "motion_01_persistent",
+        "pid": 73776,
+        "write_s": 0.000622499966993928,
+        "update_s": 0.03274219995364547,
+        "simulation_s": 1.299442799994722,
+        "capture_s": 0.1919090999290347,
+        "total_s": 1.591856700135395,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "motion",
+      "revision": 2,
+      "order": [
+        "persistent",
+        "fresh"
+      ],
+      "persistent": {
+        "folder": "motion_02_persistent",
+        "pid": 73776,
+        "write_s": 0.0006518999580293894,
+        "update_s": 0.03212470025755465,
+        "simulation_s": 1.2450874999631196,
+        "capture_s": 0.22468100022524595,
+        "total_s": 1.5651340000331402,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          }
+        ]
+      },
+      "fresh": {
+        "folder": "motion_02_fresh",
+        "pid": 81348,
+        "write_s": 0.00048290006816387177,
+        "update_s": 2.9298517999704927,
+        "simulation_s": 1.100926,
+        "capture_s": 0.12971,
+        "total_s": 4.177552700042725,
+        "shutdown_s": 0.31015209993347526,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "motion",
+      "revision": 3,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "motion_03_fresh",
+        "pid": 62388,
+        "write_s": 0.0005922000855207443,
+        "update_s": 2.229586200090125,
+        "simulation_s": 1.092393,
+        "capture_s": 0.118353,
+        "total_s": 3.459678600076586,
+        "shutdown_s": 0.338767500128597,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "motion_03_persistent",
+        "pid": 73776,
+        "write_s": 0.0005713999271392822,
+        "update_s": 0.06543059996329248,
+        "simulation_s": 1.2650614997837692,
+        "capture_s": 0.20292950002476573,
+        "total_s": 1.645457100123167,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "motion",
+      "revision": 4,
+      "order": [
+        "persistent",
+        "fresh"
+      ],
+      "persistent": {
+        "folder": "motion_04_persistent",
+        "pid": 73776,
+        "write_s": 0.0005083999130874872,
+        "update_s": 0.032740999944508076,
+        "simulation_s": 1.263738099951297,
+        "capture_s": 0.20522300014272332,
+        "total_s": 1.568639799952507,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          }
+        ]
+      },
+      "fresh": {
+        "folder": "motion_04_fresh",
+        "pid": 18208,
+        "write_s": 0.000654800096526742,
+        "update_s": 2.1727272998541594,
+        "simulation_s": 1.105279,
+        "capture_s": 0.124174,
+        "total_s": 3.4223750999663025,
+        "shutdown_s": 0.35240500001236796,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "motion",
+      "revision": 5,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "motion_05_fresh",
+        "pid": 7612,
+        "write_s": 0.0006704998668283224,
+        "update_s": 2.1606295998208225,
+        "simulation_s": 1.084487,
+        "capture_s": 0.119832,
+        "total_s": 3.3917615998070687,
+        "shutdown_s": 0.45806819992139935,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "motion_05_persistent",
+        "pid": 73776,
+        "write_s": 0.0006213998422026634,
+        "update_s": 0.032689200015738606,
+        "simulation_s": 1.2818767002318054,
+        "capture_s": 0.19473970006220043,
+        "total_s": 1.6179559000302106,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 20,
+            "instance": 37245421060
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "construction",
+      "revision": 1,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "construction_01_fresh",
+        "pid": 96632,
+        "write_s": 0.0005991000216454268,
+        "update_s": 2.171074600191787,
+        "simulation_s": 1.094745,
+        "capture_s": 0.117958,
+        "total_s": 3.404293700121343,
+        "shutdown_s": 0.3805297000799328,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 22,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 22,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 22,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 22,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "construction_01_persistent",
+        "pid": 73776,
+        "write_s": 0.0007520001381635666,
+        "update_s": 0.058994000079110265,
+        "simulation_s": 1.265274700243026,
+        "capture_s": 0.2140130999032408,
+        "total_s": 1.6189799001440406,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 22,
+            "instance": 63082333700
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 22,
+            "instance": 63082333700
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 22,
+            "instance": 63082333700
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 22,
+            "instance": 63082333700
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "construction",
+      "revision": 2,
+      "order": [
+        "persistent",
+        "fresh"
+      ],
+      "persistent": {
+        "folder": "construction_02_persistent",
+        "pid": 73776,
+        "write_s": 0.0006502000615000725,
+        "update_s": 0.04139619995839894,
+        "simulation_s": 1.2440172000788152,
+        "capture_s": 0.21671120030805469,
+        "total_s": 1.5722735999152064,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 24,
+            "instance": 67796731396
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 24,
+            "instance": 67796731396
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 24,
+            "instance": 67796731396
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 24,
+            "instance": 67796731396
+          }
+        ]
+      },
+      "fresh": {
+        "folder": "construction_02_fresh",
+        "pid": 30240,
+        "write_s": 0.0005418001674115658,
+        "update_s": 2.1455706998240203,
+        "simulation_s": 1.089731,
+        "capture_s": 0.11595,
+        "total_s": 3.3723724000155926,
+        "shutdown_s": 0.29014509986154735,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 24,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 24,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 24,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 24,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "construction",
+      "revision": 3,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "construction_03_fresh",
+        "pid": 57148,
+        "write_s": 0.0006373000796884298,
+        "update_s": 2.1618143001105636,
+        "simulation_s": 1.085182,
+        "capture_s": 0.131891,
+        "total_s": 3.3999898000620306,
+        "shutdown_s": 0.35639450000599027,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 26,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 26,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 26,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 26,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "construction_03_persistent",
+        "pid": 73776,
+        "write_s": 0.0005874999333173037,
+        "update_s": 0.05817370000295341,
+        "simulation_s": 1.2803213999141008,
+        "capture_s": 0.1922363000921905,
+        "total_s": 1.6186518999747932,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 26,
+            "instance": 72477574660
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 26,
+            "instance": 72477574660
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 26,
+            "instance": 72477574660
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 26,
+            "instance": 72477574660
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "construction",
+      "revision": 4,
+      "order": [
+        "persistent",
+        "fresh"
+      ],
+      "persistent": {
+        "folder": "construction_04_persistent",
+        "pid": 73776,
+        "write_s": 0.0006042001768946648,
+        "update_s": 0.0419148001819849,
+        "simulation_s": 1.2626363998278975,
+        "capture_s": 0.22623129980638623,
+        "total_s": 1.5791986000258476,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 28,
+            "instance": 77191972356
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 28,
+            "instance": 77191972356
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 28,
+            "instance": 77191972356
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 28,
+            "instance": 77191972356
+          }
+        ]
+      },
+      "fresh": {
+        "folder": "construction_04_fresh",
+        "pid": 94884,
+        "write_s": 0.0005725999362766743,
+        "update_s": 2.138918000040576,
+        "simulation_s": 1.104589,
+        "capture_s": 0.124479,
+        "total_s": 3.386739799985662,
+        "shutdown_s": 0.36337339994497597,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 28,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 28,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 28,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 28,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    },
+    {
+      "kind": "construction",
+      "revision": 5,
+      "order": [
+        "fresh",
+        "persistent"
+      ],
+      "fresh": {
+        "folder": "construction_05_fresh",
+        "pid": 69348,
+        "write_s": 0.000658300006762147,
+        "update_s": 2.1748313999269158,
+        "simulation_s": 1.102877,
+        "capture_s": 0.129628,
+        "total_s": 3.429058999987319,
+        "shutdown_s": 0.3259805999696255,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 30,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 30,
+            "instance": 36171679227
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 30,
+            "instance": 36171679227
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 30,
+            "instance": 36171679227
+          }
+        ]
+      },
+      "persistent": {
+        "folder": "construction_05_persistent",
+        "pid": 73776,
+        "write_s": 0.0006083999760448933,
+        "update_s": 0.04154699994251132,
+        "simulation_s": 1.2628860999830067,
+        "capture_s": 0.2132190999109298,
+        "total_s": 1.5633474001660943,
+        "shutdown_s": 0.0,
+        "states": [
+          {
+            "age": 0.2,
+            "alive": true,
+            "count": 30,
+            "instance": 81906370052
+          },
+          {
+            "age": 0.5,
+            "alive": true,
+            "count": 30,
+            "instance": 81906370052
+          },
+          {
+            "age": 0.900000000000001,
+            "alive": true,
+            "count": 30,
+            "instance": 81906370052
+          },
+          {
+            "age": 1.2,
+            "alive": true,
+            "count": 30,
+            "instance": 81906370052
+          }
+        ]
+      },
+      "pixel_checks": [
+        {
+          "frame": 12,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 30,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 54,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        },
+        {
+          "frame": 72,
+          "identical_pixels": true,
+          "max_channel_difference": 0
+        }
+      ]
+    }
+  ],
+  "fresh_first_start_and_load_s": 2.140467799967155,
+  "engine_banner": [
+    "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+    "Vulkan 1.3.289 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 4060"
+  ],
+  "persistent_first_start_s": 2.531448399880901,
+  "persistent_initial_load_s": 0.049175200052559376,
+  "warmup_pixel_checks": [
+    {
+      "frame": 12,
+      "identical_pixels": true,
+      "max_channel_difference": 0
+    },
+    {
+      "frame": 30,
+      "identical_pixels": true,
+      "max_channel_difference": 0
+    },
+    {
+      "frame": 54,
+      "identical_pixels": true,
+      "max_channel_difference": 0
+    },
+    {
+      "frame": 72,
+      "identical_pixels": true,
+      "max_channel_difference": 0
+    }
+  ],
+  "cleanup_state": {
+    "alive": false
+  },
+  "summary": {
+    "motion": {
+      "fresh": {
+        "total_s": 3.4223750999663025,
+        "update_s": 2.1727272998541594,
+        "simulation_s": 1.100926,
+        "capture_s": 0.121895
+      },
+      "persistent": {
+        "total_s": 1.591856700135395,
+        "update_s": 0.032740999944508076,
+        "simulation_s": 1.2650614997837692,
+        "capture_s": 0.20292950002476573
+      },
+      "saved_percent": 53.48678465574774,
+      "distinct_revision_images": 5
+    },
+    "construction": {
+      "fresh": {
+        "total_s": 3.3999898000620306,
+        "update_s": 2.1618143001105636,
+        "simulation_s": 1.094745,
+        "capture_s": 0.124479
+      },
+      "persistent": {
+        "total_s": 1.5791986000258476,
+        "update_s": 0.0419148001819849,
+        "simulation_s": 1.2628860999830067,
+        "capture_s": 0.2140130999032408
+      },
+      "saved_percent": 53.552843011557385,
+      "distinct_revision_images": 5
+    }
+  }
+}

@@ -92,6 +92,18 @@ s.request({"op": "capture", "path": "C:/path/to/check.png"})
 
 通常のゲーム操作とは別の開発専用経路である。配布時は `addons/dev_session/*` を export の除外対象にできる。
 
+## VFX の作業時間比較
+
+```powershell
+python tools/benchmark_vfx_session.py --pairs 5
+```
+
+既存の土ぼこりをコピーし、動きの変更と粒数の変更について、通常の Godot 再起動と常駐セッションを各5回比較する。通常側は専用の `--script` 撮影で、開発ランタイムや TCP を使用しない。1600×900、60Hz の同じ物理コマで4枚を保存し、両経路の画像がピクセル単位で一致することを確認する。Pillow が必要。ゲーム本編の素材は変更しない。
+
+出力は `godot/.godot/dev_session/vfx_benchmark/` の `results.json`、`timings.csv`、`comparison.png`。計測はコード保存から画像生成までで、人間の設計・制作判断は含めない。初回起動・ウォームアップは反復の中央値と分け、起動順を交互にする。専用の `vfx_benchmark_live` セッションを使用し、終了時に停止する。
+
+[2026-10-11 の実測結果](../../../docs/benchmarks/dev-session-vfx-2026-10-11.md)
+
 ## 検証
 
 ```powershell
