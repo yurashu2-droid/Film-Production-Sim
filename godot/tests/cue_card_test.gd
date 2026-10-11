@@ -24,6 +24,7 @@ func run() -> void:
 	game.production.phase = 4
 	game._set_state(game.S.PREP)
 	var card: Node = cards.card
+	check(card.visual.scene_file_path == "res://assets/gear/Q07_Replaceable_Cue_Board.glb", "uses the supplied sketchbook model")
 	var player: Node = game.local_player()
 	player.global_position = Vector3(110,0.1,14)
 	game.h_grab(card.pid)
@@ -41,6 +42,7 @@ func run() -> void:
 	await frames(6)
 	Input.action_release("move_forward")
 	check(Vector2(player.global_position.x-start.x,player.global_position.z-start.z).length() < 0.03, "painting prevents walking")
+	var sample_y := int(card.RESOLUTION.y*0.3)
 	var canvas: Control = cards.editor.canvas
 	var a := InputEventMouseButton.new()
 	a.button_index = MOUSE_BUTTON_LEFT
@@ -52,8 +54,8 @@ func run() -> void:
 	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
 	canvas._gui_input(motion)
 	cards.editor.flush()
-	check(card.ink.get_pixel(512,192).r < 0.2, "paint stroke immediately appears on physical card")
-	check(card.surface.material_override.albedo_texture == card.texture, "front face uses live drawing texture")
+	check(card.ink.get_pixel(512,sample_y).r < 0.2, "paint stroke immediately appears on physical card")
+	check(card.surface.get_surface_override_material(card._ink_surface).albedo_texture == card.texture, "front face uses live drawing texture")
 	player.aim_pitch = -0.9
 	player.hold_pitch = 0.6
 	var carry: Array = game.hold_target(player.peer_id,card)
@@ -62,9 +64,9 @@ func run() -> void:
 	check(carry[0].y > player.vis.grip_pos(false).y, "hands support lower part of card")
 	var snapshot: Array = card.get_state()
 	cards.h_clear(card.pid)
-	check(card.ink.get_pixel(512,192).r > 0.9, "clear erases card")
+	check(card.ink.get_pixel(512,sample_y).r > 0.9, "clear erases card")
 	card.apply_state(snapshot,true)
-	check(card.ink.get_pixel(512,192).r < 0.2, "snapshot restores drawing for late joins and replay")
+	check(card.ink.get_pixel(512,sample_y).r < 0.2, "snapshot restores drawing for late joins and replay")
 	cards.editor.close()
 	check(not game.ui_blocking() and (DisplayServer.get_name() == "headless" or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED), "closing paint restores gameplay input")
 	game.host_release(card)

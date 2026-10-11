@@ -1,4 +1,6 @@
 extends CanvasLayer
+const Card := preload("res://scripts/cue_card.gd")
+const ASPECT := float(Card.RESOLUTION.x)/Card.RESOLUTION.y
 const Canvas := preload("res://scripts/cue_card_canvas.gd")
 var cards: Node
 var opened := false
@@ -65,7 +67,7 @@ func _ready() -> void:
 	canvas.stroke_finished.connect(flush)
 	stack.add_child(canvas)
 	var hint := Label.new()
-	hint.text = "左ドラッグで書く ／ 大きな文字がおすすめ ／ 正面の相手から見える向きで表示"
+	hint.text = "左ドラッグで書く ／ 上の綴じ穴を避けて大きな文字で ／ 正面の相手から見える向きで表示"
 	hint.add_theme_font_override("font",cards.game.font)
 	hint.add_theme_font_size_override("font_size",16)
 	stack.add_child(hint)
@@ -137,7 +139,7 @@ func _process(delta: float) -> void:
 
 func _layout() -> void:
 	var screen: Vector2 = get_viewport().get_visible_rect().size
-	var width := minf(1024,minf(screen.x-72,(screen.y-220)*1.6))
-	canvas.custom_minimum_size = Vector2(width,width/1.6)
+	var width := minf(1024,minf(screen.x-72,(screen.y-220)*ASPECT))
+	canvas.custom_minimum_size = Vector2(width,width/ASPECT)
 	sheet.size = sheet.get_combined_minimum_size()
 	sheet.position = (screen-sheet.size)*0.5

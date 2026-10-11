@@ -1,11 +1,14 @@
 extends "res://scripts/prop.gd"
 # 表の +Z に筆記面。持つときは正面の相手へ向け、手は板の下部を支える。
 signal ink_restored
-const RESOLUTION := Vector2i(1024,640)
-const SIZE := Vector2(1.12,0.70)
+const Stage := preload("res://scripts/stage.gd")
+const MODEL := preload("res://assets/gear/Q07_Replaceable_Cue_Board.glb")
+const RESOLUTION := Vector2i(1024,724)
+const SIZE := Vector2(1.12,0.792)
 var ink: Image
 var texture: ImageTexture
 var surface: MeshInstance3D
+var _ink_surface := -1
 var revision := 0
 var _png := PackedByteArray()
 
@@ -13,38 +16,37 @@ func build() -> void:
 	kind = "cue_card"
 	label = "カンペ（Fでペイント）"
 	mass = 0.5
-	center = Vector3(0,SIZE.y*0.5,0)
-	half = Vector3(SIZE.x*0.5,SIZE.y*0.5,0.016)
 	carry_yaw = PI
-	visual = Node3D.new()
+	visual = MODEL.instantiate()
 	add_child(visual)
-	var backing := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(SIZE.x+0.04,SIZE.y+0.04,0.03)
-	backing.mesh = box
-	backing.position = center
-	var cardboard := StandardMaterial3D.new()
-	cardboard.albedo_color = Color("ad895c")
-	cardboard.roughness = 0.96
-	backing.material_override = cardboard
-	visual.add_child(backing)
+	# A3 landscape sheet: scale uniformly, with the authored rings and page stack intact.
+	var bounds := Stage.merged_aabb(visual)
+	var factor := SIZE.x / 0.42
+	visual.scale = Vector3.ONE * factor
+	visual.position = Vector3(-bounds.get_center().x,-bounds.position.y,-bounds.get_center().z)*factor
+	bounds = AABB(bounds.position*factor+visual.position,bounds.size*factor)
+	center = bounds.get_center()
+	half = bounds.size*0.5
+	half.z = maxf(half.z,0.016)
 	ink = Image.create(RESOLUTION.x,RESOLUTION.y,false,Image.FORMAT_RGB8)
 	ink.fill(Color.WHITE)
 	texture = ImageTexture.create_from_image(ink)
-	surface = MeshInstance3D.new()
-	var face := QuadMesh.new()
-	face.size = SIZE
-	surface.mesh = face
-	surface.position = center + Vector3(0,0,0.016)
-	var paper := StandardMaterial3D.new()
-	paper.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	paper.albedo_texture = texture
-	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	surface.material_override = paper
-	visual.add_child(surface)
+	for mesh: MeshInstance3D in visual.find_children("*","MeshInstance3D",true,false):
+		for i in mesh.mesh.get_surface_count():
+			var original := mesh.get_active_material(i)
+			if original == null or original.resource_name != "CUE_FRONT_REPLACE_IMAGE": continue
+			surface = mesh
+			_ink_surface = i
+			var paper := original.duplicate() as StandardMaterial3D
+			paper.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			paper.albedo_texture = texture
+			paper.albedo_color = Color.WHITE
+			paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+			mesh.set_surface_override_material(i,paper)
+	assert(surface != null,"Supplied cue card must have CUE_FRONT_REPLACE_IMAGE")
 	var collider := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = box.size
+	shape.size = half*2.0
 	collider.shape = shape
 	collider.position = center
 	add_child(collider)
