@@ -133,7 +133,7 @@ func _build_room() -> void:
 	# 東の壁には搬入口を開ける（軽トラが頭を外に出して停まる）
 	_static_box(Vector3(hx + 0.25, WALL_H * 0.5, -3.7), Vector3(0.5, WALL_H, 16.6), wall_mat)
 	_static_box(Vector3(hx + 0.25, WALL_H * 0.5, 10.2), Vector3(0.5, WALL_H, 3.6), wall_mat)
-	_static_box(Vector3(hx + 0.25, 4.4, 6.5), Vector3(0.5, 3.2, 3.8), wall_mat)
+	_static_box(Vector3(hx + 0.25, 4.7, 6.5), Vector3(0.5, 2.6, 3.8), wall_mat)
 	var outside := StandardMaterial3D.new()
 	outside.albedo_color = Color(0.16, 0.17, 0.19)
 	outside.roughness = 1.0

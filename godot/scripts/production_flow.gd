@@ -114,6 +114,7 @@ func apply(data: Dictionary) -> void:
 		_configure_site()
 	game.hud.root.visible = true
 	game.input_locked = phase == 3
+	_sync_vehicle_riders()
 	if phase != 3 and _trip_camera.current and game.local_player():
 		game.local_player().cam.make_current()
 	if old != phase:
@@ -232,17 +233,33 @@ func depart() -> void:
 	trip_time = 0.0
 	game.production_sync.rpc(snapshot())
 	game.move_crew(game.truck.global_transform * Vector3(game.truck.deck_c.x,game.truck.deck_top + 0.35,game.truck.deck_c.y), PI)
+	_sync_vehicle_riders()
+
+func _sync_vehicle_riders() -> void:
+	var ids: Array = game.players.keys()
+	ids.sort()
+	game.truck.set_traveling(phase == 3)
+	for i in ids.size():
+		var player: Node = game.players[ids[i]]
+		if not player.has_method("board_vehicle"): continue
+		if phase == 3:
+			player.board_vehicle(game.truck,i)
+		else:
+			player.leave_vehicle()
 
 func _physics_process(delta: float) -> void:
+	_sync_vehicle_riders()
 	if phase == 3:
-		_trip_camera.global_position = game.truck.global_position + Vector3(-4.8,2.8,-4.8)
-		_trip_camera.look_at(game.truck.global_position + Vector3(0,0.8,0))
+		var driver: Dictionary = game.truck.seat(0)
+		_trip_camera.global_position = game.truck.global_transform * Vector3(signf(driver.hip.x) * 5.2,3.1,5.3)
+		_trip_camera.look_at(game.truck.global_position + Vector3(0,1.5,0))
 		_trip_camera.make_current()
 	if not Net.is_host():
 		return
 	if phase == 3:
 		trip_time += delta
 		_move(game.truck, HOME_TRUCK + Vector3(0,0,minf(trip_time,8.0)*5.0))
+		_sync_vehicle_riders()
 		if trip_time >= 8.0:
 			arrive()
 	elif phase == 4 and not expired and game.state != game.S.DELIVERED:

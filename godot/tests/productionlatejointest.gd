@@ -163,9 +163,9 @@ func _run() -> void:
 	var host_state := await ask()
 	check(game.production.phase == 3 and host_state.get("phase") == 3,"client joins during travel")
 	compare_state(host_state,"travel join")
-	# The original crew is carried along by truck collision during the journey.
-	var travel_spawn_ok: bool = game.local_player().global_position.distance_to(game.production.HOME_TRUCK) < 5.0 and game.players[1].global_position.distance_to(host_state.host_position) < 1.0 and game.players[1].global_position.distance_to(game.local_player().global_position) > 3.0
-	check(travel_spawn_ok,"travel hello places only joining peer near truck")
+	# All crew, including a late joiner, occupy their assigned seats during travel.
+	var travel_spawn_ok: bool = game.local_player().vehicle_riding() and game.players[1].vehicle_riding() and game.local_player().global_position.distance_to(game.truck.global_position) < 4.0 and game.players[1].global_position.distance_to(host_state.host_position) < 1.0
+	check(travel_spawn_ok,"travel hello seats both crew in moving truck")
 	if not travel_spawn_ok:
 		print("LATEJOIN_SPAWN_DETAIL client=",game.local_player().global_position," host=",game.players[1].global_position," original_host=",host_state.first_host_position)
 	var elapsed := 0.0

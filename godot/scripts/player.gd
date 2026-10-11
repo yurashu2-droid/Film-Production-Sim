@@ -2,6 +2,8 @@ extends CharacterBody3D
 # 制作班のメンバー。自分の移動は各自の手元で動かし、位置だけ他の参加者へ送る。
 # 物を持つ・固定する・機材を操作する、はホストへの依頼として game 経由で出す。
 
+const VehicleRide := preload("res://scripts/vehicle_ride.gd")
+
 const CastVisual := preload("res://scripts/cast_visual.gd")
 
 const WALK := 3.4
@@ -27,6 +29,8 @@ var vis: Node3D
 var head: Node3D
 var arm: SpringArm3D
 var cam: Camera3D
+
+var _vehicle_ride: RefCounted
 
 var _net: Array = []
 var _send_t := 0.0
@@ -91,6 +95,18 @@ func set_cast(cast_tag: String) -> void:
 	vis.play(animation)
 	vis.set_face(face)
 
+
+func board_vehicle(truck: Node3D, seat_index: int) -> void:
+	if _vehicle_ride == null:
+		_vehicle_ride = VehicleRide.new()
+	_vehicle_ride.enter(self, truck, seat_index)
+
+func leave_vehicle() -> void:
+	if _vehicle_ride != null:
+		_vehicle_ride.leave(self)
+
+func vehicle_riding() -> bool:
+	return _vehicle_ride != null and _vehicle_ride.vehicle != null
 
 func aim_forward() -> Vector3:
 	return Basis.from_euler(Vector3(aim_pitch, aim_yaw, 0.0)) * Vector3.FORWARD
@@ -161,6 +177,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if vehicle_riding():
+		_vehicle_ride.update(self)
+		return
 	if not is_local:
 		_follow_net(delta)
 		return

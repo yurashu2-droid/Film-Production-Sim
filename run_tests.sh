@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 30 $GD --headless --path godot --script res://tests/vehicle_driving_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|DRIVING_CHECK.*FAIL|VEHICLE_DRIVING_TEST_"
 timeout 25 $GD --headless --path godot --script res://tests/start_intro_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|START_INTRO_CHECK.*FAIL|START_INTRO_TEST_"
 timeout 30 $GD --headless --path godot --fixed-fps 60 --script res://tests/productiontest.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|PRODUCTION_CHECK.*FAIL|PRODUCTIONTEST_"
 # 制作会社の一周と昇降台を実ENet二人で確認。両プロセスの終了も待つ。
