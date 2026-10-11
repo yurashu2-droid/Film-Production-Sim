@@ -81,6 +81,8 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 			var prop: Node = game.props[pid]
 			if prop.kind != "mark":
 				_move(prop, prop.global_position + OFFSET)
+			if prop.kind == "truck":
+				_move(prop, prop.global_position, 0.0)
 			_home_layout[pid] = prop.get_state()
 		game._set_state(game.S.PREP)
 		game.production_sync.rpc(snapshot())
@@ -224,10 +226,12 @@ func depart() -> void:
 		if prop.holder != 0:
 			game.host_release(prop)
 			game._set_rider(prop,game.truck,game.truck.global_transform.affine_inverse()*prop.global_transform)
+	# 車体の正面（ローカル +Z）を走行方向へ向ける。荷物は荷台の相対位置で追従する。
+	_move(game.truck, HOME_TRUCK, 0.0)
 	phase = 3
 	trip_time = 0.0
 	game.production_sync.rpc(snapshot())
-	game.move_crew(HOME_TRUCK + Vector3(-1.0,1.0,0), -PI/2)
+	game.move_crew(game.truck.global_transform * Vector3(0,1.0,-1.0), PI)
 
 func _physics_process(delta: float) -> void:
 	if phase == 3:
@@ -259,7 +263,7 @@ func _physics_process(delta: float) -> void:
 func arrive() -> void:
 	# Use cargo's relation to the truck; preserve stacked dollies and boxes.
 	var shift: Vector3 = SITE_TRUCK - game.truck.global_position
-	_move(game.truck, SITE_TRUCK)
+	_move(game.truck, SITE_TRUCK, PI * 0.5)
 	for pid in _loaded:
 		_move(game.props[pid], game.props[pid].global_position + shift)
 	phase = 4
@@ -344,11 +348,13 @@ func return_office() -> void:
 	game.production_sync.rpc(snapshot())
 	game.move_crew(Office.SPAWN_POINT, 0.0)
 
-func _move(prop: Node3D, pos: Vector3) -> void:
+func _move(prop: Node3D, pos: Vector3, yaw: float = NAN) -> void:
 	var carrier: int = prop.rider_of
 	var local: Transform3D = prop.ride_local
 	var state: Array = prop.get_state()
 	state[0] = pos
+	if not is_nan(yaw):
+		state[1] = Quaternion(Vector3.UP, yaw)
 	prop.restore(state)
 	if carrier != 0 and game.props.has(carrier):
 		game._set_rider(prop,game.props[carrier],local)

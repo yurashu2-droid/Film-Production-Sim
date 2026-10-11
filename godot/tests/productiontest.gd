@@ -50,8 +50,15 @@ func run() -> void:
 	check(lift.rider_of == game.truck.pid and flow.cargo().has(game.film.pid),"lift and nested camera can be packed")
 	game.h_depart()
 	check(flow.phase == 3,"departure starts journey")
-	await frames(490)
+	var departure_position: Vector3 = game.truck.global_position
+	await frames(60)
+	var travel_direction: Vector3 = game.truck.global_position - departure_position
+	travel_direction.y = 0.0
+	check(game.truck.global_basis.z.dot(travel_direction.normalized()) > 0.99,"truck faces its travel direction")
+	check(game.local_player().global_position.distance_to(game.truck.global_position) < 3.0,"crew stays aboard during travel")
+	await frames(430)
 	check(flow.phase == 4 and game.truck.position.distance_to(flow.SITE_TRUCK)<0.1,"journey reaches filming location")
+	check(game.truck.global_basis.z.dot(Vector3.RIGHT) > 0.99,"truck faces loading entrance after arrival")
 	var landed: Vector3 = game.local_player().global_position
 	check(Vector2(landed.x-game.SPAWN.x,landed.z-game.SPAWN.z).length()<0.5 and landed.y>-0.2,"cargo teleport does not launch crew away from arrival")
 	var waiting := Node3D.new()
@@ -83,6 +90,7 @@ func run() -> void:
 	game.h_return_office()
 	await frames(6)
 	check(flow.phase == 0 and game.local_player().position.x > 60,"return to company with earnings")
+	check(game.truck.global_basis.z.dot(Vector3.BACK) > 0.99,"truck parks facing the departure road after return")
 	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_DISABLED,"hidden film viewport sleeps again after return")
 	var dragon: Node
 	var cauldron: Node
