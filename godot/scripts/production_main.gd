@@ -214,10 +214,9 @@ func h_load_truck(pid: int) -> void:
 	var prop: Node = props.get(pid)
 	if me == null or prop == null or prop.holder != Net.sender() or me.global_position.distance_to(Flow.HOME_TRUCK) > 4.5:
 		return
-	host_release(prop)
-	if prop.rider_of != 0:
-		host_unload(prop)
-	host_load(prop,truck)
+	if not host_load(prop,truck):
+		host_ev("toast",["ここには積めない。右ドラッグで向きを変えるか、左クリックで置いて調整",1])
+		return
 	host_ev("toast",[prop.label+" を積んだ！ 高く積めば、だいたい載る。",0])
 
 @rpc("any_peer","call_local","reliable")

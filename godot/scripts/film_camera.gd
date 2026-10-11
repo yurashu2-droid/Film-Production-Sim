@@ -28,8 +28,6 @@ func build() -> void:
 	center = Vector3(0, 0.7, 0)
 	half = Vector3(0.45, 0.75, 0.45)
 	hold_min = 1.4
-	axis_lock_angular_x = true
-	axis_lock_angular_z = true
 	angular_damp = 6.0
 
 	# 三脚（首振り・上下の可動部つき）にカメラを載せる。素材は+Z向きなので-Zへそろえる

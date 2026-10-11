@@ -30,9 +30,9 @@ func run() -> void:
 	await frames(60)
 	check(not item.freeze and item.rider_of == truck.pid, "cargo rests physically on deck")
 	check(not item.get_collision_exceptions().has(truck), "deck collision stays enabled")
-	item.apply_central_impulse(Vector3(60,4,0))
+	item.apply_central_impulse(Vector3(60,35,0))
 	await frames(80)
-	check(item.rider_of == 0, "pushed cargo falls off without invisible lock")
+	check(item.rider_of == 0, "cargo thrown above sideboard falls off without invisible lock")
 	var a: Node = game.stage.spawn("applebox",Vector3(70,3,15))
 	var b: Node = game.stage.spawn("sandbag",Vector3(72,3,15))
 	a.gravity_scale = 0

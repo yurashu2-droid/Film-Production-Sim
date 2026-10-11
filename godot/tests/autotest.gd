@@ -220,10 +220,11 @@ func _hands_on() -> void:
 	game.h_release()
 	me.aim_pitch = -0.1
 	# 台車に載せたカメラも、操作中は身体と移動を固定して首振り・ズームだけ行う
-	cart.restore([Vector3(film.global_position.x, 0, film.global_position.z), Quaternion(Vector3.UP, PI), false])
+	# 荷台の真下を避けて、空いた床で三脚が落ち着いてから操作する。
+	cart.restore([Vector3(4, 0, 6), Quaternion(Vector3.UP, PI), false])
 	film.restore([cart.global_position + Vector3(0, cart.deck_top, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
 	game.host_load(film, cart)
-	await _wait(0.3)
+	await _wait(0.8)
 	var p0: Vector3 = film.global_position
 	var player0: Vector3 = me.global_position
 	game.h_operate(film.pid, true)

@@ -551,7 +551,7 @@ func host_release(p: RigidBody3D) -> void:
 	_try_load(p)
 
 
-# 手を離した物が台車の荷台の上なら載せる
+# 手を離した場所が荷台の上なら積載として記録する。置き方は物理に任せる。
 func _try_load(p: RigidBody3D) -> void:
 	if p.deck_top >= 0.0 or p.fixed or p.rider_of != 0 or p.absent:
 		return
@@ -562,26 +562,61 @@ func _try_load(p: RigidBody3D) -> void:
 			continue
 		var c: Vector3 = d.global_transform.affine_inverse() * p.center_global()
 		if absf(c.x - d.deck_c.x) < d.deck_half.x and absf(c.z - d.deck_c.y) < d.deck_half.y and c.y > d.deck_top - 0.25 and c.y < d.deck_top + 2.2:
-			host_load(p, d)
+			_set_rider(p, d, d.global_transform.affine_inverse() * p.global_transform)
 			return
 
 
-func host_load(p: RigidBody3D, d: RigidBody3D) -> void:
+# F の補助だけが置き場所を探す。手で置くときは向きも位置も変えない。
+func host_load(p: RigidBody3D, d: RigidBody3D) -> bool:
 	var local: Transform3D = d.global_transform.affine_inverse() * p.global_transform
+	var bounds: AABB = local * AABB(p.center - p.half, p.half * 2.0)
+	var offset: Vector3 = bounds.get_center() - local.origin
+	var extent: Vector3 = bounds.size * 0.5
+	var mx: float = maxf(d.deck_half.x - extent.x - 0.02, 0.0)
+	var mz: float = maxf(d.deck_half.y - extent.z - 0.02, 0.0)
+	local.origin.x = clampf(bounds.get_center().x, d.deck_c.x-mx, d.deck_c.x+mx) - offset.x
+	local.origin.z = clampf(bounds.get_center().z, d.deck_c.y-mz, d.deck_c.y+mz) - offset.z
 	var top: float = d.deck_top
 	for r: RigidBody3D in props.values():
-		if r.rider_of == d.pid and r != p:
-			var o: Vector3 = r.ride_local.origin
-			if absf(o.x - local.origin.x) < r.half.x + p.half.x and absf(o.z - local.origin.z) < r.half.z + p.half.z:
-				top = maxf(top, o.y + r.half.y * 2.0)
-	var mx: float = maxf(d.deck_half.x - 0.1, 0.05)
-	var mz: float = maxf(d.deck_half.y - 0.16, 0.05)
-	var at := Vector3(clampf(local.origin.x, d.deck_c.x - mx, d.deck_c.x + mx), top, clampf(local.origin.z, d.deck_c.y - mz, d.deck_c.y + mz))
-	var placed := Transform3D(Basis(Vector3.UP, local.basis.get_euler().y), at)
-	var world: Transform3D = d.global_transform * placed
+		if r.rider_of != d.pid or r == p or r.absent:
+			continue
+		var rb: AABB = (d.global_transform.affine_inverse() * r.global_transform) * AABB(r.center-r.half,r.half*2.0)
+		if absf(rb.get_center().x-(local.origin.x+offset.x)) < rb.size.x*0.5+extent.x+0.02 and absf(rb.get_center().z-(local.origin.z+offset.z)) < rb.size.z*0.5+extent.z+0.02:
+			top = maxf(top, rb.end.y)
+	local.origin.y = top - (offset.y - extent.y) + 0.03
+	var world: Transform3D = d.global_transform * local
+	# 大きい物は側板の上へ。壁や別の物の中へはワープさせない。
+	var clear := false
+	for step in 13:
+		world = d.global_transform * local
+		if _cargo_space_clear(p,world):
+			clear = true
+			break
+		local.origin.y += 0.1
+	if not clear:
+		return false
+	var who: int = p.holder
 	p.restore([world.origin,Quaternion(world.basis.orthonormalized()),false])
-	_set_rider(p, d, placed)
+	_set_rider(p, d, local)
+	if who != 0:
+		host_ev("hold",[who,0])
 	host_ev("sfx", ["thump", p.global_position])
+	return true
+
+
+func _cargo_space_clear(p: RigidBody3D, at: Transform3D) -> bool:
+	var space := get_world_3d().direct_space_state
+	for shape: CollisionShape3D in p.find_children("*","CollisionShape3D",true,false):
+		if shape.disabled or shape.shape == null:
+			continue
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = shape.shape
+		query.transform = at * (p.global_transform.affine_inverse() * shape.global_transform)
+		query.collision_mask = p.collision_mask
+		query.exclude = [p.get_rid()]
+		if not space.intersect_shape(query,1).is_empty():
+			return false
+	return true
 
 
 func _set_rider(p: RigidBody3D, d: RigidBody3D, local: Transform3D) -> void:
