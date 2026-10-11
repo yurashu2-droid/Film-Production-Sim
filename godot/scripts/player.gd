@@ -29,6 +29,7 @@ var vis: Node3D
 var head: Node3D
 var arm: SpringArm3D
 var cam: Camera3D
+var operator_cam: Camera3D
 
 var _vehicle_ride: RefCounted
 
@@ -78,6 +79,11 @@ func setup(cast_tag: String) -> void:
 		var al := AudioListener3D.new()
 		cam.add_child(al)
 		al.make_current()
+		operator_cam = Camera3D.new()
+		operator_cam.name = "CameraOperatorView"
+		operator_cam.fov = 48.0
+		operator_cam.near = 0.025
+		add_child(operator_cam)
 
 
 func set_cast(cast_tag: String) -> void:
@@ -198,21 +204,8 @@ func _physics_process(delta: float) -> void:
 		pose = "onehand_" if carried.kind in CastVisual.ONE_HAND_PROPS else "carry_"
 
 	if op and op.kind == "camera":
-		# カメラ操作中は台車のようにカメラごと動く。自分はカメラの後ろに付く
-		var f: Vector3 = op.shoot_dir()
-		f.y = 0.0
-		f = f.normalized()
-		var r := Vector3(-f.z, 0.0, f.x)
-		game.act_dolly(operating, r * iv.x + f * iv.y)
-		var back := 0.9
-		var stand: Vector3 = op.global_position
-		if op.rider_of != 0:
-			back = maxf(1.35, game.props[op.rider_of].deck_half.y + 0.5) # 台車の後ろに立つ
-			stand.y -= float(game.props[op.rider_of].deck_top)
-		global_position = stand - f * back
+		# 撮影係の身体はその場に保つ。視点だけを機材へ寄せる。
 		velocity = Vector3.ZERO
-		vis.rotation.y = atan2(f.x, f.z)
-		aim_yaw = atan2(-f.x, -f.z)
 		_motion = ""
 		_run_requested = false
 		_ground_y = global_position.y
@@ -258,6 +251,15 @@ func _physics_process(delta: float) -> void:
 	if _send_t <= 0.0 and Net.has_peers():
 		_send_t = 0.05
 		game.send_player_state(global_position, vis.rotation.y, aim_yaw, aim_pitch, hold_dist, hold_yaw, hold_pitch, vis.current + "|" + vis.face)
+
+func _process(_delta: float) -> void:
+	if not is_local or operator_cam == null or vehicle_riding(): return
+	var op: Node = game.props.get(operating)
+	if not game.replaying and op != null and op.kind == "camera":
+		operator_cam.global_transform = op.operation_view()
+		operator_cam.make_current()
+	elif operator_cam.current:
+		cam.make_current()
 
 
 # Keep movement responsive while matching the short anticipation / push-off clip.

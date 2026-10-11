@@ -1,5 +1,5 @@
 extends "res://scripts/prop.gd"
-# 三脚つきの撮影カメラ。置けばその構図を保つ。操作中は首振り・ズーム・台車移動ができる。
+# 三脚つきの撮影カメラ。操作中は身体を動かさず首振りとズームを行う。
 
 const VIEW_SIZE := Vector2i(1280, 720)
 const HEAD_Y := 1.35
@@ -18,6 +18,7 @@ var lens: Node3D              # -Z が撮影方向
 var view: SubViewport
 var view_cam: Camera3D
 var tally: MeshInstance3D
+var monitor_surface: MeshInstance3D
 
 
 func build() -> void:
@@ -76,6 +77,19 @@ func build() -> void:
 	view_cam.environment = _film_environment()
 	view.add_child(view_cam)
 	view_cam.current = true
+	monitor_surface = body.find_child("LCD*single*image*display*",true,false) as MeshInstance3D
+	var display := StandardMaterial3D.new()
+	display.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	display.albedo_texture = view.get_texture()
+	monitor_surface.material_override = display
+
+func monitor_texture() -> Texture2D:
+	return monitor_surface.material_override.albedo_texture
+
+func operation_view() -> Transform3D:
+	var target: Vector3 = monitor_surface.global_transform * monitor_surface.get_aabb().get_center()
+	var eye: Vector3 = lens.global_transform * Vector3(0.30,0.13,0.42)
+	return Transform3D(Basis.IDENTITY,eye).looking_at(target,Vector3.UP)
 
 
 func _add_box(c: Vector3, size: Vector3) -> void:

@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 35 $GD --headless --path godot --script res://tests/camera_operation_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|CAMERA_OPERATION_"
 timeout 35 $GD --headless --path godot --script res://tests/monitor_switcher_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|MONITOR_SWITCHER_"
 MONITOR_LOG=$(mktemp)
 timeout 40 $GD --headless --path godot res://tests/monitor_net_test.tscn -- --monitor-host > "$MONITOR_LOG" 2>&1 &

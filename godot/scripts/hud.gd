@@ -175,7 +175,7 @@ const HELP_TEXT := """あそびかた（Tabで閉じる）
 固定・解除 G（倒れやすい物を留める）
 機材を操作 F（カメラ：首振り・ホイールでズーム
 　　　　　　　ライト：向き・ホイールで明るさ）
-台車：物を上で離すと載る。カメラを載せると WASD で移動撮影
+台車：物を上で離すと載る。カメラ操作中は身体を固定。移動するときは F で離れる
 ライトは持って歩くと、見ている方向を照らす
 本番開始：カチンコを持って F ／ カット：T かカチンコ
 合図 1 告白・2 爆発・3 再会
@@ -248,9 +248,9 @@ func _process(delta: float) -> void:
 	var output: Node = game.program_camera()
 	var finder: Node = op if op != null and op.kind == "camera" and st != S.REPLAY else output
 	viewfinder.texture = finder.view.get_texture()
-	monitor.texture = output.view.get_texture()
-	monitor_title.text = output.label + ("　採用中" if game.has_method("open_monitor") else "")
-	var full: bool = st == S.REPLAY or (op != null and op.kind == "camera")
+	monitor.texture = finder.view.get_texture()
+	monitor_title.text = finder.label + ("　操作中" if op != null and op.kind == "camera" else "　採用中")
+	var full: bool = st == S.REPLAY
 	viewfinder.visible = full
 	vf_frame.visible = full
 	monitor_box.visible = not full and st != S.RESULT and st != S.DELIVERED and st != S.ORDER
@@ -281,7 +281,7 @@ func _process(delta: float) -> void:
 			hints.add_theme_color_override("font_color", YELLOW)
 	else:
 		hints.text = ""
-	monitor_title.text = output.label + ("　● REC" if st == S.TAKE else "　採用中")
+	monitor_title.text = finder.label + ("　● REC" if st == S.TAKE else ("　操作中" if op != null and op.kind == "camera" else "　採用中"))
 	monitor_title.add_theme_color_override("font_color", RED if st == S.TAKE else DIM)
 
 	# 本番の時計と合図
@@ -302,7 +302,7 @@ func _process(delta: float) -> void:
 
 	# 照準と対象
 	var play: bool = st == S.PREP or st == S.TAKE or st == S.COUNTDOWN
-	cross.visible = play and not full
+	cross.visible = play and not full and not (op != null and op.kind == "camera")
 	var tl := ""
 	if play and me and op == null:
 		if me.held != 0 and game.props.has(me.held):
@@ -325,7 +325,7 @@ func _process(delta: float) -> void:
 	var k := ""
 	if st == S.PREP or st == S.TAKE:
 		if op and op.kind == "camera":
-			k = "カメラ操作中：マウスで首振り ／ ホイールでズーム ／ %s ／ F で離れる" % ("WASDで台車ごと移動" if op.rider_of != 0 else "台車に載せると移動撮影できる")
+			k = "カメラ操作中：マウスで首振り ／ ホイールでズーム ／ 身体はその場で固定 ／ F で離れる"
 		elif op:
 			k = "ライト操作中：マウスで向き ／ ホイールで明るさ（%d／3） ／ F で離れる" % op.level
 		elif me and me.held != 0:

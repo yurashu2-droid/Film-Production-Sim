@@ -221,12 +221,13 @@ func _hands_on() -> void:
 	ok = ok and absf(hand.tilt - 0.38) < 0.05 and absf(hand.pan) < 0.05
 	game.h_release()
 	me.aim_pitch = -0.1
-	# カメラを台車に載せて移動撮影
+	# 台車に載せたカメラも、操作中は身体と移動を固定して首振り・ズームだけ行う
 	cart.restore([Vector3(film.global_position.x, 0, film.global_position.z), Quaternion(Vector3.UP, PI), false])
 	film.restore([cart.global_position + Vector3(0, cart.deck_top, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
 	game.host_load(film, cart)
 	await _wait(0.3)
 	var p0: Vector3 = film.global_position
+	var player0: Vector3 = me.global_position
 	game.h_operate(film.pid, true)
 	await _wait(0.1)
 	game.h_aim(film.pid, 0.3, 0.1, 2.0)
@@ -236,7 +237,8 @@ func _hands_on() -> void:
 	Input.action_release("move_forward")
 	game.input_locked = true
 	print("OPERATE op=", me.operating == film.pid, " yaw=%.2f fov=%.1f moved=%.2f" % [film.cam_yaw, film.fov, film.global_position.distance_to(p0)])
-	ok = ok and me.operating == film.pid and absf(film.cam_yaw - 0.3) < 0.01 and film.global_position.distance_to(p0) > 1.0
+	var drift := Vector2(film.global_position.x-p0.x,film.global_position.z-p0.z).length()
+	ok = ok and me.operating == film.pid and absf(film.cam_yaw - 0.3) < 0.01 and absf(film.fov-46.0) < 0.01 and drift < 0.05 and me.global_position.is_equal_approx(player0)
 	await _shot("viewfinder")
 	game.h_operate(film.pid, false)
 	var rig: Node3D = game.spots[0]

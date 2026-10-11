@@ -61,7 +61,7 @@ C キャラクター選択 ／ Esc マウスを離す
 カチンコを持って F：本番 ／ T：カット
 1 告白：城・高低差・明るさ → 2 背後で爆発 → 3 再会
 カメラ操作中はマウスで首振り、ホイールでズーム。
-台車にカメラを載せると WASD で移動撮影もできる。
+カメラ操作中は身体を固定。移動するときは F で離れる。
 
 結果画面：Rで見返す、Pで見返して8コマPNG保存。
 保存先はユーザーデータの film_stills フォルダ。
@@ -188,11 +188,12 @@ func _refresh() -> void:
 	legacy.root.visible = true
 	legacy.order_state.get_parent().get_parent().visible = phase == 4
 	if phase != 4:
-		legacy.monitor_box.visible = false
+		var viewer: Node = game.local_player()
+		legacy.monitor_box.visible = viewer != null and game.props.has(viewer.operating) and game.props[viewer.operating].kind == "camera"
 		legacy.viewfinder.visible = false
 		legacy.vf_frame.visible = false
 		legacy.panel.visible = phase == 1
-		legacy.cross.visible = phase in [0,2] and not picker_open
+		legacy.cross.visible = phase in [0,2] and not picker_open and not legacy.monitor_box.visible
 		legacy.target_label.visible = phase in [0,2] and not picker_open
 	else:
 		legacy.target_label.visible = true
