@@ -5,13 +5,16 @@ signal finished
 
 const MODEL := preload("res://assets/props/P051_clapperboard.glb")
 const ENTER_TIME := 0.65
-const EXIT_TIME := 0.86
+const CLAP_TIME := 0.075
+const EXIT_TIME := 0.72
 const SHUT := -0.22
 var active := false
 var covered := false
 var view: SubViewport
 var rig: Node3D
 var stick: Node3D
+var _slate: MeshInstance3D
+var _keep_proportions: Array[Node3D] = []
 var _screen: Control
 var _phase := ""
 var _time := 0.0
@@ -60,6 +63,10 @@ func _ready() -> void:
 		var top := nm.contains("clapper_top")
 		for odd: String in ["stripe_005", "stripe_007", "stripe_009", "stripe_011", "stripe_013"]:
 			top = top or nm.contains(odd)
+		if nm.contains("slate_001") and n is MeshInstance3D:
+			_slate = n
+		if n is Node3D and (nm.contains("hinge_pin") or nm.contains("header_") or nm.contains("numbers_") or nm.contains("footer_")):
+			_keep_proportions.append(n)
 		if top and n is Node3D:
 			# 元モデルは中心で傾けてあるので、蝶番回転で閉じた時の厚みを合わせる。
 			n.position.y += 0.014
@@ -108,13 +115,21 @@ func _process(delta: float) -> void:
 		"enter":
 			_enter_pose(minf(_time / ENTER_TIME, 1.0))
 			if _time >= ENTER_TIME:
+				_phase = "clap"
+				_time = 0.0
+		"clap":
+			_frame_pose()
+			stick.rotation.z = lerpf(0.0, SHUT, pow(minf(_time / CLAP_TIME, 1.0), 2.0))
+			if _time >= CLAP_TIME:
+				_sounded = true
+				Sfx.play("clap", null, -4.0)
 				covered = true
 				_phase = "hold"
 				_time = 0.0
+				# 打った直後にGameを用意し、板の裏で描く。
 				occluded.emit()
 		"hold":
-			# 大きな板を手で保持している程度の揺れ。全ての角は板の内側。
-			_pose(Vector2(0, sin(_time * 2.5) * 0.015), _cover_scale(), Vector3(0, 0.025, 0.01))
+			_frame_pose(sin(_time * 2.5) * 0.003)
 		"exit":
 			_exit_pose(minf(_time / EXIT_TIME, 1.0))
 			if _time >= EXIT_TIME:
@@ -125,33 +140,40 @@ func _process(delta: float) -> void:
 				set_process(false)
 				finished.emit()
 
-func _cover_scale() -> float:
+func _frame_scale() -> Vector3:
 	var size := get_viewport().get_visible_rect().size
-	return maxf(13.5, (size.x / maxf(size.y, 1.0)) * 2.0 / 0.30 * 1.25)
+	var aspect := size.x / maxf(size.y, 1.0)
+	# 拍子木の左右には余白を残す。黒板だけ広げて画面を覆う。
+	return Vector3(aspect * 2.0 * 0.91 / 0.31, 5.0, 6.0)
 
-func _pose(point: Vector2, amount: float, turn: Vector3) -> void:
+func _extend_board(amount: float) -> void:
+	_slate.scale = Vector3(1.0, 1.0, 1.0).lerp(Vector3(1.2, 0.70 / 0.22, 1.0), amount)
+	_slate.position.y = lerpf(0.11, 0.04, amount)
+
+func _pose(point: Vector2, amount: Vector3, turn: Vector3, extension: float) -> void:
 	rig.position = Vector3(point.x, point.y, 0)
-	rig.scale = Vector3.ONE * amount
+	rig.scale = amount
 	rig.rotation = turn
+	_extend_board(extension)
+	# 横長の板でも文字と蝶番の丸さは引き伸ばさない。
+	for detail: Node3D in _keep_proportions:
+		detail.scale.x = amount.y / amount.x
+
+func _frame_pose(breathe: float = 0.0) -> void:
+	_pose(Vector2(0, -0.30 + breathe), _frame_scale(), Vector3.ZERO, 1.0)
 
 func _enter_pose(t: float) -> void:
 	if t < 0.56:
 		var k := 1.0 - pow(1.0 - t / 0.56, 3.0)
-		_pose(Vector2(-2.3, -1.9).lerp(Vector2(-0.25, -0.5), k), lerpf(4.0, 5.6, k), Vector3(0.08, -0.5, 0.32).lerp(Vector3(0, 0.10, -0.08), k))
+		_pose(Vector2(-2.3, -1.9).lerp(Vector2(-0.25, -0.5), k), Vector3.ONE * lerpf(4.0, 5.6, k), Vector3(0.08, -0.5, 0.32).lerp(Vector3(0, 0.10, -0.08), k), 0.0)
 	else:
 		var k := smoothstep(0.56, 1.0, t)
-		_pose(Vector2(-0.25, -0.5).lerp(Vector2.ZERO, k), lerpf(5.6, _cover_scale(), k), Vector3(0, 0.10, -0.08).lerp(Vector3(0, 0.025, 0.01), k))
+		_pose(Vector2(-0.25, -0.5).lerp(Vector2(0, -0.30), k), (Vector3.ONE * 5.6).lerp(_frame_scale(), k), Vector3(0, 0.10, -0.08).lerp(Vector3.ZERO, k), k)
 
 func _exit_pose(t: float) -> void:
-	stick.rotation.z = lerpf(0.0, SHUT, smoothstep(0.28, 0.37, t))
-	if t < 0.42:
-		# 覆った板を引き、拍子木を見せてから打つ。
-		var k := 1.0 - pow(1.0 - t / 0.42, 3.0)
-		_pose(Vector2.ZERO.lerp(Vector2(-0.05, -0.43), k), lerpf(_cover_scale(), 5.4, k), Vector3(0, 0.025, 0.01).lerp(Vector3(0.05, -0.10, -0.06), k))
-	else:
-		var k := pow(clampf((t - 0.49) / 0.51, 0.0, 1.0), 2.0)
-		var aspect := get_viewport().get_visible_rect().size.aspect()
-		_pose(Vector2(-0.05, -0.43).lerp(Vector2(-aspect - 1.2, -2.3), k), lerpf(5.4, 5.0, k), Vector3(0.05, -0.10, -0.06).lerp(Vector3(0.15, -0.65, 0.35), k))
-	if t >= 0.37 and not _sounded:
-		_sounded = true
-		Sfx.play("clap", null, -4.0)
+	# ゲームが裏で描けたら、開く動きと右へ抜ける動きを同時に始める。
+	stick.rotation.z = lerpf(SHUT, 0.0, smoothstep(0.02, 0.55, t))
+	var shrink := 1.0 - pow(1.0 - t, 3.0)
+	var drift := t * t
+	var aspect := get_viewport().get_visible_rect().size.aspect()
+	_pose(Vector2(0, -0.30).lerp(Vector2(aspect + 1.4, -0.35), drift), _frame_scale().lerp(Vector3.ONE * 5.0, shrink), Vector3.ZERO.lerp(Vector3(0.06, -0.4, -0.08), drift), 1.0 - smoothstep(0.0, 0.65, t))
