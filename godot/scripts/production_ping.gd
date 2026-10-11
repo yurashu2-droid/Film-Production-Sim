@@ -50,7 +50,7 @@ func _process(_delta: float) -> void:
 	var camera: Camera3D = me.cam if me != null else null
 	var allowed: bool = game.production.phase in [0,2,4] and not game.ui_blocking() and not game.replaying
 	# カメラ操作中の全面映像にも指示札を重ねない。
-	if me != null and me.operating == game.film.pid:
+	if me != null and game.props.has(me.operating) and game.props[me.operating].kind == "camera":
 		allowed = false
 	for sender: int in markers.keys():
 		var marker: Dictionary = markers[sender]

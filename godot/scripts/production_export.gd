@@ -64,7 +64,7 @@ func _collect(token: int) -> void:
 		if not _replay_valid():
 			cancel("見返しが終わったため、保存を中断しました。")
 			return
-		var image: Image = game.film.view.get_texture().get_image()
+		var image: Image = game.program_camera().view.get_texture().get_image()
 		if image == null or image.is_empty():
 			cancel("撮影映像を取得できず、保存を中断しました。")
 			return

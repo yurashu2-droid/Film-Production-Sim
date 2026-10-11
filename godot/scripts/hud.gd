@@ -245,6 +245,11 @@ func _process(delta: float) -> void:
 	character_button.disabled = game.local_player() == null
 	var me: Node = game.local_player()
 	var op: Node3D = game.props.get(me.operating) if me and me.operating != 0 else null
+	var output: Node = game.program_camera()
+	var finder: Node = op if op != null and op.kind == "camera" and st != S.REPLAY else output
+	viewfinder.texture = finder.view.get_texture()
+	monitor.texture = output.view.get_texture()
+	monitor_title.text = output.label + ("　採用中" if game.has_method("open_monitor") else "")
 	var full: bool = st == S.REPLAY or (op != null and op.kind == "camera")
 	viewfinder.visible = full
 	vf_frame.visible = full
@@ -276,7 +281,7 @@ func _process(delta: float) -> void:
 			hints.add_theme_color_override("font_color", YELLOW)
 	else:
 		hints.text = ""
-	monitor_title.text = "カメラ映像" + ("　● REC" if st == S.TAKE else "")
+	monitor_title.text = output.label + ("　● REC" if st == S.TAKE else "　採用中")
 	monitor_title.add_theme_color_override("font_color", RED if st == S.TAKE else DIM)
 
 	# 本番の時計と合図

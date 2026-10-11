@@ -228,6 +228,13 @@ func _refresh() -> void:
 			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ G 固定 ／ F " + game.prop_action_hint(action_prop)
 	if phase in [0,2,4]:
 		legacy.keys.text += " ／ V・中クリック 目印"
+		var me: Node = game.local_player()
+		if phase in [2,4] and me and me.target == game.camera_switcher.monitor and me.held == 0 and me.operating == 0:
+			legacy.keys.text = "右クリック モニターを開く ／ 3台の映像を確認・切り替え"
+	if game.monitor_popup != null and game.monitor_popup.opened:
+		legacy.keys.visible = false
+		legacy.cross.visible = false
+		legacy.target_label.visible = false
 	_office.visible = phase == 0 and not picker_open and not game.help_open
 	if _lobby:
 		_lobby.visible = phase == 0 and not picker_open and not game.help_open

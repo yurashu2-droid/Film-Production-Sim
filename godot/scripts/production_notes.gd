@@ -26,12 +26,13 @@ func tick(delta: float) -> void:
 			break
 
 func _seen(point: Vector3, subject: RID) -> bool:
-	var cam: Camera3D = game.film.view_cam
-	if not game.judge._in_frame(cam,Vector2(game.film.view.size),point):
+	var film: Node = game.program_camera()
+	var cam: Camera3D = film.view_cam
+	if not game.judge._in_frame(cam,Vector2(film.view.size),point):
 		return false
 	var query := PhysicsRayQueryParameters3D.create(cam.global_position,point,1 | 2 | 8)
-	query.exclude = [game.film.get_rid(),subject]
-	var hit: Dictionary = game.film.get_world_3d().direct_space_state.intersect_ray(query)
+	query.exclude = [film.get_rid(),subject]
+	var hit: Dictionary = film.get_world_3d().direct_space_state.intersect_ray(query)
 	return hit.is_empty() or (hit.position as Vector3).distance_to(point) <= 0.15
 
 func finish(job_index: int, take_index: int, passed: Array) -> Dictionary:

@@ -55,7 +55,7 @@ func passed() -> Array:
 # ---- いまの画面の見え方 ----
 
 func look() -> Dictionary:
-	var film: Node3D = game.film
+	var film: Node3D = game.program_camera()
 	var cam: Camera3D = film.view_cam
 	var vs := Vector2(film.view.size)
 	var space := film.get_world_3d().direct_space_state

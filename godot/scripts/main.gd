@@ -31,7 +31,7 @@ const MAX_TAKES := 3
 const REWARD := 1200
 const PLAYER_CASTS := ["M02", "04", "09", "03", "01", "02", "06"]
 const PLAYER_NAMES := ["ロボット", "ベレー帽の人", "段ボール頭", "手帳の人", "ドレスの人", "カエルの警官", "モップの王様"]
-const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust"]
+const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust", "camera_program"]
 const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
 const BUDGET := 600
 const FREE_FIXES := 4           # 固定用品を借りないときに固定できる数
@@ -57,6 +57,7 @@ var spots: Array = []
 var moons: Array = []
 var players: Dictionary = {}
 var film: RigidBody3D
+var _program_before_replay := 0
 var fx: RigidBody3D
 var clapper: RigidBody3D
 var truck: RigidBody3D
@@ -664,6 +665,14 @@ func h_dolly(pid: int, v: Vector3) -> void:
 
 # ---- ホストの処理：依頼と軽トラ ----
 
+
+# 会社のカメラと、作品に採用するカメラを分ける。通常モードは一台だけ。
+func program_camera() -> Node:
+	return film
+
+func select_program_camera(_pid: int) -> void:
+	pass
+
 func order_cost(o: Dictionary = order) -> int:
 	var total := 0
 	for opt: Dictionary in OPTIONS:
@@ -833,6 +842,7 @@ func _begin_take() -> void:
 	for a: CharacterBody3D in actors:
 		a.set_state(a.St.IDLE)
 	_set_state(S.TAKE)
+	host_ev("camera_program",[program_camera().pid])
 	host_ev("music", [""])
 	host_ev("slate", [takes.size() + 1, "clap"])
 	host_ev("sfx", ["clap", null])
@@ -1030,6 +1040,7 @@ func h_replay(i: int) -> void:
 	_replay = _take_data[i]
 	if (_replay["frames"] as Array).size() < 2:
 		return
+	_program_before_replay = program_camera().pid
 	replay_t = 0.0
 	_replay_i = 0
 	_replay_ev = 0
@@ -1055,6 +1066,7 @@ func _replay_casts() -> Dictionary:
 
 func _end_replay() -> void:
 	_set_playback(false)
+	host_ev("camera_program",[_program_before_replay])
 	ev.rpc("roster", [_roster])
 	host_ev("silence", [])
 	_set_state(S.RESULT)
@@ -1257,6 +1269,8 @@ func host_ev(n: String, a: Array) -> void:
 @rpc("authority", "call_local", "reliable")
 func ev(n: String, a: Array) -> void:
 	match n:
+		"camera_program":
+			select_program_camera(int(a[0]))
 		"state":
 			_clear_dash_dust()
 			state = a[0]

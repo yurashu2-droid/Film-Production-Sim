@@ -3,6 +3,10 @@ const Flow := preload("res://scripts/production_flow.gd")
 const ProductionHud := preload("res://scripts/production_hud.gd")
 const ProductionPing := preload("res://scripts/production_ping.gd")
 const ProductionExport := preload("res://scripts/production_export.gd")
+const CameraSwitcher := preload("res://scripts/camera_switcher.gd")
+const MonitorPopup := preload("res://scripts/monitor_popup.gd")
+var camera_switcher: Node
+var monitor_popup: CanvasLayer
 var production_export: Node
 var production_ping: CanvasLayer
 var _ping_last: Dictionary = {}
@@ -25,6 +29,15 @@ func _ready() -> void:
 	production.name = "Production"
 	add_child(production)
 	await production.setup(self, startup_incremental)
+	camera_switcher = CameraSwitcher.new()
+	camera_switcher.name = "CameraSwitcher"
+	camera_switcher.game = self
+	add_child(camera_switcher)
+	camera_switcher.setup()
+	monitor_popup = MonitorPopup.new()
+	monitor_popup.name = "MonitorPopup"
+	monitor_popup.game = self
+	add_child(monitor_popup)
 	production_hud = ProductionHud.new()
 	production_hud.game = self
 	add_child(production_hud)
@@ -43,7 +56,55 @@ func _ready() -> void:
 	startup_complete = true
 	startup_ready.emit()
 
+func can_see_monitor() -> bool:
+	var me: Node = local_player()
+	if production == null or me == null:
+		return true
+	return camera_switcher.nearby(me) if camera_switcher != null else true
+
+func program_camera() -> Node:
+	return camera_switcher.camera() if camera_switcher != null else film
+
+func select_program_camera(pid: int) -> void:
+	if camera_switcher != null:
+		camera_switcher.select(pid)
+
+func open_monitor() -> bool:
+	var me: Node = local_player()
+	if monitor_popup == null or me == null or me.held != 0 or me.operating != 0 or me.target != camera_switcher.monitor:
+		return false
+	if not camera_switcher.allowed() or not camera_switcher.nearby(me): return false
+	monitor_popup.set_open(true)
+	return true
+
+@rpc("any_peer","call_local","reliable")
+func h_monitor_control(on: bool) -> void:
+	if camera_switcher != null:
+		camera_switcher.request_control(Net.sender(),on)
+
+@rpc("any_peer","call_local","reliable")
+func h_camera_cut(which: int) -> void:
+	if camera_switcher != null:
+		camera_switcher.request_cut(Net.sender(),which)
+
+@rpc("any_peer","call_local","reliable")
+func h_monitor_cue(cue: int) -> void:
+	if camera_switcher != null and camera_switcher.controls(Net.sender()) and cue in [1,2,3]:
+		h_cue(cue)
+
+@rpc("any_peer","call_local","reliable")
+func h_monitor_stop() -> void:
+	if camera_switcher != null and camera_switcher.controls(Net.sender()) and state == S.TAKE:
+		_cut()
+
+
+func ui_blocking() -> bool:
+	return super.ui_blocking() or (monitor_popup != null and monitor_popup.opened)
+
 func _input(event: InputEvent) -> void:
+	if monitor_popup != null and monitor_popup.opened and monitor_popup.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if production_export != null and not production_export.last_saved.is_empty() and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_O and not character_open and not help_open:
 		production_export.open_saved()
 		get_viewport().set_input_as_handled()
@@ -61,7 +122,8 @@ func _input(event: InputEvent) -> void:
 				return
 			_ping_local_next = now + 0.7
 			var me: Node = local_player()
-			var camera: Camera3D = film.view_cam if me.operating == film.pid else me.cam
+			var op: Node = props.get(me.operating)
+			var camera: Camera3D = op.view_cam if op != null and op.kind == "camera" else me.cam
 			h_ping.rpc_id(1,camera.global_position,-camera.global_basis.z)
 			get_viewport().set_input_as_handled()
 			return
@@ -162,6 +224,9 @@ func ev(n: String, a: Array) -> void:
 			props[a[0]].set_active(a[1])
 	else:
 		super.ev(n,a)
+		if n == "state" and camera_switcher != null:
+			camera_switcher.state_changed()
+			if monitor_popup != null: monitor_popup.state_changed()
 		if n == "state" and production_export != null:
 			production_export.replay_state_changed(state)
 
@@ -190,6 +255,8 @@ func h_hello() -> void:
 func h_production_hello() -> void:
 	if Net.is_host() and production:
 		production_sync.rpc_id(Net.sender(),production.snapshot())
+		if camera_switcher != null:
+			camera_switcher.receive.rpc_id(Net.sender(),camera_switcher.state())
 		var point: Vector3 = Flow.HOME_TRUCK + Vector3(-3,0.1,1) if production.phase in [2,3] else (SPAWN if production.phase in [4,5] else Flow.Office.SPAWN_POINT)
 		point = _open_join_point(point,Net.sender())
 		production_move.rpc(point,0.0,Net.sender(),_crew_epoch)
@@ -378,7 +445,8 @@ func h_ping(from: Vector3, direction: Vector3) -> void:
 	var player: Node = players.get(who)
 	if player == null or not from.is_finite() or not direction.is_finite() or direction.length_squared() < 0.9 or direction.length_squared() > 1.1:
 		return
-	var origin: Vector3 = film.lens.global_position if player.operating == film.pid else player.global_position + Vector3(0,1.85,0)
+	var op: Node = props.get(player.operating)
+	var origin: Vector3 = op.lens.global_position if op != null and op.kind == "camera" else player.global_position + Vector3(0,1.85,0)
 	if origin.distance_to(from) > 6.0:
 		return
 	var now := Time.get_ticks_msec()/1000.0

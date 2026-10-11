@@ -143,6 +143,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			return
+		if mb.button_index == MOUSE_BUTTON_RIGHT and game.has_method("open_monitor") and game.open_monitor():
+			return
 		var wheel := 0
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 			wheel = 1

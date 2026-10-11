@@ -3,6 +3,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 35 $GD --headless --path godot --script res://tests/monitor_switcher_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|MONITOR_SWITCHER_"
+MONITOR_LOG=$(mktemp)
+timeout 40 $GD --headless --path godot res://tests/monitor_net_test.tscn -- --monitor-host > "$MONITOR_LOG" 2>&1 &
+MONITOR_HOST=$!
+sleep 2
+timeout 40 $GD --headless --path godot res://tests/monitor_net_test.tscn -- --monitor-client 2>&1 | grep -E "SCRIPT ERROR|ERROR:|MONITOR_NET_"
+wait "$MONITOR_HOST"
+grep -E "SCRIPT ERROR|ERROR:|MONITOR_NET_" "$MONITOR_LOG"
+rm -f "$MONITOR_LOG"
 timeout 30 $GD --headless --path godot --script res://tests/vehicle_driving_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|DRIVING_CHECK.*FAIL|VEHICLE_DRIVING_TEST_"
 timeout 25 $GD --headless --path godot --script res://tests/start_intro_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|START_INTRO_CHECK.*FAIL|START_INTRO_TEST_"
 timeout 30 $GD --headless --path godot --fixed-fps 60 --script res://tests/productiontest.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|PRODUCTION_CHECK.*FAIL|PRODUCTIONTEST_"
