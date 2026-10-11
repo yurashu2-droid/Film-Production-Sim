@@ -146,6 +146,14 @@ python tools/benchmark_vfx_session.py --pairs 5
 
 ## 検証
 
+### 全コマと圧縮確認の使い分け
+
+[同じパンチ修正課題5組の比較](../../../docs/benchmarks/punch-paired-results.md)では、両方式を常駐・まとめ撮影・短いログに揃えた。圧縮側は4組で速く、1組は0.19秒遅く、合計の時間短縮は約7.5%。新規入力トークンは約2.3%減で、総入力・出力はほぼ同じだった。共通監査の全1,380枚は正解画像と一致した。
+
+圧縮は単純な修正の中間確認に使い、新作制作や最終の見た目確認では全コマの全体・主動作・退出を読む。一覧が不鮮明な場合は元PNGを開く。5つの仕込んだ不具合の修正比較なので、別のVFXや新作制作へ品質保証を広げない。
+
+ベンチマークの構成・トークン境界の確認：`python -m unittest discover -s tools/tests -p "test_paired_vfx_benchmark.py"`。
+
 ```powershell
 python -m unittest discover -s tools/tests -p "test_dev*.py"
 ```

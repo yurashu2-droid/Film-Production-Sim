@@ -1,0 +1,410 @@
+{
+  "pairs": [
+    {
+      "case": 1,
+      "task": "衝撃が大きすぎます。参考人形1.7mに対して幅を約1.0〜1.4mに戻し、既存の形と時間を維持してください。",
+      "full": {
+        "worker": "left",
+        "elapsed_s": 37.721,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 37.721,
+        "capture_sum_s": 6.244,
+        "capture_cycles": 2,
+        "reported_inspected_images": 6,
+        "reported_inspected_source_pixels": 10045440,
+        "tokens": {
+          "input_tokens": 293125,
+          "cached_input_tokens": 283392,
+          "output_tokens": 527,
+          "reasoning_output_tokens": 29,
+          "uncached_input_tokens": 9733
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -17,7 +17,7 @@\n \tvar effect := new()\n \tparent.add_child(effect)\n \teffect.global_position = pos\n-\teffect._size = size * 1.8\n+\teffect._size = size\n \teffect._axis = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n",
+        "residual_issues": []
+      },
+      "compact": {
+        "worker": "right",
+        "elapsed_s": 34.766,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 34.766,
+        "capture_sum_s": 4.072,
+        "capture_cycles": 2,
+        "reported_inspected_images": 2,
+        "reported_inspected_source_pixels": 3348480,
+        "tokens": {
+          "input_tokens": 437444,
+          "cached_input_tokens": 429696,
+          "output_tokens": 746,
+          "reasoning_output_tokens": 0,
+          "uncached_input_tokens": 7748
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -17,7 +17,7 @@\n \tvar effect := new()\n \tparent.add_child(effect)\n \teffect.global_position = pos\n-\teffect._size = size * 1.8\n+\teffect._size = size\n \teffect._axis = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n",
+        "residual_issues": []
+      },
+      "compact_saving_s": 2.955,
+      "compact_saving_fraction": 0.07833832613133264
+    },
+    {
+      "case": 2,
+      "task": "ヒットが遅れ、拳が戻ってから出ます。予備動作は短く、0.10〜0.16秒にヒットが読めるよう、既存の動作全体の時刻を直してください。",
+      "compact": {
+        "worker": "left",
+        "elapsed_s": 35.192,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 35.192,
+        "capture_sum_s": 5.181,
+        "capture_cycles": 2,
+        "reported_inspected_images": 2,
+        "reported_inspected_source_pixels": 3348480,
+        "tokens": {
+          "input_tokens": 338576,
+          "cached_input_tokens": 330240,
+          "output_tokens": 721,
+          "reasoning_output_tokens": 0,
+          "uncached_input_tokens": 8336
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -23,7 +23,6 @@\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n \teffect.life = 1.05\n-\teffect.age = -0.18\n \teffect._build()\n \teffect._tick(0.0)\n \treturn effect\n",
+        "residual_issues": []
+      },
+      "full": {
+        "worker": "right",
+        "elapsed_s": 38.738,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 38.738,
+        "capture_sum_s": 5.633,
+        "capture_cycles": 2,
+        "reported_inspected_images": 6,
+        "reported_inspected_source_pixels": 10045440,
+        "tokens": {
+          "input_tokens": 396159,
+          "cached_input_tokens": 387712,
+          "output_tokens": 718,
+          "reasoning_output_tokens": 0,
+          "uncached_input_tokens": 8447
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -23,7 +23,6 @@\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n \teffect.life = 1.05\n-\teffect.age = -0.18\n \teffect._build()\n \teffect._tick(0.0)\n \treturn effect\n",
+        "residual_issues": []
+      },
+      "compact_saving_s": 3.546,
+      "compact_saving_fraction": 0.09153802467861014
+    },
+    {
+      "case": 3,
+      "task": "衝撃が拳の進行方向と逆へ抜けます。渡されたdirection（撮影では+X）へ押し出されるよう、既存の形と時間を維持して直してください。",
+      "full": {
+        "worker": "left",
+        "elapsed_s": 35.321,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 35.321,
+        "capture_sum_s": 4.334,
+        "capture_cycles": 2,
+        "reported_inspected_images": 6,
+        "reported_inspected_source_pixels": 10045440,
+        "tokens": {
+          "input_tokens": 373461,
+          "cached_input_tokens": 364544,
+          "output_tokens": 747,
+          "reasoning_output_tokens": 34,
+          "uncached_input_tokens": 8917
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -18,7 +18,7 @@\n \tparent.add_child(effect)\n \teffect.global_position = pos\n \teffect._size = size\n-\teffect._axis = -direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n+\teffect._axis = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n",
+        "residual_issues": []
+      },
+      "compact": {
+        "worker": "right",
+        "elapsed_s": 35.509,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 35.509,
+        "capture_sum_s": 3.788,
+        "capture_cycles": 2,
+        "reported_inspected_images": 2,
+        "reported_inspected_source_pixels": 3348480,
+        "tokens": {
+          "input_tokens": 363593,
+          "cached_input_tokens": 355840,
+          "output_tokens": 777,
+          "reasoning_output_tokens": 10,
+          "uncached_input_tokens": 7753
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -18,7 +18,7 @@\n \tparent.add_child(effect)\n \teffect.global_position = pos\n \teffect._size = size\n-\teffect._axis = -direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n+\teffect._axis = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.RIGHT\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n",
+        "residual_issues": []
+      },
+      "compact_saving_s": -0.188,
+      "compact_saving_fraction": -0.00532261261006207
+    },
+    {
+      "case": 4,
+      "task": "主層の形が中盤から止まり、退出の供給カットが進みません。0.16〜0.45秒の前進・時間差と、0.45〜0.90秒の根元から切れて抜ける動作を回復してください。新しい見た目には作り直さないでください。",
+      "compact": {
+        "worker": "left",
+        "elapsed_s": 36.106,
+        "gpu_wait_s": 0.0,
+        "elapsed_without_gpu_wait_s": 36.106,
+        "capture_sum_s": 3.52,
+        "capture_cycles": 2,
+        "reported_inspected_images": 2,
+        "reported_inspected_source_pixels": 3348480,
+        "tokens": {
+          "input_tokens": 417327,
+          "cached_input_tokens": 408704,
+          "output_tokens": 757,
+          "reasoning_output_tokens": 35,
+          "uncached_input_tokens": 8623
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -57,7 +57,7 @@\n \n func _tick(_delta: float) -> void:\n \tfor i in _layers.size():\n-\t\tvar t := minf(age, 0.14) - float(i) * 0.014\n+\t\tvar t := age - float(i) * 0.014\n \t\tvar node := _layers[i]\n \t\tnode.visible = t >= 0.018 and t < 0.75 + float(i) * 0.024\n \t\tvar push: float = 0.13 + maxf(t - 0.12, 0.0) * [0.34, 0.55, 0.63][i] + maxf(t - 0.43, 0.0) * 0.42\n",
+        "residual_issues": []
+      },
+      "full": {
+        "worker": "right",
+        "elapsed_s": 41.102,
+        "gpu_wait_s": 1.103,
+        "elapsed_without_gpu_wait_s": 39.999,
+        "capture_sum_s": 5.532,
+        "capture_cycles": 2,
+        "reported_inspected_images": 6,
+        "reported_inspected_source_pixels": 10045440,
+        "tokens": {
+          "input_tokens": 320521,
+          "cached_input_tokens": 310784,
+          "output_tokens": 772,
+          "reasoning_output_tokens": 0,
+          "uncached_input_tokens": 9737
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -57,7 +57,7 @@\n \n func _tick(_delta: float) -> void:\n \tfor i in _layers.size():\n-\t\tvar t := minf(age, 0.14) - float(i) * 0.014\n+\t\tvar t := age - float(i) * 0.014\n \t\tvar node := _layers[i]\n \t\tnode.visible = t >= 0.018 and t < 0.75 + float(i) * 0.024\n \t\tvar push: float = 0.13 + maxf(t - 0.12, 0.0) * [0.34, 0.55, 0.63][i] + maxf(t - 0.43, 0.0) * 0.42\n",
+        "residual_issues": []
+      },
+      "compact_saving_s": 3.893,
+      "compact_saving_fraction": 0.09732743318582966
+    },
+    {
+      "case": 5,
+      "task": "見えなくなった後もVFXノードが残ります。等速で寿命1.2秒以内、1.5秒にはノードも片付くよう直し、見えている間の形と時間は維持してください。",
+      "full": {
+        "worker": "left",
+        "elapsed_s": 38.577,
+        "gpu_wait_s": 0.502,
+        "elapsed_without_gpu_wait_s": 38.075,
+        "capture_sum_s": 5.667,
+        "capture_cycles": 2,
+        "reported_inspected_images": 7,
+        "reported_inspected_source_pixels": 10275840,
+        "tokens": {
+          "input_tokens": 453775,
+          "cached_input_tokens": 444544,
+          "output_tokens": 800,
+          "reasoning_output_tokens": 40,
+          "uncached_input_tokens": 9231
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -22,7 +22,7 @@\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n-\teffect.life = 0.0\n+\teffect.life = 1.05\n \teffect._build()\n \teffect._tick(0.0)\n \treturn effect\n",
+        "residual_issues": []
+      },
+      "compact": {
+        "worker": "right",
+        "elapsed_s": 34.589,
+        "gpu_wait_s": 0.602,
+        "elapsed_without_gpu_wait_s": 33.987,
+        "capture_sum_s": 5.29,
+        "capture_cycles": 2,
+        "reported_inspected_images": 3,
+        "reported_inspected_source_pixels": 3578880,
+        "tokens": {
+          "input_tokens": 281612,
+          "cached_input_tokens": 269056,
+          "output_tokens": 572,
+          "reasoning_output_tokens": 33,
+          "uncached_input_tokens": 12556
+        },
+        "quality": {
+          "compared_images": 138,
+          "different_images": 0,
+          "failed_checks": 0
+        },
+        "patch": "--- initial.gd\n+++ repaired.gd\n@@ -22,7 +22,7 @@\n \teffect._up = Vector3.UP if absf(effect._axis.y) < 0.95 else Vector3.BACK\n \teffect._cross = effect._axis.cross(effect._up).normalized()\n \teffect._up = effect._cross.cross(effect._axis).normalized()\n-\teffect.life = 0.0\n+\teffect.life = 1.1\n \teffect._build()\n \teffect._tick(0.0)\n \treturn effect\n",
+        "residual_issues": []
+      },
+      "compact_saving_s": 4.088,
+      "compact_saving_fraction": 0.10736703873933029
+    }
+  ],
+  "totals": {
+    "full": {
+      "elapsed_s": 191.459,
+      "elapsed_without_gpu_wait_s": 189.854,
+      "capture_sum_s": 27.41,
+      "reported_inspected_images": 31,
+      "reported_inspected_source_pixels": 50457600,
+      "tokens": {
+        "input_tokens": 1837041,
+        "cached_input_tokens": 1790976,
+        "output_tokens": 3564,
+        "reasoning_output_tokens": 103,
+        "uncached_input_tokens": 46065
+      }
+    },
+    "compact": {
+      "elapsed_s": 176.162,
+      "elapsed_without_gpu_wait_s": 175.56,
+      "capture_sum_s": 21.851,
+      "reported_inspected_images": 11,
+      "reported_inspected_source_pixels": 16972800,
+      "tokens": {
+        "input_tokens": 1838552,
+        "cached_input_tokens": 1793536,
+        "output_tokens": 3573,
+        "reasoning_output_tokens": 78,
+        "uncached_input_tokens": 45016
+      }
+    }
+  },
+  "compact_time_wins": 4,
+  "median_compact_time_saving_fraction": 0.09153802467861014,
+  "worker_tokens": {
+    "left": {
+      "whole_worker": {
+        "input_tokens": 2207632,
+        "cached_input_tokens": 2138368,
+        "output_tokens": 4413,
+        "reasoning_output_tokens": 151,
+        "uncached_input_tokens": 69264
+      },
+      "outside_case_intervals": {
+        "input_tokens": 331368,
+        "cached_input_tokens": 306944,
+        "output_tokens": 861,
+        "reasoning_output_tokens": 13,
+        "uncached_input_tokens": 24424
+      }
+    },
+    "right": {
+      "whole_worker": {
+        "input_tokens": 2063913,
+        "cached_input_tokens": 2001664,
+        "output_tokens": 4344,
+        "reasoning_output_tokens": 53,
+        "uncached_input_tokens": 62249
+      },
+      "outside_case_intervals": {
+        "input_tokens": 264584,
+        "cached_input_tokens": 248576,
+        "output_tokens": 759,
+        "reasoning_output_tokens": 10,
+        "uncached_input_tokens": 16008
+      }
+    }
+  },
+  "common_render_errors": [],
+  "common_audit_engine_s": 28.463,
+  "source": {
+    "prepared_utc": "2026-10-11T08:57:54.055783+00:00",
+    "source_sha256": "9e6c68cc3cc782e307c401e9bdae60efbfddeffc2f2b305372bebc1439fe4ec9",
+    "shader_sha256": "17809daf716e576ce6a99b5d3b1a1d0b27e500ec0c3d8e65f52c87640ad35d56",
+    "tasks": [
+      {
+        "worker": "left",
+        "case": 1,
+        "mode": "full",
+        "initial_sha256": "befca21eed6b659e7138ea0d58e5c7f9792b694c379d68a2e4a6bd1adf859bc9"
+      },
+      {
+        "worker": "right",
+        "case": 1,
+        "mode": "compact",
+        "initial_sha256": "befca21eed6b659e7138ea0d58e5c7f9792b694c379d68a2e4a6bd1adf859bc9"
+      },
+      {
+        "worker": "left",
+        "case": 2,
+        "mode": "compact",
+        "initial_sha256": "244cc6b813526d3c6bd4697e9c94f0057fff77034747a0eb05b1bb7e2635dca4"
+      },
+      {
+        "worker": "right",
+        "case": 2,
+        "mode": "full",
+        "initial_sha256": "244cc6b813526d3c6bd4697e9c94f0057fff77034747a0eb05b1bb7e2635dca4"
+      },
+      {
+        "worker": "left",
+        "case": 3,
+        "mode": "full",
+        "initial_sha256": "3774e02579de19d5a0c9fadb1395fc36dec3ad41bbea4bdbd0cf0b20d67b8788"
+      },
+      {
+        "worker": "right",
+        "case": 3,
+        "mode": "compact",
+        "initial_sha256": "3774e02579de19d5a0c9fadb1395fc36dec3ad41bbea4bdbd0cf0b20d67b8788"
+      },
+      {
+        "worker": "left",
+        "case": 4,
+        "mode": "compact",
+        "initial_sha256": "cd7b892e66ffe2741b09e3fee52efcada4a60fa141d1cf18a33dafd7c05ff6e1"
+      },
+      {
+        "worker": "right",
+        "case": 4,
+        "mode": "full",
+        "initial_sha256": "cd7b892e66ffe2741b09e3fee52efcada4a60fa141d1cf18a33dafd7c05ff6e1"
+      },
+      {
+        "worker": "left",
+        "case": 5,
+        "mode": "full",
+        "initial_sha256": "a9a45743da764bc4eda0fd48aaf28073df6434c6dcbc0c26b3f36ce9264c1526"
+      },
+      {
+        "worker": "right",
+        "case": 5,
+        "mode": "compact",
+        "initial_sha256": "a9a45743da764bc4eda0fd48aaf28073df6434c6dcbc0c26b3f36ce9264c1526"
+      }
+    ]
+  },
+  "limits": "Five seeded repairs, not five new creations. Same batching/logs; isolated visual evidence difference. Warmup, shared reading/between-case model turns, parent setup and common audit excluded from paired task times. Token deltas use final cumulative counters immediately before markers; shared author overhead reported separately. Parent/reviewer token costs not included. Viewed paths self-reported. Dense audit covers sampled frames only."
+}
