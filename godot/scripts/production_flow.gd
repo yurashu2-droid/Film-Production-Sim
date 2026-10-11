@@ -231,7 +231,7 @@ func depart() -> void:
 	phase = 3
 	trip_time = 0.0
 	game.production_sync.rpc(snapshot())
-	game.move_crew(game.truck.global_transform * Vector3(0,1.0,-1.0), PI)
+	game.move_crew(game.truck.global_transform * Vector3(game.truck.deck_c.x,game.truck.deck_top + 0.35,game.truck.deck_c.y), PI)
 
 func _physics_process(delta: float) -> void:
 	if phase == 3:
