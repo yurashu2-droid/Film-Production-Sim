@@ -155,7 +155,7 @@ func _measure_performance() -> void:
 		RenderingServer.viewport_set_measure_render_time(vp.get_viewport_rid(), false)
 
 
-# 持つ・回す・置く・固定・機材操作の確認
+# 持つ・回す・置く・積載・機材操作の確認
 func _hands_on() -> void:
 	var me: Node = game.local_player()
 	var fx: Node3D = game.fx
@@ -186,13 +186,11 @@ func _hands_on() -> void:
 	await _wait(1.0)
 	print("RELEASE held=", me.held, " y=%.2f" % fx.global_position.y)
 	ok = ok and me.held == 0 and fx.global_position.y < 0.1
-	game.h_fix(fx.pid)
-	await _wait(0.1)
 	game.h_grab(fx.pid)
 	await _wait(0.2)
-	print("FIX fixed=", fx.fixed, " held=", me.held)
-	ok = ok and fx.fixed and me.held == 0
-	game.h_fix(fx.pid)
+	print("FREE cargo frozen=", fx.freeze, " held=", me.held)
+	ok = ok and not fx.freeze and me.held == fx.pid and not InputMap.has_action("fix")
+	game.h_release()
 	var film: Node3D = game.film
 	var cart: Node3D
 	for p in game.props.values():
@@ -210,7 +208,7 @@ func _hands_on() -> void:
 	game.h_grab(fx.pid)
 	await _wait(0.2)
 	print("CART loaded=", on_cart, " follow_gap=%.2f y=%.2f" % [follow, fx.global_position.y], " after_grab_rider=", fx.rider_of)
-	ok = ok and on_cart and follow < 0.05 and fx.rider_of == 0
+	ok = ok and on_cart and follow < 0.7 and not fx.freeze and fx.rider_of == 0
 	game.h_release()
 	# ライトを持つと、見ている方向へ光が向く
 	var hand: Node3D = game.spots[1]

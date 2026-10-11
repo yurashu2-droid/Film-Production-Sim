@@ -109,6 +109,9 @@ func ui_blocking() -> bool:
 	return super.ui_blocking() or (cue_cards != null and cue_cards.editor.opened) or (monitor_popup != null and monitor_popup.opened)
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and adhesive != null and adhesive.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if cue_cards != null and cue_cards.editor.handle_input(event):
 		get_viewport().set_input_as_handled()
 		return

@@ -42,7 +42,9 @@ var _net: Array = []
 func _ready() -> void:
 	collision_layer = L_PROP
 	collision_mask = L_WORLD | L_PROP | L_CHAR
-	continuous_cd = false
+	continuous_cd = true
+	physics_material_override = PhysicsMaterial.new()
+	physics_material_override.friction = 0.9
 	can_sleep = true
 	_apply_freeze()
 
@@ -56,7 +58,7 @@ func center_global() -> Vector3:
 
 
 func _apply_freeze() -> void:
-	if not is_host() or playback or rider_of != 0:
+	if not is_host() or playback:
 		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC if _teleport_ticks > 0 else RigidBody3D.FREEZE_MODE_KINEMATIC
 		freeze = true
 	else:
@@ -114,14 +116,16 @@ func _physics_process(delta: float) -> void:
 		_follow_net(delta)
 		return
 	if rider_of != 0:
-		# 台車に載っている間は、台車と一緒に動く
+		# 積載は位置の記録だけ。重力・摩擦・衝突が荷物を支える。
 		var d: Node3D = game.props.get(rider_of)
-		if d == null:
+		if d == null or d.absent:
 			rider_of = 0
-			_apply_freeze()
 		else:
-			global_transform = d.global_transform * ride_local
-	elif holder != 0 and not fixed:
+			ride_local = d.global_transform.affine_inverse() * global_transform
+			var c: Vector3 = d.to_local(center_global())
+			if absf(c.x-d.deck_c.x)>d.deck_half.x+0.25 or absf(c.z-d.deck_c.y)>d.deck_half.y+0.25 or c.y < d.deck_top-0.2:
+				rider_of = 0
+	if holder != 0 and not fixed:
 		_drive_hold()
 	_host_tick(delta)
 

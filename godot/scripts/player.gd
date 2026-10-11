@@ -132,9 +132,12 @@ func knock(impulse: Vector3) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local or game.ui_blocking():
 		return
+	if game.adhesive != null and game.adhesive.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var rel: Vector2 = (event as InputEventMouseMotion).relative
-		if held != 0 and operating == 0 and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_RIGHT:
+		if held != 0 and operating == 0 and not game.adhesive.applying and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_RIGHT:
 			hold_yaw = wrapf(hold_yaw - rel.x * MOUSE_SENS * 2.0, -PI, PI)
 			var prop: Node = game.props.get(held)
 			if prop and not prop.axis_lock_angular_x:
@@ -177,11 +180,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			game.act_toggle_carton(target.pid)
 		elif target and target.kind in ["camera", "spot"] and held == 0:
 			game.act_operate(target.pid, true)
-	elif event.is_action_pressed("fix"):
-		if held != 0:
-			game.act_fix(held)
-		elif target:
-			game.act_fix(target.pid)
 
 
 func _physics_process(delta: float) -> void:

@@ -73,6 +73,10 @@ func set_traveling(value: bool) -> void:
 	if slide: slide.position = Vector3(0.927,0.625,0.08) + (Vector3.ZERO if value else Vector3(0.13,0,-1.45))
 	if hatch and has_method("_van_supports"): call("_van_supports",hatch.get_parent(),hatch)
 
+func drive_to(point: Vector3) -> void:
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	global_position = point
+
 func _ready() -> void:
 	super._ready()
 	set_fixed(true)

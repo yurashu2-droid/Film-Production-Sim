@@ -27,10 +27,15 @@ func _process(_delta: float) -> void:
 		"host_far":
 			game.move_crew(game.production.Office.SPAWN_POINT, 0.0, 1)
 		"host_near":
+			# The journey fixture secures required gear with physical adhesive.
+			for prop in [game.film,game.clapper]:
+				game.adhesive.pairs.append({"a":prop.pid,"b":game.truck.pid,"pa":Vector3.ZERO,"pb":game.truck.to_local(prop.global_position),"joined":true})
+			game.adhesive.restore(game.adhesive.snapshot())
 			game.move_crew(game.production.HOME_TRUCK + Vector3(-3,0.1,0), 0.0, 1)
 		"client_near":
 			game.move_crew(game.production.HOME_TRUCK + Vector3(-3,0.1,1), 0.0, request[0])
 		"lift_fixture":
+			game.adhesive.clear()
 			var lift := _lift()
 			game.production._move(lift, Vector3(12,0.1,4))
 			lift.set_fixed(true)
@@ -223,7 +228,7 @@ func _run() -> void:
 	_check(Time.get_ticks_msec() - started >= 7900, "journey lasts eight seconds")
 	s = await _ask()
 	_check(game.production.lease_left > 590 and float(s.get("lease_left", 0)) > 590 and game.production.chosen_job == 1, "ten minute studio lease synchronized")
-	_check(game.film.rider_of == game.truck.pid and game.film.position.x < 25 and game.truck.position.distance_to(game.production.SITE_TRUCK) < 0.2, "cargo arrives attached")
+	_check(game.film.rider_of == game.truck.pid and game.film.position.x < 25 and game.truck.position.distance_to(game.production.SITE_TRUCK) < 0.2, "glued cargo arrives")
 	# 普通の新規送信で上書きされない時間を作り、移動前の遅延パケットを送る。
 	var me: Node = game.local_player()
 	me._send_t = 1000.0

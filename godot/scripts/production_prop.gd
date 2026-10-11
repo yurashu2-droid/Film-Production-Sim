@@ -84,7 +84,7 @@ func _sample_action(move_riders: bool) -> void:
 	if move_riders and old_top >= 0.0 and game != null:
 		for rider in game.props.values():
 			if rider.rider_of == pid:
-				rider.ride_local.origin.y += deck_top - old_top
+				rider.sleeping = false
 
 func get_state() -> Array:
 	var state := super.get_state()

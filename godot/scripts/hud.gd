@@ -172,7 +172,7 @@ const HELP_TEXT := """あそびかた（Tabで閉じる）
 持つ・置く 左クリック ／ 距離 ホイール ／ 回す 右ドラッグ（Q・Eも可）
 段ボールの開閉 F（持っている箱、または照準の箱）
 キャラクターを選ぶ C（依頼画面・仕込み中）
-固定・解除 G（倒れやすい物を留める）
+重りと接着剤で支える（接着剤を持ってF）
 機材を操作 F（カメラ：首振り・ホイールでズーム
 　　　　　　　ライト：向き・ホイールで明るさ）
 台車：物を上で離すと載る。カメラ操作中は身体を固定。移動するときは F で離れる
@@ -335,13 +335,13 @@ func _process(delta: float) -> void:
 			elif hk == "clapper":
 				k = "F でカチンコを打つ（%s） ／ 左クリックで置く" % ("カット" if st == S.TAKE else "本番開始")
 			elif hk == "spot":
-				k = "見ている方向へ光が向く ／ 左クリックで置く ／ G で固定"
+				k = "見ている方向へ光が向く ／ 左クリックで置く"
 			elif hk == "dolly":
-				k = "台車を押している ／ 右ドラッグで向きを変える ／ 左クリックで離す ／ G でブレーキ"
+				k = "台車を押している ／ 右ドラッグで向きを変える ／ 左クリックで離す"
 			else:
-				k = "左クリックで置く（台車の上なら載る） ／ ホイールで距離 ／ 右ドラッグで回す（Q・Eも可） ／ G で固定"
+				k = "左クリックで置く（台車の上なら載る） ／ ホイールで距離 ／ 右ドラッグで回す（Q・Eも可）"
 		elif me and me.target:
-			k = "左クリックで持つ ／ G で%s" % ("固定を外す" if me.target.fixed else "固定")
+			k = "左クリックで持つ"
 			if me.target.kind in ["camera", "spot"]:
 				k += " ／ F で操作"
 		else:
@@ -350,7 +350,7 @@ func _process(delta: float) -> void:
 			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル ／ B 役者を戻す ／ F9 見本を組む ／ Tab あそびかた"
 		else:
 			k += "\n1 告白 → 2 爆発 → 3 再会 ／ T かカチンコでカット"
-	keys.text = k
+	keys.text = game.adhesive.hint() if me != null and me.held == game.adhesive.tool.pid else k
 
 	panel.visible = st == S.RESULT or st == S.DELIVERED or st == S.ORDER
 	if panel.visible:

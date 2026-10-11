@@ -53,7 +53,7 @@ func build() -> void:
 
 WASD 移動 ／ Shift 走る ／ Space ジャンプ ／ 視点 マウス
 左クリック 持つ・置く ／ ホイール 距離 ／ 右ドラッグ 回す
-G 固定・解除（固定用品なしなら4か所まで）
+重り：重さで風に耐える ／ 接着剤：Fで塗り、点同士を合わせる
 F カメラ・ライト操作、箱の開閉、昇降台・絞り機を動かす
 V・中クリック ここ！目印（5秒、撮影映像には映らない）
 C キャラクター選択 ／ Esc マウスを離す
@@ -216,7 +216,7 @@ func _refresh() -> void:
 		elif me and game.props.has(me.held) and game.props[me.held].kind == "cue_card":
 			legacy.keys.text = "F カンペに書く ／ 正面の相手へ見せている ／ 左クリック 置く"
 		elif me and me.held != 0:
-			legacy.keys.text = "左クリックで置く ／ 右ドラッグで回す ／ G 固定\n軽トラのそばで F：荷台に積む"
+			legacy.keys.text = "左クリックで置く ／ 右ドラッグで回す\n軽トラのそばで F：荷台に積む"
 		else:
 			legacy.keys.text += "\n左クリックで持つ ／ 廃材も忘れずに！ 軽トラのそばで F 出発"
 		if me and game.is_action_prop(me.target):
@@ -229,12 +229,15 @@ func _refresh() -> void:
 		var action_prop: Node = game.props.get(me.held) if me and me.held != 0 else (me.target if me else null)
 		if game.is_action_prop(action_prop):
 			legacy.target_label.text = action_prop.label + "　[F] " + game.prop_action_hint(action_prop)
-			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ G 固定 ／ F " + game.prop_action_hint(action_prop)
+			legacy.keys.text = "左クリックで持つ・置く ／ 右ドラッグで回す ／ F " + game.prop_action_hint(action_prop)
 	if phase in [0,2,4]:
 		legacy.keys.text += " ／ V・中クリック 目印"
 		var me: Node = game.local_player()
 		if phase in [2,4] and me and me.target == game.camera_switcher.monitor and me.held == 0 and me.operating == 0:
 			legacy.keys.text = "右クリック モニターを開く ／ 3台の映像を確認・切り替え"
+	var glue_holder: Node = game.local_player()
+	if glue_holder != null and glue_holder.held == game.adhesive.tool.pid:
+		legacy.keys.text = game.adhesive.hint()
 	if game.monitor_popup != null and game.monitor_popup.opened:
 		legacy.keys.visible = false
 		legacy.cross.visible = false

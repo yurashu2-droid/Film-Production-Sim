@@ -33,7 +33,7 @@ func run() -> void:
 	check(flow.phase == 2 and flow.wallet == 160 and flow.expenses == 440,"buying charges company once")
 	game.h_order_confirm()
 	check(flow.wallet == 160,"duplicate confirmation cannot charge again")
-	check(game.film.rider_of == game.truck.pid and game.clapper.rider_of == game.truck.pid,"company gear remains attached in packing")
+	check(game.film.rider_of == game.truck.pid and game.clapper.rider_of == game.truck.pid,"company gear rests on deck in packing")
 	check(not flow.can_depart(),"departure waits for crew")
 	game.local_player().position = flow.HOME_TRUCK + Vector3(-3,0.1,0)
 	await frames(3)
@@ -48,6 +48,10 @@ func run() -> void:
 	game.host_unload(game.film)
 	game.host_load(game.film,lift)
 	check(lift.rider_of == game.truck.pid and flow.cargo().has(game.film.pid),"lift and nested camera can be packed")
+	game.adhesive.pairs = [
+		{"a":lift.pid,"b":game.truck.pid,"pa":Vector3.ZERO,"pb":game.truck.to_local(lift.global_position),"joined":true},
+		{"a":game.film.pid,"b":lift.pid,"pa":Vector3.ZERO,"pb":lift.to_local(game.film.global_position),"joined":true}]
+	game.adhesive.rebuild()
 	game.h_depart()
 	check(flow.phase == 3,"departure starts journey")
 	var departure_position: Vector3 = game.truck.global_position
@@ -70,13 +74,20 @@ func run() -> void:
 	game.players.erase(200)
 	waiting.queue_free()
 	check(game.film.view.render_target_update_mode == SubViewport.UPDATE_ALWAYS,"film viewport resumes at actual location")
-	check(game.film.rider_of == lift.pid and lift.rider_of == game.truck.pid and game.film.position.x < 25,"nested cargo arrives attached at location")
+	check(game.film.rider_of == lift.pid and lift.rider_of == game.truck.pid and game.film.position.x < 25,"glued nested cargo arrives at location")
+	game.adhesive.clear()
+	game.host_unload(lift)
+	lift.restore([game.SPAWN+Vector3(3,0,0),Quaternion.IDENTITY,false])
+	game.host_unload(game.film)
+	game.film.restore([lift.global_position+Vector3(0,lift.deck_top,0),Quaternion.IDENTITY,false])
+	game.host_load(game.film,lift)
+	await frames(30)
 	game.local_player().position = lift.position + Vector3(1.5,0,0)
 	var low: float = lift.deck_top
 	var camera_local: float = game.film.ride_local.origin.y
 	game.h_prop_action(lift.pid)
 	await frames(190)
-	check(lift.deck_top > low + 0.5 and absf(game.film.ride_local.origin.y-camera_local-(lift.deck_top-low))<0.02,"original lift animation moves the mounted camera")
+	check(lift.deck_top > low + 0.5 and absf(game.film.ride_local.origin.y-camera_local-(lift.deck_top-low))<0.09,"original lift animation physically raises unglued camera")
 	check(flow.lease_left > 590 and flow.lease_left <= 600,"rental starts on arrival")
 	flow.lease_left = 0.01
 	await frames(3)

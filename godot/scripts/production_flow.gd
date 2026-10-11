@@ -13,6 +13,13 @@ const JOBS := [
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
 const OFFSET := HOME_TRUCK - SITE_TRUCK
+const GUST_EVERY := Vector2(28,50)
+const GUST_WARN := 2.5
+const GUST_BLOW := 0.9
+var _gust_in := 40.0
+var _gust_warned := false
+var _gust_left := 0.0
+var _gust_dir := Vector3.ZERO
 var game: Node
 var phase := 0
 var wallet := 600
@@ -177,6 +184,8 @@ func cargo() -> Array[int]:
 			seen += 1
 		if (prop.holder != 0 or pid in held_ids) and not pid in result:
 			result.append(pid)
+	for pid: int in game.props:
+		if pid not in result and (game.adhesive.connected_to(pid,game.truck.pid) or result.any(func(carrier): return game.adhesive.connected_to(pid,carrier))): result.append(pid)
 	return result
 
 func crew_ready() -> String:
@@ -258,7 +267,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if phase == 3:
 		trip_time += delta
-		_move(game.truck, HOME_TRUCK + Vector3(0,0,minf(trip_time,8.0)*5.0))
+		var distance := 2.5*trip_time*trip_time if trip_time<1.0 else 5.0*trip_time-2.5
+		game.truck.drive_to(HOME_TRUCK + Vector3(0,0,distance))
 		_sync_vehicle_riders()
 		if trip_time >= 8.0:
 			arrive()
@@ -266,6 +276,10 @@ func _physics_process(delta: float) -> void:
 		if game.state == game.S.TAKE:
 			notes.tick(delta)
 			bonus_progress = "映り込み %.1f秒" % notes.crew_seconds if chosen_job == 1 else ("月 %.1f / 2秒" % notes.moon_seconds if chosen_job == 2 else "最初のテイク" if game.takes.is_empty() else "撮り直し中")
+		_wind(delta)
+		if _gust_left > 0:
+			_gust_left -= delta
+			_blow(delta)
 		lease_left = maxf(0.0,lease_left - delta)
 		if _notice < _warnings.size() and lease_left <= _warnings[_notice]:
 			game.host_ev("toast", ["スタジオ返却まで %d秒！" % int(_warnings[_notice]),0])
@@ -278,18 +292,43 @@ func _physics_process(delta: float) -> void:
 		game.production_sync.rpc(snapshot())
 
 func arrive() -> void:
-	# Use cargo's relation to the truck; preserve stacked dollies and boxes.
-	var shift: Vector3 = SITE_TRUCK - game.truck.global_position
-	_move(game.truck, SITE_TRUCK, PI * 0.5)
+	# 場面の切り替えだけを瞬間移動する。移動中に落ちた物は道路へ残す。
+	var carried := cargo()
+	var old: Transform3D = game.truck.global_transform
+	var dest := Transform3D(Basis(Vector3.UP,PI*0.5),SITE_TRUCK)
+	var transfer := dest * old.affine_inverse()
+	var states := {}
+	for pid in carried:
+		var prop: Node = game.props[pid]
+		var world: Transform3D = transfer * prop.global_transform
+		states[pid] = [world,prop.rider_of]
+	_move(game.truck,SITE_TRUCK,PI*0.5)
+	for pid in states:
+		var prop: Node = game.props[pid]
+		var world: Transform3D = states[pid][0]
+		var s: Array = prop.get_state()
+		s[0] = world.origin
+		s[1] = Quaternion(world.basis.orthonormalized())
+		prop.restore(s)
+		prop.rider_of = states[pid][1]
+	for pid in states:
+		var prop: Node = game.props[pid]
+		if prop.rider_of != 0:
+			prop.ride_local = game.props[prop.rider_of].global_transform.affine_inverse()*prop.global_transform
 	for pid in _loaded:
-		_move(game.props[pid], game.props[pid].global_position + shift)
+		if pid not in carried: game.host_ev("toast",[game.props[pid].label+" が道中で落ちた",1])
+	game.adhesive.rebuild()
 	phase = 4
 	lease_left = 600.0
+	_gust_in = randf_range(GUST_EVERY.x,GUST_EVERY.y)
+	_gust_warned = false
 	_notice = 0
+	while _notice < _warnings.size() and lease_left <= _warnings[_notice]: _notice += 1
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
-	game.move_crew(game.SPAWN, -PI/2)
-	game.host_ev("toast", ["スタジオ返却まで10分！ まず荷下ろし。Tabで操作確認",0])
+	game.move_crew(game.SPAWN,-PI/2)
+	game.host_ev("toast",["到着！ 荷下ろししよう。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
+
 
 func expire() -> void:
 	expired = true
@@ -401,3 +440,46 @@ func _configure_site() -> void:
 		label.position = Vector3(0,3.0,-10.0)
 		_site_root.add_child(label)
 	Location.build(_site_root,game.font,chosen_job)
+
+func _wind(delta: float) -> void:
+	if chosen_job != 2 or game.replaying:
+		return
+	_gust_in -= delta
+	if not _gust_warned and _gust_in <= GUST_WARN:
+		_gust_warned = true
+		game.host_ev("sfx", ["wind", null])
+		game.host_ev("toast", ["風が来る！ 軽い物は重りや接着剤で支えよう", 1])
+	if _gust_in > 0.0:
+		return
+	_gust_in = randf_range(GUST_EVERY.x, GUST_EVERY.y)
+	_gust_warned = false
+	gust(Vector3(1, 0, 0.35).rotated(Vector3.UP, randf_range(-0.5, 0.5)).normalized(), 1.0)
+
+
+# 突風を吹かせる。押される物の数を返す。風は GUST_BLOW 秒のあいだ吹き続ける
+func gust(dir: Vector3, strength: float) -> int:
+	_gust_dir = dir.normalized() * strength
+	_gust_left = GUST_BLOW
+	return _blow(0.0)
+
+
+# 風が吹いている間、毎フレーム呼ぶ。面が広くて軽い物ほど強く押され、重い物・小さい物は動かない
+func _blow(delta: float) -> int:
+	var moved := 0
+	for prop: Node in game.props.values():
+		if prop.absent or prop.immovable or prop.fixed or prop.holder != 0 or prop.kind == "mark":
+			continue
+		if "operator" in prop and prop.operator != 0:
+			continue
+		# 風を受ける面の広さ ÷ 重さ で、押される強さ（加速度）を決める。床との摩擦より弱ければ動かない
+		var area: float = maxf(prop.half.x, prop.half.z) * prop.half.y * 4.0
+		var accel: float = clampf(area * 34.0 / maxf(prop.mass, 0.3), 0.0, 11.5) * _gust_dir.length()
+		if accel < 4.0:
+			continue
+		moved += 1
+		if delta > 0.0:
+			prop.sleeping = false
+			prop.apply_central_force(_gust_dir.normalized() * accel * prop.mass)
+			# 背の高い物は上のほうを押されて倒れる
+			prop.apply_torque(Vector3(_gust_dir.z, 0, -_gust_dir.x).normalized() * accel * prop.mass * prop.half.y * 0.35)
+	return moved

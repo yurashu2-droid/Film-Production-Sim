@@ -34,14 +34,13 @@ const PLAYER_NAMES := ["ロボット", "ベレー帽の人", "段ボール頭", 
 const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust", "camera_program"]
 const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
 const BUDGET := 600
-const FREE_FIXES := 4           # 固定用品を借りないときに固定できる数
 # 軽トラに積んでもらう物（借りる・買う）。値段は企画書の仮の値
 const OPTIONS := [
 	{"id": "balcony", "name": "借りるバルコニー一式", "desc": "バルコニーとアーチ窓の壁。置くだけで城になる", "cost": 360, "max": 1, "kinds": ["balcony", "window"]},
 	{"id": "fx", "name": "効果機（爆発）", "desc": "合図で本物の爆風が出る。1回分つき", "cost": 360, "max": 1, "kinds": ["fx"]},
 	{"id": "refill", "name": "効果機の充填", "desc": "撮り直し用に1回分ずつ追加（効果機が必要）", "cost": 40, "max": 2, "kinds": []},
 	{"id": "dolly", "name": "台車", "desc": "荷物運びと、カメラを載せての移動撮影", "cost": 80, "max": 1, "kinds": ["dolly"]},
-	{"id": "fix", "name": "固定用品", "desc": "サンドバッグ3個。固定できる数が4か所から無制限に", "cost": 60, "max": 1, "kinds": ["sandbag"]},
+	{"id": "fix", "name": "重り（サンドバッグ）", "desc": "12kgの重り3個。風に飛ばされにくい。載せたり接着して支える", "cost": 60, "max": 1, "kinds": ["sandbag"]},
 	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"]},
 ]
 
@@ -51,6 +50,9 @@ var stage: Node3D
 var hud: CanvasLayer
 var judge: RefCounted
 
+var _layout_glue := {}
+var _replay_glue := {}
+var adhesive: Node
 var props: Dictionary = {}
 var actors: Array = []
 var spots: Array = []
@@ -120,6 +122,11 @@ func _ready() -> void:
 		await stage.build(true)
 	else:
 		stage.build()
+	adhesive = preload("res://scripts/adhesive.gd").new()
+	adhesive.name = "Adhesive"
+	adhesive.game = self
+	add_child(adhesive)
+	adhesive.setup()
 	hud = Hud.new()
 	hud.game = self
 	add_child(hud)
@@ -180,7 +187,7 @@ func _parse_args() -> void:
 
 func _setup_input() -> void:
 	var keys := {"move_left": KEY_A, "move_right": KEY_D, "move_forward": KEY_W, "move_back": KEY_S,
-		"run": KEY_SHIFT, "jump": KEY_SPACE, "operate": KEY_F, "fix": KEY_G, "rot_left": KEY_Q, "rot_right": KEY_E}
+		"run": KEY_SHIFT, "jump": KEY_SPACE, "operate": KEY_F, "rot_left": KEY_Q, "rot_right": KEY_E}
 	for n: String in keys:
 		if not InputMap.has_action(n):
 			InputMap.add_action(n)
@@ -223,6 +230,7 @@ func h_hello() -> void:
 	if not Net.is_host():
 		return
 	var who := Net.sender()
+	adhesive.sync_to(who)
 	var used: Array = _roster.map(func(r: Array) -> int: return r[1])
 	var idx := 0
 	while idx in used:
@@ -363,8 +371,7 @@ func act_release() -> void:
 	h_release.rpc_id(1)
 
 
-func act_fix(pid: int) -> void:
-	h_fix.rpc_id(1, pid)
+
 
 
 func act_operate(pid: int, on: bool) -> void:
@@ -473,7 +480,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_grab_mouse(false)
 
 
-# ---- ホストの処理：物を持つ・固定する・機材 ----
+# ---- ホストの処理：物を持つ・積む・機材 ----
 
 # プレイヤーが持っている物の行き先。[中心の目標, 向き, 足元の高さ]
 func hold_target(holder: int, prop: RigidBody3D) -> Variant:
@@ -517,7 +524,7 @@ func h_grab(pid: int) -> void:
 	if "operator" in p and p.operator != 0:
 		return
 	if p.fixed:
-		ev.rpc_id(who, "toast", ["固定されている（Gで外す）", 0])
+		ev.rpc_id(who, "toast", ["動かせないセットです", 0])
 		return
 	if p.rider_of != 0:
 		host_unload(p)
@@ -570,18 +577,18 @@ func host_load(p: RigidBody3D, d: RigidBody3D) -> void:
 	var mx: float = maxf(d.deck_half.x - 0.1, 0.05)
 	var mz: float = maxf(d.deck_half.y - 0.16, 0.05)
 	var at := Vector3(clampf(local.origin.x, d.deck_c.x - mx, d.deck_c.x + mx), top, clampf(local.origin.z, d.deck_c.y - mz, d.deck_c.y + mz))
-	_set_rider(p, d, Transform3D(Basis(Vector3.UP, local.basis.get_euler().y), at))
+	var placed := Transform3D(Basis(Vector3.UP, local.basis.get_euler().y), at)
+	var world: Transform3D = d.global_transform * placed
+	p.restore([world.origin,Quaternion(world.basis.orthonormalized()),false])
+	_set_rider(p, d, placed)
 	host_ev("sfx", ["thump", p.global_position])
 
 
 func _set_rider(p: RigidBody3D, d: RigidBody3D, local: Transform3D) -> void:
 	p.ride_local = local
 	p.rider_of = d.pid
-	p.linear_velocity = Vector3.ZERO
-	p.angular_velocity = Vector3.ZERO
-	p._apply_freeze()
-	p.add_collision_exception_with(d)
-	d.add_collision_exception_with(p)
+	p.set_fixed(false)
+	p.sleeping = false
 
 
 func host_unload(p: RigidBody3D) -> void:
@@ -591,31 +598,6 @@ func host_unload(p: RigidBody3D) -> void:
 	if d:
 		p.remove_collision_exception_with(d)
 		d.remove_collision_exception_with(p)
-
-
-@rpc("any_peer", "call_local", "reliable")
-func h_fix(pid: int) -> void:
-	if not Net.is_host() or replaying or not props.has(pid):
-		return
-	var who := Net.sender()
-	var p: RigidBody3D = props[pid]
-	if p.immovable or p.absent or (p.holder != 0 and p.holder != who):
-		return
-	if not p.fixed and int(order.get("fix", 0)) == 0:
-		var n := 0
-		for q: RigidBody3D in props.values():
-			if q.fixed and not q.immovable and not q.absent:
-				n += 1
-		if n >= FREE_FIXES:
-			ev.rpc_id(who, "toast", ["固定できるのは%dか所まで（固定用品を借りていない）" % FREE_FIXES, 1])
-			return
-	if p.holder == who:
-		host_release(p)
-	if p.rider_of != 0:
-		ev.rpc_id(who, "toast", ["台車に載っている物は固定できない", 0])
-		return
-	p.set_fixed(not p.fixed)
-	host_ev("sfx", ["fix" if p.fixed else "unfix", p.global_position])
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -726,6 +708,7 @@ func h_order_confirm() -> void:
 
 # 借りていない物を現場から外し、会社の機材と借りた物を軽トラと搬入口に並べる
 func _apply_order() -> void:
+	if adhesive != null: adhesive.clear()
 	ev.rpc("absent", [_absent_kinds()])
 	for p: RigidBody3D in props.values():
 		if p.holder != 0:
@@ -818,6 +801,7 @@ func _take_or_cut(who: int) -> void:
 			if p.holder != 0 and p.kind != "clapper":
 				host_release(p)
 		_layout = capture()["p"]
+		_layout_glue = adhesive.snapshot()
 		_layout_riders = {}
 		for p: RigidBody3D in props.values():
 			if p.rider_of != 0:
@@ -997,6 +981,7 @@ func _back_to_prep() -> void:
 	for pid: int in _layout:
 		if props.has(pid) and not props[pid].absent and not props[pid].immovable:
 			props[pid].restore(_layout[pid])
+	adhesive.restore(_layout_glue)
 	for pid: int in _layout_riders:
 		var r: Array = _layout_riders[pid]
 		if props.has(pid) and props.has(r[0]):
@@ -1042,6 +1027,8 @@ func h_replay(i: int) -> void:
 	_replay = _take_data[i]
 	if (_replay["frames"] as Array).size() < 2:
 		return
+	_replay_glue = adhesive.snapshot()
+	adhesive.drop_joints()
 	_program_before_replay = program_camera().pid
 	replay_t = 0.0
 	_replay_i = 0
@@ -1072,6 +1059,7 @@ func _end_replay() -> void:
 	ev.rpc("roster", [_roster])
 	host_ev("silence", [])
 	_set_state(S.RESULT)
+	adhesive.restore(_replay_glue)
 
 
 func _set_playback(on: bool) -> void:
@@ -1091,6 +1079,7 @@ func _replay_step(delta: float) -> void:
 	var w := clampf((replay_t - float(fa[0])) / maxf(float(fb[0]) - float(fa[0]), 0.001), 0.0, 1.0)
 	var wa: Dictionary = fa[1]
 	var wb: Dictionary = fb[1]
+	adhesive.show_recorded(wa.get("glue",{}))
 	for pid: int in wa["p"]:
 		if props.has(pid) and wb["p"].has(pid):
 			props[pid].apply_state(_blend(wa["p"][pid], wb["p"][pid], w), true)
@@ -1130,6 +1119,7 @@ func capture() -> Dictionary:
 		(w["a"] as Array).append(a.get_state())
 	for id: int in players:
 		w["pl"][id] = players[id].get_state()
+	w["glue"] = adhesive.snapshot()
 	return w
 
 
