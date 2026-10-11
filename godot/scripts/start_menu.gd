@@ -1,6 +1,8 @@
 extends Node
 # 接続を先に決め、ゲームは一度だけ生成する。
 const GAME_SCENE := preload("res://production_game.tscn")
+const StartTransition := preload("res://scripts/start_transition.gd")
+var _transition: CanvasLayer
 const StartupResources := preload("res://scripts/startup_resources.gd")
 var _startup_resources: Node
 var _startup_poll_paused := false
@@ -22,6 +24,8 @@ func _ready() -> void:
 			_launch(false)
 			return
 	_build()
+	_transition = StartTransition.new()
+	add_child(_transition)
 	_startup_resources = StartupResources.new()
 	add_child(_startup_resources)
 	Net.joined_host.connect(_joined)
@@ -116,6 +120,7 @@ func _solo() -> void:
 	if _busy or game_node != null:
 		return
 	_set_busy(true)
+	_transition.begin()
 	await _prepare_resources()
 	_launch(false)
 
@@ -123,6 +128,7 @@ func _host() -> void:
 	if _busy or game_node != null:
 		return
 	_set_busy(true)
+	_transition.begin()
 	await _prepare_resources()
 	_launch(false, true)
 
@@ -134,6 +140,7 @@ func _join() -> void:
 		status.text = "IPアドレスを確かめてください。例：192.168.1.10"
 		return
 	_set_busy(true)
+	_transition.begin()
 	await _prepare_resources()
 	_joining = true
 	_elapsed = 0.0
@@ -159,6 +166,7 @@ func _join_failed() -> void:
 
 func _reset_connection(message: String) -> void:
 	_joining = false
+	_transition.cancel()
 	var peer := multiplayer.multiplayer_peer
 	if peer != null:
 		peer.close()
@@ -176,6 +184,13 @@ func _prepare_resources() -> void:
 func _launch(send_hello: bool, host_requested: bool = false) -> void:
 	if _returning or game_node != null:
 		return
+	if _canvas != null:
+		if not _transition.active:
+			return
+		if not _transition.covered:
+			await _transition.occluded
+		if _returning or not _transition.active or game_node != null:
+			return
 	game_node = GAME_SCENE.instantiate()
 	game_node.name = "Game"
 	if _canvas != null:
@@ -191,18 +206,29 @@ func _launch(send_hello: bool, host_requested: bool = false) -> void:
 		game_node.h_hello.rpc_id(1)
 
 func _finish_launch(send_hello: bool, host_requested: bool) -> void:
-	if _returning or not is_instance_valid(game_node):
+	var launching_game: Node = game_node
+	if not _transition.covered:
+		await _transition.occluded
+	if _returning or not _transition.active or not is_instance_valid(launching_game) or game_node != launching_game:
 		return
 	_resume_network_poll()
-	# ゲーム生成前に接続を受けると、参加者のRPCが未完成のGameに届いてしまう。
+	# Gameの準備と画面の被覆が両方済んでから、接続を受け付ける。
 	if host_requested and Net.host() != OK:
 		return_to_menu("会社を開けませんでした。もう一度試してください。")
 		return
-	game_node.process_mode = Node.PROCESS_MODE_INHERIT
+	launching_game.input_locked = true
+	launching_game.process_mode = Node.PROCESS_MODE_INHERIT
 	_canvas.visible = false
-	game_node.hud.show_slate("intro", 1)
 	if send_hello:
-		game_node.h_hello.rpc_id(1)
+		launching_game.h_hello.rpc_id(1)
+	# 初めてのゲーム画面を板の裏で描き、白抜けのフレームを出さない。
+	for frame in 2:
+		await get_tree().process_frame
+	if _returning or not is_instance_valid(launching_game) or game_node != launching_game:
+		return
+	await _transition.reveal()
+	if is_instance_valid(launching_game) and game_node == launching_game:
+		launching_game.input_locked = false
 
 func _resume_network_poll() -> void:
 	if _startup_poll_paused:
@@ -223,6 +249,7 @@ func return_to_menu(message: String = "会社を閉じました。次の制作�
 		get_tree().quit()
 		return
 	_returning = true
+	_transition.cancel()
 	_resume_network_poll()
 	_set_busy(true)
 	_joining = false

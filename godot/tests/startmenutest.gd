@@ -45,17 +45,24 @@ func _run() -> void:
 	if role == "failure":
 		menu.address_input.text = "127.0.0.1"
 		menu.join_button.pressed.emit()
-		await _wait(13.0)
+		var waiting := 0.0
+		while menu.join_button.disabled and waiting < 20.0:
+			await _wait(0.05)
+			waiting += 0.05
 		_check(menu.game_node == null and not menu.join_button.disabled and Net.mode == "solo" and multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"connection failure resets offline and enables retry")
+		if _failed:
+			get_tree().quit(1)
+			return
 		menu.solo_button.pressed.emit()
-		await _wait(0.5)
+		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
+			await _wait(0.05)
 		_check(menu.game_node != null and menu.game_node.players.size() == 1 and menu.game_node.local_player().is_local,"solo works after failed connection")
 		print("FAILURE STARTMENUTEST_FAIL" if _failed else "FAILURE STARTMENUTEST_OK")
 		get_tree().quit(1 if _failed else 0)
 		return
 	if role in ["host","host-disconnect"]:
 		menu.host_button.pressed.emit()
-		while menu.game_node == null or not menu.game_node.startup_complete:
+		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 			await _wait(0.05)
 		_check(menu.game_node != null and Net.mode == "host","host button opens company")
 		var elapsed := 0.0
@@ -111,7 +118,8 @@ func _run() -> void:
 		_check(not is_instance_valid(old_game) and menu.game_node == null and menu._canvas.visible and not menu.solo_button.disabled and Net.mode == "solo" and multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"host disconnect restores retry menu after Game freed")
 		_check(Sfx.current_music() == "" and Sfx._oneshots.is_empty() and Net.get_signal_connection_list("peer_left").is_empty() and Net.get_signal_connection_list("joined_host").size() == 1,"old audio and Game signal connections removed")
 		menu.solo_button.pressed.emit()
-		await _wait(0.5)
+		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
+			await _wait(0.05)
 		var next_game: Node = menu.game_node
 		_check(next_game.name == "Game" and str(next_game.get_path()) == "/root/StartMenu/Game" and next_game.players.size() == 1 and next_game.players[1].is_local and next_game.local_player().is_local,"solo retry keeps stable Game path and one local player")
 		_check(Net.get_signal_connection_list("peer_left").size() == 1 and Net.get_signal_connection_list("joined_host").size() == 2,"new Game has one fresh signal subscription")

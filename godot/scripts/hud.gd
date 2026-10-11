@@ -372,64 +372,34 @@ class _Slate extends Control:
 	var mode := ""
 	var take := 1
 	var t := 0.0
-	var _home_parent: Node
-	var _entry_layer: CanvasLayer
 
 	func start(m: String, n: int) -> void:
-		_restore_parent()
 		mode = m
 		take = n
 		t = 0.0
-		if mode == "intro":
-			_home_parent = get_parent()
-			_entry_layer = CanvasLayer.new()
-			_entry_layer.layer = 10
-			game.add_child(_entry_layer)
-			reparent(_entry_layer)
-			set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		queue_redraw()
-
-	func _restore_parent() -> void:
-		if _entry_layer == null:
-			return
-		reparent(_home_parent)
-		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		_entry_layer.queue_free()
-		_entry_layer = null
-		_home_parent = null
 
 	func _process(delta: float) -> void:
 		if mode == "":
 			return
-		var previous := t
 		t += delta
-		# 音は拍子木が閉じきる瞬間に一度だけ。入室を取り消せばノードと一緒に止まる。
-		if mode == "intro" and previous < 0.38 and t >= 0.38:
-			Sfx.play("clap")
-		if (mode in ["intro", "clap"] and t > 0.95) or (mode == "cut" and t > 1.25):
+		if (mode == "clap" and t > 0.95) or (mode == "cut" and t > 1.25):
 			mode = ""
 			mouse_filter = Control.MOUSE_FILTER_IGNORE
-			_restore_parent()
 		queue_redraw()
 
 	func _draw() -> void:
 		if mode == "":
 			return
 		var font: Font = game.font
-		var film := "本日の制作、スタート！" if mode == "intro" else "月下の城と大爆発"
-		if mode == "intro":
-			var shade := minf(clampf(t / 0.18, 0.0, 1.0), 1.0 - clampf((t - 0.65) / 0.3, 0.0, 1.0))
-			draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, shade * 0.45))
+		var film := "月下の城と大爆発"
 		var w := 520.0
 		var h := 330.0
 		var bar := 54.0
 		var slide := 0.0          # 0=定位置、1=画面の下へ
 		var angle := -0.38        # 上の拍子木の開き
-		if mode == "intro":
-			angle = lerpf(-0.38, 0.0, clampf((t - 0.30) / 0.08, 0.0, 1.0))
-			slide = (1.0 - clampf(t / 0.18, 0.0, 1.0)) + clampf((t - 0.65) / 0.3, 0.0, 1.0)
-		elif mode == "ready":
+		if mode == "ready":
 			slide = 1.0 - clampf(t / 0.22, 0.0, 1.0)
 		elif mode == "clap":
 			angle = lerpf(-0.38, 0.0, clampf(t / 0.06, 0.0, 1.0))
@@ -460,8 +430,8 @@ class _Slate extends Control:
 			draw_string(font, Vector2(w * 0.5 + 20, bar + 130), "本番まで", HORIZONTAL_ALIGNMENT_LEFT, 200, 26, Color(0.75, 0.75, 0.7))
 			draw_string(font, Vector2(w * 0.5, bar + 262), right, HORIZONTAL_ALIGNMENT_CENTER, w * 0.5, 150, Color(1.0, 0.86, 0.35))
 		else:
-			right = "開始" if mode == "intro" else ("本番！" if mode == "clap" else "カット！")
-			col = Color(1.0, 0.45, 0.4) if mode in ["intro", "clap"] else Color(1.0, 0.86, 0.35)
+			right = "本番！" if mode == "clap" else "カット！"
+			col = Color(1.0, 0.45, 0.4) if mode == "clap" else Color(1.0, 0.86, 0.35)
 			draw_string(font, Vector2(w * 0.5, bar + 222), right, HORIZONTAL_ALIGNMENT_CENTER, w * 0.5, 66, col)
 		# 上の拍子木（左端の蝶番で開く）
 		draw_set_transform(origin + Vector2(0, 0).rotated(tilt), tilt + angle, Vector2.ONE)
