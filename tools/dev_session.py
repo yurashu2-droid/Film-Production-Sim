@@ -156,9 +156,16 @@ class Session:
     def watch(self):
         self.request({"op": "status"}, timeout=2)
         def scripts():
-            return {p: p.stat().st_mtime_ns for p in self.project.rglob("*.gd") if ".godot" not in p.parts and "dev_session" not in p.parts}
+            found = {}
+            for root, directories, files in os.walk(self.project):
+                directories[:] = [name for name in directories if name not in {".godot", ".git", "dev_session"}]
+                for name in files:
+                    if Path(name).suffix in {".gd", ".gdshader"}:
+                        path = Path(root) / name
+                        found[path] = path.stat().st_mtime_ns
+            return found
         previous = scripts()
-        print("Watching scripts. Ctrl+C ends watching and leaves Godot running.", flush=True)
+        print("Watching scripts and shaders. Ctrl+C ends watching and leaves Godot running.", flush=True)
         while True:
             time.sleep(0.5)
             current = scripts()

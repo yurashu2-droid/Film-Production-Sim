@@ -149,7 +149,8 @@ func _dispatch(request: Dictionary) -> Dictionary:
 			get_tree().paused = was_paused
 			return _ok(action)
 		"reload":
-			return _reload_script(str(request.get("path", "")))
+			var path := str(request.get("path", ""))
+			return _reload_shader(path) if path.ends_with(".gdshader") else _reload_script(path)
 		"review", "capture_views":
 			return await preload("res://addons/dev_session/review_capture.gd").new().run(self, request)
 		"capture":
@@ -195,6 +196,16 @@ func _dispatch(request: Dictionary) -> Dictionary:
 				values[property] = _encode(node.get(property))
 			return _ok(values)
 	return _error("Unknown operation: " + op)
+
+func _reload_shader(path: String) -> Dictionary:
+	if not path.begins_with("res://") or not path.ends_with(".gdshader") or path.begins_with("res://addons/dev_session/") or not FileAccess.file_exists(path):
+		return _error("Provide an existing project .gdshader outside the session addon")
+	var shader := ResourceLoader.load(path) as Shader
+	if shader == null:
+		return _error("Cannot load shader")
+	# Update the cached object so materials already using it see the new code.
+	shader.code = FileAccess.get_file_as_string(path)
+	return _ok({"path": path, "state_kept": true, "note": "Check shader compile diagnostics on the next rendered capture"})
 
 func _reload_script(path: String) -> Dictionary:
 	if not path.begins_with("res://") or not path.ends_with(".gd") or path.begins_with("res://addons/dev_session/") or not FileAccess.file_exists(path):

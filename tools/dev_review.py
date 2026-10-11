@@ -1,23 +1,39 @@
 """Compact evidence for a single synchronized Godot review. Pillow loads lazily."""
 import json
+import math
 from pathlib import Path
 import time
 
 
-def select_samples(samples, limit=6):
+def _key_indices(samples, key_frames, limit):
+    if not isinstance(key_frames, list) or any(type(f) not in (int, float) or not math.isfinite(f) or f != int(f) for f in key_frames):
+        raise ValueError("key_frames must be a list of integer sample frames")
+    positions = {sample["frame"]: i for i, sample in enumerate(samples)}
+    if any(frame not in positions for frame in key_frames):
+        raise ValueError("Each key frame must be a captured or scheduled event frame")
+    required = {positions[frame] for frame in key_frames}
+    if samples:
+        required.update((0, len(samples) - 1))
+    if len(samples) > limit and len(required) > limit - 1:
+        raise ValueError("Key frames plus start/end must leave one slot for an unexpected failure")
+    return required
+
+
+def select_samples(samples, limit=6, *, key_frames=None):
     """Retain onset/midpoint/exit and the worst numeric failure plus neighbors."""
+    limit = max(3, min(8, int(limit)))
+    required = _key_indices(samples, key_frames or [], limit)
     if not samples:
         return []
-    limit = max(3, min(8, int(limit)))
     if len(samples) <= limit:
         return list(range(len(samples)))
-    selected = {0, len(samples) // 2, len(samples) - 1}
+    selected = required if key_frames else {0, len(samples) // 2, len(samples) - 1}
     worst = max(range(len(samples)), key=lambda i: max((c.get("severity", 0) for c in samples[i]["checks"]), default=0))
     if any(not c["passed"] for c in samples[worst]["checks"]):
         for index in (worst, max(0, worst - 1), min(len(samples) - 1, worst + 1)):
             if len(selected) < limit:
                 selected.add(index)
-    for fraction in (0.75, 0.25):
+    for fraction in ((0.5, 0.75, 0.25) if key_frames else (0.75, 0.25)):
         if len(selected) < limit:
             selected.add(round((len(samples) - 1) * fraction))
     while len(selected) < limit:
@@ -78,7 +94,7 @@ def summarize(manifest_path, *, limit=6, log_text=""):
     folder = path.parent
     manifest = json.loads(path.read_text(encoding="utf-8"))
     samples = manifest["samples"]
-    selected = select_samples(samples, limit)
+    selected = select_samples(samples, limit, key_frames=manifest.get("scenario", {}).get("key_frames", []))
     contact, details, selected_pixels = _images(manifest, folder, selected)
     failures = [(sample, check) for sample in samples for check in sample["checks"] if not check["passed"]]
     worst = sorted(failures, key=lambda pair: pair[1].get("severity", 0), reverse=True)
@@ -113,6 +129,9 @@ def summarize(manifest_path, *, limit=6, log_text=""):
 
 
 def review(session, scenario, output, *, limit=6):
+    # Reject missing key times before mutating the running engine or output folder.
+    times = sorted(set(scenario.get("frames", [])) | {event["frame"] for event in scenario.get("events", [])})
+    _key_indices([{"frame": f} for f in times], scenario.get("key_frames", []), max(3, min(8, int(limit))))
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     plan = dict(scenario, op="review", output=str(output))

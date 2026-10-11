@@ -1,0 +1,178 @@
+{
+  "brief_sha256": "ec958ab0e0cd7a1c1c747f84998ca5d108c21840c31126d240f952efcfb976fd",
+  "author_model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "clock_hz": 60,
+  "author_samples": 23,
+  "views": 3,
+  "audit_samples": 46,
+  "variants": {
+    "a": {
+      "mode": "full",
+      "wall_s": 395,
+      "cycles": 5,
+      "capture_median_s": 4.367,
+      "capture_sum_s": 22.019,
+      "rpc_per_cycle": 48,
+      "feedback_chars_per_cycle": 30393,
+      "feedback_chars_total": 151817,
+      "reported_inspected_images": 19,
+      "reported_inspected_pixels": 26035200,
+      "gpu_lock_wait_s": 3.413,
+      "tokens": {
+        "input_tokens": 1660453,
+        "cached_input_tokens": 1577088,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 12350,
+        "reasoning_output_tokens": 3279,
+        "total_tokens": 1672803,
+        "uncached_input_tokens": 83365
+      },
+      "token_counter_updates": 21
+    },
+    "b": {
+      "mode": "compact",
+      "wall_s": 422.213,
+      "cycles": 7,
+      "capture_median_s": 2.011,
+      "capture_sum_s": 14.397,
+      "rpc_per_cycle": 2,
+      "feedback_chars_per_cycle": 1150,
+      "feedback_chars_total": 8287,
+      "reported_inspected_images": 41,
+      "reported_inspected_pixels": 18109440,
+      "gpu_lock_wait_s": 0.0,
+      "tokens": {
+        "input_tokens": 1864702,
+        "cached_input_tokens": 1778816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 14479,
+        "reasoning_output_tokens": 3857,
+        "total_tokens": 1879181,
+        "uncached_input_tokens": 85886
+      },
+      "token_counter_updates": 23
+    }
+  },
+  "common_audit": {
+    "capture_and_sheet_s": 11.379,
+    "error_lines": [],
+    "checks": {
+      "b": [],
+      "a": []
+    },
+    "status": {
+      "paused": true,
+      "window_visible": false,
+      "pid": 92968
+    }
+  },
+  "blind_review": {
+    "review_type": "single_pair_blind_visual_review",
+    "blind_labels": [
+      "X",
+      "Y"
+    ],
+    "inspected_images": [
+      "blind/X_0.png",
+      "blind/X_1.png",
+      "blind/X_2.png",
+      "blind/Y_0.png",
+      "blind/Y_1.png",
+      "blind/Y_2.png"
+    ],
+    "additional_visual_evidence": [
+      "blind/X_game_review_zoom.png",
+      "blind/X_front_review_zoom.png",
+      "blind/Y_game_review_zoom.png",
+      "blind/Y_front_review_zoom.png"
+    ],
+    "evidence_scope": "同一60Hz・2物理コマ刻みの連続静止画。game/side/frontの発生・主動作・退出を確認。拡大は既存の盲検画像のみから作成。等速動画は未視聴。制作方式・作者・コード・時間・トークン・対応表は未参照。",
+    "score_scale": "1=要求を満たさない、3=読めるが目立つ弱点あり、5=要求を強く満たす。整数の主観採点。",
+    "criteria_order": [
+      "殴打の読みやすさ",
+      "前進方向",
+      "形の変形と時間差",
+      "厚み/3方向",
+      "人物と比べた大きさ",
+      "終わり方"
+    ],
+    "X": {
+      "scores": [
+        4,
+        4,
+        3,
+        2,
+        4,
+        4
+      ],
+      "reasons": [
+        "F06で発生しF08〜F12で太く不揃いな殴打の星が読める。暖色と輪郭は用途に合う。",
+        "game/sideのF14〜F22で橙の基準物体から離れ人形側へ進み、接触後の押し出しは読める。",
+        "F12〜F26で尖りの長さと向きが変わり、F18以降に小片が遅れて現れる。ただし大半は一枚の星のまま。front/gameのF14→F16で白い中心が消え、F22〜F24で戻る色面の切替が、連続した材料変化として弱い。",
+        "3方向とも記号の幅は保たれるが、輪郭内の前後の重なりや側面の厚みは弱く、板の記号に見える。",
+        "1.7mの人形より十分小さく、局所の一発として占有範囲は適切。画像だけで実寸1.0〜1.4mは計測していない。",
+        "F26→F28→F30で後側の星の腕が欠け、前側の白い片へ受け渡される。F32→F34で主塊が消え、小片は位置と角度を変えて下方へ抜ける。F48以降は目立つVFXなし。"
+      ],
+      "major_visual_spec_violations": [],
+      "remaining_weaknesses": [
+        {
+          "frames": "F14〜F24 (0.233〜0.400s), game/front",
+          "issue": "クリームの中心が一度抜けて全体が橙一色になり、再び戻る。連続したほぐれより色面の切替が目に入る。"
+        },
+        {
+          "frames": "F12〜F26 (0.200〜0.433s), 全3方向",
+          "issue": "星の外形変化はあるが、肩・先端・尾が別々に追う変化は小さい。体積は薄い。"
+        },
+        {
+          "frames": "F28→F30 (0.467→0.500s)",
+          "issue": "大きな星から三角片への変化が一段急。漫画の切れとして許容範囲だが、ほぐれる中間形は弱い。"
+        }
+      ]
+    },
+    "Y": {
+      "scores": [
+        4,
+        4,
+        3,
+        2,
+        4,
+        4
+      ],
+      "reasons": [
+        "F06で発生しF08〜F12で暖色の不揃いな殴打の星が読める。Xより腕が細く鋭いが、クリームの中心は安定して残る。",
+        "game/sideのF14〜F22で基準物体から離れ人形側へ進む。振り抜きの短い筋から衝撃への切替も読める。",
+        "F12→F14で下の腕が伸び、F20→F22で上の腕の長さが変わり、F26から後側がほぐれる。ただしF16〜F24は同じ星の移動に近く、部位ごとの時間差は控えめ。",
+        "3方向とも記号として読めるが、前後の流れ・側面の厚みは弱く、白い中心のある板に見える。",
+        "人形より小さく局所の殴打として妥当。実寸の厳密な計測はしていない。",
+        "F30→F32→F34で後側の腕が分離し、F36→F38で白い中心が前側の短片へ抜け、F40で主塊が消える。外の黄・橙の片は時差で落ちる。F48以降は目立つVFXなし。"
+      ],
+      "major_visual_spec_violations": [],
+      "remaining_weaknesses": [
+        {
+          "frames": "F12〜F26 (0.200〜0.433s), 全3方向",
+          "issue": "腕の長さは変わるが、主塊はほぼ同じ星として残り、肩・先端・尾の別運動が弱い。体積は薄い。"
+        },
+        {
+          "frames": "F08〜F30 (0.133〜0.500s)",
+          "issue": "Xより長く細い尖りが目立つ。太い殴打の面積を求める仕様にはXの方が近い。"
+        },
+        {
+          "frames": "F28〜F34 (0.467〜0.567s)",
+          "issue": "ほぐれ始めても白い星の中心が長めに保持され、退出直前まで記号の完成形が強い。"
+        }
+      ]
+    },
+    "major_problem_conclusion": "画像から断定できる重大な仕様違反は両案ともなし。ただし厚みと中盤の部位別変形は両案共通の弱点で、満点の完成品という判定ではない。",
+    "selection_if_required": "Y",
+    "selection_confidence": "僅差・低い。6項目の整数採点は同点。",
+    "selection_reason": "白い中心の読みが持続し、後側の腕の分離から前側への切断の順序を追いやすい。太い殴打の輪郭だけを優先するならX。",
+    "limits": [
+      "連続静止画による比較で、通常速度のテンポや心地よさは確認していない。",
+      "F90 (1.5s) に見える橙の立方体と人形は共通撮影台の基準物体として扱う。両案のVFXは見えないが、ノードの片付けは画像から検証できない。",
+      "実寸の最大幅と微小な描画残りはこの一覧から厳密に計測していない。",
+      "単一組の主観比較であり、制作方式による一般的な品質差や統計的優劣を証明するものではない。"
+    ]
+  },
+  "accounting_note": "Token totals from final Codex author token_count records only. Cached input is a subset of input, reasoning output a subset of output. Parent preparation, common capture, and blind reviewer excluded; not an invoice or whole-task total. Image pixel counts are proxies; image reading paths are author-reported. One pair does not establish causality."
+}
