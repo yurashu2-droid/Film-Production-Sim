@@ -1,0 +1,12 @@
+{
+  "isolated_rebuild": "PASS",
+  "identical_glb_sha256": "b2c29e712ccf266c53d26a339d66613a2f7e0280ad17e2ba1adc3f664f791462",
+  "dependencies": [
+    "Python stdlib",
+    "Pillow",
+    "../cardboard_stunt/build_model.py",
+    "clump_mesh.py",
+    "controls.json",
+    "reference/design.png"
+  ]
+}

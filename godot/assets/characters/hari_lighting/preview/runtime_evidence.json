@@ -1,0 +1,28 @@
+{
+  "scene": "res://hari_lighting_lab.tscn",
+  "engine": "Godot 4.7.2",
+  "fps": 24,
+  "frames": 96,
+  "views": [
+    "front",
+    "left",
+    "right",
+    "back",
+    "top",
+    "hero"
+  ],
+  "parts": [
+    "face",
+    "hair",
+    "cuff",
+    "lamp"
+  ],
+  "mesh_count": 113,
+  "clips": [
+    "Light_Check"
+  ],
+  "contact_drift_m": 0,
+  "lamp_attached_all_frames": true,
+  "glb_sha256": "b2c29e712ccf266c53d26a339d66613a2f7e0280ad17e2ba1adc3f664f791462",
+  "visual_review": "Requires human/model inspection of saved images; numeric checks alone do not establish quality."
+}

@@ -1,0 +1,1032 @@
+{
+  "meshes": 113,
+  "triangles": 22664,
+  "render_vertices": 45240,
+  "materials": 19,
+  "animation_seconds": 4,
+  "method": "rigid node articulation",
+  "reference_sha256": "d62a4557a83b9550a4aabffb5a73d77c384b47d407cfb872bf0973d8897735d7",
+  "control_sha256": "e10c00aa3b7693df6dcc519f3696a0307638072bd841d1226b5d2151f7a7b4aa",
+  "units": "metres",
+  "up": "+Y",
+  "front": "+Z",
+  "parts": [
+    {
+      "name": "Face_skull",
+      "vertices": 546,
+      "render_vertices": 2240,
+      "triangles": 1088,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.0001964608398531789
+    },
+    {
+      "name": "Neck",
+      "vertices": 114,
+      "render_vertices": 480,
+      "triangles": 224,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00015698354259148002
+    },
+    {
+      "name": "Ear_Right",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.131151269233135e-05
+    },
+    {
+      "name": "Inner_ear_Right",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.3485478220121272e-05
+    },
+    {
+      "name": "Eye_white_Right",
+      "vertices": 266,
+      "render_vertices": 1104,
+      "triangles": 528,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.530625860169114e-05
+    },
+    {
+      "name": "Iris_Right",
+      "vertices": 222,
+      "render_vertices": 920,
+      "triangles": 440,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.810619256522182e-06
+    },
+    {
+      "name": "Pupil_Right",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.1954735754006687e-06
+    },
+    {
+      "name": "Eye_glint_Right",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.2965917053340012e-06
+    },
+    {
+      "name": "Brow_Right",
+      "vertices": 24,
+      "render_vertices": 80,
+      "triangles": 44,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.9823376490862824e-05
+    },
+    {
+      "name": "Glasses_rim_Right",
+      "vertices": 320,
+      "render_vertices": 1280,
+      "triangles": 640,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.7081245669181814e-05
+    },
+    {
+      "name": "Lens_Right",
+      "vertices": 41,
+      "render_vertices": 120,
+      "triangles": 40,
+      "boundary_edges": 40,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.0006773434897431341
+    },
+    {
+      "name": "Glasses_arm_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 8.750261505131583e-06
+    },
+    {
+      "name": "Upper_lid_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.77174023853798e-06
+    },
+    {
+      "name": "Ear_Left",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.131151269233135e-05
+    },
+    {
+      "name": "Inner_ear_Left",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.3485478220121272e-05
+    },
+    {
+      "name": "Eye_white_Left",
+      "vertices": 266,
+      "render_vertices": 1104,
+      "triangles": 528,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.530625860169114e-05
+    },
+    {
+      "name": "Iris_Left",
+      "vertices": 222,
+      "render_vertices": 920,
+      "triangles": 440,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.810619256522182e-06
+    },
+    {
+      "name": "Pupil_Left",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.1954735754006687e-06
+    },
+    {
+      "name": "Eye_glint_Left",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.2965917053340012e-06
+    },
+    {
+      "name": "Brow_Left",
+      "vertices": 24,
+      "render_vertices": 80,
+      "triangles": 44,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.9823376490862695e-05
+    },
+    {
+      "name": "Glasses_rim_Left",
+      "vertices": 320,
+      "render_vertices": 1280,
+      "triangles": 640,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.7081245669181814e-05
+    },
+    {
+      "name": "Lens_Left",
+      "vertices": 41,
+      "render_vertices": 120,
+      "triangles": 40,
+      "boundary_edges": 40,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.0006773434897431341
+    },
+    {
+      "name": "Glasses_arm_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 8.750261505131583e-06
+    },
+    {
+      "name": "Upper_lid_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.7717402385379795e-06
+    },
+    {
+      "name": "Glasses_bridge",
+      "vertices": 24,
+      "render_vertices": 80,
+      "triangles": 44,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 8.750261505131493e-06
+    },
+    {
+      "name": "Nose",
+      "vertices": 222,
+      "render_vertices": 920,
+      "triangles": 440,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.1052848784086955e-05
+    },
+    {
+      "name": "Soft_smile",
+      "vertices": 40,
+      "render_vertices": 144,
+      "triangles": 76,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.653363620130665e-06
+    },
+    {
+      "name": "Lower_lip",
+      "vertices": 114,
+      "render_vertices": 480,
+      "triangles": 224,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.37221112596113e-05
+    },
+    {
+      "name": "Bob_recessed_coverage",
+      "vertices": 521,
+      "render_vertices": 2080,
+      "triangles": 1038,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.614937624623404e-05
+    },
+    {
+      "name": "Fringe_major",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.8621900000000127e-05
+    },
+    {
+      "name": "Fringe_lower",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.0972499999999953e-05
+    },
+    {
+      "name": "Part_short",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.8182999999999744e-05
+    },
+    {
+      "name": "Temple_left",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.5455549999999825e-05
+    },
+    {
+      "name": "Temple_right",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.6364699999999915e-05
+    },
+    {
+      "name": "Nape_0",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2539999999999995e-05
+    },
+    {
+      "name": "Nape_1",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2540000000000143e-05
+    },
+    {
+      "name": "Nape_2",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2539999999999958e-05
+    },
+    {
+      "name": "Nape_3",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.253999999999999e-05
+    },
+    {
+      "name": "Nape_4",
+      "vertices": 112,
+      "render_vertices": 432,
+      "triangles": 220,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2539999999999995e-05
+    },
+    {
+      "name": "Jacket_body",
+      "vertices": 192,
+      "render_vertices": 720,
+      "triangles": 380,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00013532824709818045
+    },
+    {
+      "name": "Cotton_shirt",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 8.940881249999991e-06
+    },
+    {
+      "name": "Zipper_border_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.6841038841776156e-06
+    },
+    {
+      "name": "Hem_band_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.2888656000000033e-05
+    },
+    {
+      "name": "Chest_pocket_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Pocket_flap_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.923282900000001e-05
+    },
+    {
+      "name": "Collar_Right",
+      "vertices": 8,
+      "render_vertices": 24,
+      "triangles": 12,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.000349468167362923
+    },
+    {
+      "name": "Zipper_border_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.6841038841776156e-06
+    },
+    {
+      "name": "Hem_band_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.2888656000000033e-05
+    },
+    {
+      "name": "Chest_pocket_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Pocket_flap_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.923282900000001e-05
+    },
+    {
+      "name": "Collar_Left",
+      "vertices": 8,
+      "render_vertices": 24,
+      "triangles": 12,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.000349468167362923
+    },
+    {
+      "name": "Back_collar",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.4400295249999993e-05
+    },
+    {
+      "name": "Crew_patch_02",
+      "vertices": 4,
+      "render_vertices": 4,
+      "triangles": 2,
+      "boundary_edges": 4,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.0046777979060664875
+    },
+    {
+      "name": "Back_yoke",
+      "vertices": 40,
+      "render_vertices": 144,
+      "triangles": 76,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.5098084348498873e-06
+    },
+    {
+      "name": "Trouser_pelvis",
+      "vertices": 96,
+      "render_vertices": 336,
+      "triangles": 188,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00026781676167335014
+    },
+    {
+      "name": "Leather_belt",
+      "vertices": 48,
+      "render_vertices": 144,
+      "triangles": 92,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.0002976427722100743
+    },
+    {
+      "name": "Belt_buckle",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.148406525e-05
+    },
+    {
+      "name": "Buckle_inset",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2874869000000003e-05
+    },
+    {
+      "name": "Canvas_leg_Right",
+      "vertices": 288,
+      "render_vertices": 1104,
+      "triangles": 572,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.56826536310574e-05
+    },
+    {
+      "name": "Cargo_pocket_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Cargo_flap_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Rear_pocket_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.148406525e-05
+    },
+    {
+      "name": "Belt_loop_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2874868999999998e-05
+    },
+    {
+      "name": "Boot_sole_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00014374066647960136
+    },
+    {
+      "name": "Boot_foot_Right",
+      "vertices": 120,
+      "render_vertices": 432,
+      "triangles": 236,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.3849089395991605e-05
+    },
+    {
+      "name": "Boot_shaft_Right",
+      "vertices": 96,
+      "render_vertices": 336,
+      "triangles": 188,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.852318330032773e-05
+    },
+    {
+      "name": "Boot_front_seam_Right",
+      "vertices": 40,
+      "render_vertices": 144,
+      "triangles": 76,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.863961030678897e-06
+    },
+    {
+      "name": "Canvas_leg_Left",
+      "vertices": 288,
+      "render_vertices": 1104,
+      "triangles": 572,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.5682653631057144e-05
+    },
+    {
+      "name": "Cargo_pocket_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Cargo_flap_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.58949e-05
+    },
+    {
+      "name": "Rear_pocket_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.148406525e-05
+    },
+    {
+      "name": "Belt_loop_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.2874868999999998e-05
+    },
+    {
+      "name": "Boot_sole_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00014374066647960136
+    },
+    {
+      "name": "Boot_foot_Left",
+      "vertices": 120,
+      "render_vertices": 432,
+      "triangles": 236,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.3849089395991605e-05
+    },
+    {
+      "name": "Boot_shaft_Left",
+      "vertices": 96,
+      "render_vertices": 336,
+      "triangles": 188,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.852318330032773e-05
+    },
+    {
+      "name": "Boot_front_seam_Left",
+      "vertices": 40,
+      "render_vertices": 144,
+      "triangles": 76,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.8639610306789034e-06
+    },
+    {
+      "name": "Tool_pouch",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00015274998900000002
+    },
+    {
+      "name": "Pouch_flap",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00015034857934978965
+    },
+    {
+      "name": "Pouch_fastener",
+      "vertices": 62,
+      "render_vertices": 264,
+      "triangles": 120,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.908132612556994e-06
+    },
+    {
+      "name": "Cable_coil_0",
+      "vertices": 192,
+      "render_vertices": 768,
+      "triangles": 384,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.0157179961500028e-05
+    },
+    {
+      "name": "Cable_coil_1",
+      "vertices": 192,
+      "render_vertices": 768,
+      "triangles": 384,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.6936249376335345e-05
+    },
+    {
+      "name": "Cable_coil_2",
+      "vertices": 192,
+      "render_vertices": 768,
+      "triangles": 384,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.361429436430428e-05
+    },
+    {
+      "name": "Cable_coil_3",
+      "vertices": 192,
+      "render_vertices": 768,
+      "triangles": 384,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 4.0232255436230616e-05
+    },
+    {
+      "name": "Cable_keeper",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.2888656e-05
+    },
+    {
+      "name": "Sleeve_Right",
+      "vertices": 192,
+      "render_vertices": 720,
+      "triangles": 380,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.7091309408685226e-05
+    },
+    {
+      "name": "Rolled_cuff_Right",
+      "vertices": 96,
+      "render_vertices": 384,
+      "triangles": 192,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00033201824743841525
+    },
+    {
+      "name": "Forearm_Right",
+      "vertices": 100,
+      "render_vertices": 360,
+      "triangles": 196,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.661888808253114e-05
+    },
+    {
+      "name": "Glove_wrist_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00016400988236231376
+    },
+    {
+      "name": "Glove_palm_Right",
+      "vertices": 222,
+      "render_vertices": 920,
+      "triangles": 440,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.434052152966869e-05
+    },
+    {
+      "name": "Glove_thumb_Right",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.773167927259254e-05
+    },
+    {
+      "name": "Glove_patch_Right",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.543183999999997e-06
+    },
+    {
+      "name": "Glove_stitch_Right0",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Glove_stitch_Right1",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Glove_stitch_Right2",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Sleeve_Left",
+      "vertices": 192,
+      "render_vertices": 720,
+      "triangles": 380,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.7091309408685226e-05
+    },
+    {
+      "name": "Rolled_cuff_Left",
+      "vertices": 96,
+      "render_vertices": 384,
+      "triangles": 192,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00033201824743841525
+    },
+    {
+      "name": "Forearm_Left",
+      "vertices": 100,
+      "render_vertices": 360,
+      "triangles": 196,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.661888808253114e-05
+    },
+    {
+      "name": "Glove_wrist_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 0.00016400988236231376
+    },
+    {
+      "name": "Glove_palm_Left",
+      "vertices": 222,
+      "render_vertices": 920,
+      "triangles": 440,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.434052152966869e-05
+    },
+    {
+      "name": "Glove_thumb_Left",
+      "vertices": 146,
+      "render_vertices": 608,
+      "triangles": 288,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.773167927259254e-05
+    },
+    {
+      "name": "Glove_patch_Left",
+      "vertices": 32,
+      "render_vertices": 112,
+      "triangles": 60,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.543183999999997e-06
+    },
+    {
+      "name": "Glove_stitch_Left0",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Glove_stitch_Left1",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Glove_stitch_Left2",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 2.7063293868263652e-06
+    },
+    {
+      "name": "Lamp_U_handle",
+      "vertices": 80,
+      "render_vertices": 304,
+      "triangles": 156,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.6775649276110328e-05
+    },
+    {
+      "name": "Lamp_round_housing",
+      "vertices": 160,
+      "render_vertices": 560,
+      "triangles": 316,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 1.887641092487286e-05
+    },
+    {
+      "name": "Lamp_mustard_rim",
+      "vertices": 320,
+      "render_vertices": 1280,
+      "triangles": 640,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 5.233998489545579e-05
+    },
+    {
+      "name": "Lamp_diffuser",
+      "vertices": 482,
+      "render_vertices": 1984,
+      "triangles": 960,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 6.460071608142112e-06
+    },
+    {
+      "name": "Lamp_handle_joint_Right",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 7.897083484845551e-06
+    },
+    {
+      "name": "Lamp_handle_joint_Left",
+      "vertices": 86,
+      "render_vertices": 360,
+      "triangles": 168,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 7.897083484845551e-06
+    },
+    {
+      "name": "Lamp_back_vent_0",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.897114317029996e-06
+    },
+    {
+      "name": "Lamp_back_vent_1",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.897114317029996e-06
+    },
+    {
+      "name": "Lamp_back_vent_2",
+      "vertices": 12,
+      "render_vertices": 36,
+      "triangles": 20,
+      "boundary_edges": 0,
+      "nonmanifold_edges": 0,
+      "minimum_area": 3.897114317029996e-06
+    }
+  ]
+}
