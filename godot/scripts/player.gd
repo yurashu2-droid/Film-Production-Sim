@@ -182,6 +182,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			game.act_operate(target.pid, true)
 
 
+func _can_jump_from_floor() -> bool:
+	if not is_on_floor():
+		return false
+	if held == 0:
+		return true
+	# 接地状態は前回の move_and_slide の結果。持ち物の衝突を外しても残るため、
+	# 実際の床接触を調べ、自分で持つ物（接着先も含む）からは踏み切らない。
+	var exceptions := get_collision_exceptions()
+	for i in get_slide_collision_count():
+		var contact := get_slide_collision(i)
+		for j in contact.get_collision_count():
+			if contact.get_normal(j).dot(up_direction) < cos(floor_max_angle):
+				continue
+			var body := contact.get_collider(j)
+			if body == null or body in exceptions:
+				continue
+			if "pid" in body:
+				if body.pid == held or (game.adhesive != null and game.adhesive.connected_to(held, body.pid)):
+					continue
+			return true
+	return false
+
+
 func _physics_process(delta: float) -> void:
 	if vehicle_riding():
 		_vehicle_ride.update(self)
@@ -219,7 +242,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = lerpf(velocity.x, dir.x * speed, k)
 		velocity.z = lerpf(velocity.z, dir.z * speed, k)
 		if is_on_floor():
-			if not blocked and op == null and Input.is_action_just_pressed("jump"):
+			if not blocked and op == null and Input.is_action_just_pressed("jump") and _can_jump_from_floor():
 				velocity.y = JUMP
 		else:
 			velocity.y -= GRAVITY * delta

@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 GD=./tools/godot/Godot_v4.7.2-stable_win64_console.exe
+timeout 20 "$GD" --headless --path godot --script res://tests/held_jump_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|HELD_JUMP_CHECK.*FAIL|HELD_JUMP_TEST_"
 timeout 40 $GD --headless --path godot --script res://tests/cargo_packing_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|CARGO_PACKING_CHECK.*FAIL|CARGO_PACKING_TEST_"
 timeout 40 $GD --headless --path godot --script res://tests/cargo_adhesive_test.gd 2>&1 | grep -E "SCRIPT ERROR|ERROR:|CARGO_ADHESIVE_CHECK.*FAIL|CARGO_ADHESIVE_TEST_"
 ADHESIVE_LOG=$(mktemp)
