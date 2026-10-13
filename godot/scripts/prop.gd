@@ -56,6 +56,7 @@ var visual: Node3D
 var playback := false        # 見返し中は記録どおりに動かす
 
 var _net: Array = []
+var _raise_seen := false        # 直前に見た、持っている人の「持ち上げている」の値（変わったときだけ切り替える）
 var _hang_yaw := 0.0            # 直前のコマの、持っている人の視点の左右の向き（垂れている物を、視点と一緒に回すため）
 var _hang_yaw_valid := false
 
@@ -137,6 +138,7 @@ func set_holder(id: int, local_grip: Variant = null) -> void:
 		hold_grip_local = local_grip if local_grip is Vector3 else center
 		hold_reference_valid = true
 		hold_lifted = false
+		_raise_seen = false
 		var crew: Variant = game.get("players") if game != null else null
 		var player: Node3D = crew.get(id) if crew is Dictionary else null
 		if player != null:
@@ -213,6 +215,14 @@ func _drive_hold(delta: float) -> void:
 	if tgt == null:
 		game.host_release(self)
 		return
+	# 転がして運ぶ物：持っている人が右クリックを押している間だけ、床から浮かせて持ち上げられる。離すと床へ降りる
+	if rolls:
+		var raiser: Node = game.players.get(holder)
+		var raise: bool = raiser != null and raiser.hold_raise
+		if raise != _raise_seen:
+			_raise_seen = raise
+			hold_lifted = raise
+			gravity_scale = 0.0 if raise else 1.0
 	var want: Vector3 = tgt[0]
 	var want_yaw: float = tgt[1]
 	var want_basis: Basis = tgt[4] if tgt.size() > 4 else Basis.from_euler(Vector3(float(tgt[3]), want_yaw, 0.0))

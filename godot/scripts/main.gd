@@ -366,6 +366,18 @@ func rx_hold_turning(on: bool) -> void:
 		pl.hold_turning = on
 
 
+# 転がして運ぶ物を持ち上げているか（player.hold_raise）を、ほかの人の画面とホストへ知らせる
+func send_hold_raise(on: bool) -> void:
+	rx_hold_raise.rpc(on)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func rx_hold_raise(on: bool) -> void:
+	var pl: Node = players.get(multiplayer.get_remote_sender_id())
+	if pl != null and not pl.is_local:
+		pl.hold_raise = on
+
+
 # 垂れている物の「いまの向き」を、持ち方の基準に写す（ホスト）。掴んだ点の場所は変えない。
 # こうしておくと、回し始めた瞬間の目標の向きが、いまの向きと同じになる
 func hold_rebase(pl: Node, prop: RigidBody3D) -> void:
@@ -439,7 +451,7 @@ func act_hold_command(command: String, amount: float = 0.0) -> void:
 
 
 func hold_hint() -> String:
-	return "左クリック 置く ／ 右ドラッグ 回す ／ Q・E 傾ける ／ ホイール 奥行き ／ R 起こす ／ G 起こして手元へ ／ N 力を抜く（垂らす）"
+	return "左クリック 置く ／ 右ドラッグ 回す ／ Q・E 傾ける ／ ホイール 奥行き ／ R 起こす ／ G 起こして手元へ ／ N 力を抜く（垂らす） ／ 台車は右クリックの間だけ浮く"
 
 
 func act_release() -> void:

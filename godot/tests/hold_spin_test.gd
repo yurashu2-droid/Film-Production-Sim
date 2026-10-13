@@ -161,6 +161,37 @@ func run() -> void:
 	check(kept < 0.12, "力を抜いていなければ、垂れず、視点から見た向きが変わらない")
 	game.h_release()
 	await frames(6)
+	# 転がして運ぶ物（台車）：ふだんは床を転がす。右クリックを押している間だけ、浮かせて持ち上げられる
+	var dolly: Node
+	for pid: int in game.props:
+		if game.props[pid].kind == "dolly" and not game.props[pid].absent:
+			dolly = game.props[pid]
+			break
+	if dolly != null:
+		me.aim_yaw = 0.0
+		me.aim_pitch = -0.3
+		me.hold_offset = Vector3.ZERO
+		await frames(4)
+		var ds: Array = dolly.get_state()
+		ds[0] = me.global_position + me.flat_forward() * 2.6 + Vector3(0, 0.05, 0)
+		ds[1] = Quaternion.IDENTITY
+		ds[2] = false
+		dolly.restore(ds)
+		await frames(30)
+		game.h_grab(dolly.pid)
+		await frames(20)
+		var floor_y: float = dolly.global_position.y
+		me.aim_pitch = 0.3
+		await frames(60)
+		check(me.held == dolly.pid and dolly.global_position.y - floor_y < 0.1, "台車は、ふだんは見上げても床から浮かない")
+		me.hold_raise = true
+		await frames(90)
+		check(dolly.global_position.y - floor_y > 0.4, "右クリックの間は、台車が浮いて持ち上がる（%.2f m）" % (dolly.global_position.y - floor_y))
+		me.hold_raise = false
+		await frames(120)
+		check(dolly.global_position.y - floor_y < 0.15, "離すと、床へ降りる")
+		game.h_release()
+		await frames(6)
 	print("HOLD_SPIN_TEST_FAIL" if failed else "HOLD_SPIN_TEST_OK")
 	var sfx := root.get_node_or_null("Sfx")
 	if sfx != null:

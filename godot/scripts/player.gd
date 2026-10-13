@@ -57,6 +57,8 @@ var hold_roll := 0.0
 var hold_turning := true
 # 力を抜いて持っているか（N で切り替え）。抜いている間は、掴んだ点を支点に物が垂れる。ふだんは抜かず、視点と同じ向きを保つ
 var hold_limp := false
+# 転がして運ぶ物（台車など）を、床から持ち上げているか。右クリックを押している間だけ（離すと、床へ降りて転がる）
+var hold_raise := false
 var _limp_key := false
 var hold_offset := Vector3.ZERO
 var hold_revision := 0
@@ -515,6 +517,10 @@ func _physics_process(delta: float) -> void:
 		_limp_key = limp_key
 		if held == 0:
 			hold_limp = false
+		var raise: bool = held != 0 and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and game.props.has(held) and game.props[held].rolls
+		if raise != hold_raise:
+			hold_raise = raise
+			game.send_hold_raise(raise)
 		var turning: bool = held == 0 or not hold_limp or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_action_pressed("rot_left") or Input.is_action_pressed("rot_right")
 		if turning != hold_turning:
 			hold_turning = turning
