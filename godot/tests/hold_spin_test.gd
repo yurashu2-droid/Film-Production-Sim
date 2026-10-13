@@ -86,7 +86,7 @@ func run() -> void:
 	# 重力：回していない間は、掴んだ点を支点に垂れる。回している間は向きを保つ
 	var plank: Node
 	for pid: int in game.props:
-		if game.props[pid].kind == "flat":
+		if game.props[pid].kind == "riser":      # 重い物（足場 24kg）。軽い物は垂れない
 			plank = game.props[pid]
 			break
 	me.aim_yaw = 0.0
@@ -146,7 +146,7 @@ func run() -> void:
 	me.hold_offset = Vector3(0, 1.2, 0)
 	await frames(60)
 	check(me.held == card.pid, "カンペの角を掴めた")
-	me.hold_turning = false
+	# 力を抜いていない（ふだんの持ち方）
 	await frames(120)
 	var view_then: Basis = Basis.from_euler(Vector3(me.aim_pitch, me.aim_yaw, 0.0))
 	var card_then: Basis = card.global_basis.orthonormalized()
@@ -158,7 +158,7 @@ func run() -> void:
 	var view_now: Basis = Basis.from_euler(Vector3(me.aim_pitch, me.aim_yaw, 0.0))
 	var kept: float = Quaternion(view_now.inverse() * card.global_basis.orthonormalized()).angle_to(Quaternion(view_then.inverse() * card_then))
 	print("HOLD_SPIN_MEASURE カンペ：視点から見た向きのずれ=", rad_to_deg(kept), "度")
-	check(kept < 0.12, "軽い物は、離していても垂れず、視点から見た向きが変わらない")
+	check(kept < 0.12, "力を抜いていなければ、垂れず、視点から見た向きが変わらない")
 	game.h_release()
 	await frames(6)
 	print("HOLD_SPIN_TEST_FAIL" if failed else "HOLD_SPIN_TEST_OK")

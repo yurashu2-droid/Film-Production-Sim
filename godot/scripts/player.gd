@@ -55,6 +55,9 @@ var hold_roll := 0.0
 # 持った物を回している最中か（右クリックか Q/E を押している間）。回している間だけ、物に重力がかからず向きを保つ。
 # 離すと、掴んだ点を支点に垂れる。マウスを捕まえて遊んでいるときだけ切り替える（それ以外は true のまま）
 var hold_turning := true
+# 力を抜いて持っているか（N で切り替え）。抜いている間は、掴んだ点を支点に物が垂れる。ふだんは抜かず、視点と同じ向きを保つ
+var hold_limp := false
+var _limp_key := false
 var hold_offset := Vector3.ZERO
 var hold_revision := 0
 var held := 0           # 持っている物のID
@@ -511,7 +514,15 @@ func _physics_process(delta: float) -> void:
 		if _face_t <= 0.0:
 			vis.set_face("neutral")
 	if is_local and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var turning: bool = held == 0 or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_action_pressed("rot_left") or Input.is_action_pressed("rot_right")
+		# N：力を抜く・入れるの切り替え。物を持ち直すと、力を入れた状態に戻る
+		var limp_key: bool = Input.is_physical_key_pressed(KEY_N) and not game.ui_blocking()
+		if limp_key and not _limp_key and held != 0:
+			hold_limp = not hold_limp
+			game.hud.show_toast("力を抜いた（物が垂れる）。もう一度 N で、向きを保つ" if hold_limp else "力を入れた（向きを保つ）", game.hud.YELLOW)
+		_limp_key = limp_key
+		if held == 0:
+			hold_limp = false
+		var turning: bool = held == 0 or not hold_limp or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_action_pressed("rot_left") or Input.is_action_pressed("rot_right")
 		if turning != hold_turning:
 			hold_turning = turning
 			game.send_hold_turning(turning)
