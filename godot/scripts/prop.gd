@@ -9,8 +9,8 @@ const L_CHAR := 8
 const L_MARK := 16
 # 持った物にぶら下がった物に引っぱられても動きを乱されないよう、その重さの何倍までの引っぱりを手が受け止めるか
 const HANG_GRIP := 3.0
-const HANG_LIGHT := 1.5      # この重さ（kg）までの物は、手で支えられるので垂れない（カンペ・小物。視点と同じ向きを保つ）
-const HANG_HEAVY := 5.0      # この重さから上は、掴んだ点を支点に、すっかり垂れる。間の重さは、少しだけ垂れる
+const HANG_LIGHT := 10.0     # この重さ（kg）までの物は、手で支えられるので垂れない（カンペ・等身大パネル・書割・小物。視点と同じ向きを保つ）
+const HANG_HEAVY := 18.0     # この重さから上は、掴んだ点を支点に、すっかり垂れる。間の重さは、少しだけ垂れる
 const HANG_DAMP := 2.2       # 手に持って垂れている物の、揺れの収まりやすさ（大きいほど早く止まる）
 
 var game: Node
@@ -58,6 +58,8 @@ var visual: Node3D
 var playback := false        # 見返し中は記録どおりに動かす
 
 var _net: Array = []
+var _hang_yaw := 0.0            # 直前のコマの、持っている人の視点の左右の向き（垂れている物を、視点と一緒に回すため）
+var _hang_yaw_valid := false
 
 
 func _ready() -> void:
@@ -271,12 +273,18 @@ func _drive_hold(delta: float) -> void:
 		var arm: Vector3 = global_basis * (_hold_com_local - hold_grip_local)
 		var pull: Vector3 = arm.cross(Vector3.DOWN * 9.8) / (arm.length_squared() + half.length_squared() / 3.0 + 0.0004)
 		var swing: Vector3 = (angular_velocity + pull * delta) * maxf(0.0, 1.0 - HANG_DAMP * delta)
+		# 垂れていても、左右の向きは視点について回る（体ごと向きを変えたら、物も同じだけ回る）
+		if _hang_yaw_valid:
+			swing.y += wrapf(holder_node.aim_yaw - _hang_yaw, -PI, PI) / maxf(delta, 0.001)
 		if droop >= 1.0:
 			next_spin = swing
 			game.hold_rebase(holder_node, self)
 		else:
 			# 中くらいの重さ：向きを保つ力と、垂れる力のあいだ
 			next_spin = next_spin.lerp(swing, droop)
+	_hang_yaw_valid = holder_node != null
+	if holder_node != null:
+		_hang_yaw = holder_node.aim_yaw
 	var v := (origin_goal - global_position) * 10.0
 	var grip_radius := Vector3.ZERO
 	if tgt.size() > 5:

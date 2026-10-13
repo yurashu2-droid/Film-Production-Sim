@@ -86,7 +86,7 @@ func run() -> void:
 	# 重力：回していない間は、掴んだ点を支点に垂れる。回している間は向きを保つ
 	var plank: Node
 	for pid: int in game.props:
-		if game.props[pid].kind == "flat":
+		if game.props[pid].kind == "riser":      # 重い物（足場 24kg）。軽い物は垂れない
 			plank = game.props[pid]
 			break
 	me.aim_yaw = 0.0
