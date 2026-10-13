@@ -318,12 +318,11 @@ func _handle_gameplay_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var rel: Vector2 = (event as InputEventMouseMotion).relative
 		if held != 0 and operating == 0 and not game.adhesive.applying and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_RIGHT:
-			var fine := 0.25 if (event as InputEventMouseMotion).shift_pressed else 1.0
+			# キーを減らした（2026-10-14）：Shift の微調整と、Alt+右ドラッグの位置ずらしは外した
+			# （速さは感度のつまみで、位置は視点とホイールで合わせる）
+			var fine := 1.0
 			var prop: Node = game.props.get(held)
-			if (event as InputEventMouseMotion).alt_pressed:
-				hold_offset += Vector3(rel.x, -rel.y, 0.0) * 0.004 * fine
-				hold_offset = hold_offset.limit_length(REACH)
-			else:
+			if true:
 				# 画面で見たままに回す：横に動かすと上向きの軸まわり、縦に動かすと画面の横軸まわり
 				# （手前の面が、マウスを動かした向きへ動く）。倒れないようにしてある物は、横だけ
 				if prop and not prop.axis_lock_angular_x:
@@ -352,11 +351,8 @@ func _handle_gameplay_input(event: InputEvent) -> void:
 			if operating != 0:
 				game.act_aim(operating, 0.0, 0.0, float(wheel))
 			elif held != 0:
-				var step := 0.05 if mb.shift_pressed else 0.2
-				if mb.alt_pressed:
-					game.act_hold_command("lift", wheel * step)
-				else:
-					hold_dist = clampf(hold_dist + wheel * step, 0.0, 5.4)
+				# ホイールは奥行きだけ（高さは、見上げる・見下ろすで変わる）
+				hold_dist = clampf(hold_dist + wheel * 0.2, 0.0, 5.4)
 		elif mb.button_index == MOUSE_BUTTON_LEFT and operating != 0:
 			if game.has_method("operator_click"):
 				game.operator_click()
@@ -373,9 +369,6 @@ func _handle_gameplay_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif event.is_action_pressed("hold_pull"):
 			game.act_hold_command("pull")
-			get_viewport().set_input_as_handled()
-		elif event.is_action_pressed("hold_lift"):
-			game.act_hold_command("lift", -0.2 if event.shift_pressed else 0.2)
 			get_viewport().set_input_as_handled()
 		elif event.is_action_pressed("operate"):
 			_handle_operate()
@@ -526,19 +519,12 @@ func _physics_process(delta: float) -> void:
 		if turning != hold_turning:
 			hold_turning = turning
 			game.send_hold_turning(turning)
-	var turn_fine := 0.25 if Input.is_action_pressed("run") else 1.0
-	if Input.is_action_pressed("rot_left") and held != 0 and not blocked:
-		if Input.is_physical_key_pressed(KEY_ALT):
-			if game.props.has(held) and not game.props[held].axis_lock_angular_z:
-				spin_hold(Vector3.FORWARD, delta * 1.2 * turn_fine)
-		else:
-			spin_hold(Vector3.UP, delta * 2.2 * turn_fine)
-	if Input.is_action_pressed("rot_right") and held != 0 and not blocked:
-		if Input.is_physical_key_pressed(KEY_ALT):
-			if game.props.has(held) and not game.props[held].axis_lock_angular_z:
-				spin_hold(Vector3.FORWARD, -delta * 1.2 * turn_fine)
-		else:
-			spin_hold(Vector3.UP, -delta * 2.2 * turn_fine)
+	# Q/E は傾けるだけ（視線の軸まわり。右ドラッグでは出しにくい向き）。横に回すのは右ドラッグ
+	var can_tilt: bool = held != 0 and not blocked and game.props.has(held) and not game.props[held].axis_lock_angular_z
+	if Input.is_action_pressed("rot_left") and can_tilt:
+		spin_hold(Vector3.FORWARD, delta * 1.6)
+	if Input.is_action_pressed("rot_right") and can_tilt:
+		spin_hold(Vector3.FORWARD, -delta * 1.6)
 	_find_target()
 
 	_send_t -= delta
