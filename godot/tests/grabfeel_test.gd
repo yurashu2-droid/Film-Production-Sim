@@ -66,7 +66,7 @@ func run() -> void:
 	await frames(20)
 	check(board.global_position.distance_to(before.origin) < 0.03 and tilt_of(board) < 2.0, "grabbing alone does not move or tip the board")
 
-	# 上を向く：掴んだ点は上がるが、板は傾かない
+	# 上を向く：掴んだ点が上がり、板も視点と同じだけ傾く（画面の中での板の向きは変わらない）
 	var grip_before: Vector3 = board.global_transform * grip_local
 	for i in 30:
 		me.aim_pitch = lerpf(0.0, 0.35, (i + 1) / 30.0)
@@ -75,7 +75,8 @@ func run() -> void:
 	var grip_up: Vector3 = board.global_transform * grip_local
 	print("GRABFEEL look-up: grip rose %.2f m, tilt %.1f deg" % [grip_up.y - grip_before.y, tilt_of(board)])
 	check(grip_up.y - grip_before.y > 0.4, "looking up lifts the grabbed point")
-	check(tilt_of(board) < 4.0, "looking up does not tip the board (%.1f deg)" % tilt_of(board))
+	var tipped := tilt_of(board)
+	check(absf(tipped - rad_to_deg(0.35)) < 3.0, "looking up tips the board by the same angle as the view (%.1f deg)" % tipped)
 
 	# 左右を向く：掴んだ点が視線について回り、板の向きも同じだけ回る
 	var yaw_before := yaw_of(board)
@@ -89,7 +90,7 @@ func run() -> void:
 	print("GRABFEEL look-side: board turned %.2f rad (camera 0.70), grip gap %.3f m, tilt %.1f deg" % [turned, gap, tilt_of(board)])
 	check(absf(turned - 0.7) < 0.08, "turning the camera turns the board by the same angle")
 	check(gap < 0.06, "the grabbed point settles on its target")
-	check(tilt_of(board) < 4.0, "turning does not tip the board")
+	check(absf(tilt_of(board) - tipped) < 3.0, "turning sideways does not change how far the board is tipped")
 
 	# Q/E で回す：掴んだ点は支点なので、ほとんど動かない
 	var pivot: Vector3 = board.global_transform * grip_local

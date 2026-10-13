@@ -69,7 +69,7 @@ func run() -> void:
 			base = game.hold_target(me.peer_id, box)[4]
 			me.spin_hold(Vector3.UP, 0.3)
 			var swing: Array = turned(base, game.hold_target(me.peer_id, box)[4])
-			check(absf(swing[1] - 0.3) < 0.01 and (swing[0] as Vector3).dot(Vector3.UP) > 0.99, "%s：縦に回したあとでも、横に動かすと上向きの軸まわりに回る" % tag)
+			check(absf(swing[1] - 0.3) < 0.01 and (swing[0] as Vector3).dot(Basis.from_euler(Vector3(me.aim_pitch, view_yaw, 0.0)) * Vector3.UP) > 0.99, "%s：縦に回したあとでも、横に動かすと画面の縦軸まわりに回る" % tag)
 			base = game.hold_target(me.peer_id, box)[4]
 			me.spin_hold(Vector3.RIGHT, -1.9)
 			me.spin_hold(Vector3.RIGHT, 0.5)

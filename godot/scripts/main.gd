@@ -369,7 +369,7 @@ func rx_hold_turning(on: bool) -> void:
 # 垂れている物の「いまの向き」を、持ち方の基準に写す（ホスト）。掴んだ点の場所は変えない。
 # こうしておくと、回し始めた瞬間の目標の向きが、いまの向きと同じになる
 func hold_rebase(pl: Node, prop: RigidBody3D) -> void:
-	var view_turn := Basis(Vector3.UP, hold_view_anchor(pl).basis.get_euler().y)
+	var view_turn := hold_frame(prop, hold_view_anchor(pl).basis)
 	var spun: Basis = view_turn * Basis.from_euler(Vector3(pl.hold_pitch, pl.hold_yaw, pl.hold_roll)) * view_turn.inverse()
 	var grip: Vector3 = prop.hold_transform * prop.hold_grip_local
 	var facing: Basis = (spun.inverse() * prop.global_basis).orthonormalized()
@@ -570,6 +570,14 @@ func hold_view_anchor(pl: CharacterBody3D) -> Transform3D:
 	return Transform3D(Basis.from_euler(Vector3(pl.aim_pitch, pl.aim_yaw, 0.0)), pl.global_position + height)
 
 
+# 持った物の向きの基準：視点の向きそのまま（左右も上下も）。視点を動かすと、物も同じだけ向きを変えるので、
+# 画面の中での物の向きは変わらない。倒れないようにしてある物・転がして運ぶ物は、左右の向きだけ追う
+func hold_frame(prop: RigidBody3D, view: Basis) -> Basis:
+	if prop.rolls or prop.axis_lock_angular_x:
+		return Basis(Vector3.UP, view.get_euler().y)
+	return view.orthonormalized()
+
+
 func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 	var pl: CharacterBody3D = players.get(holder)
 	if pl == null:
@@ -579,12 +587,11 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 		# 自分の支持物を動かした速度を、手の目標へ循環させない。
 		if not holding_support(pl, prop):
 			# 掴んだ点は、視点から見た位置関係のまま視線について動く（上下にも左右にも）。
-			# 物の向きは左右の向きの変化だけを追う。上下を向いても物は傾かない。
-			# こうすると「掴んだ所を持って運ぶ」動きになり、見上げ・見下ろしで板が倒れ込まない。
+			# 物の向きも、視点と同じだけ変わる（左右も上下も）。画面の中での物の向きは変わらない。
 			var grip_then: Vector3 = prop.hold_transform * prop.hold_grip_local
 			var grip_now: Vector3 = anchor * (prop.hold_view_transform.affine_inverse() * grip_then)
-			var turned: float = wrapf(anchor.basis.get_euler().y - prop.hold_view_transform.basis.get_euler().y, -PI, PI)
-			var facing: Basis = (Basis(Vector3.UP, turned) * prop.hold_transform.basis).orthonormalized()
+			var turned: Basis = hold_frame(prop, anchor.basis) * hold_frame(prop, prop.hold_view_transform.basis).inverse()
+			var facing: Basis = (turned * prop.hold_transform.basis).orthonormalized()
 			prop.hold_transform = Transform3D(facing, grip_now - facing * prop.hold_grip_local)
 		# 遠ざける・近づけるは、いま見ている向きに沿って動かす
 		prop.hold_forward = -anchor.basis.z
@@ -592,7 +599,7 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 		prop.hold_player_position = pl.global_position
 		# 手で回す：視点から見たままの向き（player.gd の spin_hold）。角度3つは、視線の左右の向きを基準にした回転。
 		# 体ごと向きを変えると、回した分も一緒について回る
-		var view_turn := Basis(Vector3.UP, anchor.basis.get_euler().y)
+		var view_turn := hold_frame(prop, anchor.basis)
 		var basis: Basis = (view_turn * Basis.from_euler(Vector3(pl.hold_pitch, pl.hold_yaw, pl.hold_roll)) * view_turn.inverse() * prop.hold_transform.basis).orthonormalized()
 		var point: Vector3 = prop.hold_transform * prop.hold_grip_local + anchor.basis * pl.hold_offset + prop.hold_forward * (pl.hold_dist - 1.6)
 		var pos: Vector3 = point + basis * (prop.center - prop.hold_grip_local)
