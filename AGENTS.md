@@ -17,6 +17,12 @@ Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディ�
 ほかのエージェントは、該当する作業の前にそのファイルを開いて読むこと）。
 
 - **VFX（爆発・炎・煙・飛び道具・落雷・走りの演出）を作る・直す** → `.claude/skills/godot-vfx/SKILL.md`
+  （先に `.claude/skills/godot-vfx/PLAYBOOK.md` の手順を読む）
+
+## VFX の資料（Claude Code / Codex 共通）
+
+VFX を作る・直す前に、リポジトリ直下の `VFX_KNOWLEDGE.md` を読む（要点・手順・消え方・好み・部品の辞書を1枚にまとめてある）。
+元の資料を直したら `python tools/build_vfx_knowledge.py` で作り直す。
 
 ## GitHub への反映
 

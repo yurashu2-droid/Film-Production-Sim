@@ -1,7 +1,16 @@
 ; Engine configuration file.
-; 格安アクション映画制作班 試作 v0.1
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+foot_grounding=true
 
 [application]
 
@@ -9,14 +18,6 @@ config/name="格安アクション映画制作班"
 config/description="月下の城と大爆発 - 協力撮影の試作"
 run/main_scene="res://start_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
-
-[animation]
-
-foot_grounding=true
-
-[vfx]
-
-dash_dust_style="sculpted"
 
 [autoload]
 
@@ -33,9 +34,11 @@ window/stretch/aspect="expand"
 [physics]
 
 3d/physics_engine="Jolt Physics"
-common/physics_ticks_per_second=60
 
 [rendering]
 
 anti_aliasing/quality/msaa_3d=1
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
+
+[vfx]
+
+dash_dust_style="sculpted"

@@ -66,6 +66,7 @@ func run():
 	title("事務所で依頼を選ぶ。今日は野外で『夜の城』を撮る")
 	await frames(150)
 	game.h_accept_job(2)
+	game.h_open_order()
 	for option in ["fx","refill","dolly","fix"]: game.h_order_set(option,1)
 	title("借りる道具を予算内で選ぶ。足りないセットは無料の廃材で")
 	await frames(180)

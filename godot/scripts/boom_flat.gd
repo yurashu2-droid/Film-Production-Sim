@@ -1,6 +1,7 @@
 extends "res://scripts/prop.gd"
 # 爆炎の書割。ふだんは寝ていて、爆発の合図で跳ね上がる。無料だが、周りは吹き飛ばない。
 
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 const LYING := -1.5
 const UP_SEC := 2.4
 
@@ -58,12 +59,8 @@ func build() -> void:
 	stick.position = Vector3(0, 0.75, -0.02)
 	board.add_child(stick)
 
-	var cs := CollisionShape3D.new()
-	var b := BoxShape3D.new()
-	b.size = Vector3(1.8, 0.1, 0.5)
-	cs.shape = b
-	cs.position = Vector3(0, 0.05, 0)
-	add_child(cs)
+	# 当たり判定は表（prop_shapes.gd）：土台だけ。寝ている板は、合図で跳ね上がる飾りなので当たらない
+	PropShapes.build(self, kind)
 
 
 # ギザギザの爆炎を絵に描く

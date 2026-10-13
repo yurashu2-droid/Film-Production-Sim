@@ -168,7 +168,17 @@ func _hands_on() -> void:
 	pick_pos.y = 0.02
 	fx.restore([pick_pos, Quaternion.IDENTITY, false, fx.charges])
 	await _wait(0.2)
+	var pickup: Transform3D = fx.global_transform
 	game.h_grab(fx.pid)
+	var acquisition_ok: bool = fx.global_transform.is_equal_approx(pickup)
+	print("HOLD_PICKUP_PRESERVED ", acquisition_ok)
+	ok = ok and acquisition_ok
+	# Exercise the same carrying bounds after the explicit G command. Keep the
+	# previous positional/rotation tolerances; do not turn them into pickup checks.
+	var old_lock: bool = game.input_locked
+	game.input_locked = false
+	game.h_hold_command("pull")
+	game.input_locked = old_lock
 	await _wait(1.2)
 	var tgt: Array = game.hold_target(me.peer_id, fx)
 	var err: float = fx.center_global().distance_to(tgt[0])

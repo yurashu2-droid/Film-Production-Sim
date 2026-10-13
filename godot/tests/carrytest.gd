@@ -33,7 +33,14 @@ func run() -> void:
 	me.aim_yaw = 0.0
 	me.aim_pitch = 0.0
 	box.restore([Vector3(0,0.05,5),Quaternion.IDENTITY,false])
+	var pickup: Transform3D = box.global_transform
 	game.h_grab(box.pid)
+	check(box.global_transform.is_equal_approx(pickup),"pickup preserves placement before explicit carrying")
+	# Hand-following assertions now follow the explicit G operation. Picking alone
+	# must retain placement; the same old carrying/rotation bounds remain below.
+	game.input_locked = false
+	game.h_hold_command("pull")
+	game.input_locked = true
 	await wait(0.6)
 	var motion := InputEventMouseMotion.new()
 	motion.relative = Vector2(140,60)
@@ -96,10 +103,16 @@ func run() -> void:
 	await wait(0.3)
 	check(game.film.rider_of==cart.pid and absf(game.film.global_position.y-cart.global_position.y-cart.deck_top)<0.03,"camera on resized deck")
 	game.h_grab(cart.pid)
+	game.input_locked = false
+	game.h_hold_command("pull")
+	game.input_locked = true
 	await wait(1.0)
 	await shot("carry_dolly")
 	game.h_release()
 	game.h_grab(game.clapper.pid)
+	game.input_locked = false
+	game.h_hold_command("pull")
+	game.input_locked = true
 	await wait(1.0)
 	await shot("carry_clapper")
 	print("CARRYTEST_FAIL" if failed else "CARRYTEST_OK")

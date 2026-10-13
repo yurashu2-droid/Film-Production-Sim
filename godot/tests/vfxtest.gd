@@ -8,6 +8,9 @@ const Lightning := preload("res://vfx/vfx_lightning.gd")
 const Brawl := preload("res://vfx/vfx_brawl.gd")
 const Mushroom := preload("res://vfx/vfx_mushroom.gd")
 const FireTornado := preload("res://vfx/vfx_fire_tornado.gd")
+const AuroraRefrain := preload("res://vfx/vfx_aurora_refrain.gd")
+const InkBarrage := preload("res://vfx/vfx_ink_barrage.gd")
+const GeneratedInk := preload("res://vfx/vfx_generated_ink.gd")
 const MOTIFS := [preload("res://vfx/vfx_motif_solar.gd"), preload("res://vfx/vfx_motif_geyser.gd"), preload("res://vfx/vfx_motif_jelly.gd"), preload("res://vfx/vfx_motif_ferro.gd"), preload("res://vfx/vfx_motif_seed.gd")]
 var failed := false
 var hits := 0
@@ -22,7 +25,18 @@ func check(ok: bool, label: String) -> void:
 func run() -> void:
 	var world := Node3D.new()
 	root.add_child(world)
+	var generated_methods: Array[Node3D]=[]
+	for method: String in ["silhouette","curve","emission","mesh","flow","erosion","material"]:
+		var effect=load("res://vfx/vfx_gen_"+method+".gd").spawn(world,Vector3(35,0,0))
+		generated_methods.append(effect)
+	check(generated_methods.all(func(fx):return is_instance_valid(fx) and fx.get_child_count()>0),"seven image-driven methods spawn from actual assets")
 	var fire_tornado: Node3D = FireTornado.spawn(world, Vector3(-8,0,-8))
+	var aurora: Node3D = AuroraRefrain.spawn(world, Vector3(-14,0,-8))
+	var ink_barrage: Node3D = InkBarrage.spawn(world, Vector3(-20,0,-8))
+	var generated_ink: Node3D = GeneratedInk.spawn(world, Vector3(-26,0,-8))
+	check(generated_ink.get_child_count()>3, "generated ink creates independent material layers")
+	check(ink_barrage.get_child_count()>3, "ink barrage creates fists and ink smoke")
+	check(aurora.get_child_count()==3, "aurora builds three sparse light sheets")
 	var motifs: Array[Node3D] = []
 	for i in MOTIFS.size():
 		motifs.append(MOTIFS[i].spawn(world, Vector3(i*6, 0, -10)))
@@ -56,6 +70,11 @@ func run() -> void:
 	check(is_equal_approx(brawl.age, brawl_age), "pause freezes brawl choreography")
 	check(is_equal_approx(mushroom.age, mushroom_age), "pause freezes reference explosion")
 	check(is_zero_approx(fire_tornado.age), "pause freezes fire tornado material flow")
+	check(is_zero_approx(aurora.age), "pause freezes aurora travelling folds")
+	check(is_zero_approx(ink_barrage.age), "pause freezes ink barrage emission")
+	check(is_zero_approx(generated_ink.age), "pause freezes generated ink material clock")
+	check(generated_methods.all(func(fx):return is_zero_approx(fx.age)),"pause freezes seven generated method clocks")
+	check(ink_barrage._after_smokes.size()==7 and ink_barrage._after_smokes.all(func(fx):return is_zero_approx(fx.age) and not fx.is_processing()), "ink smoke follows the parent material clock")
 	check(motifs.all(func(fx): return is_zero_approx(fx.age)), "pause freezes all motif choreography")
 	paused = false
 	await wait(1.2)
@@ -77,6 +96,11 @@ func run() -> void:
 	fire.extinguish()
 	smoke.stop()
 	await wait(2.2)
+	await process_frame
+	check(not is_instance_valid(aurora), "aurora clears all sheets after material exits")
+	check(not is_instance_valid(ink_barrage), "ink barrage clears fists, streams and ink smoke")
+	check(not is_instance_valid(generated_ink), "generated ink clears flowing material and stains")
+	check(generated_methods.all(func(fx):return not is_instance_valid(fx)),"seven generated methods release their geometry after exit")
 	check(get_nodes_in_group("vfx").is_empty(), "stopped effects clean up")
 	print("VFXTEST_FAIL" if failed else "VFXTEST_OK")
 	quit(1 if failed else 0)

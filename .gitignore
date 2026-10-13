@@ -12,6 +12,10 @@
 !/run_tests.sh
 !/play_vfx.bat
 !/AGENTS.md
+!/VFX_KNOWLEDGE.md
+!/tools/
+/tools/*
+!/tools/build_vfx_knowledge.py
 !/.claude/
 /.claude/*
 !/.claude/skills/
@@ -19,3 +23,17 @@
 # Godotが自動で作るもの
 godot/.godot/
 godot/tests/shots/
+
+# 再配布できない素材から作ったSE（公開しない。無いときは公開できる音か合成音で鳴る）
+godot/assets/audio/sfx_local/
+
+# 別に配る予定の VFX パックと、その確認用（公開リポジトリに載せるかは作者が決める。決まるまで載せない）
+godot/addons/origami_vfx/
+godot/addons/punk_ink_vfx/
+godot/tests/origamitest.gd*
+godot/tests/origami_shots.*
+godot/tests/punkpacktest.gd*
+godot/tests/punk_xl_shots.*
+
+# サブエージェントのパッチ用の一時的な鍵
+tools/.patch.lock

@@ -1,6 +1,17 @@
 extends Node
 ## フリーSE素材・加工音と、既存の仮の合成音を再生するシングルトン (autoload "Sfx")
 const SAMPLED_SFX := {"clap": preload("res://assets/audio/clapper_wood.tres")}
+# 無料素材を加工した音（tools/build_sfx.gd が書き出す）。同じ名前の別テイクから、鳴らすたびに1つ選ぶ。
+# 先に sfx_local（再配布できない素材から作った音。公開リポジトリには無い）を探し、無ければ sfx、
+# それも無ければコードで合成した仮の音を使う
+const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"]
+const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
+	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
+	"ui_select", "ui_open", "ui_back", "wind", "fuse"]
+const MAX_TAKES := 6
+# 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
+const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back"]
+const PITCH_SPREAD := 0.06       # 鳴らすたびに高さを少しだけ変える（同じ音の繰り返しに聞こえないように）
 
 signal played(sound: String, position: Variant)
 signal music_changed(track: String)
@@ -14,6 +25,7 @@ var muted: bool = false
 var synth_ms: int = 0
 
 var _streams: Dictionary = {}
+var _takes: Dictionary = {}      # 名前 → [別テイクの音, ...]
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _warned: Dictionary = {}
 var _oneshots: Array[Node] = []
@@ -21,6 +33,10 @@ var _music_players: Array[AudioStreamPlayer] = []
 var _music_cur: int = 0
 var _music_name: String = ""
 var _music_tween: Tween = null
+var _amb_players: Array[AudioStreamPlayer] = []
+var _amb_cur := 0
+var _amb_name := ""
+var _amb_tween: Tween = null
 
 
 func _ready() -> void:
@@ -30,6 +46,11 @@ func _ready() -> void:
 		mp.volume_db = SILENT_DB
 		add_child(mp)
 		_music_players.append(mp)
+	for i in 2:
+		var ap := AudioStreamPlayer.new()
+		ap.volume_db = SILENT_DB
+		add_child(ap)
+		_amb_players.append(ap)
 	resynthesize()
 
 
@@ -39,6 +60,19 @@ func resynthesize() -> void:
 	_streams.clear()
 	_synth_sfx()
 	_streams.merge(SAMPLED_SFX, true)
+	_takes.clear()
+	for sound: String in SAMPLE_NAMES:
+		for dir: String in SAMPLE_DIRS:
+			var list: Array = []
+			for n in MAX_TAKES:
+				var path := "%s%s_%d.res" % [dir, sound, n]
+				if not ResourceLoader.exists(path):
+					break
+				list.append(load(path))
+			if not list.is_empty():
+				_takes[sound] = list
+				_streams[sound] = list[0]
+				break
 	_synth_music()
 	synth_ms = Time.get_ticks_msec() - t0
 
@@ -71,9 +105,16 @@ func play(sound: String, position: Variant = null, volume_db: float = 0.0) -> vo
 		if is_instance_valid(oldest):
 			oldest.queue_free()
 	var stream: AudioStreamWAV = _streams[sound]
+	var pitch := 1.0
+	if _takes.has(sound):
+		var list: Array = _takes[sound]
+		stream = list[randi() % list.size()]
+		if sound not in FIXED_PITCH:
+			pitch = randf_range(1.0 - PITCH_SPREAD, 1.0 + PITCH_SPREAD)
 	if position is Vector3:
 		var p3: AudioStreamPlayer3D = AudioStreamPlayer3D.new()
 		p3.stream = stream
+		p3.pitch_scale = pitch
 		p3.volume_db = volume_db
 		p3.unit_size = 8.0
 		p3.max_distance = 60.0
@@ -85,11 +126,38 @@ func play(sound: String, position: Variant = null, volume_db: float = 0.0) -> vo
 	else:
 		var p: AudioStreamPlayer = AudioStreamPlayer.new()
 		p.stream = stream
+		p.pitch_scale = pitch
 		p.volume_db = volume_db
 		add_child(p)
 		p.finished.connect(_on_oneshot_finished.bind(p))
 		_oneshots.append(p)
 		p.play()
+
+
+# 環境音（場所の音）。ずっと小さく鳴らし、場所が変わったらゆっくり入れ替える。"" で止める
+func play_ambience(track: String, volume_db: float = -6.0, fade_sec: float = 1.5) -> void:
+	if track == _amb_name:
+		return
+	_amb_name = track
+	if muted or not is_inside_tree():
+		return
+	if _amb_tween != null and _amb_tween.is_valid():
+		_amb_tween.kill()
+	var old: AudioStreamPlayer = _amb_players[_amb_cur]
+	_amb_cur = 1 - _amb_cur
+	var nw: AudioStreamPlayer = _amb_players[_amb_cur]
+	nw.stop()
+	_amb_tween = create_tween()
+	_amb_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_amb_tween.set_parallel(true)
+	if track != "" and _streams.has(track):
+		nw.stream = _streams[track]
+		nw.volume_db = SILENT_DB
+		nw.play()
+		_amb_tween.tween_property(nw, "volume_db", volume_db, fade_sec)
+	if old.playing:
+		_amb_tween.tween_property(old, "volume_db", SILENT_DB, fade_sec)
+		_amb_tween.chain().tween_callback(old.stop)
 
 
 func play_music(track: String, fade_sec: float = 0.4) -> void:
@@ -148,6 +216,9 @@ func silence_all() -> void:
 	_music_name = ""
 	for mp in _music_players:
 		mp.stop()
+	_amb_name = ""
+	for ap in _amb_players:
+		ap.stop()
 	for n in _oneshots:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -274,6 +345,23 @@ func _synth_sfx() -> void:
 	_noise(b, 0.0, 0.8, 0.5, 0.25, 0.003, 0.15)
 	_noise(b, 0.0, 0.07, 0.6, 0.9, 0.0, 0.015)
 	_streams["explosion"] = _finish(b, 0.85)
+
+	# roar：怪獣の鳴き声。低いうなりが揺れながら下がる
+	b = _buf(1.7)
+	var ph1 := 0.0
+	var ph2 := 0.0
+	for i in b.size():
+		var tr: float = float(i) / RATE
+		var u: float = tr / 1.7
+		var f0: float = lerpf(150.0, 62.0, u * u) * (1.0 + 0.06 * sin(tr * 31.0))
+		ph1 = fmod(ph1 + f0 / RATE, 1.0)
+		ph2 = fmod(ph2 + f0 * 1.51 / RATE, 1.0)
+		var growl: float = (ph1 * 2.0 - 1.0) * 0.6 + (ph2 * 2.0 - 1.0) * 0.3
+		var rasp: float = 0.55 + 0.45 * sin(tr * TAU * 27.0)
+		var envr: float = minf(tr / 0.12, 1.0) * minf((1.7 - tr) / 0.5, 1.0)
+		b[i] += growl * rasp * envr
+	_noise(b, 0.0, 1.5, 0.35, 0.12, 0.08, 0.6)
+	_streams["roar"] = _finish(b, 0.8)
 
 	# explosion_fizzle
 	b = _buf(0.6)

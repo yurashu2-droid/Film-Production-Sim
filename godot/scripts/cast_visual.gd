@@ -8,7 +8,7 @@ const RUN_START_ORIGINAL_ANTICIPATION := 0.08
 const RUN_START_ANTICIPATION := 0.16
 const RUN_START_ACCELERATION := 0.2
 const LOOPS := ["idle", "walk", "run", "crouch_idle", "crouch_walk"]
-const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "glue", "crown", "fish"]
+const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "glue", "crown", "fish", "hair_cord"]
 const GROUNDED := ["idle", "walk", "run", "run_start", "run_stop", "step_down", "crouch_idle", "crouch_walk"]
 const SOLE_CLEARANCE := 0.002
 static var _foot_support_cache: Dictionary = {}
@@ -60,6 +60,11 @@ func setup(cast_tag: String) -> void:
 
 # 書き出された動きは全部の骨を含んでいるので、体の動きから顔の骨を、表情から体の骨を外して重ねられるようにする
 func _setup_face() -> void:
+	if tag == "M02":
+		face_anim = preload("res://scripts/robot_screen_face.gd").new()
+		add_child(face_anim)
+		face_anim.setup(_model)
+		return
 	var prefix := tag + "_face_"
 	var faces: Array = []
 	for a: String in anim.get_animation_list():
@@ -125,7 +130,7 @@ func _setup_carry() -> void:
 		return
 	var grab := anim.get_animation(tag + "_grab")
 	var lib := anim.get_animation_library("")
-	for base: String in ["idle", "walk", "run", "jump", "step_down", "run_stop"]:
+	for base: String in ["idle", "walk", "run", "jump", "step_down", "run_stop", "crouch_idle", "crouch_walk"]:
 		if not has(base):
 			continue
 		for mode: String in ["carry", "onehand"]:
@@ -231,7 +236,9 @@ func set_face(f: String) -> void:
 		return
 	face = f
 	if face_anim and face_anim.has_animation(f):
-		face_anim.play(f, 0.12)
+		face_anim.play(f, 0.0 if tag == "M02" else 0.12)
+		if tag == "M02":
+			face_anim.advance(0.0) # アトラスの状態間は混ぜず、先頭コマへ切り替える。
 		_blinking = 0.0
 
 

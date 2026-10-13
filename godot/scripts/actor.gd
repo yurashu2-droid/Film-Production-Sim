@@ -3,13 +3,18 @@ extends CharacterBody3D
 
 const CastVisual := preload("res://scripts/cast_visual.gd")
 
-enum St { STANDBY, IDLE, CONFESS, FLINCH, REUNION_MOVE, REUNION_HOLD }
+# BEAT_〜 は、場面の列を持つ台本（production_beats.gd）だけが使う：印へ向かう / 着いて、その姿で待つ / 進めずに立ち止まった
+enum St { STANDBY, IDLE, CONFESS, FLINCH, REUNION_MOVE, REUNION_HOLD, BEAT_GO, BEAT_HOLD, BEAT_STUCK }
 
 const CONFESS_SEC := 6.0
 const RUN_SPEED := 3.4
+const WALK_SPEED := 1.9
+const ARRIVE := 0.12          # 印に、ここまで近づいたら着いた
+const STUCK_SEC := 0.45       # まっすぐ進めないまま、これだけ経ったら立ち止まる
+const STUCK_PACE := 0.3       # 進む速さが、歩く・走る速さのこの割合より遅ければ「進めていない」
 const GRAVITY := 16.0
 const FACE_BY_STATE := {St.STANDBY: "neutral", St.IDLE: "neutral", St.CONFESS: "happy", St.FLINCH: "shock",
-	St.REUNION_MOVE: "sad", St.REUNION_HOLD: "happy"}
+	St.REUNION_MOVE: "sad", St.REUNION_HOLD: "happy", St.BEAT_GO: "neutral", St.BEAT_HOLD: "neutral", St.BEAT_STUCK: "sad"}
 
 var game: Node
 var aid := 0
@@ -27,6 +32,12 @@ var _stuck := 0.0
 var _net: Array = []
 var _spec_i := 0
 var _spec_t := 0.0
+# 場面の列：いまの場面の動き（ホストが決める。production_beats.gd の _enter）
+#   to＝行き先 / back＝やり直しのとき、先に戻る場所 / gait＝walk・run / pose＝着いてからの姿 /
+#   look＝着いてから見る先 / face_go・face_hold＝動いている間と、着いてからの顔
+var beat: Dictionary = {}
+var _beat_leg := 1            # 0＝やり直しで、最初の印へ走って戻っている / 2＝戻って、相手が戻るのを待つ / 1＝その場面の動き
+var _beat_dir := Vector3.FORWARD
 
 
 func setup(cast_tag: String, specials: Array) -> void:
@@ -45,6 +56,24 @@ func setup(cast_tag: String, specials: Array) -> void:
 	add_child(vis)
 	vis.setup(cast_tag)
 	set_state(St.STANDBY)
+
+
+func _kaiju() -> bool:
+	return game != null and game.judge != null and game.judge.story == "kaiju"
+
+
+# いちばん近い怪獣役の小道具（無ければ撮影カメラ）のほうを見る
+func _monster_pos() -> Vector3:
+	var best: Vector3 = game.film.global_position
+	var best_d := INF
+	for p: Node3D in game.props.values():
+		if p.absent or game.judge.role_of(p) != "monster":
+			continue
+		var d := p.global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = p.global_position
+	return best
 
 
 func is_confessing() -> bool:
@@ -68,13 +97,28 @@ func set_state(s: St) -> void:
 	_stuck = 0.0
 	_spec_i = 0
 	_spec_t = 0.0
-	vis.set_face(FACE_BY_STATE[s])
+	vis.set_face(_face_for(s))
+
+
+func _face_for(s: St) -> String:
+	if s == St.CONFESS and _kaiju():
+		return "surprised"
+	if s == St.BEAT_GO:
+		return str(beat.get("face_go", "neutral"))
+	if s == St.BEAT_HOLD:
+		return str(beat.get("face_hold", "neutral"))
+	return FACE_BY_STATE[s]
 
 
 func knock(impulse: Vector3) -> void:
 	if st == St.STANDBY:
 		return
-	after_flinch = St.REUNION_MOVE if st in [St.REUNION_MOVE, St.REUNION_HOLD] else St.IDLE
+	if st in [St.BEAT_GO, St.BEAT_HOLD, St.BEAT_STUCK] or (st == St.FLINCH and after_flinch == St.BEAT_GO):
+		# 場面の途中で吹き飛ばされた：起き上がったら、その場面の印へ向かい直す
+		after_flinch = St.BEAT_GO
+		_beat_leg = 1
+	else:
+		after_flinch = St.REUNION_MOVE if st in [St.REUNION_MOVE, St.REUNION_HOLD] else St.IDLE
 	velocity = impulse
 	set_state(St.FLINCH)
 	vis.play("flinch", 0.08, true)
@@ -105,11 +149,13 @@ func _physics_process(delta: float) -> void:
 			_face(partner.global_position, delta)
 			vis.play("idle")
 		St.CONFESS:
+			# 怪獣映画では同じ合図で「怪獣を見上げて驚く」芝居になる
+			var acts: Array = ["flinch", "jump"] if _kaiju() else special
 			_fall(delta, 10.0)
-			_face(partner.global_position, delta)
+			_face(_monster_pos() if _kaiju() else partner.global_position, delta)
 			_spec_t -= delta
-			if _spec_t <= 0.0 and not special.is_empty():
-				var a: String = special[_spec_i % special.size()]
+			if _spec_t <= 0.0 and not acts.is_empty():
+				var a: String = acts[_spec_i % acts.size()]
 				_spec_i += 1
 				_spec_t = vis.length(a) + 0.25
 				vis.play(a, 0.15, true)
@@ -134,6 +180,16 @@ func _physics_process(delta: float) -> void:
 			if st_t < vis.length("grab"):
 				vis.play("grab", 0.15)
 			else:
+				vis.play("idle")
+		St.BEAT_GO:
+			_beat_go(delta)
+		St.BEAT_HOLD:
+			_beat_hold(delta)
+		St.BEAT_STUCK:
+			# 進めなかった：その場で立ち止まって、困った顔をする（次の合図を待つ）
+			_fall(delta, 12.0)
+			_face(global_position + _beat_dir, delta)
+			if st_t >= vis.length("brake"):
 				vis.play("idle")
 
 
@@ -180,6 +236,105 @@ func _reunion_move(delta: float) -> void:
 			_stuck = 0.0
 	else:
 		_stuck = 0.0
+
+
+# ---- 場面の列（production_beats.gd）：印から印へ、まっすぐ動く ----
+
+# その場面の動きを始める（ホスト）。吹き飛ばされている最中なら、起き上がってから向かう
+func play_beat(spec: Dictionary) -> void:
+	beat = spec
+	_beat_leg = 0 if spec.has("back") else 1
+	if st == St.FLINCH:
+		after_flinch = St.BEAT_GO
+		return
+	set_state(St.BEAT_GO)
+
+
+# その場面の動きで、歩いている（走っている）最中か。やり直しで印へ戻っている間は数えない
+func beat_walking() -> bool:
+	return st == St.BEAT_GO and _beat_leg == 1 and Vector2(velocity.x, velocity.z).length() > 0.5
+
+
+# その場面の印に着いて、決まった姿で待っているか
+func beat_arrived() -> bool:
+	return st == St.BEAT_HOLD
+
+
+# 物にぶつかって進めず、立ち止まっているか
+func beat_stuck() -> bool:
+	return st == St.BEAT_STUCK
+
+
+func _beat_go(delta: float) -> void:
+	if _beat_leg == 2:
+		# 最初の印で、相手が戻るのを待つ。そろったら、二人で演じ直す
+		_fall(delta, 12.0)
+		vis.play("idle")
+		if partner.st != St.BEAT_GO or partner._beat_leg != 0:
+			_beat_leg = 1
+		return
+	var target: Vector3 = beat.get("back" if _beat_leg == 0 else "to", global_position)
+	var d := target - global_position
+	d.y = 0.0
+	var dist := d.length()
+	if dist < ARRIVE:
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_stuck = 0.0
+		if _beat_leg == 0:
+			_beat_leg = 2          # 最初の印へ戻った。相手を待って、もう一度演じる
+			return
+		set_state(St.BEAT_HOLD)
+		return
+	var gait: String = "run" if _beat_leg == 0 else str(beat.get("gait", "walk"))
+	var speed: float = RUN_SPEED if gait == "run" else WALK_SPEED
+	var dir := d / dist
+	_beat_dir = dir
+	var before := global_position
+	var pace := minf(speed, dist / maxf(delta, 0.0001))
+	velocity.x = dir.x * pace
+	velocity.z = dir.z * pace
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+	move_and_slide()
+	_face(global_position + dir, delta)
+	vis.play(gait if is_on_floor() or st_t < 0.2 else "jump")
+	# まっすぐ進めない（物や壁に当たった）：その場で立ち止まる。よけない・跳び越えない・すり抜けない
+	var progress := (global_position - before).dot(dir) / maxf(delta, 0.0001)
+	if is_on_floor() and progress < pace * STUCK_PACE:
+		_stuck += delta
+		if _stuck > STUCK_SEC:
+			velocity = Vector3.ZERO
+			set_state(St.BEAT_STUCK)
+			vis.play("brake", 0.08, true)
+	else:
+		_stuck = 0.0
+
+
+func _beat_hold(delta: float) -> void:
+	_fall(delta, 12.0)
+	match str(beat.get("look", "")):
+		"monster":
+			_face(_monster_pos(), delta)
+		"camera":
+			_face((game.program_camera() as Node3D).global_position, delta)
+		"partner":
+			_face(partner.global_position, delta)
+	match str(beat.get("pose", "idle")):
+		"freeze":
+			# 見上げて、びくっとして固まる（1回だけ）
+			if st_t < vis.length("flinch"):
+				vis.play("flinch", 0.1)
+			else:
+				vis.play("idle")
+		"cheer":
+			# 万歳：跳ねて喜ぶ
+			_spec_t -= delta
+			if _spec_t <= 0.0:
+				_spec_t = vis.length("jump") + 0.15
+				vis.play("jump", 0.12, true)
+		_:
+			vis.play("idle")
 
 
 # ---- 同期と記録 ----

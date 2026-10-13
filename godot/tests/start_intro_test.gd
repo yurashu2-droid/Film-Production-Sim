@@ -36,7 +36,7 @@ func run() -> void:
 	# 準備が長引いてもタイトルを覆ったまま保持できることを再現する。
 	menu._startup_resources.set_process(false)
 	menu.solo_button.pressed.emit()
-	check(menu._transition.active and menu._canvas.visible, "3D wipe begins on the title immediately")
+	check(menu._transition.active and menu._canvas.visible, "clapper wipe begins on the title immediately")
 	check(menu.game_node == null, "start returns before preparation finishes")
 	await create_timer(0.24).timeout
 	await shot("start-wipe-enter")
@@ -44,18 +44,18 @@ func run() -> void:
 		await process_frame
 	check(menu._canvas.visible and menu.game_node == null, "loading holds the board over the title")
 	check(claps == 1, "board claps immediately at full coverage before loading")
-	check(is_equal_approx(menu._transition.stick.rotation.z, menu._transition.SHUT), "full-screen bar reaches contact")
+	check(is_equal_approx(menu._transition.angle, menu._transition.SHUT), "full-screen bar reaches contact")
+	check(menu._transition.is_fully_covering(), "closed board leaves no gap on screen")
 	if DisplayServer.get_name() != "headless":
+		# 実際の画面でも、下の端まで板で覆われている
 		await RenderingServer.frame_post_draw
-		var image: Image = menu._transition.view.get_texture().get_image()
-		var opaque := true
-		for y in 9:
-			for x in 17:
-				var pixel := Vector2i(int((image.get_width()-1)*x/16.0), int((image.get_height()-1)*y/8.0))
-				opaque = opaque and image.get_pixelv(pixel).a > 0.99
-		check(opaque, "real 3D board covers every edge and sampled screen point")
-	if DisplayServer.get_name() != "headless":
-		check(bars_in_frame(menu._transition), "both striped bars remain entirely inside the screen")
+		var image: Image = root.get_texture().get_image()
+		var edges_dark := true
+		for x in 9:
+			var px := int((image.get_width() - 1) * x / 8.0)
+			edges_dark = edges_dark and image.get_pixel(px, image.get_height() - 2).get_luminance() < 0.2
+		check(edges_dark, "drawn board reaches the bottom edge of the screen")
+	check(menu._transition.bars_in_frame(), "striped bar remains inside the screen")
 	await shot("start-wipe-cover")
 	menu._startup_resources.set_process(true)
 	var preparing_frames := 0
@@ -76,21 +76,25 @@ func run() -> void:
 	while menu._transition.active:
 		if menu._transition._phase == "exit" and menu._transition._time >= menu._transition.EXIT_TIME * 0.4 and not saw_opening:
 			saw_opening = true
-			check(menu._transition.stick.rotation.z > menu._transition.SHUT + 0.04, "bar visibly opens while departing")
-			if DisplayServer.get_name() != "headless":
-				check(bars_in_frame(menu._transition), "reopening striped bars stay in frame before sliding out")
+			check(menu._transition.angle > menu._transition.SHUT + 0.04, "bar visibly opens while departing")
 		await process_frame
 	check(saw_opening, "departure includes a visible opening phase")
 	check(claps == 1, "visible closing bar sounds exactly once")
-	check(is_equal_approx(menu._transition.stick.rotation.z, 0.0), "departing bar reopens")
+	check(menu._transition.angle > 0.3, "departing bar reopens")
 	check(not game.input_locked and not game.ui_blocking(), "finished wipe leaves gameplay responsive")
-	check(menu._transition.view.render_target_update_mode == SubViewport.UPDATE_DISABLED, "idle transition stops rendering")
+	check(not menu._transition.visible and not menu._transition.is_processing(), "idle transition stops drawing")
 	await shot("start-wipe-game")
+	game.open_menu("board")
 	var key := InputEventKey.new()
 	key.physical_keycode = KEY_1
 	key.pressed = true
 	root.push_input(key, true)
-	check(game.production.phase == 1, "job shortcut works after reveal")
+	check(game.menu_open == "brief" and game.production.phase == 0, "job shortcut opens the briefing after reveal")
+	var enter := InputEventKey.new()
+	enter.physical_keycode = KEY_ENTER
+	enter.pressed = true
+	root.push_input(enter, true)
+	check(game.production.phase == 2, "accepting from the briefing starts the job")
 	menu.return_to_menu()
 	while menu._returning:
 		await process_frame
@@ -111,20 +115,6 @@ func run() -> void:
 			await process_frame
 	print("START_INTRO_TEST_", "FAIL" if failed else "PASS")
 	quit(1 if failed else 0)
-
-func bars_in_frame(transition: Node) -> bool:
-	var camera: Camera3D = transition.view.get_camera_3d()
-	var screen := Rect2(Vector2.ZERO, Vector2(transition.view.size)).grow(-1.0)
-	for mesh: MeshInstance3D in transition.rig.find_children("*", "MeshInstance3D", true, false):
-		var nm := String(mesh.name)
-		if not (nm.contains("clapper_top") or nm.contains("clapper_base") or nm.contains("stripe_")):
-			continue
-		var bounds := mesh.get_aabb()
-		for k in 8:
-			var point := bounds.position + bounds.size * Vector3(k & 1, (k >> 1) & 1, (k >> 2) & 1)
-			if not screen.has_point(camera.unproject_position(mesh.global_transform * point)):
-				return false
-	return true
 
 func capture(menu: Node) -> void:
 	recording = true

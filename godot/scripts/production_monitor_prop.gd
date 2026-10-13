@@ -2,10 +2,21 @@ extends "res://scripts/prop.gd"
 # 16:9 の大型確認モニター。幅・高さとも元の画面の4倍。運べるキャスター台。
 const SCREEN_SIZE := Vector2(2.48, 1.40)
 const SCREEN_CENTER := Vector3(0, 1.84, 0.145)
+const PropShapes := preload("res://scripts/prop_shapes.gd")
+# 枠の印（場面の列を持つ依頼のときだけ出す。production_beats.gd）：
+#   下の枠の真ん中＝場面のランプ（場面の数だけ並び、撮れた場面が点く）/ 上の枠＝フィルムの目盛り（使った分だけ、右から消える）
+# 数と色は、画面の上のモニター（scripts/ui/monitor_marks.gd）と同じ
+const Marks := preload("res://scripts/ui/monitor_marks.gd")
+const MAX_LAMPS := 6
 var screen: MeshInstance3D
 var _screen_material: StandardMaterial3D
 var _rec: MeshInstance3D
 var _channels: Array[MeshInstance3D] = []
+var _lamps: Array[MeshInstance3D] = []
+var _ticks: Array[MeshInstance3D] = []
+var _marks_sig := ""
+var lamps_shown: Array = []       # いま出しているランプ（点いているか）。無ければ空
+var ticks_left := 0               # いま点いている目盛りの数
 
 func screen_size() -> Vector2:
 	return SCREEN_SIZE
@@ -13,7 +24,7 @@ func screen_size() -> Vector2:
 func build_model() -> void:
 	kind = "monitor"
 	label = "大型確認モニター"
-	mass = 28.0
+	mass = 45.0
 	rolls = true
 	hold_min = 1.7
 	center = Vector3(0,1.36,0)
@@ -57,6 +68,15 @@ func build_model() -> void:
 	_cylinder(Vector3(0.85,1.085,0.14),0.035,0.025,metal,Vector3(PI/2,0,0))
 	_box(Vector3(1.00,1.085,0.145),Vector3(0.032,0.018,0.014),Color("73d6ae"))
 	_rec = _box(Vector3(1.12,1.085,0.145),Vector3(0.032,0.018,0.014),Color("742924"))
+	# 場面のランプ（下の枠の真ん中）と、フィルムの目盛り（上の枠。ひさしの下）
+	for i in MAX_LAMPS:
+		var lamp := _cylinder(Vector3(0,1.082,0.138),0.022,0.02,Marks.LAMP_OFF,Vector3(PI/2,0,0))
+		lamp.visible = false
+		_lamps.append(lamp)
+	for i in Marks.TICKS:
+		var tick := _box(Vector3(-1.09+i*(2.18/float(Marks.TICKS-1)),2.585,0.127),Vector3(0.094,0.04,0.012),Marks.TICK_OFF)
+		tick.visible = false
+		_ticks.append(tick)
 	screen = MeshInstance3D.new()
 	screen.name = "Screen"
 	var quad := QuadMesh.new()
@@ -68,8 +88,8 @@ func build_model() -> void:
 	_screen_material.albedo_color = Color.WHITE
 	screen.material_override = _screen_material
 	visual.add_child(screen)
-	_shape(Vector3(0,1.84,0),Vector3(2.68,1.62,0.42))
-	_shape(Vector3(0,0.54,-0.10),Vector3(1.75,1.08,1.10))
+	# 当たり判定と重心は表（prop_shapes.gd）：画面・背面の箱・ひさし・取っ手・支柱・梁・脚。支柱の間と脚の間は空いている
+	PropShapes.build(self, kind)
 
 func attach(view: SubViewport) -> void:
 	_screen_material.albedo_texture = view.get_texture()
@@ -79,13 +99,40 @@ func set_on_air(index: int, recording: bool) -> void:
 		_channels[i].material_override.albedo_color = Color("d9604c") if i == index else Color("515963")
 	_rec.material_override.albedo_color = Color("ef5146") if recording else Color("742924")
 
-func _shape(at: Vector3, size: Vector3) -> void:
-	var collider := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	collider.shape = box
-	collider.position = at
-	add_child(collider)
+# 場面のランプと、フィルムの目盛りを出す（全員の画面。production_beats.gd が毎コマ呼ぶ）。
+#   lamps＝場面ごとに、撮れたか（空なら、どちらも出さない）/ frac＝フィルムの残り（1〜0）
+func set_marks(lamps: Array, frac: float) -> void:
+	var left := Marks.ticks_left(frac)
+	var sig := "%s|%d" % [str(lamps), left]
+	if sig == _marks_sig:
+		return
+	_marks_sig = sig
+	lamps_shown = lamps.duplicate()
+	ticks_left = left if not lamps.is_empty() else 0
+	var count := mini(lamps.size(), _lamps.size())
+	for i in _lamps.size():
+		var lamp: MeshInstance3D = _lamps[i]
+		lamp.visible = i < count
+		if i < count:
+			lamp.position.x = (float(i) - float(count - 1) * 0.5) * 0.13
+			_glow(lamp, Marks.LAMP_ON if bool(lamps[i]) else Marks.LAMP_OFF, bool(lamps[i]))
+	for i in _ticks.size():
+		var tick: MeshInstance3D = _ticks[i]
+		tick.visible = count > 0
+		if i < left:
+			_glow(tick, Marks.TICK_LOW if left <= Marks.LOW_TICKS else Marks.TICK_ON, true)
+		else:
+			_glow(tick, Marks.TICK_OFF, false)
+
+
+# 点いている印は、自分で光る（暗い所でも、撮影カメラの映像の中でも見分けられる）
+func _glow(part: MeshInstance3D, color: Color, on: bool) -> void:
+	var material: StandardMaterial3D = part.material_override
+	material.albedo_color = color
+	material.emission_enabled = on
+	material.emission = color
+	material.emission_energy_multiplier = 1.6
+
 
 func _box(at: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
 	var mesh := BoxMesh.new()

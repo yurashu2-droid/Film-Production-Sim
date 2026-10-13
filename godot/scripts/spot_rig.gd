@@ -6,6 +6,7 @@ const FACTOR := [0.0, 0.6, 1.0, 1.6]   # 判定で使う明るさの係数
 const RANGE := 24.0
 const ANGLE := 21.0
 const HEAD_Y := 2.0
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 
 var pan := 0.0
 var tilt := -0.12
@@ -68,27 +69,8 @@ func build() -> void:
 	face.material_override = _face_mat
 	tilt_node.add_child(face)
 
-	var legs := CollisionShape3D.new()
-	var lb := CylinderShape3D.new()
-	lb.radius = 0.45
-	lb.height = 0.34
-	legs.shape = lb
-	legs.position = Vector3(0, 0.17, 0)
-	add_child(legs)
-	var pole := CollisionShape3D.new()
-	var pb := BoxShape3D.new()
-	pb.size = Vector3(0.1, 1.5, 0.1)
-	pole.shape = pb
-	pole.position = Vector3(0, 1.05, 0)
-	add_child(pole)
-	var head := CollisionShape3D.new()
-	var hb := BoxShape3D.new()
-	hb.size = Vector3(0.34, 0.36, 0.34)
-	head.shape = hb
-	head.position = Vector3(0, HEAD_Y, 0)
-	add_child(head)
-	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0, 0.35, 0)
+	# 当たり判定と重心は表（prop_shapes.gd）：脚と重りの袋、柱、灯体。重心は低くして、倒れにくくしてある
+	PropShapes.build(self, kind)
 
 
 func aim(dpan: float, dtilt: float, dlevel: int) -> void:

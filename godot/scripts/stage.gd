@@ -11,17 +11,15 @@ const Actor := preload("res://scripts/actor.gd")
 const Clapper := preload("res://scripts/clapper.gd")
 const Truck := preload("res://scripts/truck.gd")
 const BoomFlat := preload("res://scripts/boom_flat.gd")
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 
 const ROOM := Vector2(34.0, 24.0)
 const WALL_H := 6.0
 
-# 素材から作る物。shapes を省くと全体を囲む箱ひとつ。
+# 素材から作る物。当たり判定の形は prop_shapes.gd の表（見た目に合わせた箱・円柱・球の組み合わせ）。
+# 表に無い物（小物・四角い物）は、全体を囲む箱ひとつ。
 const DEFS := {
-	"balcony": {"file": "S016_balcony_module", "label": "バルコニー", "mass": 40.0, "tags": ["castle"],
-		"shapes": [[Vector3(0, 0.76, 0), Vector3(2.6, 0.18, 1.4), false],
-			[Vector3(-1.0, 0.34, 0), Vector3(0.15, 0.67, 1.3), false], [Vector3(1.0, 0.34, 0), Vector3(0.15, 0.67, 1.3), false],
-			[Vector3(0, 1.38, 0.62), Vector3(2.6, 1.0, 0.08), true],
-			[Vector3(-1.22, 1.38, 0), Vector3(0.08, 1.0, 1.4), true], [Vector3(1.22, 1.38, 0), Vector3(0.08, 1.0, 1.4), true]]},
+	"balcony": {"file": "S016_balcony_module", "label": "バルコニー", "mass": 40.0, "tags": ["castle"]},
 	"window": {"file": "S007_arched_window", "label": "アーチ窓の壁", "mass": 30.0, "tags": ["castle"], "one_sided": true},
 	"ruin": {"file": "S073_ruined_stone_wall", "label": "遺跡の壁", "mass": 26.0, "tags": ["castle"], "one_sided": true},
 	"flat": {"file": "scenic_flat", "label": "書割（城の胸壁）", "mass": 6.0, "tags": ["castle"], "one_sided": true},
@@ -38,14 +36,17 @@ const DEFS := {
 	"tape": {"file": "P067_gaffer_tape", "label": "養生テープ", "mass": 0.3},
 	# 実物寄りの機材（小物フォルダ）
 	"partition": {"dir": "gear", "file": "P03_Folding_Partition", "label": "折りたたみパーテーション", "mass": 12.0},
-	"greenscreen": {"dir": "gear", "file": "GS06_Portable_Greenscreen", "label": "グリーンバック", "mass": 10.0,
-		"shapes": [[Vector3(0, 1.05, 0), Vector3(2.8, 2.0, 0.06), false],
-			[Vector3(-1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false], [Vector3(1.32, 0.05, 0.12), Vector3(0.9, 0.1, 0.78), false]]},
-	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0, "rolls": true, "scale": 2.0,
-		"shapes": [[Vector3(0, 0.16, 0), Vector3(0.92, 0.32, 1.2), false]]},
+	"greenscreen": {"dir": "gear", "file": "GS06_Portable_Greenscreen", "label": "グリーンバック", "mass": 10.0},
+	"dolly": {"dir": "gear", "file": "D04_Compact_Floor_Dolly", "label": "台車", "mass": 20.0, "rolls": true, "scale": 2.0},
 	"boom": {"dir": "gear", "file": "B05_Boom_Microphone_Kit", "label": "ガンマイク", "mass": 2.0, "extra": "B05_Optional_Windjammer"},
 	"recorder": {"dir": "gear", "file": "AR04_Field_Recorder", "label": "録音機", "mass": 1.0},
-	"carton": {"dir": "gear", "file": "carton", "label": "段ボール箱", "mass": 1.5, "scale": 2.0},
+	# 段ボール箱：物を入れて運べる大きさ（外形 約1.1×0.8×1.2m）。当たり判定は carton.gd が拡大率に合わせる
+	"carton": {"dir": "gear", "file": "carton", "label": "段ボール箱", "mass": 2.0, "scale": 2.6},
+	# ロープ（巻いたケーブルのモデルを、ロープの色にして使う）。荷台の物をしばる（cargo_kit.gd）のにも、
+	# 爆弾につないで導火線にする（bomb_kit.gd）のにも、同じ1つを使う
+	"rope": {"file": "P065_cable_coil", "label": "ロープ", "mass": 1.0, "scale": 1.8},
+	# ロープを切るはさみ（bomb_kit.gd。会社の備品）
+	"scissors": {"file": "P094_safety_scissors", "label": "はさみ", "mass": 0.4, "scale": 2.4},
 }
 
 var game: Node
@@ -227,9 +228,9 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 	p.hold_min = maxf(1.1, p.half.z + 0.95)
 	if kind == "carton":
 		p.configure()
-	elif d.has("shapes"):
-		for s: Array in d["shapes"]:
-			_shape(p, s[0] * size_scale, s[1] * size_scale, s[2])
+	elif PropShapes.has(kind):
+		# 見た目に合わせた形の組み合わせ（表の寸法は拡大前。重心が書いてあれば、それも付く）
+		PropShapes.build(p, kind, size_scale)
 	else:
 		_shape(p, box.get_center(), box.size * 0.97, false)
 	if p.mass >= 20.0:
@@ -248,7 +249,7 @@ func spawn(kind: String, pos: Vector3, yaw: float = 0.0) -> RigidBody3D:
 	return _register(p, pos, yaw)
 
 
-func _shape(p: RigidBody3D, c: Vector3, size: Vector3, thin: bool) -> void:
+func _shape(p: RigidBody3D, c: Vector3, size: Vector3, thin: bool, rotation: Vector3 = Vector3.ZERO) -> void:
 	if thin:
 		# 手すり：体は通さないが、カメラや光は遮らない
 		var sb := StaticBody3D.new()
@@ -258,6 +259,7 @@ func _shape(p: RigidBody3D, c: Vector3, size: Vector3, thin: bool) -> void:
 		var b2 := BoxShape3D.new()
 		b2.size = size
 		cs2.shape = b2
+		cs2.rotation = rotation
 		sb.add_child(cs2)
 		sb.position = c
 		p.add_child(sb)
@@ -267,6 +269,7 @@ func _shape(p: RigidBody3D, c: Vector3, size: Vector3, thin: bool) -> void:
 	b.size = size
 	cs.shape = b
 	cs.position = c
+	cs.rotation = rotation
 	p.add_child(cs)
 
 
@@ -325,28 +328,45 @@ func spawn_plywood(pos: Vector3, yaw: float) -> RigidBody3D:
 	front.roughness = 0.9
 	var fm := BoxMesh.new()
 	fm.size = Vector3(w, h, 0.02)
-	_mesh(p.visual, fm, Vector3(0, h * 0.5, 0.012), front)
+	_mesh(p.visual, fm, Vector3(0, h * 0.5, 0.012), front).name = "PaintedFace"
 	var bm := BoxMesh.new()
 	bm.size = Vector3(w, h, 0.02)
-	_mesh(p.visual, bm, Vector3(0, h * 0.5, -0.008), _mat(Color(0.74, 0.6, 0.4)))
+	_mesh(p.visual, bm, Vector3(0, h * 0.5, -0.008), _mat(Color(0.74, 0.6, 0.4))).name = "PlywoodBack"
 	var wood := _mat(Color(0.55, 0.42, 0.27))
+	var joint_wood := _mat(Color(0.48, 0.35, 0.22))
+	# 縦桟は板の裏面に接し、横桟は縦桟の内側で突き合わせる。
+	for y: float in [0.12, 1.0, 2.40]:
+		_plywood_member(p, "RearRail", Vector3(0, y, -0.0405), Vector3(0.93, 0.08, 0.045), wood)
 	for sx: float in [-0.5, 0.5]:
-		var foot := BoxMesh.new()
-		foot.size = Vector3(0.07, 0.05, 0.7)
-		_mesh(p.visual, foot, Vector3(sx, 0.025, -0.3), wood)
-		var brace := BoxMesh.new()
-		brace.size = Vector3(0.05, 1.25, 0.05)
-		var bi := _mesh(p.visual, brace, Vector3(sx, 0.55, -0.3), wood)
-		bi.rotation.x = -0.52
+		_plywood_member(p, "RearPost", Vector3(sx, 1.25, -0.0405), Vector3(0.07, 2.45, 0.045), wood)
+		_plywood_member(p, "RearFoot", Vector3(sx, 0.025, -0.3), Vector3(0.07, 0.05, 0.7), wood)
+		# 上端は桟の取付木、下端は後ろ脚の取付木へ。端点から長さと傾きを求める。
+		var top := Vector3(sx, 1.0, -0.087)
+		var bottom := Vector3(sx, 0.055, -0.61)
+		var direction := top - bottom
+		# 取付木は小さいので見た目だけ（当たり判定は、桟・足・筋交いが受け持つ。形の数を12個までに収める）
+		_plywood_member(p, "BraceTopJoint", Vector3(sx, 1.0, -0.075), Vector3(0.09, 0.10, 0.024), joint_wood, Vector3.ZERO, false)
+		_plywood_member(p, "BraceFootJoint", Vector3(sx, 0.08, -0.60), Vector3(0.09, 0.06, 0.10), joint_wood, Vector3.ZERO, false)
+		_plywood_member(p, "DiagonalBrace", (top + bottom) * 0.5, Vector3(0.05, direction.length(), 0.05), wood, Vector3(atan2(direction.z, direction.y), 0, 0))
 	var tape := BoxMesh.new()
 	tape.size = Vector3(0.5, 0.09, 0.004)
 	var ti := _mesh(p.visual, tape, Vector3(0.2, 1.6, -0.02), _mat(Color(0.75, 0.75, 0.7)))
 	ti.rotation.z = 0.5
-	_shape(p, Vector3(0, h * 0.5, 0), Vector3(w, h, 0.05), false)
-	_shape(p, Vector3(0, 0.03, -0.3), Vector3(1.1, 0.06, 0.7), false)
+	_shape(p, Vector3(0, h * 0.5, 0.002), Vector3(w, h, 0.04), false)
 	p.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	p.center_of_mass = Vector3(0, 0.7, -0.12)
 	return _register(p, pos, yaw)
+
+
+func _plywood_member(p: RigidBody3D, part_name: String, at: Vector3, size: Vector3, material: Material, rotation: Vector3 = Vector3.ZERO, solid: bool = true) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var part := _mesh(p.visual, mesh, at, material)
+	part.name = part_name
+	part.rotation = rotation
+	# 同じ寸法と向きで判定も作り、脚の間を大きな箱で埋めない。
+	if solid:
+		_shape(p, at, size, false, rotation)
 
 
 func _brick_texture() -> ImageTexture:
@@ -430,17 +450,8 @@ func spawn_moon(pos: Vector3, yaw: float) -> RigidBody3D:
 	ol.light_energy = 2.5
 	ol.omni_range = 6.0
 	p.add_child(ol)
-	var cs := CollisionShape3D.new()
-	var cy := CylinderShape3D.new()
-	cy.radius = 0.45
-	cy.height = 0.3
-	cs.shape = cy
-	cs.position = Vector3(0, 0.15, 0)
-	p.add_child(cs)
-	_shape(p, Vector3(0, 1.4, 0), Vector3(0.1, 2.4, 0.1), false)
-	_shape(p, Vector3(0, 3.0, 0), Vector3(1.0, 1.0, 0.25), false)
-	p.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	p.center_of_mass = Vector3(0, 0.4, 0)
+	# 当たり判定と重心は表（prop_shapes.gd）：土台・柱・丸い板。重心は低くして、倒れにくくしてある
+	PropShapes.build(p, p.kind)
 	game.moons.append(p)
 	return _register(p, pos, yaw)
 
@@ -561,7 +572,8 @@ func _spawn_storage(incremental: bool = false) -> void:
 	spawn("boom", Vector3(-4.8, 0, 10.6), y)
 	await _startup_step(incremental)
 	for i in 4:
-		spawn("carton", Vector3(-6.8 - (i % 2) * 1.2, 0.02, 4.4 + (i / 2) * 1.3), y)
+		# グリーンバックの足と重ならない所に並べる
+		spawn("carton", Vector3(-6.0 - (i % 2) * 1.2, 0.02, 4.4 + (i / 2) * 1.3), y)
 		await _startup_step(incremental)
 	var small := ["rose", "letter", "crown", "fish", "filmcan", "tape", "basket"]
 	for i in small.size():

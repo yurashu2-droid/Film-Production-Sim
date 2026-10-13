@@ -156,7 +156,13 @@ func _run() -> void:
 	Input.action_press("run")
 	Input.action_press("move_forward")
 	await _wait(0.06)
+	# 決まった時間ではなく、走り出しと砂ぼこりが相手の画面に届くまで待つ（処理が重い瞬間でも数え損ねないように）
 	var motion_sync: Dictionary = await _ask_host()
+	var waited := 0.0
+	while (not motion_sync.get("run_start_seen", false) or motion_sync.get("dust_count", 0) < 1) and waited < 1.5:
+		await _wait(0.05)
+		waited += 0.05
+		motion_sync = await _ask_host()
 	Input.action_release("move_forward")
 	Input.action_release("run")
 	game.input_locked = true
@@ -169,6 +175,9 @@ func _run() -> void:
 	var p0: Vector3 = fx.global_position
 	me.aim_yaw = -1.0
 	game.act_grab(fx.pid)
+	await _wait(0.15)
+	# The old movement assertion belongs to explicit pull, not passive acquisition.
+	game.act_hold_command("pull")
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
@@ -177,7 +186,9 @@ func _run() -> void:
 	me.hold_pitch = 0.35
 	await _wait(0.8)
 	var carry_sync: Dictionary = await _ask_host()
-	var rotated := Basis.from_euler(Vector3(me.hold_pitch, me.aim_yaw + me.hold_yaw, 0.0))
+	# The acquired full basis (including roll) is now the rotation reference.
+	var held_target: Array = game.hold_target(me.peer_id,fx)
+	var rotated: Basis = held_target[4]
 	var carry_ok: bool = absf(carry_sync.get("pitch", -10.0) - 0.35) < 0.01 and carry_sync.get("animation", "").begins_with("onehand_")
 	carry_ok = carry_ok and fx.global_basis.orthonormalized().get_rotation_quaternion().angle_to(rotated.get_rotation_quaternion()) < 0.2
 	print("CARRY_NET_OK" if carry_ok else "CARRY_NET_FAIL", " ", carry_sync)

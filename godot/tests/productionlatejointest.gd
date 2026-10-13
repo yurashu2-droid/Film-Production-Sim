@@ -134,13 +134,20 @@ func _run() -> void:
 		create_game()
 		await wait(0.2)
 		game.h_accept_job(2)
+		game.h_open_order()
 		game.h_order_set("fx",1)
 		game.h_order_set("dolly",1)
 		game.h_order_confirm()
 		game.local_player().global_position = game.production.HOME_TRUCK + Vector3(-3,0.1,0)
+		lift.restore([game.production.HOME_TRUCK + Vector3(-2.2,0.3,-1.6),Quaternion.IDENTITY,false])
 		game.host_load(lift,game.truck)
 		game.host_unload(game.film)
 		game.host_load(game.film,lift)
+		# 小さな昇降台に載せたカメラは、発進で倒れて落ちる。道中も載ったままにするには接着が要る
+		game.adhesive.pairs = [
+			{"a":lift.pid,"b":game.truck.pid,"pa":Vector3.ZERO,"pb":game.truck.to_local(lift.global_position),"joined":true},
+			{"a":game.film.pid,"b":lift.pid,"pa":Vector3.ZERO,"pb":lift.to_local(game.film.global_position),"joined":true}]
+		game.adhesive.rebuild()
 		await wait(0.1)
 		game.h_depart()
 		first_host_position = game.players[1].global_position

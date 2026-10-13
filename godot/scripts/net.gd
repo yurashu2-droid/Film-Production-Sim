@@ -11,6 +11,8 @@ const PORT := 24680
 const MAX_PEERS := 3
 
 var mode := "solo"   # solo / host / client
+# 自動確認だけが使う：ひとつの画面の中で、別の参加者の操作として頼みを出す（0＝使わない。遊びの中では、いつも 0）
+var acting_as := 0
 
 
 func _ready() -> void:
@@ -50,6 +52,8 @@ func my_id() -> int:
 
 # RPCを呼んだ相手。自分自身の呼び出しは 0 が返るので自分のIDに直す
 func sender() -> int:
+	if acting_as != 0:
+		return acting_as
 	var s := multiplayer.get_remote_sender_id()
 	return s if s != 0 else my_id()
 

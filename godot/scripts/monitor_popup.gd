@@ -13,6 +13,11 @@ var cues: Array[Button] = []
 var control_button: Button
 var close_button: Button
 var hint: Label
+# 場面の列を持つ依頼（production_beats.gd）：枠の印（場面のランプ・フィルムの目盛り）と、場面を進める合図
+const MonitorMarks := preload("res://scripts/ui/monitor_marks.gd")
+const CUE_NAMES := ["演技の合図", "爆発の合図", "再会の合図"]
+const PAGE_NAMES := ["次の場面へ", "もう一度", ""]
+var marks: Control
 var _previous_mouse := Input.MOUSE_MODE_CAPTURED
 
 func _ready() -> void:
@@ -49,6 +54,9 @@ func _ready() -> void:
 	close_button = _button(sheet,"閉じる")
 	close_button.pressed.connect(func(): set_open(false))
 	hint = _label(sheet,14)
+	marks = MonitorMarks.new()
+	marks.visible = false
+	sheet.add_child(marks)
 	hint.text = "1 / 2 / 3：カメラ切替　T：カット　右クリック / Esc：閉じる"
 
 func _style(fill: Color, border: Color) -> StyleBoxFlat:
@@ -139,7 +147,15 @@ func _process(_delta: float) -> void:
 		choices[i].disabled = not own
 		choices[i].get_node("Caption").text = "%s  カメラ %s%s" % [i+1,["A","B","C"][i],"  ● 採用中" if i == switcher.index() else ""]
 		choices[i].get_node("Caption").modulate = Color(1,0.83,0.4) if i == switcher.index() else Color.WHITE
-	for cue in cues: cue.disabled = not own
+	var paging: bool = game.beats != null and game.beats.active()
+	for i in cues.size():
+		var cue_name: String = PAGE_NAMES[i] if paging else CUE_NAMES[i]
+		cues[i].text = cue_name
+		cues[i].visible = cue_name != ""
+		cues[i].disabled = not own
+	marks.visible = paging
+	if paging:
+		marks.set_marks(game.beats.lamps(), game.beats.film_frac())
 	control_button.visible = not own
 	control_button.disabled = switcher.operator_peer != 0
 	_layout()
@@ -169,3 +185,4 @@ func _layout() -> void:
 	_place(control_button,Vector2(extent.x-328,extent.y-72),Vector2(196,36))
 	_place(close_button,Vector2(extent.x-122,extent.y-72),Vector2(102,36))
 	_place(hint,Vector2(20,extent.y-30),Vector2(extent.x-40,24))
+	_place(marks,Vector2(extent.x-380,58),Vector2(360,14))

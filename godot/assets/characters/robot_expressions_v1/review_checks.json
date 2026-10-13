@@ -1,0 +1,28 @@
+{
+  "source_vs_new_neutral_face_diff_bbox": [
+    458,
+    160,
+    1142,
+    752
+  ],
+  "neutral_render_max_rgb_delta_255": 1,
+  "neutral_render_mean_rgb_delta_255": [
+    0.00012708333333333332,
+    0.00014027777777777777,
+    0.00016527777777777778
+  ],
+  "neutral_render_mapping_within_one_code_value": true,
+  "captures": 20,
+  "render_size": [
+    1600,
+    900
+  ],
+  "renderer": "Godot 4.7.2 Forward+ Vulkan; hidden dev session",
+  "visual_checks": [
+    "front face: six expressions visible within bezel",
+    "front full-body: six expressions",
+    "diagonal face: six expressions within bezel",
+    "native-size readability plate"
+  ],
+  "integration": "preview instance only; no game expression logic edited"
+}

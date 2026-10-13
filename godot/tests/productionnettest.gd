@@ -27,9 +27,11 @@ func _process(_delta: float) -> void:
 		"host_far":
 			game.move_crew(game.production.Office.SPAWN_POINT, 0.0, 1)
 		"host_near":
-			# The journey fixture secures required gear with physical adhesive.
-			for prop in [game.film,game.clapper]:
-				game.adhesive.pairs.append({"a":prop.pid,"b":game.truck.pid,"pa":Vector3.ZERO,"pb":game.truck.to_local(prop.global_position),"joined":true})
+			# Company gear travels without being loaded. This fixture loads camera A on purpose and
+			# secures it with physical adhesive: gear put on the deck must ride there, not be parked twice.
+			game.film.restore([game.production.HOME_TRUCK + Vector3(-2.2,0.3,-1.6),Quaternion.IDENTITY,false])
+			game.host_load(game.film,game.truck)
+			game.adhesive.pairs.append({"a":game.film.pid,"b":game.truck.pid,"pa":Vector3.ZERO,"pb":game.truck.to_local(game.film.global_position),"joined":true})
 			game.adhesive.restore(game.adhesive.snapshot())
 			game.move_crew(game.production.HOME_TRUCK + Vector3(-3,0.1,0), 0.0, 1)
 		"client_near":
@@ -37,11 +39,12 @@ func _process(_delta: float) -> void:
 		"lift_fixture":
 			game.adhesive.clear()
 			var lift := _lift()
-			game.production._move(lift, Vector3(12,0.1,4))
+			# 搬入口の北側には会社の機材が並ぶので、昇降台は南側の空いた所で試す
+			game.production._move(lift, Vector3(12,0.1,9.5))
 			lift.set_fixed(true)
 			game.host_unload(game.film)
 			game.host_load(game.film,lift)
-			game.move_crew(Vector3(11,0.1,4),0.0,request[0])
+			game.move_crew(Vector3(11,0.1,9.5),0.0,request[0])
 		"expire":
 			game.production.lease_left = 0.01
 		"done":
@@ -53,6 +56,9 @@ func _process(_delta: float) -> void:
 	data["client_position"] = game.players[request[0]].global_position
 	data["film_rider"] = game.film.rider_of
 	data["clapper_rider"] = game.clapper.rider_of
+	data["gear_at_site"] = game.production.gear().all(func(g: Node) -> bool: return game.production.at_site(g))
+	data["spot_position"] = game.spots[0].global_position
+	data["spot_rider"] = game.spots[0].rider_of
 	data["truck_position"] = game.truck.global_position
 	data["cargo"] = game.production.cargo()
 	data["can_depart"] = game.production.can_depart()
@@ -126,6 +132,14 @@ func _phase(expected: int, timeout: float = 4.0) -> bool:
 		elapsed += 0.1
 	return game.production.phase == expected
 
+# 発注の画面が、自分に開いている・閉じた、になるまで待つ（全体の段階は、準備のまま変わらない）
+func _ordering(expected: bool, timeout: float = 4.0) -> bool:
+	var elapsed := 0.0
+	while game.ordering() != expected and elapsed < timeout:
+		await _wait(0.1)
+		elapsed += 0.1
+	return game.ordering() == expected and game.production.phase == 2
+
 func _ping_case() -> void:
 	var from: Vector3 = game.local_player().global_position + Vector3(0,2,0)
 	game.h_ping.rpc_id(1,from,Vector3.DOWN)
@@ -182,18 +196,21 @@ func _run() -> void:
 		return
 	await _ping_case()
 	game.h_accept_job.rpc_id(1, 1)
-	_check(await _phase(1), "client accepts studio job")
+	_check(await _phase(2), "client accepts studio job")
+	game.h_open_order.rpc_id(1)
+	_check(await _ordering(true), "client opens the order desk on its own screen")
 	game.h_ping.rpc_id(1,game.local_player().global_position+Vector3(0,2,0),Vector3.DOWN)
 	await _wait(0.2)
 	s = await _ask()
-	_check(game.production_ping.snapshot().is_empty() and s.get("pings",{}).is_empty(),"shop UI phase rejects ping requests")
+	_check(game.production_ping.snapshot().is_empty() and s.get("pings",{}).is_empty(),"whoever has the order screen open cannot ping")
+	_check(s.get("phase") == 2 and s.get("orderer") == Net.my_id(), "the host stays in the packing phase while the client orders")
 	game.h_order_set.rpc_id(1, "fx", 1)
 	game.h_order_set.rpc_id(1, "dolly", 1)
 	await _wait(0.25)
 	game.h_order_confirm.rpc_id(1)
-	_check(await _phase(2), "client confirms purchase")
+	_check(await _ordering(false), "client confirms purchase")
 	s = await _ask("host_far")
-	_check(s.get("wallet") == 160 and game.production.wallet == 160 and s.get("expenses") == 440 and game.production.expenses == 440, "purchase cash synchronized")
+	_check(s.get("wallet") == 600 and game.production.wallet == 600 and s.get("expenses") == 440 and game.production.expenses == 440, "rental spending synchronized without touching savings")
 	# 集合fixtureも本体の一斉移動経路へ揃え、remoteの高速補間で台車を押さない。
 	s = await _ask("client_near")
 	await _wait(0.5)
@@ -202,7 +219,8 @@ func _run() -> void:
 	s = await _ask()
 	_check(s.get("phase") == 2 and game.production.phase == 2, "departure waits for distant host")
 	s = await _ask("host_near")
-	_check(s.get("film_rider") == game.truck.pid and game.film.rider_of == game.truck.pid and s.get("clapper_rider") == game.truck.pid and game.clapper.rider_of == game.truck.pid, "required truck riders synchronized")
+	_check(s.get("film_rider") == game.truck.pid and game.film.rider_of == game.truck.pid and s.get("clapper_rider") == 0 and game.clapper.rider_of == 0 and game.clapper.position.x > 60, "deck rider and gear left in the yard synchronized")
+	_check(s.get("can_depart") == true and game.production.can_depart(), "departure no longer waits for gear to be loaded")
 	game.h_grab.rpc_id(1,game.clapper.pid)
 	await _wait(0.3)
 	s = await _ask()
@@ -229,6 +247,9 @@ func _run() -> void:
 	s = await _ask()
 	_check(game.production.lease_left > 590 and float(s.get("lease_left", 0)) > 590 and game.production.chosen_job == 1, "ten minute studio lease synchronized")
 	_check(game.film.rider_of == game.truck.pid and game.film.position.x < 25 and game.truck.position.distance_to(game.production.SITE_TRUCK) < 0.2, "glued cargo arrives")
+	_check(game.clapper.position.x < 25 and s.get("clapper_rider") == game.clapper.rider_of, "gear loaded by the client arrives too (on the deck, or set down at the entrance if it fell off)")
+	var spot: Node = game.spots[0]
+	_check(s.get("gear_at_site") == true and game.production.gear().all(func(g: Node) -> bool: return game.production.at_site(g)) and s.get("spot_rider") == 0 and spot.rider_of == 0 and spot.global_position.distance_to(s.get("spot_position",Vector3.ZERO)) < 0.3 and Vector2(spot.global_position.x-game.SPAWN.x,spot.global_position.z-game.SPAWN.z).length() < 8.0 and spot.global_basis.y.y > 0.95, "company gear left in the yard arrives at the entrance on both peers")
 	# 普通の新規送信で上書きされない時間を作り、移動前の遅延パケットを送る。
 	var me: Node = game.local_player()
 	me._send_t = 1000.0
@@ -264,11 +285,11 @@ func _run() -> void:
 	game.h_deliver.rpc_id(1, 0)
 	_check(await _phase(5), "client delivers after expiry")
 	s = await _ask()
-	_check(s.get("wallet") == 310 and game.production.wallet == 310 and s.get("last_payment") == 150 and game.production.last_payment == 150, "settlement cash synchronized")
+	_check(s.get("wallet") == 760 and game.production.wallet == 760 and s.get("last_payment") == 150 and game.production.last_payment == 150 and game.production.saved == 10, "settlement cash synchronized")
 	game.h_return_office.rpc_id(1)
 	_check(await _phase(0), "client returns to office")
 	s = await _ask()
-	_check(game.production.wallet == 310 and s.get("wallet") == 310 and game.local_player().position.x > 60 and game.players[1].position.x > 60, "return spawn and cash synchronized")
+	_check(game.production.wallet == 760 and s.get("wallet") == 760 and game.local_player().position.x > 60 and game.players[1].position.x > 60, "return spawn and cash synchronized")
 	await _ask("done")
 	print("CLIENT PRODUCTIONNET_FAIL" if _failed else "CLIENT PRODUCTIONNET_OK")
 	get_tree().quit(1 if _failed else 0)

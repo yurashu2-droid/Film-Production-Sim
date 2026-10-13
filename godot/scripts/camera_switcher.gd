@@ -7,7 +7,6 @@ var cameras: Array[Node] = []
 var monitor: Node
 var active_pid := 0
 var operator_peer := 0
-var _phase := -1
 
 func setup() -> void:
 	cameras.append(game.film)
@@ -23,9 +22,10 @@ func setup() -> void:
 		var extra := FilmCamera.new()
 		extra.build()
 		extra.label = "撮影カメラ " + ["A","B","C"][i]
-		game.stage._register(extra,game.production.HOME_TRUCK,0.0)
+		# 荷台には載せない。会社の機材置き場に並べる（production_flow.gd の stage_gear() が置き直す）
+		var home: Array = game.production.gear_home("camera",i)
+		game.stage._register(extra,home[0],home[1])
 		cameras.append(extra)
-		if Net.is_host(): _pack(extra,i)
 		if "_home_layout" in game.production:
 			game.production._home_layout[extra.pid] = extra.get_state()
 	active_pid = game.film.pid
@@ -95,21 +95,9 @@ func state_changed() -> void:
 		_sync()
 	_refresh_views()
 
-func _pack(prop: Node, slot: int) -> void:
-	if prop.rider_of != 0: game.host_unload(prop)
-	var truck: Node = game.truck
-	var at := Vector3((-0.55 if slot == 1 else 0.55),truck.deck_top,truck.deck_c.y-0.5)
-	game._set_rider(prop,truck,Transform3D(Basis.IDENTITY,at))
-	prop.global_transform = truck.global_transform * prop.ride_local
-
+# カメラ3台と確認用モニターは荷台へは積まない（荷台が埋まり、ほかの荷物が上に積み上がってしまう）。
+# 会社では機材置き場に並び、現場へは production_flow.gd が搬入口のそばへ出す。
 func _process(_delta: float) -> void:
-	var phase: int = game.production.phase
-	if phase != _phase:
-		if Net.is_host() and phase == 0 and _phase >= 0:
-			for i in range(1,cameras.size()): _pack(cameras[i],i)
-		if Net.is_host() and phase == 2 and monitor.rider_of == 0:
-			game.host_load(monitor,game.truck)
-		_phase = phase
 	if Net.is_host() and operator_peer != 0 and (not allowed() or not nearby(game.players.get(operator_peer))):
 		operator_peer = 0
 		_sync()
