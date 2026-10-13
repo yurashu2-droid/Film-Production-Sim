@@ -129,6 +129,38 @@ func run() -> void:
 	check((plank.center_global() - grip_at).normalized().dot(Vector3.DOWN) > 0.9, "離すと、また垂れる")
 	game.h_release()
 	await frames(6)
+	# 軽い物（カンペ）：右クリックを離していても垂れず、視点と同じだけ向きを変える（画面の中での向きが変わらない）
+	var card: Node = game.cue_cards.card
+	me.aim_yaw = 0.0
+	me.aim_pitch = 0.0
+	me.hold_turning = true
+	await frames(4)
+	var cs: Array = card.get_state()
+	cs[0] = me.global_position + me.flat_forward() * 1.8 + Vector3(0, 0.05, 0)
+	cs[1] = Quaternion.IDENTITY
+	cs[2] = false
+	card.restore(cs)
+	await frames(6)
+	game.h_grab(card.pid, card.center + Vector3(card.half.x * 0.9, card.half.y * 0.9, 0))
+	await frames(4)
+	me.hold_offset = Vector3(0, 1.2, 0)
+	await frames(60)
+	check(me.held == card.pid, "カンペの角を掴めた")
+	me.hold_turning = false
+	await frames(120)
+	var view_then: Basis = Basis.from_euler(Vector3(me.aim_pitch, me.aim_yaw, 0.0))
+	var card_then: Basis = card.global_basis.orthonormalized()
+	for i in 30:
+		me.aim_pitch = lerpf(0.0, 0.4, (i + 1) / 30.0)
+		me.aim_yaw = lerpf(0.0, 0.6, (i + 1) / 30.0)
+		await frames(1)
+	await frames(90)
+	var view_now: Basis = Basis.from_euler(Vector3(me.aim_pitch, me.aim_yaw, 0.0))
+	var kept: float = Quaternion(view_now.inverse() * card.global_basis.orthonormalized()).angle_to(Quaternion(view_then.inverse() * card_then))
+	print("HOLD_SPIN_MEASURE カンペ：視点から見た向きのずれ=", rad_to_deg(kept), "度")
+	check(kept < 0.12, "軽い物は、離していても垂れず、視点から見た向きが変わらない")
+	game.h_release()
+	await frames(6)
 	print("HOLD_SPIN_TEST_FAIL" if failed else "HOLD_SPIN_TEST_OK")
 	var sfx := root.get_node_or_null("Sfx")
 	if sfx != null:
