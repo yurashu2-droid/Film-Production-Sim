@@ -830,25 +830,6 @@ $GD --headless --path godot --script res://tests/vfxtest.gd
   残る制限：床に置いた凹んだ形の物は、輪郭の内側のすき間に床が見える（内側は物の後ろにあるため）。手のオーラは、手を隠さないよう後ろのまま。
 
 
-## 超能力の演出（`godot/vfx/esper/`、2026-10-14。ラボだけ。ゲームには組み込んでいない）
-
-ラボの「超能力」に6本：`esper_pk`（サイコキネシスの凝った版）・`esper_teleport`・`esper_pyro`・`esper_telepathy`・`esper_barrier`・`esper_sight`（透視）。
-ラボの id は `esper_<名前>`、スクリプトは `vfx/esper/esper_<名前>.gd`（`static func spawn(parent, origin)`）。足す時は、ファイルを置いて `vfx_lab.gd` の `ITEMS` に1行足すだけ。
-
-- 共通の部品：`esper_aura.gd`（輪郭のオーラ1枚。`around(親, 物)` か `at(親, 点の列)` で作り、毎コマ `place(時刻)`、波紋は `ring(時刻)`）、
-  `esper_waves.gd`（念波の弧の列。`send(出どころ, 相手, 大きさ, 秒)` と毎コマ `tick(時刻)`、届いた合図は `arrived`）、
-  `esper_stage.gd`（ゲームのキャラと小道具を舞台に置く。`figure()` `prop()` `hand()` `brow()`）。
-- **能力ごとに「何が見える物か」を先に決める。** 念動＝浮く物と土ぼこり／瞬間移動＝空間を畳む・開く（粒にばらさない・薄れさせない）／
-  発火＝火より先に熱（ゆらぎ・色・焦げ・煙）／念話＝渡るのは声ではなく考え（絵で見せる）／壁＝当たった所だけ見える／透視＝壁は消さず、影だけ浮かぶ。
-- 人を包むオーラは、外形の点の凸の包み（多角形）ではなく、頭と足の2点＋`pad` のカプセル形にする。凸の包みだと、人の後ろに角ばった板が出る。
-- 壁の向こうの影（透視）は、同じメッシュを `depth_test_disabled` の平たい色で描き、「窓を通る視線だけ」をシェーダーで残す（`esper_xray`：カメラ → その点の線が、壁の面を窓の中で横切るか）。
-- ドーム（`esper_dome`）の六角は、てっぺんから見た平面へ広げてから区切る（緯度経度で区切ると、てっぺんで目が詰まる）。当たった向きと経過秒を6つまで渡す。
-- 炎・飛び道具・爆発・土ぼこりは、既にある部品（`vfx_fire` `vfx_projectile` `vfx_explosion` `vfx_toon_puffs`）をそのまま呼んでいる。
-- 確認：`tests/esper_test.gd`（出る・止まる・片付く）。見たのは連続コマの静止画（全体・終わり）。通常速度の動きと、ユーザーの評価は、まだ。
-- 作業フォルダを分けた時（git worktree）：`tools/` と `godot/.godot/` は写しに入らない。元のフォルダから `tools/godot/`・`tools/dev_session.py`・`tools/run_some.sh` と
-  `godot/.godot/`（取り込み済みの素材。約 800MB）を写すと、取り込み直しを待たずに動く。
-
-
 # ===== E. 修正依頼の見本：water-01 =====
 
 （元：.claude/skills/godot-vfx/requests/water-01.md）
