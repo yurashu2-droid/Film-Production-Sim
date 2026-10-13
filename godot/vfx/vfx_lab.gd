@@ -68,6 +68,8 @@ const MotifJelly := preload("res://vfx/vfx_motif_jelly.gd")
 const MotifFerro := preload("res://vfx/vfx_motif_ferro.gd")
 const MotifSeed := preload("res://vfx/vfx_motif_seed.gd")
 const PsychicDemo := preload("res://vfx/vfx_psychic_demo.gd")
+# 超能力の演出（vfx/esper/）：id は esper_<名前>、スクリプトは vfx/esper/esper_<名前>.gd
+const ESPER_DIR := "res://vfx/esper/esper_%s.gd"
 
 # [表示名, id, 繰り返しの間隔（秒）, コマ並べで撮る時刻]
 var fx_speed := 0.4              # --speed=1 で、黒閃を等速で撮る（比較用。既定は 0.4 倍速）
@@ -90,6 +92,12 @@ const ITEMS := [
 	["ドカン着地", "slam", 3.4, [0.03, 0.1, 0.2, 0.4, 0.7, 1.1, 2.2, 2.6]],
 	["火柱", "pillar", 4.6, [0.3, 0.47, 0.6, 1.2, 2.2, 2.6, 2.85, 3.2]],
 	["気合のオーラ", "aura", 4.6, [0.1, 0.3, 0.6, 1.5, 2.6, 3.0, 3.25, 3.6]],
+	["超能力：サイコキネシス｜念動・乱舞（浮く・渦・固める・放つ）", "esper_pk", 7.0, [0.3, 0.9, 1.6, 2.6, 3.9, 4.35, 4.6, 5.4]],
+	["超能力：テレポーテーション｜畳んで消え、開いて現れる（2回）", "esper_teleport", 6.0, [0.85, 1.0, 1.1, 1.3, 1.4, 1.7, 3.1, 3.4]],
+	["超能力：パイロキネシス｜熱する・発火・炎を引く・火球を投げる", "esper_pyro", 8.2, [0.6, 1.3, 1.6, 2.7, 3.3, 3.95, 4.4, 5.6]],
+	["超能力：テレパシー｜思念の波と、考えの泡が相手へ渡る", "esper_telepathy", 6.6, [0.25, 0.6, 1.2, 1.9, 2.6, 3.3, 4.2, 4.6]],
+	["超能力：サイコバリア｜見えない壁が弾く・六角の波紋・押し返す", "esper_barrier", 7.2, [0.45, 0.95, 1.6, 2.2, 2.95, 3.95, 4.8, 5.1]],
+	["超能力：透視（千里眼）｜壁に目の窓が開き、向こうの物が影で見える", "esper_sight", 5.8, [0.5, 0.75, 1.2, 2.0, 2.6, 3.15, 4.0, 4.2]],
 	["念力：掛け合わせ（ギザギザ×波紋×ゆがみ）", "psychic", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
 	["念力：念波（静かな波紋）", "psychic_nenpa", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
 	["念力：ゆらぎ（空間のゆがみ）", "psychic_yuragi", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
@@ -267,7 +275,7 @@ var _env: Environment
 var _hud: CanvasLayer
 var _picker: OptionButton
 var _category_picker: OptionButton
-const CATEGORIES := ["爆発・衝撃", "炎・煙", "飛び道具", "墨", "音", "水", "渦・光", "雷・呪力", "Pixel×Real", "Pixel×Real・大／多", "Pixel×Real・中／標準", "Pixel×Real・小／簡潔", "生成素材", "自然のモチーフ", "質感の試作", "赤黒パンク", "折り紙・紙工作"]
+const CATEGORIES := ["超能力", "爆発・衝撃", "炎・煙", "飛び道具", "墨", "音", "水", "渦・光", "雷・呪力", "Pixel×Real", "Pixel×Real・大／多", "Pixel×Real・中／標準", "Pixel×Real・小／簡潔", "生成素材", "自然のモチーフ", "質感の試作", "赤黒パンク", "折り紙・紙工作"]
 var _old_tweens: Array[Tween] = []
 # 別に配る VFX パック（addons/）。フォルダが無い環境でも Lab が開くように、有る時だけ読む
 var _punk_fx = _pack("res://addons/punk_ink_vfx/punk_fx.gd")
@@ -335,6 +343,7 @@ func _build_studio() -> void:
 	add_child(lines)
 	# 大きさの目安：身長1.7mの人型と、効果機くらいの箱
 	var person := MeshInstance3D.new()
+	person.add_to_group("lab_scale")
 	var capsule := CapsuleMesh.new()
 	capsule.radius = 0.25
 	capsule.height = 1.7
@@ -342,6 +351,7 @@ func _build_studio() -> void:
 	person.position = Vector3(-4.5, 0.85, 0.5)
 	add_child(person)
 	var crate := MeshInstance3D.new()
+	crate.add_to_group("lab_scale")
 	var box := BoxMesh.new()
 	box.size = Vector3(0.66, 0.5, 0.36)
 	crate.mesh = box
@@ -458,6 +468,7 @@ static func category_for(id: String) -> String:
 	if id=="px_apotheosis":return "Pixel×Real・大／多"
 	if id.begins_with("px50_"):
 		return "Pixel×Real・"+{"L":"大／多","M":"中／標準","S":"小／簡潔"}[Px50.Catalog.BY_ID[id]["complexity_class"]]
+	if id.begins_with("esper_") or id.begins_with("psychic"): return "超能力"
 	if id.begins_with("gen_"): return "生成素材"
 	if id.begins_with("pk_") or id.begins_with("punk_"): return "赤黒パンク"
 	if id.begins_with("og_"): return "折り紙・紙工作"
@@ -470,7 +481,7 @@ static func category_for(id: String) -> String:
 	if id == "lightning" or id.begins_with("bl_") or id.begins_with("jjk_") or id.begins_with("black_"): return "雷・呪力"
 	if id.begins_with("shot_"): return "飛び道具"
 	if id in ["fire", "smoke", "smoke_flat", "pillar"]: return "炎・煙"
-	if id in ["tornado", "fire_tornado", "aurora_refrain", "aura"] or id.begins_with("psychic"): return "渦・光"
+	if id in ["tornado", "fire_tornado", "aurora_refrain", "aura"]: return "渦・光"
 	return "爆発・衝撃"
 
 static func _pack(path: String) -> GDScript:
@@ -532,6 +543,12 @@ func play(index: int) -> void:
 	for node in get_tree().get_nodes_in_group("vfx"):
 		node.queue_free()
 	var center := Vector3(0, 1.3, 0)
+	var esper := (ITEMS[index][1] as String).begins_with("esper_")
+	for mark: Node3D in get_tree().get_nodes_in_group("lab_scale"):
+		mark.visible = not esper
+	if esper:
+		(load(ESPER_DIR % (ITEMS[index][1] as String).trim_prefix("esper_")) as GDScript).spawn(self, Vector3.ZERO)
+		return
 	if (ITEMS[index][1] as String).begins_with("pk_"):
 		for old in get_tree().get_nodes_in_group("punk_ink_vfx"):
 			old.queue_free()
