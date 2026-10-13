@@ -168,6 +168,7 @@ script_case foot-ground 25 'FOOTTEST_OK' footgroundtest.gd --fixed-fps 60
 script_case motion-lab 25 'LABTEST_OK' labtest.gd
 script_case choice 30 'CHOICETEST_OK' choicetest.gd
 script_case vfx 25 'VFXTEST_OK' vfxtest.gd
+script_case psychic 25 'PSYCHIC_TEST_OK' psychic_test.gd
 script_case ink-sound 35 'INK_SOUND_TEST_OK' ink_sound_test.gd
 script_case pixel-vfx 25 'PXTEST_OK' pxtest.gd
 script_case pixel-50 30 'PX50TEST_OK' px50test.gd

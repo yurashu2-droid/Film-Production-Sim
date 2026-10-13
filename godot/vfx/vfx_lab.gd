@@ -67,6 +67,7 @@ const MotifGeyser := preload("res://vfx/vfx_motif_geyser.gd")
 const MotifJelly := preload("res://vfx/vfx_motif_jelly.gd")
 const MotifFerro := preload("res://vfx/vfx_motif_ferro.gd")
 const MotifSeed := preload("res://vfx/vfx_motif_seed.gd")
+const PsychicDemo := preload("res://vfx/vfx_psychic_demo.gd")
 
 # [表示名, id, 繰り返しの間隔（秒）, コマ並べで撮る時刻]
 var fx_speed := 0.4              # --speed=1 で、黒閃を等速で撮る（比較用。既定は 0.4 倍速）
@@ -89,6 +90,13 @@ const ITEMS := [
 	["ドカン着地", "slam", 3.4, [0.03, 0.1, 0.2, 0.4, 0.7, 1.1, 2.2, 2.6]],
 	["火柱", "pillar", 4.6, [0.3, 0.47, 0.6, 1.2, 2.2, 2.6, 2.85, 3.2]],
 	["気合のオーラ", "aura", 4.6, [0.1, 0.3, 0.6, 1.5, 2.6, 3.0, 3.25, 3.6]],
+	["念力：掛け合わせ（ギザギザ×波紋×ゆがみ）", "psychic", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：念波（静かな波紋）", "psychic_nenpa", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：ゆらぎ（空間のゆがみ）", "psychic_yuragi", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：壁ぎわ・床（くっつけても隠れないか）", "psychic_wall", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：かご", "psychic_basket", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：小さい物（ゴムの魚）", "psychic_fish", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
+	["念力：大きい物（書き割り）", "psychic_flat", 6.0, [0.33, 0.5, 0.9, 1.5, 2.5, 3.4, 4.45, 4.7]],
 	["インク着弾", "ink_splash", 3.2, [0.04, 0.12, 0.25, 0.5, 0.9, 1.5, 2.0, 2.4]],
 	["インクボム", "ink_bomb", 4.4, [0.2, 0.6, 0.7, 0.85, 1.1, 1.6, 2.6, 3.3]],
 	["インクの竜巻", "ink_tornado", 5.0, [0.2, 0.5, 1.0, 1.8, 2.5, 2.8, 3.2, 4.0]],
@@ -462,7 +470,7 @@ static func category_for(id: String) -> String:
 	if id == "lightning" or id.begins_with("bl_") or id.begins_with("jjk_") or id.begins_with("black_"): return "雷・呪力"
 	if id.begins_with("shot_"): return "飛び道具"
 	if id in ["fire", "smoke", "smoke_flat", "pillar"]: return "炎・煙"
-	if id in ["tornado", "fire_tornado", "aurora_refrain", "aura"]: return "渦・光"
+	if id in ["tornado", "fire_tornado", "aurora_refrain", "aura"] or id.begins_with("psychic"): return "渦・光"
 	return "爆発・衝撃"
 
 static func _pack(path: String) -> GDScript:
@@ -571,6 +579,18 @@ func play(index: int) -> void:
 			FirePillar.spawn(self, Vector3(1.5, 0, 0), 1.0, 2.0)
 		"aura":
 			Aura.spawn(self, Vector3(-4.5, 0, 0.5), 1.0, 2.5)
+		"psychic":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "box")
+		"psychic_nenpa", "psychic_yuragi":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "box", PsychicDemo.Psychic.TINT, (ITEMS[index][1] as String).trim_prefix("psychic_"))
+		"psychic_wall":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "box", PsychicDemo.Psychic.TINT, "mix", true)
+		"psychic_basket":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "basket", Color(1.0, 0.55, 0.7))
+		"psychic_fish":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "fish", Color(0.45, 0.9, 0.75))
+		"psychic_flat":
+			PsychicDemo.spawn(self, Vector3(-4.15, 1.05, 0.5), "flat", Color(1.0, 0.8, 0.4))
 		"ink_splash":
 			Ink.spawn(self, Vector3(1.5, 0, 0), "splash", 1.0, "orange")
 		"ink_bomb":
