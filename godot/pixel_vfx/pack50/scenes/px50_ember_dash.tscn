@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://pixel_vfx/pack50/px50_instance.gd" id="1"]
+
+[node name="px50_ember_dash" type="Node3D"]
+script = ExtResource("1")
+effect_id = "px50_ember_dash"

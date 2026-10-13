@@ -10,7 +10,8 @@ extends "res://vfx/vfx_base.gd"
 #   稲妻       太い本流を6本、それぞれ別の時刻に光り直す（そのときだけ形が跳ぶ）。細い副流を重ねる
 #   放電の網   殴った点のまわりを、細い線が這い回る
 #   黒い煙     下から赤く照らされた塊
-#   終わり     稲妻は先端から引っ込み、網は細って消える。地面のひびは細って、ぐるっとぬぐわれる
+#   終わり     稲妻は先端を戻さず、根元の供給が止まって根元から先へ消える。網は細って消える。黒い煙は縮まず溶ける。地面のひびは細って、ぐるっとぬぐわれる
+#   速さ       既定は 0.4 倍速。等速だと速すぎて変に見え、0.25 倍だと遅い。ゆっくり見せるほうが、枝の伸びと白熱の跳ねが読める
 
 const Ribbon := preload("res://vfx/vfx_ribbon.gd")
 const FPS := 15.0
@@ -34,10 +35,11 @@ var _light: OmniLight3D
 
 
 # pos は殴った点。direction は殴った向き。
-static func spawn(parent: Node, pos: Vector3, size: float = 1.0, direction: Vector3 = Vector3.RIGHT) -> Node3D:
+static func spawn(parent: Node, pos: Vector3, size: float = 1.0, direction: Vector3 = Vector3.RIGHT, speed: float = 0.4) -> Node3D:
 	var fx: Node3D = new()
 	parent.add_child(fx)
 	fx.global_position = pos
+	fx.speed = speed
 	fx.start(size, direction)
 	return fx
 
@@ -137,7 +139,9 @@ func _flow() -> void:
 		var way: Vector3 = bolt["way"]
 		r.draw(PackedVector3Array([global_position, global_position + way * float(bolt["reach"])]))
 		param(r, "phase", age)
-		param(r, "reveal", ease_out(clampf(t / 0.09, 0.0, 1.0)) * (1.0 - smoothstep(lasts * 0.6, lasts, t)) * 1.05)
+		param(r, "reveal", ease_out(clampf(t / 0.09, 0.0, 1.0)) * 1.05)
+		# 終わり：先端は戻さない。根元の供給が止まり、根元から先へ消えていく
+		param(r, "eaten", smoothstep(lasts * 0.5, lasts, t) * 1.12)
 		# 光り直した直後だけ、芯が一瞬白熱する
 		var struck: float = t - float(bolt.get("hot", 0.0))
 		param(r, "core_color", Vector3(10, 6, 5) if struck < 0.02 else Vector3.ZERO)
@@ -166,10 +170,10 @@ func _pose(t: float) -> void:
 		var pos := Vector3.ZERO
 		if tt >= 0.0 and k < 1.0:
 			var pop := lerpf(0.4, 1.15, tt / 0.07) if tt < 0.07 else (lerpf(1.15, 1.0, (tt - 0.07) / 0.12) if tt < 0.19 else 1.0)
-			dia = float(plan[3]) * _size * pop * (1.0 - pow(smoothstep(0.45, 1.0, k), 1.5))
+			dia = float(plan[3]) * _size * pop * (1.0 - 0.25 * smoothstep(0.45, 1.0, k))
 			pos = (frame_of * (plan[1] as Vector3).normalized()) * float(plan[2]) * _size * ease_out(clampf(tt / 0.3, 0.0, 1.0)) + Vector3.UP * 0.6 * tt * _size
 		_smoke.set_instance_transform(i, Transform3D(Basis.from_euler(Vector3(i * 1.3, i * 2.1 + t, i * 0.7)) * Basis.from_scale(Vector3.ONE * maxf(dia, 0.0001)), pos))
-		_smoke.set_instance_color(i, Color(0.5, 0.03, 0.02, 1.0))
+		_smoke.set_instance_color(i, Color(0.5, 0.03, 0.02, 1.0 - smoothstep(0.35, 1.0, tt / float(plan[4]))))
 	# 地面のひび：走って、細って千切れながら、ぐるっとぬぐわれる
 	_cracks.global_position = global_position + Vector3(0, -minf(global_position.y, 1.2 * _size) + 0.02, 0)
 	_cracks.scale = Vector3.ONE * 7.0 * _size

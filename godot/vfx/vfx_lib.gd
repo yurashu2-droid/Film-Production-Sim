@@ -265,5 +265,54 @@ static func wisp_layer(mesh: Mesh, i: int, count: int, color: Vector3, color_inn
 	mi.mesh = mesh
 	mi.material_override = material("wisp", params)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.custom_aabb = AABB(Vector3(-3, -1.5, -3), Vector3(6, 4, 6))
+	mi.custom_aabb = AABB(Vector3(-8, -3, -8), Vector3(16, 14, 16))   # 広めに取る（狭いと、高い所や遠くへ動かした時に描かれない）
 	return mi
+
+
+# 点の列を Catmull-Rom 曲線でなめらかにし、各点の間を per 個に分ける
+static func smooth_path(ctrl: PackedVector3Array, per: int = 6) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var m := ctrl.size()
+	for i in m - 1:
+		var p0: Vector3 = ctrl[maxi(i - 1, 0)]
+		var p1: Vector3 = ctrl[i]
+		var p2: Vector3 = ctrl[i + 1]
+		var p3: Vector3 = ctrl[mini(i + 2, m - 1)]
+		for s in per:
+			var t := float(s) / per
+			out.append(0.5 * ((2.0 * p1) + (-p0 + p2) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t + (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t * t * t))
+	out.append(ctrl[m - 1])
+	return out
+
+
+# 曲がった中心線に沿う筒（UV.x が周り、UV.y が根元 0〜先端 1）。wisp / flow シェーダーをそのまま貼れる。
+# 中心線を毎コマ動かして作り直すと、継ぎ目のない「流れる体」になる。節を並べて作らないこと。
+# radius は根元の半径、taper は先端でどれだけ細るか（0.5 なら半分）。
+# profile を渡すと、点ごとの太さ（radius に掛ける 0〜）で taper の代わりに太さを決める（尾が細く、頭が太い、など）。
+static func path_tube(pts: PackedVector3Array, radius: float, taper: float = 0.5, sides: int = 14, profile: PackedFloat32Array = PackedFloat32Array()) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := pts.size()
+	var rings: Array = []
+	var side := Vector3.RIGHT
+	for i in n:
+		var tangent := (pts[mini(i + 1, n - 1)] - pts[maxi(i - 1, 0)]).normalized()
+		# 前の輪の向きを引き継いで、ねじれを防ぐ
+		var ref := side if i > 0 else (Vector3.BACK if absf(tangent.dot(Vector3.BACK)) < 0.9 else Vector3.UP)
+		side = (ref - tangent * ref.dot(tangent)).normalized() if i > 0 else tangent.cross(ref).normalized()
+		var depth := tangent.cross(side).normalized()
+		var r := radius * (1.0 - taper * float(i) / maxf(n - 1, 1))
+		if profile.size() == n:
+			r = radius * profile[i]
+		var ring: Array = []
+		for j in sides + 1:
+			var a := float(j) / sides * TAU
+			ring.append(pts[i] + (side * cos(a) + depth * sin(a)) * r)
+		rings.append(ring)
+	for i in n - 1:
+		for j in sides:
+			for corner: Array in [[i, j], [i + 1, j], [i, j + 1], [i, j + 1], [i + 1, j], [i + 1, j + 1]]:
+				st.set_uv(Vector2(float(corner[1]) / sides, float(corner[0]) / (n - 1)))
+				st.add_vertex(rings[corner[0]][corner[1]])
+	st.generate_normals()
+	return st.commit()

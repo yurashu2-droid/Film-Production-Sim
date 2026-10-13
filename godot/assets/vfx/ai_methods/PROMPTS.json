@@ -1,0 +1,33 @@
+{
+  "mode": "built-in image_gen",
+  "prompts": [
+    [
+      "silhouette",
+      "A production grayscale silhouette mask for a game VFX, square image. Pure black background. A single vertical white flame plume, rooted narrowly bottom center, rising in a forceful sweeping S curve, splitting into 4 uneven flame tongues. White filled regions with subtle gray density internal gradients. Organic torn contour, broad connected body, asymmetric negative space. Entire shape fits with 10 percent black margin. Flat orthographic graphic mask, no perspective, no glow, no color, no text, no lighting. Used as shape data, not finished scene."
+    ],
+    [
+      "petal_mask",
+      "A square grayscale production shape mask for a game VFX. Pure black background. One single elongated curved crystalline petal silhouette centered, pointed upper tip, rounded broad belly, narrowed lower stem. Uneven organically faceted edges and asymmetric contour, white filled interior with gentle gray thickness ridges. Flat frontal orthographic shape mask, 15 percent black margin, no other petals, no text, no cast shadow, no scene, no perspective."
+    ],
+    [
+      "branch_lines",
+      "Square monochrome branching-line asset for a game VFX. Pure black background. A clean white branching lightning tree grown from one root at bottom center toward upper corners. Five principal crooked connected branches with unequal secondary forks, all continuously connected to the root. Angular irregular zigzags and organic bends, medium broad white strokes with some thickness variation, no loops, no floating dots, no glow, no thin decorative filaments, no text. Entire tree within 10 percent black margin. Flat graphic data art."
+    ],
+    [
+      "crack_emission",
+      "Square flat monochrome crack emission map, black background. White glowing cracks without glow: a broken asymmetrical roughly circular network radiating from center, like pressure fractures in volcanic stone. 8 unequal broad branches connected centrally with a few side branches and generous dark voids. White cores fade into medium gray rims, entire pattern within 12 percent black margin. NO rendered stone, NO surface lighting, NO text, no particles. Pure grayscale graphic pattern used as actual particle origin data."
+    ],
+    [
+      "streamlines",
+      "Square flat monochrome flowing streamlines texture for motion analysis. Black background. Broad soft white and gray curved fluid strokes sweeping diagonally from lower left to upper right and curling into two unequal vortices. Smooth continuous streaks, varied spacing and width, dark spaces between, dense bright heads and attenuated tail ends. No arrows, no diagram, no words, no glow, no perspective. Artistic ink-like flow direction reference map with readable oriented structures and organic long curls."
+    ],
+    [
+      "lacquer_fractures",
+      "Square orthographic monochrome fracture pattern for a peeling lacquer VFX. Deep black cracks outlining roughly 12 unequal contiguous white and gray islands, large central curved shards surrounded by a few smaller edge shards, no regular grid, no tiny speckles. Smooth asymmetric organic fissures, gray variation inside islands indicating staggered timing. Image is flat data-art, not photographed surface, no shadow, no perspective, no text, no decoration. Thick clear black separations between islands."
+    ],
+    [
+      "material_height",
+      "Square grayscale material relief texture for a 3D VFX shader. A rich fluid surface of sweeping nested oil ripples with folded flowing crests and broad tranquil troughs. Monochrome black valleys, smooth midgray body, white raised crests, no cast shadows, no directional light, no specular reflections, no perspective, no objects, no text. Unequal curved overlapping liquid ridges, low frequency readable forms with finer silky relief detail, smooth continuous edges. Used as height source for numerically derived normal AO roughness maps."
+    ]
+  ]
+}
