@@ -31,7 +31,8 @@ const MAX_TAKES := 3
 const REWARD := 1200
 const PLAYER_CASTS := ["M02", "04", "09", "03", "01", "02", "06"]
 const PLAYER_NAMES := ["ロボット", "ベレー帽の人", "段ボール頭", "手帳の人", "ドレスの人", "カエルの警官", "モップの王様"]
-const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust", "stage_fx", "perform", "camera_program", "stow", "lamp", "shawl", "halt", "neck", "hair", "bombkit", "bombnum"]
+# 見返し（録画）に載せる合図。仕組みの合図は、ここではなく、各仕組みの hook_rec_events() に書く（feature_hooks.gd）
+const REC_EVENTS := ["sfx", "music", "burst", "fuse", "pop", "carton", "dash_dust", "stage_fx", "perform", "camera_program"]
 const SPAWN := Vector3(9.5, 0.1, 6.5)     # 搬入口の前
 # F で荷台に積むとき
 const LOAD_HIGH := 0.9       # 物の底が、荷台の床からこの高さ以上になる置き方はしない（背の高い物の上に載ると、すぐ落ちる）
@@ -59,6 +60,8 @@ var judge: RefCounted
 
 var _layout_glue := {}
 var _replay_glue := {}
+const FeatureHooks := preload("res://scripts/feature_hooks.gd")
+var hooks: FeatureHooks = FeatureHooks.new()      # 仕組みの登録。中心の側は、ここを通して各仕組みを呼ぶ
 var adhesive: Node
 var talent: Node               # キャラごとの特技（cast_talent.gd）。制作モードだけ使う
 var props: Dictionary = {}
@@ -138,6 +141,7 @@ func _ready() -> void:
 	adhesive.game = self
 	add_child(adhesive)
 	adhesive.setup()
+	hooks.add("adhesive", adhesive)
 	hud = Hud.new()
 	hud.game = self
 	add_child(hud)
@@ -1803,13 +1807,16 @@ func _update_live() -> void:
 # ---- 全員への知らせ ----
 
 func host_ev(n: String, a: Array) -> void:
-	if state == S.TAKE and n in REC_EVENTS:
+	if state == S.TAKE and (n in REC_EVENTS or hooks.records(n)):
 		_rec_events.append([take_t, n, a])
 	ev.rpc(n, a)
 
 
 @rpc("authority", "call_local", "reliable")
 func ev(n: String, a: Array) -> void:
+	# 仕組みの合図は、持ち主の仕組みへ渡す（feature_hooks.gd）
+	if hooks.event(n, a):
+		return
 	match n:
 		"camera_program":
 			select_program_camera(int(a[0]))

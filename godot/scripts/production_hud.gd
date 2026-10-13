@@ -766,9 +766,7 @@ func _refresh() -> void:
 			_sync_paging(legacy)
 		_hint_under_panel(legacy, paging)
 	_sync_cast(production, phase)
-	_sync_bomb(phase)
-	_sync_kit(phase)
-	_sync_rope(phase)
+	_sync_hooks()
 	_sync_talent(phase)
 	var glue_holder: Node = game.local_player()
 	if glue_holder != null and glue_holder.held == game.adhesive.tool.pid:
@@ -906,54 +904,31 @@ func _sync_paging(legacy: Node) -> void:
 	legacy.keys.text = text
 
 
-# 爆弾の道具：できる動作だけを案内する（つなぐ・切る・注ぐ・点火）。
-# 火薬の量・導火線の長さ・残り秒数は出さない（ゲームの中の見た目で判断する）。文は bomb_kit.gd の hud_view() が決める
-func _sync_bomb(phase: int) -> void:
+# 仕組みの案内（爆弾の道具・箱とロープ・ロープをつかむ など）。文は、各仕組みの hook_hud() が決める。
+# 呼ぶ順番は feature_hooks.gd の ORDERS["hook_hud"]。あとの仕組みは、前の仕組みが書いたあとの文を受け取る
+func _sync_hooks() -> void:
 	var legacy: Node = game.hud
 	var me: Node = game.local_player()
-	var kit: Node = game.bomb_kit
-	if kit == null or me == null or phase not in [2, 4] or game.state not in [game.S.PREP, game.S.TAKE]:
+	if me == null:
 		return
-	var view: Dictionary = kit.hud_view(me)
+	for feature: Object in game.hooks.in_order("hook_hud"):
+		_apply_view(legacy, feature.hook_hud(me, legacy.target_label.text, legacy.keys.text))
+
+
+# 仕組みの案内の1件を、狙った物の名前の欄と、操作の案内に反映する。空なら何もしない。
+#   label：狙っている物の名前を、これに替える（操作の案内も keys_all に替える） / drop：名前の横から消す文 /
+#   name・note：その名前の直後に足す文 / tail：最後に足す文 /
+#   keys：操作の案内の先頭に足す文 / keys_all：操作の案内をまるごと差し替える文
+func _apply_view(legacy: Node, view: Dictionary) -> void:
 	if view.is_empty():
 		return
 	if view.has("label"):
-		legacy.target_label.text = str(view["label"])
-	legacy.keys.text = str(view["keys"])
-
-
-# ロープを手でつかむ：狙ったら「左クリック つかむ」、つかんでいる間は「離す」と、端の使い道（つなぐ・結ぶ）。
-# 文は rope_grab.gd の hud_view() が決める
-func _sync_rope(phase: int) -> void:
-	var legacy: Node = game.hud
-	var grab: Node = game.rope_grab
-	var me: Node = game.local_player()
-	if grab == null or me == null or phase not in [0, 2, 4] or game.state not in [game.S.PREP, game.S.TAKE]:
-		return
-	var view: Dictionary = grab.hud_view(me, legacy.target_label.text, legacy.keys.text)
-	if not view.is_empty():
-		legacy.target_label.text = str(view["label"])
-		legacy.keys.text = str(view["keys"])
-
-
-# 段ボール箱とロープ：狙った箱の中身・できる操作（入れる・取り出す・フックに結ぶ・ほどく）を、名前の横と操作の案内に出す。
-# 文は cargo_kit.gd の hud_view() が決める
-func _sync_kit(phase: int) -> void:
-	var legacy: Node = game.hud
-	var kit: Node = game.cargo_kit
-	var me: Node = game.local_player()
-	if kit == null or me == null or phase not in [0, 2, 4] or me.operating != 0 or game.state not in [game.S.PREP, game.S.TAKE]:
-		return
-	var view: Dictionary = kit.hud_view(me)
-	if view.is_empty():
-		return
-	if view.has("label"):
-		# フック・掛けたロープを狙っている：名前と操作を、まるごと差し替える
+		# 名前と操作を、まるごと差し替える（フック・掛けたロープ・爆弾の口 などを狙っている）
 		legacy.target_label.text = str(view["label"])
 		legacy.keys.text = str(view["keys_all"])
 		return
 	if legacy.target_label.text == "":
-		# 何も狙っていない：束を持っているときの案内だけ出す
+		# 何も狙っていない：持っている物の案内だけ出す
 		if view.has("keys_all"):
 			legacy.keys.text = str(view["keys_all"])
 		return
@@ -968,7 +943,7 @@ func _sync_kit(phase: int) -> void:
 	elif view.has("keys"):
 		var rest: String = legacy.keys.text
 		if str(view["keys"]).begins_with("F "):
-			# F は箱・ロープの操作が先。その場所で開く画面（積み込み確認など）の案内は出さない
+			# F は仕組みの操作が先。その場所で開く画面（積み込み確認など）の案内は出さない
 			for other: String in ["F 積み込み確認・出発", "F 発注する", "F 依頼を見る"]:
 				rest = rest.replace(other, "左クリック 持つ")
 		legacy.keys.text = str(view["keys"]) + " ／ " + rest

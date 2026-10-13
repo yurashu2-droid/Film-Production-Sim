@@ -567,3 +567,10 @@ func _peer_left(who: int) -> void:
 	if Net.is_host() and first.has(who):
 		first.erase(who)
 		rx_state.rpc(snapshot())
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+# 接着剤を塗っている間のキー
+func hook_input(event: InputEvent) -> bool:
+	return event is InputEventKey and handle_input(event)

@@ -1490,3 +1490,41 @@ func _show_lamp(vis: Node3D, on: bool) -> void:
 	glow.emission = Color(1.0, 0.82, 0.48)
 	glow.emission_energy_multiplier = 3.0
 	glass.material_override = glow
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+func hook_events() -> Array:
+	return EVENTS
+
+
+func hook_event(n: String, a: Array) -> void:
+	on_event(n, a)
+
+
+# 見返しでも同じに見せる物（手帳の中身と、あとから入った人への知らせは、載せない）
+func hook_rec_events() -> Array:
+	return ["stow", "lamp", "shawl", "halt", "neck", "hair"]
+
+
+func hook_core_event(n: String, a: Array) -> void:
+	if n == "absent":
+		absent_changed(a[0])
+	elif n == "burst":
+		on_burst(a[0], float(a[1]))      # 爆風で、ショールがずれる・飛ぶ
+	elif n == "state":
+		state_changed()
+
+
+# K：キャラの特技。ロボットはランプ、段ボール頭は小物を頭にしまう・出す（Shift+K は出すだけ）、
+# ドレスの人はショール、カエルの警官は「止まれ！」、モップの王様は毛ひも、ベレー帽の人は首
+func hook_key(event: InputEvent, _me: Node) -> bool:
+	if not event.is_action_pressed("talent") or game.production == null or game.production.phase not in [2, 4]:
+		return false
+	act_use(event.shift_pressed)
+	return true
+
+
+# 段ボール頭の仲間の頭を見て F：頭の道具箱から1つ取り出す
+func hook_f(_me: Node) -> bool:
+	return act_take()

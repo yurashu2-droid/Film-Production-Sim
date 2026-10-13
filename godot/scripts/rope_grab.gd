@@ -631,3 +631,38 @@ func _process(_delta: float) -> void:
 		if cam != null and cam.global_position.distance_to(_mark.global_position) > 0.05:
 			_mark.look_at(cam.global_position, Vector3.UP)
 			_mark.rotate_object_local(Vector3.RIGHT, PI * 0.5)
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+func hook_events() -> Array:
+	return ["ropegrab"]
+
+
+# だれが、どのロープの、どこをつかんでいるか
+func hook_event(_n: String, a: Array) -> void:
+	receive(a[0])
+
+
+func hook_sync(who: int) -> void:
+	sync_to(who)
+
+
+# ロープの端をつかんで F：爆弾の口金につなぐ・フックに結ぶ
+func hook_f(me: Node) -> bool:
+	return handle_f(me)
+
+
+# ロープを見て左クリック：つかむ／つかんでいれば、離す
+func hook_click(me: Node) -> bool:
+	return handle_click(me)
+
+
+# 画面の案内：狙ったら「左クリック つかむ」、つかんでいる間は「離す」と、端の使い道（つなぐ・結ぶ）。文は hud_view() が決める
+func hook_hud(me: Node, label: String, keys: String) -> Dictionary:
+	if game.production.phase not in [0, 2, 4] or game.state not in [game.S.PREP, game.S.TAKE]:
+		return {}
+	var view: Dictionary = hud_view(me, label, keys)
+	if view.is_empty():
+		return {}
+	return {"label": view["label"], "keys_all": view["keys"]}

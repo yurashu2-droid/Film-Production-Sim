@@ -512,12 +512,9 @@ func apply(data: Dictionary) -> void:
 	peeper = int(data.get("peeper",peeper))
 	orderer = int(data.get("orderer",orderer))
 	ordered = data.get("ordered",ordered)
-	# 買った爆弾に付く袋・持ち越した袋の数が変わったら、出ている袋を合わせ直す
-	if game.bomb_kit != null:
-		game.bomb_kit.absent_changed()
+	# 各仕組みの hook_production_applied：買った爆弾に付く袋・持ち越した袋の数が変わったら、出ている袋を合わせ直す。
 	# 場面の列を持つ依頼のときだけ、印②③・リール・ランプを出す
-	if game.beats != null:
-		game.beats.refresh()
+	game.hooks.run("hook_production_applied")
 	# 事務所・買い物・積み込み・移動中は撮影映像を表示しない。
 	game.film.view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if phase in [4,5] else SubViewport.UPDATE_DISABLED
 	if phase in [4,5] and (_site_root == null or _configured_job != chosen_job or _configured_site != site_index()):
@@ -586,9 +583,8 @@ func accept(index: int) -> void:
 	game._set_state(game.S.PREP)
 	phase = 2
 	game.production_sync.rpc(snapshot())
-	# 場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
-	if game.beats != null:
-		game.beats.host_new_job()
+	# 各仕組みの hook_new_job：場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
+	game.hooks.run("hook_new_job")
 	game.host_ev("toast", ["机に台本（1冊だけ）と、のぞき箱の参考スライドが届いた。廃材置き場の門も開いた。出発まで3分",0])
 
 
@@ -1555,9 +1551,8 @@ func return_office() -> void:
 	# 今回買った爆弾に付いてきた袋も、ここからは「持ち越した袋」として数える
 	bought_now = []
 	game.production_sync.rpc(snapshot())
-	# 段ボール箱：中身を全部出し、ロープをほどき、箱を置き場の奥へ戻す（中身は、下で元の場所へ戻る）
-	if game.cargo_kit != null:
-		game.cargo_kit.host_reset()
+	# 各仕組みの hook_return_office。段ボール箱：中身を全部出し、ロープをほどき、箱を置き場の奥へ戻す（中身は、下で元の場所へ戻る）
+	game.hooks.run("hook_return_office")
 	for prop: Node in game.props.values():
 		if prop.holder != 0:
 			game.host_release(prop)
@@ -1598,8 +1593,8 @@ func return_office() -> void:
 	phase = 0
 	day += 1
 	restock()
-	if game.cargo_kit != null:
-		game.cargo_kit.host_refill()
+	# 各仕組みの hook_office_ready。段ボール置き場に、箱を出し直す
+	game.hooks.run("hook_office_ready")
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
 	game.move_crew(Office.SPAWN_POINT, 0.0)

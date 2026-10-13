@@ -817,3 +817,57 @@ func results() -> Array:
 				detail = str(NO_REASON.get(rule, "映る時間が足りなかった"))
 		out.append({"ok": ok, "title": str(titles[i]) if i < titles.size() else "", "detail": detail, "at": float(met_at[i]) if i < met_at.size() else -1.0})
 	return out
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+func hook_events() -> Array:
+	return ["beat"]
+
+
+# 場面の進み：いまの場面・撮れた場面のランプ・稽古かどうか
+func hook_event(_n: String, a: Array) -> void:
+	receive(a[0])
+
+
+# 場面の進み（いまの場面・ランプ）は、見返しでも同じに流す
+func hook_rec_events() -> Array:
+	return ["beat"]
+
+
+func hook_sync(who: int) -> void:
+	sync_to(who)
+
+
+# 準備中にテイクを始める直前：通し稽古は、ここまで。役者は最初の印へ戻る
+func hook_take_ready() -> void:
+	host_reset()
+
+
+# 本番が始まった：場面は最初から。ランプは全部消えている（この知らせは、見返しの最初にも流れる）
+func hook_take_start() -> void:
+	if active():
+		host_reset()
+		_broadcast()
+
+
+func hook_take_cut() -> void:
+	host_reset()
+
+
+func hook_retake_done() -> void:
+	host_reset()
+
+
+func hook_playback(on: bool) -> void:
+	playback_changed(on)
+
+
+# 依頼を受けた：場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
+func hook_new_job() -> void:
+	host_new_job()
+
+
+# 場面の列を持つ依頼のときだけ、印②③・リール・ランプを出す
+func hook_production_applied() -> void:
+	refresh()

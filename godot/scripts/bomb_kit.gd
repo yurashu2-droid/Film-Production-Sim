@@ -851,7 +851,7 @@ func snapshot(full: bool) -> Dictionary:
 	return data
 
 
-# 全員へ配る（ホスト）。本番中の変化は、見返しのために記録にも残る（main.gd の REC_EVENTS）
+# 全員へ配る（ホスト）。本番中の変化は、見返しのために記録にも残る（下の hook_rec_events）
 func _broadcast(full: bool) -> void:
 	_dirty = false
 	_send_t = 0.18
@@ -1155,3 +1155,63 @@ func hud_view(me: Node) -> Dictionary:
 		"run":
 			return {"label": "爆弾", "keys": "離れろ！"}
 	return {}
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+func hook_events() -> Array:
+	return ["bombkit", "bombnum"]
+
+
+# 導火線（つながり・長さ・燃えているか）と、こぼれた火薬
+func hook_event(_n: String, a: Array) -> void:
+	receive(a[0])
+
+
+# 本番中の変化は、見返しにも同じに流す
+func hook_rec_events() -> Array:
+	return ["bombkit", "bombnum"]
+
+
+func hook_core_event(n: String, a: Array) -> void:
+	if n == "absent":
+		absent_changed()
+	elif n == "burst":
+		on_burst_seen(a[0], float(a[1]))
+
+
+func hook_sync(who: int) -> void:
+	sync_to(who)
+
+
+# F：束を持ってつなぐ・はさみで切る・袋から注ぐ・線の先（つないでいない爆弾）に点火
+func hook_f(me: Node) -> bool:
+	return handle_f(me)
+
+
+# 画面の案内：できる動作だけを案内する（つなぐ・切る・注ぐ・点火）。
+# 火薬の量・導火線の長さ・残り秒数は出さない（ゲームの中の見た目で判断する）。文は hud_view() が決める
+func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	if game.production.phase not in [2, 4] or game.state not in [game.S.PREP, game.S.TAKE]:
+		return {}
+	var view: Dictionary = hud_view(me)
+	if view.is_empty():
+		return {}
+	var out := {"keys_all": view["keys"]}
+	if view.has("label"):
+		out["label"] = view["label"]
+	return out
+
+
+# 本番が始まった：見返しの最初に、撮り始めたときの導火線とこぼれた火薬へ戻す
+func hook_take_start() -> void:
+	game._rec_events.append([0.0, "bombkit", [snapshot(true)]])
+
+
+func hook_playback(on: bool) -> void:
+	playback_changed(on)
+
+
+# 買った爆弾に付く袋・持ち越した袋の数が変わったら、出ている袋を合わせ直す
+func hook_production_applied() -> void:
+	absent_changed()

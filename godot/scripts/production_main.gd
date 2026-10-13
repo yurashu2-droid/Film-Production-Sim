@@ -13,7 +13,6 @@ const ProductionPerformance := preload("res://scripts/production_performance.gd"
 const CrewSkills := preload("res://scripts/crew_skills.gd")
 const CargoKit := preload("res://scripts/cargo_kit.gd")
 var cargo_kit: Node               # 段ボール箱（置き場・箱詰め）と、荷台のフックに掛けるロープ
-var _take_kit := {}               # テイクを始める前の箱の中身（撮り直しで戻す）
 const BombKit := preload("res://scripts/bomb_kit.gd")
 var bomb_kit: Node                # 爆弾の道具（導火線になるロープ・はさみ・火薬の袋）
 const RopeGrab := preload("res://scripts/rope_grab.gd")
@@ -66,6 +65,7 @@ func _ready() -> void:
 	talent.name = "CastTalent"
 	talent.game = self
 	add_child(talent)
+	hooks.add("talent", talent)
 	camera_switcher = CameraSwitcher.new()
 	camera_switcher.name = "CameraSwitcher"
 	camera_switcher.game = self
@@ -76,24 +76,28 @@ func _ready() -> void:
 	cue_cards.game = self
 	add_child(cue_cards)
 	cue_cards.setup()
+	hooks.add("cue_cards", cue_cards)
 	# 段ボール置き場（箱16個・ロープ・山）。物のIDがずれないよう、ほかの物を全部作ったあとに作る
 	cargo_kit = CargoKit.new()
 	cargo_kit.name = "CargoKit"
 	cargo_kit.game = self
 	add_child(cargo_kit)
 	cargo_kit.setup()
+	hooks.add("cargo_kit", cargo_kit)
 	# 爆弾の道具（はさみ・火薬の袋5つ。導火線は、上のロープと同じ物）。これも、ほかの物のあとに作る
 	bomb_kit = BombKit.new()
 	bomb_kit.name = "BombKit"
 	bomb_kit.game = self
 	add_child(bomb_kit)
 	bomb_kit.setup()
+	hooks.add("bomb_kit", bomb_kit)
 	# ロープを手でつかむ（物は作らないので、物のIDには関係しない）
 	rope_grab = RopeGrab.new()
 	rope_grab.name = "RopeGrab"
 	rope_grab.game = self
 	add_child(rope_grab)
 	rope_grab.setup()
+	hooks.add("rope_grab", rope_grab)
 	# キャラの特技で使う物（モップの王様の毛の束）。物のIDがずれないよう、いちばん最後に作る
 	talent.setup()
 	# 場面の列を持つ依頼で使う、役者の印②③。ふだんは片づけてある。これも、ほかの物のあとに作る
@@ -102,6 +106,7 @@ func _ready() -> void:
 	beats.game = self
 	add_child(beats)
 	beats.setup()
+	hooks.add("beats", beats)
 	# 会社の機材（カメラ・ライト・カチンコ・カンペ・モニター）を、軽トラの北東の機材置き場に並べる
 	if Net.is_host():
 		production.stage_gear()
@@ -111,6 +116,9 @@ func _ready() -> void:
 	director.game = self
 	add_child(director)
 	director.setup()
+	hooks.add("director", director)
+	# scripts/features/ に置いてある仕組み（置くだけで足される。feature_hooks.gd）。物を作るなら、ここが最後になる
+	hooks.spawn_folder(self)
 	monitor_popup = MonitorPopup.new()
 	monitor_popup.name = "MonitorPopup"
 	monitor_popup.game = self
@@ -236,8 +244,8 @@ func h_monitor_stop() -> void:
 
 # 何も持たずに左クリックしたとき：アップグレード画面の枠に照準が合っていれば、それを買う
 func world_click() -> bool:
-	# ロープを見て左クリック：つかむ／つかんでいれば、離す（rope_grab.gd）
-	if rope_grab != null and rope_grab.handle_click(local_player()):
+	# 仕組みの左クリック（ロープを見て：つかむ／つかんでいれば、離す。rope_grab.gd の hook_click）
+	if hooks.first("hook_click", [local_player()]):
 		return true
 	if production == null or production.display == null or production.display.hover == "":
 		return false
@@ -423,13 +431,8 @@ func _escape() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	if director != null and director.handle_input(event):
-		get_viewport().set_input_as_handled()
-		return
-	if event is InputEventKey and adhesive != null and adhesive.handle_input(event):
-		get_viewport().set_input_as_handled()
-		return
-	if cue_cards != null and cue_cards.editor.handle_input(event):
+	# 仕組みの、開いている画面の操作（のぞき箱・発注 → 接着剤 → カンペを書く画面。各仕組みの hook_input）
+	if hooks.first("hook_input", [event]):
 		get_viewport().set_input_as_handled()
 		return
 	if monitor_popup != null and monitor_popup.opened and monitor_popup.handle_input(event):
@@ -486,10 +489,8 @@ func _input(event: InputEvent) -> void:
 	if production == null or not event is InputEventKey or not event.pressed or event.echo or ui_blocking() or local_player() == null:
 		return
 	var me: Node = local_player()
-	if event.is_action_pressed("talent") and talent != null and production.phase in [2, 4]:
-		# キャラの特技：ロボットはランプ、段ボール頭は小物を頭にしまう・出す（Shift+K は出すだけ）、
-		# ドレスの人はショール、カエルの警官は「止まれ！」、モップの王様は毛ひも、ベレー帽の人は首
-		talent.act_use(event.shift_pressed)
+	if hooks.first("hook_key", [event, me]):
+		# 仕組みの、自分のキー（K＝キャラの特技。cast_talent.gd の hook_key）
 		get_viewport().set_input_as_handled()
 		return
 	if event.physical_keycode == KEY_Y and production.phase in [2, 4] and state == S.PREP:
@@ -501,35 +502,13 @@ func _input(event: InputEvent) -> void:
 			hud.show_toast("%s には役を付けられない" % subject.label, Hud.YELLOW)
 		get_viewport().set_input_as_handled()
 		return
-	if event.physical_keycode == KEY_F and director != null and director.handle_f(me):
-		# 机の上の物を見て F：のぞき箱をのぞく・電話で発注する
-		get_viewport().set_input_as_handled()
-		return
-	if event.physical_keycode == KEY_F and talent != null and talent.act_take():
-		# 段ボール頭の仲間の頭を見て F：頭の道具箱から1つ取り出す
-		get_viewport().set_input_as_handled()
-		return
-	if event.physical_keycode == KEY_F and rope_grab != null and rope_grab.handle_f(me):
-		# ロープの端をつかんで：爆弾の口金につなぐ・フックに結ぶ
-		get_viewport().set_input_as_handled()
-		return
-	if event.physical_keycode == KEY_F and bomb_kit != null and bomb_kit.handle_f(me):
-		# 爆弾の道具：束を持ってつなぐ・はさみで切る・袋から注ぐ・線の先（つないでいない爆弾）に点火
-		get_viewport().set_input_as_handled()
-		return
-	if event.physical_keycode == KEY_F and cargo_kit != null and cargo_kit.handle_f(me):
-		# 段ボール箱（入れる・取り出す・開け閉め・山から1箱）と、ロープ（フックに結ぶ・ほどく・切る）
+	if event.physical_keycode == KEY_F and hooks.first("hook_f", [me]):
+		# 仕組みの F（各仕組みの hook_f）。最初に使った仕組みで止まる。順番は feature_hooks.gd の ORDERS["hook_f"]：
+		#   机の物（のぞき箱・発注の電話）→ 仲間の頭の道具箱 → つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
 		get_viewport().set_input_as_handled()
 		return
 	if event.physical_keycode == KEY_F:
-		if cue_cards != null and me.held == cue_cards.card.pid:
-			cue_cards.editor.open_card()
-			get_viewport().set_input_as_handled()
-		elif cue_cards != null and me.held == 0 and me.target == cue_cards.panel and cue_cards.board_for(me) != null:
-			# 等身大パネルは、立てたまま見て F で描く（持っている間は、積む・置くが先）
-			cue_cards.editor.open_board(cue_cards.panel)
-			get_viewport().set_input_as_handled()
-		elif production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
+		if production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
 			h_load_truck.rpc_id(1,me.held)
 			get_viewport().set_input_as_handled()
 		elif holding_script():
@@ -916,25 +895,9 @@ func ev(n: String, a: Array) -> void:
 	elif n == "production_prop":
 		if props.has(a[0]) and props[a[0]].has_method("set_active"):
 			props[a[0]].set_active(a[1])
-	elif n == "kit":
-		# 箱の中身と、荷台に掛けたロープ
-		if cargo_kit != null:
-			cargo_kit.apply(a[0])
-	elif n == "ropegrab":
-		# だれが、どのロープの、どこをつかんでいるか
-		if rope_grab != null:
-			rope_grab.receive(a[0])
-	elif n in ["bombkit", "bombnum"]:
-		# 導火線（つながり・長さ・燃えているか）と、こぼれた火薬
-		if bomb_kit != null:
-			bomb_kit.receive(a[0])
-	elif n in CastTalent.EVENTS:
-		if talent != null:
-			talent.on_event(n, a)
-	elif n == "beat":
-		# 場面の進み：いまの場面・撮れた場面のランプ・稽古かどうか
-		if beats != null:
-			beats.receive(a[0])
+	elif hooks.event(n, a):
+		# 仕組みの合図（箱とロープ・爆弾の道具・ロープをつかむ・特技・場面の進み など）は、持ち主へ渡した
+		pass
 	elif n == "met" and beats != null and beats.active():
 		# 場面の列を持つ依頼：「OK！」の知らせは、場面を進められる人にだけ（ほかの人は、モニターの枠のランプで知る）
 		if directs():
@@ -949,22 +912,14 @@ func ev(n: String, a: Array) -> void:
 			if monitor_popup != null: monitor_popup.state_changed()
 		if n == "absent" and production:
 			production.apply_stash(production.stash)
-		if n == "absent" and bomb_kit != null:
-			bomb_kit.absent_changed()
-		if n == "burst" and bomb_kit != null:
-			bomb_kit.on_burst_seen(a[0], float(a[1]))
-		if n == "absent" and talent != null:
-			talent.absent_changed(a[0])
-		if n == "burst" and talent != null:
-			talent.on_burst(a[0], float(a[1]))      # 爆風で、ショールがずれる・飛ぶ
 		if n == "state" and production_export != null:
 			production_export.replay_state_changed(state)
 		if n == "state" and performance != null:
 			performance.state_changed()
 		if n == "state" and crew_skills != null:
 			crew_skills.replay_changed()
-		if n == "state" and talent != null:
-			talent.state_changed()
+		# 中心の合図（absent・burst・state など）を、聞きたい仕組みへ知らせる（各仕組みの hook_core_event）
+		hooks.run("hook_core_event", [n, a])
 
 
 func host_ev(n: String, a: Array) -> void:
@@ -974,9 +929,6 @@ func host_ev(n: String, a: Array) -> void:
 			a = a.duplicate()
 			a.append(crew_skills.run_style(Net.sender()))
 			a.append(Net.sender())
-	# 場面の進み（いまの場面・ランプ）は、見返しでも同じに流す
-	if n == "beat" and state == S.TAKE:
-		_rec_events.append([take_t, n, a])
 	super.host_ev(n, a)
 
 
@@ -1083,14 +1035,8 @@ func h_production_hello() -> void:
 		if camera_switcher != null:
 			camera_switcher.receive.rpc_id(Net.sender(),camera_switcher.state())
 		ev.rpc_id(Net.sender(),"stash",[production.stash])
-		if cargo_kit != null:
-			cargo_kit.sync_to(Net.sender())
-		if bomb_kit != null:
-			bomb_kit.sync_to(Net.sender())
-		if beats != null:
-			beats.sync_to(Net.sender())
-		if rope_grab != null:
-			rope_grab.sync_to(Net.sender())
+		# 各仕組みの今の状態（箱とロープ → 爆弾の道具 → 場面の進み → ロープをつかむ。各仕組みの hook_sync）
+		hooks.run("hook_sync", [Net.sender()])
 		var point: Vector3 = Flow.HOME_TRUCK + Vector3(-3,0.1,1) if production.phase in [2,3] else (SPAWN if production.phase in [4,5] else Flow.Office.SPAWN_POINT)
 		point = _open_join_point(point,Net.sender())
 		production_move.rpc(point,0.0,Net.sender(),_crew_epoch)
@@ -1271,44 +1217,33 @@ func _take_or_cut(who: int) -> void:
 	if production and (production.phase != 4 or production.expired):
 		ev.rpc_id(who,"toast",["撮影は現場に着いてから。期限後は撮れたテイクを納品しよう",1])
 		return
-	if cargo_kit != null and state == S.PREP:
-		_take_kit = cargo_kit.snapshot()
-	if beats != null and state == S.PREP:
-		beats.host_reset()          # 通し稽古は、ここまで。役者は最初の印へ戻る
+	if state == S.PREP:
+		# 各仕組みの hook_take_ready：箱の中身を覚える（撮り直しで戻す）・通し稽古を終える（役者は最初の印へ戻る）
+		hooks.run("hook_take_ready")
 	super._take_or_cut(who)
 
 
-# 撮り直し：箱の中身を、テイクを始める前に戻してから、物の置き場所を戻す
+# 撮り直し：箱の中身を、テイクを始める前に戻してから、物の置き場所を戻す（各仕組みの hook_retake・hook_retake_done）
 func _back_to_prep() -> void:
-	if cargo_kit != null:
-		cargo_kit.host_restore(_take_kit)
+	hooks.run("hook_retake")
 	super._back_to_prep()
-	if beats != null:
-		beats.host_reset()
+	hooks.run("hook_retake_done")
 
 
-# 見返し：箱の中身は記録どおりに見せ、終わったら今の中身へ戻す
+# 見返し：箱の中身などは記録どおりに見せ、終わったら今の中身へ戻す（各仕組みの hook_playback）。
+# 始まりは 箱とロープ → 爆弾 → 場面の進み、終わりは 場面の進み → 箱とロープ → 爆弾 の順（feature_hooks.gd の ORDERS）
 func _set_playback(on: bool) -> void:
-	if cargo_kit != null and on:
-		cargo_kit.playback_changed(true)
-	if bomb_kit != null and on:
-		bomb_kit.playback_changed(true)
-	if beats != null and on:
-		beats.playback_changed(true)
+	if on:
+		hooks.run("hook_playback", [true])
 	super._set_playback(on)
-	if beats != null and not on:
-		beats.playback_changed(false)
-	if cargo_kit != null and not on:
-		cargo_kit.playback_changed(false)
-	if bomb_kit != null and not on:
-		bomb_kit.playback_changed(false)
+	if not on:
+		hooks.run("hook_playback", [false], "hook_playback:off")
 
 
-# ロープがしっかり押さえている物は、引っぱっても抜けない
+# 仕組みが「持てない」と言う物（ロープがしっかり押さえている物は、引っぱっても抜けない。各仕組みの hook_grab_block）
 func grab_block(p: Node) -> String:
-	if cargo_kit != null and cargo_kit.pinned(p.pid):
-		return "ロープが押さえていて、抜けない（ロープを見て F でほどく）"
-	return super.grab_block(p)
+	var why: String = hooks.first_text("hook_grab_block", [p])
+	return why if why != "" else super.grab_block(p)
 
 func _begin_take() -> void:
 	if production:
@@ -1317,16 +1252,8 @@ func _begin_take() -> void:
 	super._begin_take()
 	if crew_skills != null:
 		_rec_events.append([0.0, "crew_crafts", [crew_skills.crafts.duplicate()]])
-	if cargo_kit != null:
-		# 見返しの最初に、撮り始めたときの箱の中身へ戻す
-		_rec_events.append([0.0, "kit", [cargo_kit.snapshot()]])
-	if bomb_kit != null:
-		# 見返しの最初に、撮り始めたときの導火線とこぼれた火薬へ戻す
-		_rec_events.append([0.0, "bombkit", [bomb_kit.snapshot(true)]])
-	if beats != null and beats.active():
-		# 場面は最初から。ランプは全部消えている（この知らせは、見返しの最初にも流れる）
-		beats.host_reset()
-		beats._broadcast()
+	# 各仕組みの hook_take_start：見返しの最初に流す知らせ（撮り始めたときの箱の中身・導火線）を足す。場面は最初から
+	hooks.run("hook_take_start")
 
 func _cut() -> void:
 	var extras := {}
@@ -1337,8 +1264,7 @@ func _cut() -> void:
 		host_ev("sfx", ["unfix", program_camera().global_position])
 		host_ev("toast", ["フィルムが切れた！", 1])
 	super._cut()
-	if beats != null:
-		beats.host_reset()
+	hooks.run("hook_take_cut")
 	if production:
 		takes[-1]["extras"] = extras
 		host_ev("takes",[takes,selected])

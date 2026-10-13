@@ -124,3 +124,21 @@ func rx_snapshot(pid: int, state: Array) -> void:
 
 func _sync_restored_ink(board: RigidBody3D) -> void:
 	if Net.is_host() and Net.has_peers(): rx_snapshot.rpc(board.pid,board.get_state())
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+# カンペ・等身大パネルに書く画面を開いている間の操作
+func hook_input(event: InputEvent) -> bool:
+	return editor.handle_input(event)
+
+
+# F：カンペを持っていれば、書く。等身大パネルは、立てたまま見て F で描く（持っている間は、積む・置くが先）
+func hook_f(me: Node) -> bool:
+	if me.held == card.pid:
+		editor.open_card()
+		return true
+	if me.held == 0 and me.target == panel and board_for(me) != null:
+		editor.open_board(panel)
+		return true
+	return false

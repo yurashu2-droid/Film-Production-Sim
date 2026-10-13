@@ -55,6 +55,7 @@ var rng := RandomNumberGenerator.new()        # 結び目のゆるみ・こぼ�
 
 var _before_replay := {}                      # 見返しの前の中身（見返しが終わったら戻す）
 var _playback := false
+var _before_take := {}                        # テイクを始める前の中身（撮り直しで戻す）
 
 
 func _init() -> void:
@@ -493,3 +494,64 @@ func stock(coil: int = 0) -> float:
 
 func _coil_exit(coil: int = 0) -> Vector3:
 	return reels._coil_exit(coil)
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+func hook_events() -> Array:
+	return ["kit"]
+
+
+# "kit"：箱の中身と、荷台に掛けたロープ
+func hook_event(_n: String, a: Array) -> void:
+	apply(a[0])
+
+
+func hook_sync(who: int) -> void:
+	sync_to(who)
+
+
+# F：段ボール箱（入れる・取り出す・開け閉め・山から1箱）と、ロープ（フックに結ぶ・ほどく・切る）
+func hook_f(me: Node) -> bool:
+	return handle_f(me)
+
+
+# 画面の案内：狙った箱の中身・できる操作（入れる・取り出す・フックに結ぶ・ほどく）。文は hud_view() が決める
+func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	if flow == null or flow.phase not in [0, 2, 4] or me.operating != 0 or game.state not in [game.S.PREP, game.S.TAKE]:
+		return {}
+	return hud_view(me)
+
+
+# 準備中にテイクを始める直前：箱の中身と掛けたロープを覚える（撮り直しで戻す）
+func hook_take_ready() -> void:
+	_before_take = snapshot()
+
+
+# 本番が始まった：見返しの最初に、撮り始めたときの箱の中身へ戻す
+func hook_take_start() -> void:
+	game._rec_events.append([0.0, "kit", [snapshot()]])
+
+
+# 撮り直し：箱の中身を、テイクを始める前に戻す（物の置き場所は、このあと main.gd が戻す）
+func hook_retake() -> void:
+	host_restore(_before_take)
+
+
+func hook_playback(on: bool) -> void:
+	playback_changed(on)
+
+
+# ロープがしっかり押さえている物は、引っぱっても抜けない
+func hook_grab_block(prop: Node) -> String:
+	return "ロープが押さえていて、抜けない（ロープを見て F でほどく）" if pinned(prop.pid) else ""
+
+
+# 帰社：中身を全部出し、ロープをほどき、箱を置き場の奥へ戻す
+func hook_return_office() -> void:
+	host_reset()
+
+
+# 帰社のあと：置き場に、箱を出し直す
+func hook_office_ready() -> void:
+	host_refill()

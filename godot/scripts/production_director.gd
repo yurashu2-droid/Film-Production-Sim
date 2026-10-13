@@ -457,3 +457,15 @@ func _solid(parent: Node3D, thing: String, at: Vector3, size: Vector3) -> void:
 	cs.shape = shape
 	body.add_child(cs)
 	parent.add_child(body)
+
+
+# ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+# のぞき箱をのぞいている間・発注の画面の操作
+func hook_input(event: InputEvent) -> bool:
+	return handle_input(event)
+
+
+# 机の上の物を見て F：のぞき箱をのぞく・電話で発注する
+func hook_f(me: Node) -> bool:
+	return handle_f(me)

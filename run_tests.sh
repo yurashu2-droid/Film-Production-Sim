@@ -105,6 +105,8 @@ if [ "${1:-}" != "" ] && [ "${1:-}" != --graphics ]; then
   exit 2
 fi
 
+# Feature registration (scripts/feature_hooks.gd): run this first after touching a feature or a core file.
+script_case feature-hooks 90 'FEATURE_HOOKS_TEST_OK' feature_hooks_test.gd --fixed-fps 60
 script_case cargo-packing 40 'CARGO_PACKING_TEST_OK' cargo_packing_test.gd
 script_case cargo-adhesive 40 'CARGO_ADHESIVE_TEST_OK' cargo_adhesive_test.gd
 script_case handling-physics 120 'HANDLING_PHYSICS_TEST_OK' handling_physics_test.gd
