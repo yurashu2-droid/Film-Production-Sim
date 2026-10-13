@@ -9,8 +9,6 @@ const L_CHAR := 8
 const L_MARK := 16
 # 持った物にぶら下がった物に引っぱられても動きを乱されないよう、その重さの何倍までの引っぱりを手が受け止めるか
 const HANG_GRIP := 3.0
-const HANG_LIGHT := 10.0     # この重さ（kg）までの物は、手で支えられるので垂れない（カンペ・等身大パネル・書割・小物。視点と同じ向きを保つ）
-const HANG_HEAVY := 18.0     # この重さから上は、掴んだ点を支点に、すっかり垂れる。間の重さは、少しだけ垂れる
 const HANG_DAMP := 2.2       # 手に持って垂れている物の、揺れの収まりやすさ（大きいほど早く止まる）
 
 var game: Node
@@ -267,8 +265,8 @@ func _drive_hold(delta: float) -> void:
 	# 回していない間は、向きを保たない：掴んだ点を支点に、重さで垂れる・揺れる（振り子）。
 	# 真ん中を掴めば垂れず、端を掴むほど大きく垂れる。倒れないようにしてある物・転がす物は、今までどおり
 	var holder_node: Node = game.players.get(holder)
-	# 軽い物は垂れない（手の力で向きを保てる）。重い物ほど垂れる
-	var droop: float = smoothstep(HANG_LIGHT, HANG_HEAVY, mass)
+	# 垂れるかどうかは、持っている人が決める（N で力を抜く。player.gd の hold_limp）。重さでは変えない
+	var droop := 1.0
 	if droop > 0.0 and holder_node != null and not holder_node.hold_turning and tgt.size() > 5 and hold_reference_valid and not rolls and not axis_lock_angular_x:
 		var arm: Vector3 = global_basis * (_hold_com_local - hold_grip_local)
 		var pull: Vector3 = arm.cross(Vector3.DOWN * 9.8) / (arm.length_squared() + half.length_squared() / 3.0 + 0.0004)
