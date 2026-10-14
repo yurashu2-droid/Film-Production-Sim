@@ -13,6 +13,7 @@ var solo_button: Button
 var host_button: Button
 var join_button: Button
 var address_input: LineEdit
+var connection_choice: OptionButton
 var _canvas: CanvasLayer
 var _stage: Control
 var _diorama: SubViewportContainer
@@ -113,12 +114,20 @@ void fragment() {
 	join_button = _hit_button("友達の会社へ", 2)
 	join_button.pressed.connect(_join)
 	address_input = LineEdit.new()
-	address_input.placeholder_text = "友達のIPアドレス"
+	address_input.placeholder_text = "会社番号を貼り付け"
 	_style_slot(address_input)
 	address_input.text_submitted.connect(func(_text: String): _join())
 	root.add_child(address_input)
 
-	_film_set.set_case_note("同じネットワークの友達と、最大4人で撮影できる。")
+	connection_choice = OptionButton.new()
+	connection_choice.add_item("オンライン（Steam）")
+	connection_choice.add_item("同じネットワーク（IP）")
+	connection_choice.position = Vector2(LEFT, CASE_TOP - 54)
+	connection_choice.size = Vector2(CASE_W, 42)
+	UI.style_button(connection_choice, "slate", 17, 42)
+	connection_choice.item_selected.connect(_connection_changed)
+	root.add_child(connection_choice)
+	_connection_changed(0)
 
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_canvas.visibility_changed.connect(func() -> void:
@@ -215,7 +224,8 @@ func _layout() -> void:
 	for k in 3:
 		rects.append(Rect2(LEFT, CASE_TOP + CASE_H * k, CASE_W, CASE_H))
 	var join_x: float = (SLOT_W + 12.0 + (CASE_W - SLOT_W - 12.0) * 0.5) / CASE_W
-	_film_set.layout_cases(rects, ["primary", "dark", "dark"], ["ひとりで遊ぶ", "友達を招く（ホスト）", "友達の会社へ"], [0.5, 0.5, join_x])
+	var labels := ["ひとりで遊ぶ", "会社を開く", "番号で参加"] if _online() else ["ひとりで遊ぶ", "友達を招く（ホスト）", "友達の会社へ"]
+	_film_set.layout_cases(rects, ["primary", "dark", "dark"], labels, [0.5, 0.5, join_x])
 	_place_hits()
 
 
@@ -250,6 +260,18 @@ func _set_busy(on: bool) -> void:
 	host_button.disabled = on
 	join_button.disabled = on
 	address_input.editable = not on
+	connection_choice.disabled = on
+
+func _online() -> bool:
+	return connection_choice.selected == 0
+
+func _connection_changed(_index: int) -> void:
+	address_input.text = ""
+	address_input.placeholder_text = "会社番号を貼り付け" if _online() else "友達のIPアドレス"
+	host_button.text = "会社を開く" if _online() else "友達を招く（ホスト）"
+	join_button.text = "番号で参加" if _online() else "友達の会社へ"
+	_film_set.set_case_note("Steamを起動して、会社番号を共有。最大4人で撮影できる。" if _online() else "同じネットワークの友達と、最大4人で撮影できる。")
+	_layout.call_deferred()
 
 func _solo() -> void:
 	if _busy or game_node != null:
@@ -271,8 +293,8 @@ func _join() -> void:
 	if _busy or game_node != null:
 		return
 	var address := address_input.text.strip_edges()
-	if not address.is_valid_ip_address():
-		_film_set.set_case_note("IPアドレスを確かめてください。例：192.168.1.10")
+	if (Net.steam_session.parse_room(address) == 0 if _online() else not address.is_valid_ip_address()):
+		_film_set.set_case_note("会社番号を数字で入力してください。" if _online() else "IPアドレスを確かめてください。例：192.168.1.10")
 		return
 	_set_busy(true)
 	_transition.begin()
@@ -280,7 +302,8 @@ func _join() -> void:
 	_joining = true
 	_elapsed = 0.0
 	_film_set.set_case_note("友達の会社につないでいます…")
-	if Net.join(address) != OK:
+	var err: Error = Net.join_online(address) if _online() else Net.join(address)
+	if err != OK:
 		_join_failed()
 
 func _process(delta: float) -> void:
@@ -290,7 +313,7 @@ func _process(delta: float) -> void:
 			_film_set.set_mouse((_root.get_local_mouse_position() / _root.size - Vector2(0.5, 0.5)) * 2.0)
 	if _joining:
 		_elapsed += delta
-		if _elapsed >= 12.0:
+		if _elapsed >= (30.0 if _online() else 12.0):
 			_join_failed()
 
 func _joined() -> void:
@@ -301,16 +324,15 @@ func _joined() -> void:
 
 func _join_failed() -> void:
 	if _joining and game_node == null:
-		_reset_connection("つながりませんでした。友達が会社を開いているか、IPアドレスを確かめて再試行してください。")
+		var message := "つながりませんでした。友達が会社を開いているか、IPアドレスを確かめて再試行してください。"
+		if _online():
+			message = Net.last_error if not Net.last_error.is_empty() else "つながりませんでした。会社番号と相手のSteam起動を確認してください。"
+		_reset_connection(message)
 
 func _reset_connection(message: String) -> void:
 	_joining = false
 	_transition.cancel()
-	var peer := multiplayer.multiplayer_peer
-	if peer != null:
-		peer.close()
-	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	Net.mode = "solo"
+	Net.close()
 	_set_busy(false)
 	_film_set.set_case_note(message)
 
@@ -352,9 +374,12 @@ func _finish_launch(send_hello: bool, host_requested: bool) -> void:
 		return
 	_resume_network_poll()
 	# Gameの準備と画面の被覆が両方済んでから、接続を受け付ける。
-	if host_requested and Net.host() != OK:
-		return_to_menu("会社を開けませんでした。もう一度試してください。")
-		return
+	if host_requested:
+		var err: Error = await Net.host_online() if _online() else Net.host()
+		if _returning or not is_instance_valid(launching_game) or game_node != launching_game: return
+		if err != OK:
+			return_to_menu(Net.last_error if _online() and not Net.last_error.is_empty() else "会社を開けませんでした。もう一度試してください。")
+			return
 	launching_game.input_locked = true
 	launching_game.process_mode = Node.PROCESS_MODE_INHERIT
 	_canvas.visible = false
@@ -398,11 +423,7 @@ func return_to_menu(message: String = "会社を閉じました。次の制作�
 		_disconnect_game_signals(old_game)
 		old_game.queue_free()
 	Sfx.silence_all()
-	var peer := multiplayer.multiplayer_peer
-	if peer != null:
-		peer.close()
-	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	Net.mode = "solo"
+	Net.close()
 	while is_instance_valid(old_game):
 		await get_tree().process_frame
 	game_node = null

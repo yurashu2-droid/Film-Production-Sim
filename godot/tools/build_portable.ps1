@@ -1,4 +1,4 @@
-param([string]$OutputDirectory = "")
+param([string]$OutputDirectory = "", [string]$EngineDirectory = "")
 $ErrorActionPreference = 'Stop'
 $projectDirectory = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repositoryDirectory = [System.IO.Path]::GetFullPath((Join-Path $projectDirectory '..'))
@@ -6,7 +6,8 @@ if (-not $OutputDirectory) {
     $OutputDirectory = Join-Path $repositoryDirectory 'artifacts/FilmProductionCrew-portable'
 }
 $packageDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
-$engineDirectory = Join-Path $repositoryDirectory 'tools/godot'
+if (-not $EngineDirectory) { $EngineDirectory = Join-Path $repositoryDirectory 'tools/godot' }
+$engineDirectory = [System.IO.Path]::GetFullPath($EngineDirectory)
 $engineConsole = Join-Path $engineDirectory 'Godot_v4.7.2-stable_win64_console.exe'
 $engineWindow = Join-Path $engineDirectory 'Godot_v4.7.2-stable_win64.exe'
 if (-not (Test-Path -LiteralPath $engineConsole) -or -not (Test-Path -LiteralPath $engineWindow)) {
@@ -19,6 +20,15 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $packPath)) {
     throw "ゲーム資源の書き出しに失敗しました（終了 $LASTEXITCODE）。"
 }
 Copy-Item -LiteralPath $engineWindow -Destination (Join-Path $packageDirectory 'FilmProductionCrew.exe')
+# The portable executable is the editor binary, so it loads the debug GDExtension.
+# Include both variants so the same pack also works with a release template.
+$steamSource = Join-Path $projectDirectory 'addons/godotsteam/win64'
+$steamDestination = Join-Path $packageDirectory 'addons/godotsteam/win64'
+New-Item -ItemType Directory -Force -Path $steamDestination | Out-Null
+Get-ChildItem -LiteralPath $steamSource -Filter '*.dll' -File | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination $steamDestination
+}
+Set-Content -LiteralPath (Join-Path $packageDirectory 'steam_appid.txt') -Value '480' -Encoding ascii
 # 本編と同じPCKに入っている試作室も、ソースなしで開ける。
 $labLaunchers = @{
     'MotionLab.bat' = 'res://motion_lab.tscn'
@@ -31,6 +41,7 @@ foreach ($launcherName in $labLaunchers.Keys) {
 }
 $noticesDirectory = Join-Path $packageDirectory 'Notices'
 New-Item -ItemType Directory -Force -Path $noticesDirectory | Out-Null
+Copy-Item -LiteralPath (Join-Path $projectDirectory 'addons/godotsteam/license.md') -Destination (Join-Path $noticesDirectory 'GodotSteam-LICENSE.txt')
 Get-ChildItem -LiteralPath (Join-Path $projectDirectory 'licenses') -File | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination $noticesDirectory
 }
@@ -47,11 +58,20 @@ $instructions = @'
 格安アクション映画制作班 ― Windows持ち運び版
 
 フォルダを展開して FilmProductionCrew.exe を起動してください。
-exeとpckは同じフォルダに置きます。Godotの別インストールは不要です。
+exe・pck・addons・steam_appid.txtはこのフォルダのまま使ってください。
+Godotの別インストールは不要です。
 
 ひとり：起動画面で「ひとりで遊ぶ」。
-友達と：一人が「友達を招く」。事務所のIPを同じネットワークの友達へ伝え、
-参加側は起動画面でIPを入力します（UDP 24680、最大4人）。
+オンライン：全員が別々のSteamアカウントでSteamを起動・ログインします。
+一人が「オンライン（Steam）」の「会社を開く」を選びます。
+ゲーム右下の会社番号をF8でコピーして、相手にチャットなどで伝えます。
+参加側は同じ版のゲームを起動し、会社番号を貼り付けて「番号で参加」。
+最大4人。同じWi-Fiやポート開放は不要です。ホストが終了すると全員退出します。
+Steamのフレンド招待は未対応です。この配布版は開発確認用App ID 480を使います。
+Steam上の公開・販売版では、自分のゲームのApp IDに変更する必要があります。
+
+同じネットワーク：選択欄を「同じネットワーク（IP）」へ切り替えます。
+一人が「友達を招く」を選び、事務所のIPを参加者へ伝えます（UDP 24680）。
 
 事務所 → 依頼 → 道具購入・無料廃材 → 軽トラ積載 → 現場 → 映画 → 納品。
 現場を借りられるのは10分。詳しい操作はTabで確認できます。
