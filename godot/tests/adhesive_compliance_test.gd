@@ -420,6 +420,7 @@ func assistance() -> void:
 	click.action = "operate"
 	click.pressed = true
 	check(glue.handle_input(click),"F を押すと、接着剤が受け取る")
+	await frames(2)
 	check(glue.pairs.size()==1 and glue.pairs[0].a==a.pid and glue.pairs[0].b==b.pid and glue.pairs[0].joined,"F を1回押すと、表示していた近くの相手と留まる")
 	var count: int = glue.pairs.size()
 	glue.handle_input(click)
@@ -442,11 +443,22 @@ func assistance() -> void:
 	b.global_position.x = 0.721
 	await frames(2)
 	choices = glue.nearby_candidates(a.pid,Vector3(0.3,0,0))
-	check(choices.size()==1 and choices[0].gap>0.12 and choices[0].gap<0.18,"探す距離を広げても、留まる距離は12cmのまま")
+	check(choices.size()==1 and choices[0].gap>0.12 and choices[0].gap<0.18,"12cm より離れた相手も、18cm までは候補に出す")
 	game.me.cam.position = Vector3(0,1,0)
+	# 印が2つ出ていれば、F で動かせる方を引き寄せて、点どうしを重ねてから留める
+	b.freeze = false
 	glue.h_assisted_mark(Vector3(0.28,5,2),Vector3.FORWARD,a.pid,b.pid)
-	check(glue.pairs.is_empty(),"離れすぎた相手とは留まらない")
-	b.global_position.x = 0.65
+	check(glue.pairs.size()==1 and not glue.pairs[0].joined,"F を押すと、離れた相手を引き寄せ始める")
+	await frames(60)
+	if glue.pairs.size()==1:
+		var pulled: Dictionary = glue.pairs[0]
+		var apart: float = a.to_global(pulled.pa).distance_to(b.to_global(pulled.pb))
+		check(pulled.joined and apart<0.02,"動かせる方が寄ってきて、点どうしが重なってから留まる（残り %.3f m）" % apart)
+	glue.clear()
+	b.freeze = true
+	b.linear_velocity = Vector3.ZERO
+	b.global_rotation = Vector3.ZERO
+	b.global_position = Vector3(0.65,5,0)
 	await frames(2)
 	glue.h_assisted_mark(Vector3(0.28,5,2),Vector3.FORWARD,a.pid,c.pid)
 	check(glue.pairs.is_empty(),"選んだ相手がいなくなっても、近くの別の物には留めない")

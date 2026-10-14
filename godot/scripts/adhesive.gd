@@ -5,6 +5,10 @@ extends Node
 ## 一直線でない3点を留めると、ほぼ固まる。接着した時の向きへ戻そうとする力は無い。
 const TOUCH := 0.12
 const SEARCH := 0.18
+## F で2つの印をつないだとき、片方を引き寄せる速さ（m/秒）・寄せ終わったとみる近さ（m）・あきらめるまでの秒数
+const PULL_SPEED := 1.2
+const PULL_DONE := 0.008
+const PULL_TIME := 0.8
 ## 留めた2つの物が、互いに回る勢いの弱まる速さ（毎秒）。回り続けて止まらないのを防ぐだけの弱い抵抗
 const SWING_DAMP := 1.5
 ## これより遅い回り方（rad/秒）には抵抗をかけない。止まりかけの物を起こし続けないため
@@ -62,7 +66,7 @@ func handle_input(event: InputEvent) -> bool:
 func hint() -> String:
 	if _preview.has("b") and (not _eligible(game.props.get(_preview.a)) or not _eligible(game.props.get(_preview.b))): _clear_preview()
 	if _preview.get("ready",false):
-		return "接着剤：%s ↔ %s　F で接着 ／ Shift+F 最初の点を取消 ／ 左クリックで置く" % [game.props[_preview.a].label,game.props[_preview.b].label]
+		return "接着剤：%s ↔ %s　F で引き寄せて接着 ／ Shift+F 最初の点を取消 ／ 左クリックで置く" % [game.props[_preview.a].label,game.props[_preview.b].label]
 	if _preview.get("count",0)>1:
 		return "接着剤：相手が複数。F で1点目、次に接着したい物を狙って F ／ Shift+F 取消 ／ 左クリックで置く"
 	if _preview.has("b"):
@@ -89,12 +93,32 @@ func _physics_process(delta: float) -> void:
 		if a == null or b == null or a.absent or b.absent: continue
 		var pa: Vector3 = a.to_global(pair.pa)
 		var pb: Vector3 = b.to_global(pair.pb)
-		if pa.distance_to(pb)>TOUCH: continue
+		if pair.get("pull",false):
+			# F で選んだ2点：動かしやすい方を、点どうしが重なるまで引き寄せてから留める
+			pair.left = float(pair.get("left",PULL_TIME)) - delta
+			if pa.distance_to(pb)>PULL_DONE and pair.left>0.0 and _pull(a,b,pa,pb):
+				continue
+			pair.erase("pull")
+			pair.erase("left")
+		elif pa.distance_to(pb)>TOUCH: continue
 		pair.joined = true
 		changed = true
 	if changed:
 		rx_state.rpc(snapshot())
 		game.host_ev("toast",[JOINED_TOAST,0])
+
+# 片方を、もう片方の点へ向けて動かす。動かせる物が無ければ false（そのまま、離れた所で留める）。
+# 手に持っている物・固定した物・動かせない物は動かさない。両方動かせるなら軽い方を動かす
+func _pull(a: RigidBody3D, b: RigidBody3D, pa: Vector3, pb: Vector3) -> bool:
+	var can_a: bool = not (a.freeze or a.get("fixed") == true or a.get("immovable") == true or int(a.get("holder")) != 0)
+	var can_b: bool = not (b.freeze or b.get("fixed") == true or b.get("immovable") == true or int(b.get("holder")) != 0)
+	var mover: RigidBody3D = (a if a.mass < b.mass else b) if can_a and can_b else (b if can_b else (a if can_a else null))
+	if mover == null: return false
+	var gap: Vector3 = (pa - pb) if mover == b else (pb - pa)
+	mover.sleeping = false
+	mover.linear_velocity = gap.normalized() * minf(gap.length() * 10.0, PULL_SPEED)
+	mover.angular_velocity *= 0.5
+	return true
 
 func allowed(who: int) -> bool:
 	return tool != null and tool.holder == who and not game.replaying and not game.input_locked and game.state in [game.S.PREP,game.S.COUNTDOWN,game.S.TAKE]
@@ -181,15 +205,15 @@ func h_assisted_mark(origin: Vector3, direction: Vector3, expected_a: int, expec
 	else:
 		if hit.collider.pid!=expected_a: return
 		choices = nearby_candidates(expected_a,hit.collider.to_local(hit.position))
-	if choices.size()!=1 or choices[0].b!=expected_b or choices[0].gap>TOUCH:
+	if choices.size()!=1 or choices[0].b!=expected_b or choices[0].gap>SEARCH:
 		game.ev.rpc_id(who,"toast",["接着する相手が動いた。もう一度狙ってクリック",0])
 		return
 	var choice: Dictionary = choices[0]
 	if _duplicate_contact(choice): return
-	pairs.append({"a":choice.a,"b":choice.b,"pa":choice.pa,"pb":choice.pb,"joined":true})
+	# 2つの印が重なるまで引き寄せてから留める（_physics_process）。重なったら「接着した！」
+	pairs.append({"a":choice.a,"b":choice.b,"pa":choice.pa,"pb":choice.pb,"joined":false,"pull":true,"left":PULL_TIME})
 	first.erase(who)
 	rx_state.rpc(snapshot())
-	game.host_ev("toast",[JOINED_TOAST,0])
 
 func _duplicate_contact(choice: Dictionary) -> bool:
 	for pair: Dictionary in pairs:
@@ -212,7 +236,7 @@ func _update_preview(me: Node) -> void:
 	_preview["count"] = choices.size()
 	if choices.size()==1:
 		_preview.merge(choices[0])
-		_preview["ready"] = choices[0].gap<=TOUCH
+		_preview["ready"] = choices[0].gap<=SEARCH
 		_show_preview(_preview)
 	elif choices.size()>1:
 		_show_preview(choices[0],false)
@@ -245,7 +269,7 @@ func _show_preview(choice: Dictionary, unambiguous := true) -> void:
 		var line := MeshInstance3D.new()
 		line.mesh = _preview_line
 		_preview_root.add_child(line)
-	var color := Color(0.2,0.9,1.0) if unambiguous and choice.gap<=TOUCH else Color(1.0,0.65,0.15)
+	var color := Color(0.2,0.9,1.0) if unambiguous and choice.gap<=SEARCH else Color(1.0,0.65,0.15)
 	var pa: Vector3 = game.props[choice.a].to_global(choice.pa)
 	var pb: Vector3 = game.props[choice.b].to_global(choice.pb)
 	_preview_dots[0].global_position = pa

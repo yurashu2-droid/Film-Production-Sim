@@ -1000,6 +1000,13 @@ func _blow(delta: float) -> int:
 		moved += 1
 		if delta > 0.0:
 			prop.sleeping = false
+			if prop.rolls:
+				# キャスターの付いた台（台車・モニター台など）は、低く広い台で踏ん張るので、風では倒れない。
+				# 足元の高さを押す（倒す回りの力が生まれない）。押す力が床との摩擦より強ければ、ずれる
+				var low: Vector3 = prop.center_global() - prop.global_position
+				low.y = 0.1
+				prop.apply_force(_gust_dir.normalized() * accel * prop.mass, low)
+				continue
 			prop.apply_central_force(_gust_dir.normalized() * accel * prop.mass)
 			# 背の高い物は上のほうを押されて倒れる
 			prop.apply_torque(Vector3(_gust_dir.z, 0, -_gust_dir.x).normalized() * accel * prop.mass * prop.half.y * 0.35)
