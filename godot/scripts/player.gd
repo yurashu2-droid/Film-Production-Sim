@@ -547,8 +547,9 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if is_local:
-		# 視点の向きは、物理のコマごとに変える（_physics_process）。描画のコマごとに変えると、
-		# 物理のコマごとに動く持った物とずれて、持った物だけがカクついて見える（2026-10-14 に一度入れて戻した）
+		# 視点は、描画のコマごとに向きを変える（物理のコマごとだけだと、速い画面では視点を振ったときにカクつく）
+		if head != null:
+			head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
 		_show_arms()
 		if is_instance_valid(arms) and arms.visible:
 			FirstPersonArms.place(arms, self, delta)
