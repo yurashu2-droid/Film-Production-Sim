@@ -57,7 +57,7 @@ var hold_roll := 0.0
 var hold_turning := true
 # 力を抜いて持っているか（N で切り替え）。抜いている間は、掴んだ点を支点に物が垂れる。ふだんは抜かず、視点と同じ向きを保つ
 var hold_limp := false
-# 転がして運ぶ物（台車など）を、床から持ち上げているか。右クリックを押している間だけ（離すと、床へ降りて転がる）
+# 転がして運ぶ物（台車など）を、床から持ち上げているか。N で切り替える（降ろすと、床を転がす）
 var hold_raise := false
 var _limp_key := false
 var hold_offset := Vector3.ZERO
@@ -513,11 +513,16 @@ func _physics_process(delta: float) -> void:
 		var limp_key: bool = Input.is_physical_key_pressed(KEY_N) and not game.ui_blocking()
 		if limp_key and not _limp_key and held != 0:
 			hold_limp = not hold_limp
-			game.hud.show_toast("力を抜いた（物が垂れる）。もう一度 N で、向きを保つ" if hold_limp else "力を入れた（向きを保つ）", game.hud.YELLOW)
+			var rolling: bool = game.props.has(held) and game.props[held].rolls
+			if rolling:
+				game.hud.show_toast("持ち上げた。もう一度 N で降ろす" if hold_limp else "降ろした（床を転がす）", game.hud.YELLOW)
+			else:
+				game.hud.show_toast("力を抜いた（物が垂れる）。もう一度 N で、向きを保つ" if hold_limp else "力を入れた（向きを保つ）", game.hud.YELLOW)
 		_limp_key = limp_key
 		if held == 0:
 			hold_limp = false
-		var raise: bool = held != 0 and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and game.props.has(held) and game.props[held].rolls
+		# 転がして運ぶ物（台車など）は、N で持ち上げる・降ろす（力を抜く代わり）
+		var raise: bool = held != 0 and hold_limp and game.props.has(held) and game.props[held].rolls
 		if raise != hold_raise:
 			hold_raise = raise
 			game.send_hold_raise(raise)

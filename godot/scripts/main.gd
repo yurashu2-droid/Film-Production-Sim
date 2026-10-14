@@ -451,7 +451,7 @@ func act_hold_command(command: String, amount: float = 0.0) -> void:
 
 
 func hold_hint() -> String:
-	return "左クリック 置く ／ 右ドラッグ 回す ／ Q・E 傾ける ／ ホイール 奥行き ／ R 起こす ／ G 起こして手元へ ／ N 力を抜く（垂らす） ／ 台車は右クリックの間だけ浮く"
+	return "左クリック 置く ／ 右ドラッグ 回す ／ Q・E 傾ける ／ ホイール 奥行き ／ R 起こす ／ G 起こして手元へ ／ N 力を抜く（垂らす）・台車は持ち上げる"
 
 
 func act_release() -> void:

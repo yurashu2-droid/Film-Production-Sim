@@ -219,7 +219,7 @@ func _drive_hold(delta: float) -> void:
 	if tgt == null:
 		game.host_release(self)
 		return
-	# 転がして運ぶ物：持っている人が右クリックを押している間だけ、床から浮かせて持ち上げられる。離すと床へ降りる
+	# 転がして運ぶ物：持っている人が N で持ち上げている間だけ、床から浮かせる。降ろすと床を転がす
 	if rolls:
 		var raiser: Node = game.players.get(holder)
 		var raise: bool = raiser != null and raiser.hold_raise

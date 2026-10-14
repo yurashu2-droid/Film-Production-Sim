@@ -204,7 +204,7 @@ func run() -> void:
 		check(me.held == dolly.pid and dolly.global_position.y - floor_y < 0.1, "台車は、ふだんは見上げても床から浮かない")
 		me.hold_raise = true
 		await frames(90)
-		check(dolly.global_position.y - floor_y > 0.4, "右クリックの間は、台車が浮いて持ち上がる（%.2f m）" % (dolly.global_position.y - floor_y))
+		check(dolly.global_position.y - floor_y > 0.4, "N で持ち上げている間は、台車が浮く（%.2f m）" % (dolly.global_position.y - floor_y))
 		me.hold_raise = false
 		await frames(120)
 		check(dolly.global_position.y - floor_y < 0.15, "離すと、床へ降りる")
