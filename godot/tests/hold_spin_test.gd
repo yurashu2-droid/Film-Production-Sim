@@ -182,10 +182,12 @@ func run() -> void:
 	# 転がして運ぶ物（台車）：ふだんは床を転がす。右クリックを押している間だけ、浮かせて持ち上げられる
 	var dolly: Node
 	for pid: int in game.props:
-		if game.props[pid].kind == "dolly" and not game.props[pid].absent:
+		if game.props[pid].kind == "dolly":
 			dolly = game.props[pid]
 			break
+	check(dolly != null, "台車がある")
 	if dolly != null:
+		dolly.set_absent(false)      # 台車は借り物なので、ふだんは出ていない。確認のために出す
 		me.aim_yaw = 0.0
 		me.aim_pitch = -0.3
 		me.hold_offset = Vector3.ZERO
@@ -202,9 +204,14 @@ func run() -> void:
 		me.aim_pitch = 0.3
 		await frames(60)
 		check(me.held == dolly.pid and dolly.global_position.y - floor_y < 0.1, "台車は、ふだんは見上げても床から浮かない")
+		me.aim_pitch = -0.3
+		await frames(30)
 		me.hold_raise = true
+		await frames(20)
+		check(dolly.global_position.y - floor_y < 0.12, "N で床から離しても、その場からは跳ね上がらない")
+		me.aim_pitch = 0.3
 		await frames(90)
-		check(dolly.global_position.y - floor_y > 0.4, "N で持ち上げている間は、台車が浮く（%.2f m）" % (dolly.global_position.y - floor_y))
+		check(dolly.global_position.y - floor_y > 0.4, "床から離したあとは、見上げれば持ち上がる（%.2f m）" % (dolly.global_position.y - floor_y))
 		me.hold_raise = false
 		await frames(120)
 		check(dolly.global_position.y - floor_y < 0.15, "離すと、床へ降りる")

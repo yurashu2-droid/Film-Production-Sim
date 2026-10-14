@@ -219,7 +219,7 @@ func _drive_hold(delta: float) -> void:
 	if tgt == null:
 		game.host_release(self)
 		return
-	# 転がして運ぶ物：持っている人が N で持ち上げている間だけ、床から浮かせる。降ろすと床を転がす
+	# 転がして運ぶ物：持っている人が N を押すと、床に張り付くのをやめる（ほかの物と同じに動かせる）。もう一度 N で床を転がす
 	if rolls:
 		var raiser: Node = game.players.get(holder)
 		var raise: bool = raiser != null and raiser.hold_raise
@@ -227,6 +227,11 @@ func _drive_hold(delta: float) -> void:
 			_raise_seen = raise
 			hold_lifted = raise
 			gravity_scale = 0.0 if raise else 1.0
+			if raise:
+				# 床に張り付くのをやめるだけ。その場から動かさない（今の場所と向きを、持ち方の基準にする）。
+				# そのあと視点を上げ下げすれば、ほかの物と同じように上下に動かせる
+				hold_transform = global_transform
+				hold_view_transform = game.hold_view_anchor(raiser)
 	var want: Vector3 = tgt[0]
 	var want_yaw: float = tgt[1]
 	var want_basis: Basis = tgt[4] if tgt.size() > 4 else Basis.from_euler(Vector3(float(tgt[3]), want_yaw, 0.0))

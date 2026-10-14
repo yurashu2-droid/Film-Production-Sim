@@ -515,7 +515,7 @@ func _physics_process(delta: float) -> void:
 			hold_limp = not hold_limp
 			var rolling: bool = game.props.has(held) and game.props[held].rolls
 			if rolling:
-				game.hud.show_toast("持ち上げた。もう一度 N で降ろす" if hold_limp else "降ろした（床を転がす）", game.hud.YELLOW)
+				game.hud.show_toast("床から離した（自由に動かせる）。もう一度 N で床を転がす" if hold_limp else "床を転がす", game.hud.YELLOW)
 			else:
 				game.hud.show_toast("力を抜いた（物が垂れる）。もう一度 N で、向きを保つ" if hold_limp else "力を入れた（向きを保つ）", game.hud.YELLOW)
 		_limp_key = limp_key
