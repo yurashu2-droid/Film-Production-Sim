@@ -127,14 +127,17 @@ func run() -> void:
 	await frames(240)
 	grip_at = plank.global_transform * plank.hold_grip_local
 	check((plank.center_global() - grip_at).normalized().dot(Vector3.DOWN) > 0.9, "離すと、また垂れる")
-	# 力を抜いたまま視点を左右に振っても、くるくる回り続けない（回る速さがたまらない）
+	# 力を抜いたまま視点を左右に振ると、手の動きでぶらんぶらん揺れる。ただし、くるくる回り続けはしない
+	var most := 0.0
 	for k in 3:
 		for i in 20:
 			me.aim_yaw = lerpf(0.0, 0.9, (i + 1) / 20.0) if k % 2 == 0 else lerpf(0.9, 0.0, (i + 1) / 20.0)
 			await frames(1)
-	await frames(90)
-	print("HOLD_SPIN_MEASURE 振ったあとの回る速さ=", plank.angular_velocity.length())
-	check(plank.angular_velocity.length() < 0.6, "力を抜いたまま視点を振っても、くるくる回り続けない")
+			most = maxf(most, plank.angular_velocity.length())
+	await frames(360)
+	print("HOLD_SPIN_MEASURE 振っている間の揺れ=", most, " 6秒後=", plank.angular_velocity.length())
+	check(most > 0.3, "力を抜いたまま視点を振ると、揺れる")
+	check(plank.angular_velocity.length() < 0.6, "揺れは、しばらくすると収まる（くるくる回り続けない）")
 	game.h_release()
 	await frames(6)
 	# 足場を、次に試すカンペの通り道から外しておく（目の前に落ちたままだと、カンペが当たって傾く）

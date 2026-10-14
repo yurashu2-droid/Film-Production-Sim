@@ -9,7 +9,8 @@ const L_CHAR := 8
 const L_MARK := 16
 # 持った物にぶら下がった物に引っぱられても動きを乱されないよう、その重さの何倍までの引っぱりを手が受け止めるか
 const HANG_GRIP := 3.0
-const HANG_DAMP := 2.2       # 手に持って垂れている物の、揺れの収まりやすさ（大きいほど早く止まる）
+const HANG_DAMP := 1.1       # 手に持って垂れている物の、揺れの収まりやすさ（大きいほど早く止まる。小さいほど、ぶらんぶらん揺れる）
+const HANG_SHAKE := 25.0     # 手の動きで揺れる強さの上限（手の加速度。m/秒²）
 
 var game: Node
 var pid := 0
@@ -59,7 +60,9 @@ var _net: Array = []
 var _raise_seen := false        # 直前に見た、持っている人の「持ち上げている」の値（変わったときだけ切り替える）
 var _hang_yaw := 0.0            # 直前のコマの、持っている人の視点の左右の向き（垂れている物を、視点と一緒に回すため）
 var _hang_yaw_valid := false
-var _hang_turn_rate := 0.0      # 前のコマに、視点の回転として足した回る速さ（毎コマ足し続けると、たまって激しく回るので差し替える）
+var _hang_grip_at := Vector3.ZERO      # 前のコマの、手の場所（垂れている物を、手の動きで揺らすため）
+var _hang_grip_speed := Vector3.ZERO
+var _hang_grip_valid := false
 
 
 func _ready() -> void:
@@ -281,13 +284,18 @@ func _drive_hold(delta: float) -> void:
 	var hanging_now := false
 	if droop > 0.0 and holder_node != null and not holder_node.hold_turning and tgt.size() > 5 and hold_reference_valid and not rolls and not axis_lock_angular_x:
 		var arm: Vector3 = global_basis * (_hold_com_local - hold_grip_local)
-		var pull: Vector3 = arm.cross(Vector3.DOWN * 9.8) / (arm.length_squared() + half.length_squared() / 3.0 + 0.0004)
+		# 手（掴んだ点）が動くと、その勢いで物が揺れる（振り子の支点を揺らすのと同じ）。
+		# 物の向きを視点に合わせて回すことはしない（それをすると、くるくる回る）
+		var grip_at: Vector3 = tgt[5]
+		var shake := Vector3.ZERO
+		if _hang_grip_valid:
+			var grip_speed: Vector3 = (grip_at - _hang_grip_at) / maxf(delta, 0.001)
+			shake = ((grip_speed - _hang_grip_speed) / maxf(delta, 0.001)).limit_length(HANG_SHAKE)
+			_hang_grip_speed = grip_speed
+		_hang_grip_at = grip_at
+		_hang_grip_valid = true
+		var pull: Vector3 = arm.cross(Vector3.DOWN * 9.8 - shake) / (arm.length_squared() + half.length_squared() / 3.0 + 0.0004)
 		var swing: Vector3 = (angular_velocity + pull * delta) * maxf(0.0, 1.0 - HANG_DAMP * delta)
-		# 垂れていても、左右の向きは視点について回る（体ごと向きを変えたら、物も同じだけ回る）
-		# 前のコマに足した分は引いてから、今の分を足す（足しっぱなしだと、視点を振るたびに回る速さがたまって、くるくる回る）
-		var turn_rate: float = wrapf(holder_node.aim_yaw - _hang_yaw, -PI, PI) / maxf(delta, 0.001) if _hang_yaw_valid else 0.0
-		swing.y += turn_rate - _hang_turn_rate
-		_hang_turn_rate = turn_rate
 		hanging_now = true
 		if droop >= 1.0:
 			next_spin = swing
@@ -296,7 +304,8 @@ func _drive_hold(delta: float) -> void:
 			# 中くらいの重さ：向きを保つ力と、垂れる力のあいだ
 			next_spin = next_spin.lerp(swing, droop)
 	if not hanging_now:
-		_hang_turn_rate = 0.0
+		_hang_grip_valid = false
+		_hang_grip_speed = Vector3.ZERO
 	_hang_yaw_valid = holder_node != null
 	if holder_node != null:
 		_hang_yaw = holder_node.aim_yaw
