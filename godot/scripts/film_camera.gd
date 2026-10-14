@@ -121,8 +121,6 @@ func build() -> void:
 	view.audio_listener_enable_3d = false
 	add_child(view)
 	view_cam = Camera3D.new()
-	# 毎コマ、レンズの位置へ直接置く（物理のコマの間を補う動きは、レンズの側でもう済んでいる）
-	view_cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	view_cam.near = 0.15
 	view_cam.far = 120.0
 	view_cam.environment = _film_environment()
@@ -220,8 +218,7 @@ func _show_film(delta: float) -> void:
 func _process(delta: float) -> void:
 	pan_node.rotation.y = cam_yaw
 	tilt_node.rotation.x = -cam_pitch
-	# レンズの描画上の位置（物理のコマの間を補った位置）に合わせる。本体のカメラの見た目とずれないように
-	view_cam.global_transform = lens.get_global_transform_interpolated()
+	view_cam.global_transform = lens.global_transform
 	view_cam.fov = fov
 	if film_shown:
 		_show_film(delta)

@@ -138,8 +138,6 @@ func setup(cast_tag: String) -> void:
 		al.make_current()
 		operator_cam = Camera3D.new()
 		operator_cam.name = "CameraOperatorView"
-		# 毎コマ、撮影カメラの見る位置へ直接置くので、物理のコマの間を補う動きはさせない
-		operator_cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		operator_cam.fov = 48.0
 		operator_cam.near = 0.025
 		# 一人称の手の写しは、カメラ操作の視点には映さない（体の全部が本体で映る）
@@ -498,9 +496,6 @@ func _physics_process(delta: float) -> void:
 
 	head.rotation = Vector3(aim_pitch, aim_yaw, 0.0)
 	_place_view()
-	# 一人称の手も物理のコマで置く（ほかの物と同じく、コマの間は描画が滑らかに補う）
-	if is_local and is_instance_valid(arms) and arms.visible:
-		FirstPersonArms.place(arms, self, delta)
 	if first_person:
 		# 頭にしまった小物など、あとから体に付いた物も自分の視点から外す
 		_self_layer_t -= delta
@@ -555,6 +550,8 @@ func _process(delta: float) -> void:
 		# 視点の向きは、物理のコマごとに変える（_physics_process）。描画のコマごとに変えると、
 		# 物理のコマごとに動く持った物とずれて、持った物だけがカクついて見える（2026-10-14 に一度入れて戻した）
 		_show_arms()
+		if is_instance_valid(arms) and arms.visible:
+			FirstPersonArms.place(arms, self, delta)
 	if not is_local or operator_cam == null or vehicle_riding(): return
 	var op: Node = game.props.get(operating)
 	if not game.replaying and op != null and op.kind == "camera":
