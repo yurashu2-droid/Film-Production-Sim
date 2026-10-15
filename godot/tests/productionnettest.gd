@@ -5,6 +5,12 @@ var _requests: Array = []
 var _reply: Dictionary = {}
 var _done := false
 var _failed := false
+# --fixed-fps を付けると、Godot は実時間に合わせずに全速で回る。指示札の寿命と連打の制限は実時間で数え、
+# 移動の長さもここでは実時間で測るので、ゲームの時間が先に進むと確認が合わない（二つのプロセスの速さもそろわない）。
+# そこで、ゲームの時間が実時間を 0.02 秒より多く追い越したら、その分だけ待つ（普段の起動ではほとんど待たない）。
+# --fixed-fps はエンジンが受け取る引数で、スクリプトからは見えないため、付いているかでは分けない。
+var _game_clock := 0.0
+var _wall_start := -1
 
 func _ready() -> void:
 	name = "ProductionNetTest"
@@ -19,7 +25,14 @@ func _request(action: String, success: bool = true) -> void:
 func _respond(data: Dictionary) -> void:
 	_reply = data
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _wall_start < 0:
+		_wall_start = Time.get_ticks_usec()
+	else:
+		_game_clock += delta
+		var ahead := _game_clock - (Time.get_ticks_usec() - _wall_start) / 1000000.0
+		if ahead > 0.02:
+			OS.delay_usec(int(ahead * 1000000.0))
 	if _requests.is_empty():
 		return
 	var request: Array = _requests.pop_front()
