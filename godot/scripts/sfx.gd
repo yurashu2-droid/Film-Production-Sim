@@ -234,7 +234,7 @@ func _exit_tree() -> void:
 		mp.stream = null
 	for ap in _amb_players:
 		ap.stream = null
-	OS.delay_msec(60)
+	OS.delay_msec(200)      # 機械が混んでいても、音の処理が一巡するまで
 
 
 # ---------------------------------------------------------------- internals
