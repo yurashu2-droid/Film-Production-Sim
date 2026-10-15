@@ -208,6 +208,7 @@ script_case rope-grab 180 'ROPE_GRAB_TEST_OK' rope_grab_test.gd --fixed-fps 60
 script_case premiere 120 'PREMIERE_TEST_OK' premiere_test.gd --fixed-fps 60
 script_case cuts 150 'CUTS_TEST_OK' cuts_test.gd --fixed-fps 60
 script_case pr 420 'PR_TEST_OK' pr_test.gd --fixed-fps 60
+script_case spectacle 120 'SPECTACLE_TEST_OK' spectacle_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/rope_grab_net_test.tscn -- --rope-grab-net-test-host)
 PAIR_CLIENT=(res://tests/rope_grab_net_test.tscn -- --rope-grab-net-test-client)
 run_pair rope-grab-net 90 'ROPE_GRAB_NET_TEST_OK' 'ROPE_GRAB_NET_TEST_OK'

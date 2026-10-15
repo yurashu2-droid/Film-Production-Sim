@@ -1510,6 +1510,9 @@ func settle(index: int) -> void:
 		if str(combo.get("line","")) != "" and not said:
 			last_flubs.append(str(combo["line"]))
 			said = true
+	# 仕組みが足した上乗せ（見ごたえ など）
+	for line: Array in fee_lines(index):
+		last_flubs.append("%s +%d コイン" % [str(line[0]), int(line[1])])
 	var liked: Dictionary = cast.get("liked",{})
 	if int(liked.get("roles",0)) > 0:
 		last_flubs.append("依頼主の好み %s を %d役で使った +%d コイン" % [Cast.chips(liked["attrs"]),int(liked["roles"]),int(liked["coins"])])
@@ -1550,7 +1553,21 @@ func take_fee(index: int) -> int:
 	var count: int = passed.count(true)
 	# 場面1つにつき 250。全部そろえば上乗せ（3場面は 300。5場面の依頼は 400 で、満額が今までの 1.5 倍になる）
 	var all_in: int = int(job().get("fee_all", 300)) if count == passed.size() else 0
-	return maxi(0, 150 + count * 250 + all_in + (150 if take.get("extras",{}).get("bonus_ok",false) else 0) + cast_coins(index))
+	var extra := 0
+	for line: Array in fee_lines(index):
+		extra += int(line[1])
+	return maxi(0, 150 + count * 250 + all_in + (150 if take.get("extras",{}).get("bonus_ok",false) else 0) + cast_coins(index) + extra)
+
+
+# 仕組みが足すギャラの上乗せ [[文, コイン], ...]（見ごたえ など。各仕組みの hook_fee_lines）
+func fee_lines(index: int) -> Array:
+	var out: Array = []
+	var hooks: Variant = game.get("hooks")
+	if hooks == null:
+		return out
+	for target: Object in hooks.in_order("hook_fee_lines"):
+		out.append_array(target.hook_fee_lines(index))
+	return out
 
 
 # 見立てとコンボで増減するコイン
