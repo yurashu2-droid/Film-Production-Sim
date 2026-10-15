@@ -235,6 +235,11 @@ func _hands_on() -> void:
 	film.restore([cart.global_position + Vector3(0, cart.deck_top, 0), Quaternion.IDENTITY, false, 0.0, 0.0, 52.0])
 	game.host_load(film, cart)
 	await _wait(0.8)
+	# 置いた直後は、三脚が荷台の上で跳ねている。止まるまで待つ（最大3秒）
+	for i in 30:
+		if film.linear_velocity.length() < 0.05 and cart.linear_velocity.length() < 0.05:
+			break
+		await _wait(0.1)
 	var p0: Vector3 = film.global_position
 	var player0: Vector3 = me.global_position
 	game.h_operate(film.pid, true)
