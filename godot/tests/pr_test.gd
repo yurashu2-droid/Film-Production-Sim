@@ -99,6 +99,7 @@ func run() -> void:
 		flow.levels["studio"] = level
 		flow.day = 1
 		await shoot(debut, str(flow.TRACKS["studio"]["levels"][level]["name"]))
+	check(int(game.hooks.feature("debut_calls").rang) >= 1, "CMを放送して帰社すると、事務所の電話が鳴る（依頼の電話）")
 	check(flow.day == 2 and debut not in flow.offered() and 0 in flow.offered() and flow.offered().size() == flow.JOBS.size() - 1, "2日目から、ほかの依頼が全部来る（CMは、もう来ない）")
 	print("PR_TEST_FAIL" if failed else "PR_TEST_OK")
 	root.get_node("Sfx").silence_all()

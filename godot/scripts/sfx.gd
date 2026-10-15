@@ -7,7 +7,7 @@ const SAMPLED_SFX := {"clap": preload("res://assets/audio/clapper_wood.tres")}
 const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"]
 const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
 	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
-	"ui_select", "ui_open", "ui_back", "wind", "fuse"]
+	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring"]
 const MAX_TAKES := 6
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
 const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back"]
@@ -380,6 +380,21 @@ func _synth_sfx() -> void:
 	_noise(b, 0.0, 0.55, 0.8, 0.45, 0.02, 0.2)
 	_tone(b, 0.0, 0.5, 1400.0, 0.25, 0.02, 0.15, 0.25, 350.0)
 	_streams["explosion_fizzle"] = _finish(b, 0.5)
+
+	# phone_ring（仮の合成音）：黒電話のベル。2つの高い音を速く打ち分けて、ジリリリと鳴らす
+	b = _buf(0.9)
+	for k in 36:
+		_tone(b, k * 0.022, 0.03, 1300.0 if k % 2 == 0 else 1650.0, 0.7, 0.001, 0.02, 0.018, -1.0, 0.25, 0.1)
+	_streams["phone_ring"] = _finish(b, 0.5)
+
+	# applause（仮の合成音。素材の拍手が見つかるまで。sfx_local / sfx に applause_0 を置けば、そちらが鳴る）
+	# 数十人の手拍子：短い破裂音を、始めは密に・だんだんまばらに散らし、弱いざわめきを重ねる
+	b = _buf(2.6)
+	for k in 340:
+		var at: float = 2.4 * pow(_rng.randf(), 1.6)
+		_noise(b, at, 0.022, _rng.randf_range(0.35, 1.0), _rng.randf_range(0.55, 0.95), 0.0, _rng.randf_range(0.004, 0.009))
+	_noise(b, 0.0, 2.6, 0.12, 0.25, 0.08, 1.2)
+	_streams["applause"] = _finish(b, 0.55)
 
 	# clap
 	b = _buf(0.12)

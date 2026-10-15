@@ -503,6 +503,8 @@ func _process(delta: float) -> void:
 		_end_t -= delta
 		if _end_t <= 0.0 and not _closing_line.is_empty():
 			_say(str(_closing_line[0]), str(_closing_line[1]))
+			if str(_closing_line[0]).begins_with("ブラボー"):
+				Sfx.play("applause")          # 全部の場面が撮れた：拍手
 			_closing_line = []
 	if _bubble_t > 0.0:
 		_bubble_t -= delta
