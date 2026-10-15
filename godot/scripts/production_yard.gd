@@ -6,6 +6,7 @@ extends RefCounted
 #   ・拠点のまわりを倉庫と塀で囲み、地平線が見えないようにする
 
 const Slots := preload("res://scripts/production_yard_slots.gd")
+const Dump := preload("res://scripts/dump_dressing.gd")
 const Look := preload("res://scripts/production_look.gd")
 
 const YARD_PATH := "res://assets/stage/yard/dirty_yard_seed_41.glb"
@@ -44,13 +45,15 @@ static func build(parent: Node3D) -> Node3D:
 	if ResourceLoader.exists(YARD_PATH):
 		var src: Node3D = (load(YARD_PATH) as PackedScene).instantiate()
 		# 門の扉2枚だけは別にして、開け閉めできるようにする
-		_place(root, _merge(src, func(nm: String, box: AABB) -> bool: return _leaf(nm, box) == 0, 0.9), xform())
+		# 店の看板と通路の白線は外し、となりの区の粗大ごみ置き場に見せる（dump_dressing.gd）
+		_place(root, _merge(src, func(nm: String, box: AABB) -> bool: return _leaf(nm, box) == 0 and not Dump.hidden_part(nm), 0.9), xform())
 		_gate(root, src)
 		src.free()
 	if ResourceLoader.exists(CONTAINER_PATH):
 		var box_src: Node3D = (load(CONTAINER_PATH) as PackedScene).instantiate()
 		_place(root, _merge(box_src, func(_nm: String, _box: AABB) -> bool: return true, 0.6), xform() * Transform3D(Basis.IDENTITY, CONTAINER_LOCAL))
 		box_src.free()
+	Dump.build(root, xform())
 	_surroundings(root)
 	return root
 
@@ -96,6 +99,7 @@ static func set_gate(root: Node3D, open: float) -> void:
 		var pivot := root.get_node_or_null("GateL" if side < 0 else "GateR") as Node3D
 		if pivot:
 			pivot.basis = xform().basis * Basis(Vector3.UP, -side * PI * 0.5 * (1.0 - open))
+	Dump.set_lock(root, open)
 	var block := root.get_node_or_null("GateBlock") as StaticBody3D
 	if block:
 		var shut := open < 0.6
@@ -217,7 +221,7 @@ static func _perimeter(b: Look.Batch, dress: Node3D) -> void:
 	# 下の塗り帯と大きな看板（敷地側の面だけ）
 	b.boxp(Look.plain(Color("55797c"), 0.8), Vector3(31.69, 0.9, 11.0), Vector3(0.06, 1.8, 51.0), Look.Batch.GROUND)
 	b.boxp(Look.plain(Color("e9dcb4"), 0.8), Vector3(31.69, 4.9, 16.0), Vector3(0.06, 1.7, 9.6), Look.Batch.GROUND)
-	Look.label(dress, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(31.74, 4.9, 16.0)), "資材置場", 0.011, 128, Color("55797c"))
+	Look.label(dress, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(31.74, 4.9, 16.0)), "清掃事務所", 0.011, 128, Color("2f7d4f"))
 	b.boxp(Look.plain(Color("e9dcb4"), 0.8), Vector3(31.69, 4.9, -4.0), Vector3(0.06, 1.7, 9.6), Look.Batch.GROUND)
 	Look.label(dress, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(31.74, 4.9, -4.0)), "搬入口", 0.011, 128, Color("a85a3f"))
 

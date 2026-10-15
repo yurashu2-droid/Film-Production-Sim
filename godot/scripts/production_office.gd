@@ -374,7 +374,9 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	b.boxp(P(Color("3a3f44"), 0.7, 0.3), Vector3(75.0, 3.22, -8.3), Vector3(1.8, 0.14, 0.14), ALL)
 	# 駐車場へ向かう矢印看板
 	_sign(b, root, font, "廃材と軽トラ →", Vector3(76.8, 0, 6.5), TEAL)
-	_sign(b, root, font, "← 廃材置き場", Vector3(66.5, 0, 12.2), RUST)
+	var scrap_sign := _sign(b, root, font, "← 廃材置き場", Vector3(66.5, 0, 12.2), RUST)
+	scrap_sign.position.y += 0.13
+	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(66.5, 1.68, 12.29)), "（となりの区の粗大ごみ置き場から、拝借）", 0.0036, 40, Color("f3dcc4"), font, false)
 	var departure := _sign(b, root, font, "積み込み確認 / F", Vector3(86, 0, 17.5), TEAL)
 	_sign(b, root, font, "スタジオ →", Vector3(87, 0, 33), TEAL)
 	# 事務所の明かり（従来のまま）

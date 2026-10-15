@@ -625,7 +625,7 @@ func accept(index: int) -> void:
 	game.production_sync.rpc(snapshot())
 	# 各仕組みの hook_new_job：場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
 	game.hooks.run("hook_new_job")
-	game.host_ev("toast", ["机に台本（1冊だけ）と、のぞき箱の参考スライドが届いた。廃材置き場の門も開いた。出発まで3分",0])
+	game.host_ev("toast", ["机に台本（1冊だけ）と、のぞき箱の参考スライドが届いた。廃材置き場（となりの粗大ごみ置き場）の鎖も、切っておいた。出発まで3分",0])
 
 
 # アップグレードを1段買う（買い切り。次の依頼からもずっと使える）
