@@ -13,7 +13,7 @@ extends RefCounted
 ##   meet＝二人が、印のあいだへ寄って向かい合う / music＝その場面で流す曲（""＝止める）/ roar＝怪獣の声が鳴る
 ##   boom＝この場面に入ると、爆発役の物（爆炎の書割・見立てた物）に合図が出る。爆弾は合図では鳴らない
 ## せりふの {城} {怪獣} {街} {技} は、その役に見立てた物の名前に置き換わる（決まるまでは WORDS の言葉）
-const WORDS := {"城": ["castle", "ベニヤ板"], "怪獣": ["monster", "ただの置物"], "街": ["city", "段ボール"], "技": ["boom", "何か"]}
+const WORDS := {"城": ["castle", "ベニヤ板"], "怪獣": ["monster", "ただの置物"], "街": ["city", "段ボール"], "技": ["boom", "何か"], "月": ["moon", "丸い何か"]}
 const SCRIPTS := [
 	# 0 月下の城と大爆発（結婚式の再現ビデオ）
 	{"scenes": [
@@ -131,6 +131,25 @@ const SCRIPTS := [
 		"beats": [
 			{"rule": "show", "role": "castle", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
 			{"rule": "blast", "from": 0, "to": 1, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "music": "", "boom": true},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 8 旅する二人（天文同好会の会報の付録・第2弾。場所が変わる4カット。場転で、片づける・出す・寄せる・照らし直す）
+	{"cuts": true, "scenes": [
+		{"dir": "【城の門】旅の二人が、城の前で出発を誓う。",
+			"lines": [["A", "さあ、月を見に行こう"], ["B", "城から出たこと、ありましたっけ"], ["A", "{城}の外は、初めてだ"]],
+			"memo": "城役の物と二人を、一緒に明るく映す"},
+		{"dir": "【場転：月夜の丘】城を離れ、丘の上。二人は月を見上げる。",
+			"lines": [["B", "見て、{月}"], ["A", "旅に出てよかった"]],
+			"memo": "カットの間に、城を片づけるか隠して、月役の物を出す。城が映ると、同じ場所に見えてしまう"},
+		{"dir": "【場転】月の下で、なぜか大爆発。",
+			"lines": [["A", "流れ星？"], ["（爆発）", ""], ["B", "近い近い近い！"]],
+			"memo": "カットの間に、爆炎の書割（または爆弾）を二人の奥へ。1 で回すと、書割が爆ぜる"},
+		{"dir": "【場転】旅の終わり。二人が寄ってきて、決めポーズ。",
+			"lines": [["二人", "次の旅で、また会おう！"]],
+			"memo": "カットの間に、カメラを二人へ寄せて、ライトも向け直す。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "role": "castle", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "show", "role": "moon", "hide": "castle", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "happy"], "music": ""},
+			{"rule": "blast", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["shock", "shock"], "boom": true},
 			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 

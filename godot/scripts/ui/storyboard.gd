@@ -29,6 +29,9 @@ static func svg(story: String, index: int) -> String:
 	if story == "kaiju5":
 		# 5場面の完全版（production_flow.gd の JOBS の board）
 		body = [_kaiju5_1(), _kaiju_1(), _kaiju5_3(), _kaiju5_4(), _kaiju5_5()][clampi(index, 0, 4)]
+	elif story == "travel":
+		# 旅する二人（場所が変わる4カット）：城の門 → 月夜の丘 → 爆発 → 寄りで決め
+		body = [_castle_1(), _travel_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
 	elif story == "kaiju":
 		body = [_kaiju_1(), _kaiju_2(), _kaiju_3()][clampi(index, 0, 2)]
 	else:
@@ -274,6 +277,19 @@ static func _castle_wall(x: float, top: float, bottom: float) -> String:
 		if i < 4:
 			d += "L %.0f,%.0f L %.0f,%.0f " % [x0 + step, top + 16, x0 + step, top]
 	return d + "L %.0f,%.0f L %.0f,%.0f Z" % [x + step * 4.5, top, x + step * 4.5, bottom]
+
+
+# 月夜の丘：丘の上の二人が、大きな月（？）を見上げる。前の場所の城は映さない（赤い斜線）
+static func _travel_2() -> String:
+	var out := _line([Vector2(6, 238), Vector2(150, 206), Vector2(300, 196), Vector2(474, 222)], PENCIL, 3.5)
+	out += '<circle cx="330" cy="82" r="52" fill="none" stroke="%s" stroke-width="3" stroke-dasharray="9 7"/>' % PENCIL
+	out += _question(Vector2(330, 108), 1.6)
+	out += _fig(Vector2(170, 204), 0.82, "reach_up")
+	out += _fig(Vector2(214, 202), 0.82, "reach_up", true)
+	# 前の場面の城（映さない）
+	out += _ghost(_castle_wall(28, 120, 200))
+	out += _ban(Vector2(66, 160), 34)
+	return out
 
 
 static func _castle_1() -> String:

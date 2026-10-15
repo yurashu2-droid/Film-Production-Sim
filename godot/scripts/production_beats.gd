@@ -914,7 +914,8 @@ func _rule_cheer(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 
 
 # 見せる（どの台本でも使える）：着いた二人が、明るく映っている。
-#   role＝その役の物も一緒に映る（いまは "castle"：城役が、倒れず・裏を見せずに映る）/ close＝寄りで大きく、二人が近づいている
+#   role＝その役の物も一緒に映る（"castle"：城役が、倒れず・裏を見せずに映る / "moon"：月役が画面に入る）
+#   hide＝その役の物が映っていてはいけない（場所が変わった場面。"castle"）/ close＝寄りで大きく、二人が近づいている
 func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
@@ -923,8 +924,18 @@ func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		return
 	var b: Dictionary = list()[i]
 	var r: Array = game.judge.problems(f)
-	if str(b.get("role", "")) == "castle" and not f.get("castle", false):
-		r.append("城の裏側が映っていた" if f.get("castle_back", false) else ("城役の物が映っていなかった" if f.get("castle_any", false) else "城役の物が決まっていない（物を見て Y で城の役にする）"))
+	match str(b.get("role", "")):
+		"castle":
+			if not f.get("castle", false):
+				r.append("城の裏側が映っていた" if f.get("castle_back", false) else ("城役の物が映っていなかった" if f.get("castle_any", false) else "城役の物が決まっていない（物を見て Y で城の役にする）"))
+		"moon":
+			if not f.get("moon", false):
+				r.append("月役の物が映っていなかった（物を見て Y で月の役にする）")
+	# 場所が変わった場面：前の場面の物が映っていたら、同じ場所に見える（場転で、片づける・隠す）
+	match str(b.get("hide", "")):
+		"castle":
+			if f.get("castle", false) or f.get("castle_back", false):
+				r.append("前の場面の城が映っていた（場所が変わったように見えない。片づけるか、隠す）")
 	if b.get("close", false):
 		var acts: Array = f["actors"]
 		if not f["close"]:
