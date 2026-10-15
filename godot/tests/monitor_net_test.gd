@@ -61,8 +61,8 @@ func run() -> void:
 		game.production.phase = 4
 		game._set_state(game.S.PREP)
 		game.host_unload(game.camera_switcher.monitor)
-		game.camera_switcher.monitor.global_position = Vector3(8,0.1,8)
-		game.camera_switcher.monitor.fixed = true
+		# 依頼を受けると、会社の機材を機材置き場へ戻す予約（次の物理のコマ）が入る。位置を直接書くと、その予約に上書きされる
+		game.camera_switcher.monitor.restore([Vector3(8,0.1,8),Quaternion.IDENTITY,true])
 		game.camera_switcher.select(game.camera_switcher.cameras[1].pid)
 		while not done: await wait(0.05)
 		while game.players.has(ready_peer): await wait(0.05)
