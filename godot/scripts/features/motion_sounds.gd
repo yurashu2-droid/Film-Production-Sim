@@ -58,7 +58,7 @@ func _step_sounds(pl: Node, delta: float) -> void:
 		return
 	if st[2] >= LAND_AIR:
 		lands += 1
-		Sfx.play("land", pl.global_position, lerpf(-16.0, -11.0, clampf((st[2] - LAND_AIR) / 0.6, 0.0, 1.0)))
+		Sfx.play("land", pl.global_position, lerpf(-9.0, -3.0, clampf((st[2] - LAND_AIR) / 0.6, 0.0, 1.0)))
 		st[1] = 0.0
 	st[2] = 0.0
 	if not STEP_CLIPS.has(base):
@@ -131,7 +131,7 @@ func _swish_sounds(delta: float) -> void:
 		if speed >= SWISH_SHARP:
 			Sfx.play("whoosh", pos, lerpf(-6.0, 0.0, clampf((speed - SWISH_SHARP) / 12.0, 0.0, 1.0)) + small)
 		else:
-			Sfx.play("whoosh_soft", pos, lerpf(-24.0, -18.0, (speed - SWISH_ON) / (SWISH_SHARP - SWISH_ON)) + small)
+			Sfx.play("whoosh_soft", pos, lerpf(-16.0, -9.0, (speed - SWISH_ON) / (SWISH_SHARP - SWISH_ON)) + small)
 
 
 # 物の中心から端までの長さ（回った時の、端の速さに使う。当たり判定の箱の半分の対角）
