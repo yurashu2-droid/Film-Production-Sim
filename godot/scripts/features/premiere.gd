@@ -342,6 +342,9 @@ func _plan(index: int) -> Array:
 		if float(times[i]) >= 0.0:
 			var line: String = HAPPY[(i + job) % HAPPY.size()] % _short(str(titles[i]) if i < titles.size() else "")
 			plan.append([maxf(float(times[i]), 0.8), line, "happy"])
+	# ほかの仕組みが足す反応（手描きの看板が映った など。各仕組みの hook_premiere_cues）
+	for target: Object in game.hooks.in_order("hook_premiere_cues"):
+		plan.append_array(target.hook_premiere_cues(index))
 	plan.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	return plan
 

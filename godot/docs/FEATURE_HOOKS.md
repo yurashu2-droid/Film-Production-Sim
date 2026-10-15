@@ -36,6 +36,7 @@
 | `hook_take_ready()` / `hook_take_start()` / `hook_take_cut()` | テイクを始める直前（撮り直しで戻す物を覚える）／本番が始まった／カット（ホスト） |
 | `hook_retake()` / `hook_retake_done()` | 撮り直し：物の置き場所を戻す前／戻したあと（ホスト） |
 | `hook_playback(on)` | 見返しの始まりと終わり（ホスト） |
+| `hook_premiere_cues(index) -> Array` | 試写会で依頼主が反応する時刻とひとこと `[[テイクの中の秒, せりふ, 気分], ...]`（ホスト。気分は happy / wow / sad / neutral） |
 | `hook_fee_lines(index) -> Array` | そのテイクのギャラの上乗せ `[[文, コイン], ...]`（ホスト）。`take_fee` と精算の文（試写会の読み上げ）に入る（見ごたえ） |
 | `hook_deliver(index) -> bool` | 画面（ボタン・Enter）から納品を頼まれた（ホスト）。`true` なら、その仕組みが先に何かを流し、終わったら自分で `game.h_deliver` を呼ぶ（試写会） |
 

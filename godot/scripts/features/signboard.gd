@@ -13,6 +13,8 @@ var game: Node
 var _seen := 0.0             # 本番中に、手描きの看板が映っていた秒数
 var _clock := 0.0
 var _by_take := {}           # テイクの番号 → 映っていたか
+var _first_at := -1.0        # 本番中に、看板が最初に映った時刻（テイクの中の秒）
+var _first_by_take := {}     # テイクの番号 → その時刻
 
 
 func _debut() -> bool:
@@ -22,15 +24,18 @@ func _debut() -> bool:
 
 func hook_take_start() -> void:
 	_seen = 0.0
+	_first_at = -1.0
 
 
 func hook_take_cut() -> void:
 	if not (game.takes as Array).is_empty():
 		_by_take[game.takes.size() - 1] = _seen >= NEED_SEC
+		_first_by_take[game.takes.size() - 1] = _first_at
 
 
 func hook_new_job() -> void:
 	_by_take.clear()
+	_first_by_take.clear()
 
 
 func hook_return_office() -> void:
@@ -46,6 +51,8 @@ func _physics_process(delta: float) -> void:
 	_clock = CHECK_EVERY
 	if showing():
 		_seen += CHECK_EVERY
+		if _first_at < 0.0:
+			_first_at = float(game.take_t)
 
 
 # いま、手描きの看板が撮影カメラに映っているか（表をカメラへ向けて、隠れずに、画面の中に）
@@ -74,6 +81,13 @@ func showing() -> bool:
 			continue          # 何かの陰
 		return true
 	return false
+
+
+# 試写会：看板が映ったところで、依頼主が気づく
+func hook_premiere_cues(index: int) -> Array:
+	if bool(_by_take.get(index, false)):
+		return [[maxf(float(_first_by_take.get(index, 0.0)), 0.5) + 0.3, "おっ、御社の名前！ いいですねえ", "happy"]]
+	return []
 
 
 func hook_fee_lines(index: int) -> Array:

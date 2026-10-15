@@ -73,6 +73,18 @@ func run() -> void:
 	var lines: Array = flow.fee_lines(0)
 	print("SIGNBOARD_MEASURE 上乗せ＝", lines)
 	check(lines.any(func(l: Array) -> bool: return "看板" in str(l[0]) and int(l[1]) == sign.SIGN_COINS), "CMに看板が映ると、ギャラに上乗せ")
+	# 試写会：看板が映ったところで、依頼主が気づく
+	var premiere: Node = game.hooks.feature("premiere")
+	game.request_deliver(0)
+	var noticed := false
+	for i in 400:
+		if premiere.last_line.contains("御社の名前"):
+			noticed = true
+			break
+		await physics_frame
+	check(noticed, "試写会で、看板が映ったところで依頼主が気づく")
+	game.h_stop_replay()
+	await frames(10)
 	print("SIGNBOARD_TEST_FAIL" if failed else "SIGNBOARD_TEST_OK")
 	root.get_node("Sfx").silence_all()
 	await frames(8)
