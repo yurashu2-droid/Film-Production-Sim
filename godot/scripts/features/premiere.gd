@@ -1,10 +1,15 @@
 extends Node
 ## 試写会：「このテイクを納品」（画面のボタン・Enter）を押すと、選んだテイクを依頼主と一緒に見てから納品する。
-##   ・流すのは、いつもの見返し（main.gd の h_replay）。全員の画面に、撮影カメラの映像が大きく出る
+##   ・流すのは、いつもの見返し（main.gd の h_replay）。映すのは、事務所の奥の壁に下ろす試写用のスクリーン。
+##     全員、事務所に集まり、カメラはスクリーンの方を向いたまま。見ている間も、プレイヤーは歩き回れる（main.gd の audience）。
+##     撮影中の班の動きは、プレイヤーの体ではなく人形（Double）に再現する（main.gd の replay_doubles）
 ##   ・依頼主（production_briefs.gd の顔と名前）が、画面の左下で一緒に見ている。
 ##     場面が撮れた瞬間と、爆発で反応する（場面が撮れた時刻は、本番中にホストがテイクごとに測っておく）
-##   ・見終わる（または Enter・Esc でとばす）と納品になり、依頼主がギャラの中身を1行ずつ読み上げる。
-##     読み上げが終わると、いつもの精算の画面（production_hud.gd）が見える
+##   ・見ている間は点数を出さない（依頼主の顔と、ひとことから、出来を予想する）
+##   ・見終わる（または Enter・Esc でとばす）と納品になる。画面の真ん中に、いま見たフィルムが右から左へ流れ、
+##     コマ（試写会の間に写した撮影カメラの絵。3秒ごとと、見せ場ごと）が真ん中を通るたびに、その下に良かった点・だめな点と
+##     コインが出る。場面の行はその場面が撮れたコマ、爆発の行は爆発のコマ、ほかは最後の「終」のコマ。
+##     最後に合計が出て、そのあと、いつもの精算の画面（production_hud.gd）が見える
 ##   ・見返し（R）と、8コマ保存（P）は、今までどおり。試写会にはならない
 ## 決めるのはホスト（流す・反応・納品）。読み上げは、届いた精算の中身から、各自の画面で組む。
 ## 自動確認などが直接呼ぶ納品（game.h_deliver）は、今までどおり、すぐ納品になる（試写会は、画面から頼んだときだけ）
@@ -46,7 +51,7 @@ var _face: TextureRect
 var _name: Label
 var _bubble: PanelContainer
 var _bubble_text: Label
-var _sheet: PanelContainer
+var _sheet: Control
 var _rows: VBoxContainer
 var _total: Label
 var _tween: Tween
@@ -61,6 +66,41 @@ var _end_t := 0.0              # 「終」を見せ終わるまで、読み上�
 var _scene_seen := -2          # 見出しを出した場面
 var _closing_line: Array = []  # 「終」のあとに言う、締めのひとこと [文, 気分]
 const CARD_SEC := 1.8          # 始まりの題名を出しておく秒数
+const AUDIENCE_LAYER := 1 << 15                # 試写会を見ている人の見た目（撮影カメラには映さない。film_camera.gd）
+const SCREEN_W := 5.2                           # 試写用スクリーン（16:9）
+const SCREEN_H := 2.925
+const SCREEN_TOP := Vector3(72.0, 3.75, -7.45)  # スクリーンの上の端の真ん中（事務所の奥の壁の前）
+const VIEW_AT := Vector3(72.0, 2.6, -1.15)     # 試写会の固定カメラ（受付の掲示板の裏＝奥の部屋の側、少し高い所から）
+const SEATS := Vector3(70.8, 0.1, -4.3)        # 試写会の立ち位置（ここから東へ並ぶ）
+const ROLL_SEC := 0.9                           # スクリーンを下ろす・巻き上げる秒数
+const DOUBLE_SEND := 0.1                        # 人形の動きを送る間隔（ホスト → 全員）
+const FLOW_SEC := 3.0                           # フィルムの流れ：3秒ごとに1コマ写す
+const SHOT_SIZE := Vector2i(320, 180)           # 写したコマの大きさ
+const FRAME_SIZE := Vector2(232, 130)           # フィルムの上のコマの大きさ
+const FRAME_GAP := 30.0
+const STRIP_SPEED := 1100.0                     # フィルムが流れる速さ（画面の点/秒）
+const PAUSE_SEC := 0.8                          # 点の付いたコマが真ん中に来たら、少し止まる
+const STRIP_LIFT := 80.0                        # フィルムの帯を、画面の真ん中より上へ（下の札が、依頼主のふきだしに重ならないように）
+var _shots: Array = []         # 試写会で写したコマ [時刻, ImageTexture か null, 印]（印：""・"scene:i"・"burst"・"react"）
+var _next_shot := 0.0
+var _want_shots: Array = []    # これから写すコマ [時刻, 印]（見せ場の少しあと）
+var _band: Control             # フィルムの帯（送り穴を描く）
+var _track: Control            # コマの列（左へ動かす）
+var _items: Array = []         # [コマの真ん中の x, 下の札, 行の一覧, 出したか]
+var _offset := 0.0             # フィルムを送った量
+var _offset_end := 0.0
+var _pause := 0.0
+var _running := 0              # ここまで出た行のコインの合計
+var _running_label: Label
+var _screen_vp: SubViewport    # スクリーンに映す絵（映画・題・見出し・札）
+var _room: Node3D              # スクリーンと固定カメラ（事務所の中）
+var _blind: Node3D             # スクリーンの布（上の端を軸に、縦に伸び縮みする）
+var _cam: Camera3D
+var _prev_cam: Camera3D
+var _layers := {}              # 試写会の間に入れ替えた、プレイヤーの見た目の層（あとで元に戻す）
+var _hidden_ui: Array = []     # 試写会の間に隠した、いつもの画面の層（あとで元に戻す）
+var _doubles := {}             # 人形（プレイヤーの番号 → Double）
+var _send_t := 0.0
 const END_SEC := 1.6           # 「終」を出しておく秒数
 
 
@@ -120,6 +160,7 @@ func _show_card(small: String, big: String, sec: float) -> void:
 
 
 func setup() -> void:
+	# 各自の画面に重ねる物（依頼主の顔とふきだし・読み上げ・案内）
 	_layer = CanvasLayer.new()
 	_layer.layer = 7
 	_layer.visible = false
@@ -128,20 +169,42 @@ func setup() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_layer.add_child(root)
-	# 映画館：まわりは真っ黒にして、撮影カメラの映像だけを幕の間に映す（いつもの画面の部品は見せない）
+	_shade = ColorRect.new()
+	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_shade.color = Color(0, 0, 0, 0)
+	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_shade)
+	_hint = UI.label("", 18, UI.PAPER, "body", true)
+	_hint.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_hint.offset_left = -520
+	_hint.offset_right = -24
+	_hint.offset_top = -46
+	_hint.offset_bottom = -14
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	root.add_child(_hint)
+	# スクリーンに映す絵（映画館：まわりは黒、撮影カメラの映像、上の帯に題）
+	_screen_vp = SubViewport.new()
+	_screen_vp.size = Vector2i(1280, 720)
+	_screen_vp.transparent_bg = false
+	_screen_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_screen_vp)
+	var cinema := Control.new()
+	cinema.size = Vector2(1280, 720)
+	cinema.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_screen_vp.add_child(cinema)
 	var backdrop := ColorRect.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.color = Color.BLACK
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(backdrop)
+	cinema.add_child(backdrop)
 	_film = TextureRect.new()
 	_film.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_film.offset_top = 64
-	_film.offset_bottom = -52
+	_film.offset_top = 56
 	_film.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_film.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_film.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_film)
+	cinema.add_child(_film)
 	# 四隅を少し暗く（映写した画面らしく。真ん中は、そのまま）
 	var falloff := Gradient.new()
 	falloff.offsets = PackedFloat32Array([0.0, 0.62, 1.0])
@@ -154,53 +217,36 @@ func setup() -> void:
 	var vignette := TextureRect.new()
 	vignette.texture = vignette_tex
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vignette.offset_top = 64
-	vignette.offset_bottom = -52
+	vignette.offset_top = 56
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(vignette)
+	cinema.add_child(vignette)
 	# つなぎ目の白い光（カット割りの依頼で、場面が切り替わる所）
 	_flash = ColorRect.new()
 	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_flash.color = Color(1, 1, 1, 0)
 	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_flash)
+	cinema.add_child(_flash)
 	# 場面の見出し（左上。「第1場　城の前の二人」）
-	_chapter = UI.label("", 24, UI.PAPER, "bold", true)
+	_chapter = UI.label("", 30, UI.PAPER, "bold", true)
 	_chapter.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_chapter.position = Vector2(34, 84)
+	_chapter.position = Vector2(30, 74)
 	_chapter.modulate.a = 0.0
-	root.add_child(_chapter)
-	_shade = ColorRect.new()
-	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_shade.color = Color(0, 0, 0, 0)
-	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(_shade)
-	# 上下の黒い帯（映画館の幕）。上に題、下に「とばす」
+	cinema.add_child(_chapter)
+	# 上の黒い帯（映画館の幕）に題
 	var top := ColorRect.new()
 	top.color = Color(0, 0, 0, 0.92)
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top.offset_bottom = 64
+	top.offset_bottom = 56
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(top)
-	_title = UI.label("", 26, UI.PAPER, "display")
+	cinema.add_child(top)
+	_title = UI.label("", 28, UI.PAPER, "display")
 	_title.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(_title)
-	var bottom := ColorRect.new()
-	bottom.color = Color(0, 0, 0, 0.92)
-	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_top = -52
-	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(bottom)
-	_hint = UI.label("", 18, UI.MUTED)
-	_hint.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_hint.offset_right = -24
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bottom.add_child(_hint)
+	_build_card(cinema)
 	# 依頼主（左下）。顔は手で動かす（はねる・ふるえる）ので、入れ物に入れない
 	_card = Control.new()
 	_card.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -243,31 +289,7 @@ func setup() -> void:
 	root.add_child(_bubble)
 	_bubble_text = UI.label("", 28, UI.INK, "bold")
 	_bubble.add_child(_bubble_text)
-	# 読み上げ（真ん中）
-	_sheet = PanelContainer.new()
-	_sheet.add_theme_stylebox_override("panel", UI.box(Color(UI.BOARD, 0.96), UI.LINE, 1, 8, 30, 22))
-	_sheet.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_sheet.offset_left = -380
-	_sheet.offset_right = 380
-	_sheet.offset_top = 92
-	_sheet.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sheet.visible = false
-	root.add_child(_sheet)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 6)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sheet.add_child(column)
-	var head := UI.label("依頼主の感想とギャラ", 24, UI.TAPE, "display")
-	column.add_child(head)
-	_build_card(root)
-	_rows = VBoxContainer.new()
-	_rows.add_theme_constant_override("separation", 4)
-	_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(_rows)
-	_total = UI.label("", 34, UI.GREEN_LIGHT, "display")
-	_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	column.add_child(_total)
+	_build_strip(root)
 
 
 # ---- 本番中：場面が撮れた時刻を測る（ホスト） ----
@@ -311,8 +333,17 @@ func _physics_process(_delta: float) -> void:
 				_watch[i] = float(game.take_t)
 	elif screening >= 0 and game.state == game.S.REPLAY:
 		while _cue_i < _cues.size() and float(_cues[_cue_i][0]) <= float(game.replay_t):
-			game.host_ev("premiere_react", [_cues[_cue_i][1], _cues[_cue_i][2]])
+			var cue: Array = _cues[_cue_i]
+			game.host_ev("premiere_react", [cue[1], cue[2], str(cue[3]) if cue.size() >= 4 else ""])
 			_cue_i += 1
+		# 人形の動き（見返しはホストだけが進める）を、みんなの画面へ
+		_send_t -= get_physics_process_delta_time()
+		if _send_t <= 0.0 and not _doubles.is_empty() and Net.has_peers():
+			_send_t = DOUBLE_SEND
+			var states := {}
+			for id: int in _doubles:
+				states[id] = (_doubles[id] as Double).state()
+			game.host_ev("premiere_pl", [states])
 
 
 # ---- 試写会を始める・終える（ホスト） ----
@@ -328,8 +359,19 @@ func hook_deliver(index: int) -> bool:
 	_cues = _plan(index)
 	_cue_i = 0
 	game.host_ev("premiere_on", [index])
+	_gather()
 	_roll.call_deferred(index)
 	return true
+
+
+# 班を事務所のスクリーンの前に集める。持っている物は置き、機材の操作もやめる（ホスト）
+func _gather() -> void:
+	for prop: Node in game.props.values():
+		if prop.holder != 0:
+			game.host_release(prop)
+		if "operator" in prop and prop.operator != 0:
+			game._stop_operating(prop)
+	game.move_crew(SEATS, 0.0)
 
 
 # 題名の札（CARD_SEC 秒）のあとで、映画（見返し）を流し始める。流せなければ、そのまま納品する
@@ -341,6 +383,15 @@ func _roll(index: int) -> void:
 	if game.state != game.S.REPLAY:
 		game.host_ev("premiere_off", [_closing(index)])
 		_finish.call_deferred(index)
+		return
+	# 撮影中の班の動きは、人形に再現する（プレイヤーの体は、試写会で歩き回る）
+	var first: Dictionary = game._replay["frames"][0][1]["pl"]
+	var tags := {}
+	for id: int in first:
+		var st: Array = first[id]
+		tags[id] = str(st[4]) if st.size() >= 5 else ""
+	game.host_ev("premiere_doubles", [tags])
+	game.replay_doubles = _doubles
 
 
 # 依頼主の反応の予定：始まりのひとこと、場面が撮れた時刻ごとのひとこと
@@ -352,13 +403,14 @@ func _plan(index: int) -> Array:
 	for i in times.size():
 		if float(times[i]) >= 0.0:
 			var line: String = HAPPY[(i + job) % HAPPY.size()] % _short(str(titles[i]) if i < titles.size() else "")
-			plan.append([maxf(float(times[i]), 0.8), line, "happy"])
+			plan.append([maxf(float(times[i]), 0.8), line, "happy", "scene:%d" % i])
 	# 3場面の依頼：合図を出した時刻に、場面の見出し
 	for cue: Array in _cue_times.get(index, []):
 		plan.append([maxf(float(cue[0]), 0.05), "", "chapter:%d" % int(cue[1])])
 	# ほかの仕組みが足す反応（手描きの看板が映った など。各仕組みの hook_premiere_cues）
 	for target: Object in game.hooks.in_order("hook_premiere_cues"):
-		plan.append_array(target.hook_premiere_cues(index))
+		for cue: Array in target.hook_premiere_cues(index):
+			plan.append(cue + ["react"] if cue.size() == 3 else cue)
 	plan.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	return plan
 
@@ -395,7 +447,7 @@ static func _short(title: String) -> String:
 # ---- 全員の画面 ----
 
 func hook_events() -> Array:
-	return ["premiere_on", "premiere_react", "premiere_off"]
+	return ["premiere_on", "premiere_react", "premiere_off", "premiere_doubles", "premiere_pl"]
 
 
 func hook_event(n: String, a: Array) -> void:
@@ -408,7 +460,17 @@ func hook_event(n: String, a: Array) -> void:
 				_show_chapter(int(str(a[1]).trim_prefix("chapter:")), false)
 			else:
 				_say(str(a[0]), str(a[1]))
+				if a.size() >= 3 and str(a[2]) != "":
+					_want_shots.append([float(game.replay_t) + 0.12, str(a[2])])
+		"premiere_doubles":
+			_make_doubles(a[0])
+		"premiere_pl":
+			if not Net.is_host():
+				for id: int in a[0]:
+					if _doubles.has(id):
+						(_doubles[id] as Double).follow(a[0][id])
 		"premiere_off":
+			_drop_doubles()
 			screening = -1
 			_closing_line = [str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy"]
 			# 会社のCMは、テレビの終わり方（提供の札）。ほかは映画の「終」
@@ -436,6 +498,7 @@ func hook_core_event(n: String, a: Array) -> void:
 		elif bool(seen["close"]):
 			line = "近い近い！ 役者さん、大丈夫！？"
 	_say(line, "wow")
+	_want_shots.append([float(game.replay_t) + 0.3, "burst"])
 
 
 # 会社のCM（最初の一本）は、試写会ではなく、テレビの深夜枠での放送として見せる
@@ -458,6 +521,11 @@ func _open() -> void:
 	_card.modulate.a = 1.0
 	_layer.visible = true
 	_await_tally = false
+	_screen_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_shots = []
+	_want_shots = []
+	_next_shot = 0.0
+	_enter_audience()
 	_tally_done = false
 	tally.clear()
 	_wow_i = 0
@@ -503,8 +571,15 @@ func _say(text: String, mood: String) -> void:
 
 
 func _process(delta: float) -> void:
+	if _room == null and game.production != null and game.production.get("_office_root") != null:
+		_build_room()
+	for d: Node in _doubles.values():
+		(d as Double).smooth(delta)
 	if _layer == null or not _layer.visible:
 		return
+	# 見ている間は、マウスで向きを変えない（歩く向きは、スクリーンの方が前）
+	if game.audience and Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# 次の依頼・撮り直しなどへ進んだら、片づける
 	if game.state not in [game.S.REPLAY, game.S.RESULT, game.S.DELIVERED]:
 		_close()
@@ -533,10 +608,15 @@ func _process(delta: float) -> void:
 	if _await_tally and _end_t <= 0.0 and game.state == game.S.DELIVERED and int(game.production.phase) == 5:
 		_await_tally = false
 		_start_tally()
+	if screening >= 0 and game.state == game.S.REPLAY:
+		var now: float = float(game.replay_t)
+		if now >= _next_shot:
+			_shoot(now, "")
+			_next_shot += FLOW_SEC
+		while not _want_shots.is_empty() and float(_want_shots[0][0]) <= now:
+			_shoot(now, str(_want_shots.pop_front()[1]))
 	if _sheet.visible and not _tally_done:
-		_tally_t -= delta
-		if _tally_t <= 0.0:
-			_next_row()
+		_feed(delta)
 	elif _tally_done:
 		_tally_t -= delta
 		if _tally_t <= 0.0:
@@ -544,84 +624,289 @@ func _process(delta: float) -> void:
 
 
 # 読み上げる行：基本・場面ごと・全部そろった・精算の一言（追加注文・NG日誌・コンボ・依頼主のせりふ）・浮かせた制作費・家賃
+# 行は [文, コイン（無ければ null）, 依頼主のせりふか, どのコマに付けるか（"base"・"scene:i"・"all"・"burst"・"sign"・"tail"）]
 func build_tally() -> Array:
 	var flow: Node = game.production
 	var out: Array = []
 	var takes: Array = game.takes
 	var passed: Array = takes[clampi(int(game.selected), 0, takes.size() - 1)]["passed"] if not takes.is_empty() else []
 	var titles: Array = game.scene_titles()
-	out.append(["納品の基本", 150, false])
+	out.append(["納品の基本", 150, false, "base"])
 	for i in passed.size():
 		var title := _short(str(titles[i]) if i < titles.size() else "場面%d" % (i + 1))
-		out.append(["%s　%s" % [title, "撮れた" if bool(passed[i]) else "撮れていない"], 250 if bool(passed[i]) else 0, false])
+		out.append(["%s　%s" % [title, "撮れた" if bool(passed[i]) else "撮れていない"], 250 if bool(passed[i]) else 0, false, "scene:%d" % i if bool(passed[i]) else "tail"])
 	if not passed.is_empty() and not false in passed:
-		out.append(["全部の場面がそろった", int(flow.job().get("fee_all", 300)), false])
+		out.append(["全部の場面がそろった", int(flow.job().get("fee_all", 300)), false, "all"])
 	for line: String in flow.last_flubs:
+		var kind := "tail"
+		if line.contains("爆発") or line.contains("迫力"):
+			kind = "burst"
+		elif line.contains("名前") or line.contains("看板"):
+			kind = "sign"
 		if line.begins_with("依頼主『"):
-			out.append([line.trim_prefix("依頼主『").trim_suffix("』"), null, true])
+			out.append([line.trim_prefix("依頼主『").trim_suffix("』"), null, true, kind])
 		else:
-			out.append([line, null, false])
+			out.append([line, null, false, kind])
 	if int(flow.saved) > 0:
-		out.append(["浮かせた制作費（会社の儲け）", int(flow.saved), false])
+		out.append(["浮かせた制作費（会社の儲け）", int(flow.saved), false, "tail"])
 	if int(flow.rent_paid) > 0:
-		out.append(["家賃", -int(flow.rent_paid), false])
+		out.append(["家賃", -int(flow.rent_paid), false, "tail"])
 	if bool(flow.bankrupt):
-		out.append(["家賃 %d コインが払えない……" % int(flow.rent_amount()), null, false])
+		out.append(["家賃 %d コインが払えない……" % int(flow.rent_amount()), null, false, "tail"])
 	return out
+
+
+# 試写会の間に、撮影カメラの絵を1コマ写しておく（各自の画面）
+func _shoot(at: float, mark: String) -> void:
+	var tex: ImageTexture = null
+	var camera: Node = game.program_camera()
+	if camera != null and camera.get("view") is SubViewport:
+		var img: Image = (camera.view as SubViewport).get_texture().get_image()
+		if img != null and not img.is_empty():
+			img.resize(SHOT_SIZE.x, SHOT_SIZE.y, Image.INTERPOLATE_BILINEAR)
+			tex = ImageTexture.create_from_image(img)
+	_shots.append([at, tex, mark])
+
+
+# フィルムの画面（真ん中の帯・真ん中の窓・上の見出しと、ここまでのギャラ・下の合計）
+func _build_strip(root: Control) -> void:
+	_sheet = Control.new()
+	_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet.visible = false
+	root.add_child(_sheet)
+	var head := UI.label("依頼主の感想とギャラ", 26, UI.TAPE, "display", true)
+	head.set_anchors_preset(Control.PRESET_CENTER)
+	head.offset_left = -400
+	head.offset_right = 400
+	head.offset_top = -205 - STRIP_LIFT
+	head.offset_bottom = -170 - STRIP_LIFT
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sheet.add_child(head)
+	_running_label = UI.label("", 26, UI.GREEN_LIGHT, "display", true)
+	_running_label.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	_running_label.offset_left = -360
+	_running_label.offset_right = -40
+	_running_label.offset_top = -205 - STRIP_LIFT
+	_running_label.offset_bottom = -170 - STRIP_LIFT
+	_running_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_sheet.add_child(_running_label)
+	_band = Band.new()
+	_band.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
+	_band.offset_top = -FRAME_SIZE.y * 0.5 - 34 - STRIP_LIFT
+	_band.offset_bottom = FRAME_SIZE.y * 0.5 + 34 - STRIP_LIFT
+	_band.anchor_top = 0.5
+	_band.anchor_bottom = 0.5
+	_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_band.clip_contents = false
+	_sheet.add_child(_band)
+	_track = Control.new()
+	_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet.add_child(_track)
+	# 真ん中の窓（ここを通ったコマに、点が出る）
+	var gate := Panel.new()
+	gate.add_theme_stylebox_override("panel", UI.box(Color(0, 0, 0, 0), UI.TAPE, 4, 6))
+	gate.set_anchors_preset(Control.PRESET_CENTER)
+	gate.offset_left = -FRAME_SIZE.x * 0.5 - 10
+	gate.offset_right = FRAME_SIZE.x * 0.5 + 10
+	gate.offset_top = -FRAME_SIZE.y * 0.5 - 10 - STRIP_LIFT
+	gate.offset_bottom = FRAME_SIZE.y * 0.5 + 10 - STRIP_LIFT
+	gate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet.add_child(gate)
+	_rows = VBoxContainer.new()          # （使わない。前の読み上げの名残）
+	_total = UI.label("", 34, UI.GREEN_LIGHT, "display", true)
+	_total.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_total.offset_left = -560
+	_total.offset_right = 560
+	_total.offset_top = -150
+	_total.offset_bottom = -100
+	_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sheet.add_child(_total)
 
 
 func _start_tally() -> void:
 	tally = build_tally()
-	for row: Node in _rows.get_children():
-		row.queue_free()
-	_tally_i = 0
-	_tally_t = 0.4
-	_tally_done = false
+	for c: Node in _track.get_children():
+		c.queue_free()
+	_items = []
+	_running = 0
+	_running_label.text = ""
 	_total.text = ""
+	_tally_done = false
+	_pause = 0.4
+	# コマの並び：頭のコマ（題名）→ 写したコマ（時刻の順）→ 終わりのコマ（「終」）
+	var shots: Array = _shots.duplicate()
+	shots.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var frames: Array = [[null, "head", []]]
+	for shot: Array in shots:
+		frames.append([shot[1], str(shot[2]), []])
+	frames.append([null, "tail", []])
+	# 行を、それぞれのコマに付ける（見つからなければ「終」のコマ）
+	var used := {}
+	for row: Array in tally:
+		var kind: String = str(row[3]) if row.size() >= 4 else "tail"
+		var at := frames.size() - 1
+		match kind:
+			"base":
+				at = 0
+			"all":
+				for k in range(frames.size() - 2, 0, -1):
+					if str(frames[k][1]).begins_with("scene:"):
+						at = k
+						break
+			"burst", "sign":
+				var want := "burst" if kind == "burst" else "react"
+				for k in range(1, frames.size() - 1):
+					if str(frames[k][1]) == want and not used.has(k):
+						at = k
+						used[k] = true
+						break
+			_:
+				if kind.begins_with("scene:"):
+					for k in range(1, frames.size() - 1):
+						if str(frames[k][1]) == kind:
+							at = k
+							break
+		(frames[at][2] as Array).append(row)
+	var x := 0.0
+	for f: Array in frames:
+		var cx := x + FRAME_SIZE.x * 0.5
+		var pic := _frame(f[0], str(f[1]))
+		pic.position = Vector2(x, -FRAME_SIZE.y * 0.5)
+		_track.add_child(pic)
+		var note: Control = null
+		if not (f[2] as Array).is_empty():
+			note = _note(f[2])
+			_track.add_child(note)
+			note.position = Vector2(cx - 160.0, FRAME_SIZE.y * 0.5 + 44.0)
+			note.modulate.a = 0.0
+			note.reset_size.call_deferred()
+		_items.append([cx, note, f[2], false])
+		x += FRAME_SIZE.x + FRAME_GAP
+	_offset = -FRAME_SIZE.x * 1.6         # 頭のコマは、右の外から入ってくる
+	_offset_end = _items.back()[0] as float          # 最後は「終」のコマが窓に来て止まる
 	_shade.color = Color(0, 0, 0, 0.72)
 	_sheet.visible = true
-	_hint.text = "Enter：読み上げをとばす"
+	_place_track()
+	_hint.text = "Enter：フィルムをとばす"
 
 
-func _next_row() -> void:
-	if _tally_i >= tally.size():
-		var flow: Node = game.production
-		_total.text = "ギャラ +%d　＋　浮かせた制作費 +%d" % [int(flow.last_payment), int(flow.saved)]
-		Sfx.play("success_fanfare" if int(flow.last_payment) > 150 else "ui_ok")
-		_tally_done = true
-		_tally_t = HOLD_SEC
-		_hint.text = "Enter：精算の画面へ"
-		return
-	var row: Array = tally[_tally_i]
-	_tally_i += 1
-	_rows.add_child(_row(row))
-	if bool(row[2]):
-		_say(str(row[0]), "happy")
-		_tally_t = VOICE_SEC
+# 1コマ（写した絵。頭は題名、終わりは「終」の黒いコマ）
+func _frame(tex: Variant, mark: String) -> Control:
+	var box := Panel.new()
+	box.add_theme_stylebox_override("panel", UI.box(Color("0b0b0c"), Color(0, 0, 0, 0), 0, 3))
+	box.size = FRAME_SIZE
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if tex is Texture2D:
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_SCALE
+		pic.size = FRAME_SIZE
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(pic)
 	else:
-		if row[1] != null and int(row[1]) > 0:
-			Sfx.play("ui_select")
-		_tally_t = LINE_SEC
+		var words := UI.label("終" if mark == "tail" else str(game.film_title()), 34 if mark == "tail" else 18, UI.PAPER, "display")
+		words.size = FRAME_SIZE
+		words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		words.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(words)
+	return box
 
 
-func _row(row: Array) -> Control:
-	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 14)
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var voice: bool = bool(row[2])
-	var text := UI.label("『%s』" % row[0] if voice else str(row[0]), 20, UI.TAPE_HI if voice else UI.PAPER, "bold" if voice else "body")
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	line.add_child(text)
-	if row[1] != null:
-		var coins: int = int(row[1])
-		var amount := UI.label(("+%d" % coins) if coins >= 0 else ("−%d" % -coins), 22, UI.GREEN_LIGHT if coins > 0 else (UI.STAMP_RED if coins < 0 else UI.MUTED), "display")
-		line.add_child(amount)
-	UI.pop_on_show(line)
-	return line
+# コマの下の札：そのコマで良かった点・だめな点と、コイン
+func _note(rows: Array) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UI.box(Color(UI.BOARD, 0.94), UI.LINE, 1, 6, 12, 8))
+	panel.custom_minimum_size = Vector2(320, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 2)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(column)
+	for row: Array in rows:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var voice: bool = bool(row[2])
+		var text := UI.label("『%s』" % row[0] if voice else str(row[0]), 17, UI.TAPE_HI if voice else UI.PAPER, "bold" if voice else "body")
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.custom_minimum_size = Vector2(228, 0)      # 折り返しの幅を先に決める（決めないと、1字ずつ折れて縦に伸びる）
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.add_child(text)
+		if row[1] != null:
+			var coins: int = int(row[1])
+			line.add_child(UI.label(("+%d" % coins) if coins >= 0 else ("−%d" % -coins), 20, UI.GREEN_LIGHT if coins > 0 else (UI.STAMP_RED if coins < 0 else UI.MUTED), "display"))
+		column.add_child(line)
+	return panel
 
 
-# 読み上げを最後まで出す（Enter）。もう出し終わっていれば、精算の画面へ
+# フィルムを送る。点の付いたコマが真ん中の窓に来たら、札を出して少し止まる
+func _feed(delta: float) -> void:
+	if _pause > 0.0:
+		_pause -= delta
+		return
+	_offset += STRIP_SPEED * delta
+	for item: Array in _items:
+		if not bool(item[3]) and _offset >= float(item[0]):
+			_offset = maxf(float(item[0]), _offset - STRIP_SPEED * delta) if not (item[2] as Array).is_empty() else _offset
+			_reveal(item)
+			if not (item[2] as Array).is_empty():
+				_pause = PAUSE_SEC
+				break
+	_place_track()
+	if _offset >= _offset_end:
+		_end_strip()
+
+
+func _reveal(item: Array) -> void:
+	item[3] = true
+	var rows: Array = item[2]
+	if rows.is_empty():
+		return
+	var note: Control = item[1]
+	if note != null:
+		create_tween().tween_property(note, "modulate:a", 1.0, 0.18)
+		UI.pop_on_show(note)
+	var gain := 0
+	for row: Array in rows:
+		if row[1] != null:
+			gain += int(row[1])
+			_running += int(row[1])
+		if bool(row[2]):
+			_say(str(row[0]), "happy")
+	if gain > 0:
+		Sfx.play("ui_select")
+	elif gain < 0:
+		Sfx.play("ui_back")
+
+
+func _place_track() -> void:
+	var mid: Vector2 = _sheet.size * 0.5
+	_track.position = Vector2(mid.x - _offset, mid.y - STRIP_LIFT)
+	if _band != null:
+		(_band as Band).shift = _offset
+
+
+func _end_strip() -> void:
+	if _tally_done:
+		return
+	for item: Array in _items:
+		if not bool(item[3]):
+			_reveal(item)
+	_offset = _offset_end
+	_place_track()
+	var flow: Node = game.production
+	_total.text = "ギャラ +%d　＋　浮かせた制作費 +%d" % [int(flow.last_payment), int(flow.saved)]
+	UI.pop_on_show(_total)
+	Sfx.play("success_fanfare" if int(flow.last_payment) > 150 else "ui_ok")
+	_tally_done = true
+	_tally_t = HOLD_SEC + 1.2
+	_hint.text = "Enter：精算の画面へ"
+
+
+# フィルムを最後まで送る（Enter）。もう送り終わっていれば、精算の画面へ
 func finish_tally() -> void:
 	if not _sheet.visible:
 		# 「終」の札の最中：札をとばして、精算が届いていれば読み上げへ
@@ -635,8 +920,26 @@ func finish_tally() -> void:
 	if _tally_done:
 		_close()
 		return
-	while not _tally_done:
-		_next_row()
+	_end_strip()
+
+
+# フィルムの帯：黒い帯と、上下の送り穴（フィルムといっしょに動く）
+class Band extends Control:
+	var shift := 0.0:
+		set(v):
+			shift = v
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("1a1714"))
+		var hole := Vector2(16, 11)
+		var step := 34.0
+		var start := -fposmod(shift, step)
+		var x := start
+		while x < size.x:
+			for y: float in [8.0, size.y - 8.0 - hole.y]:
+				draw_rect(Rect2(Vector2(x, y), hole), Color("d9d2c2"))
+			x += step
 
 
 # 場面の見出し（場面の列を持つ依頼。見返しで場面が進むたび）。カット割りの依頼では、つなぎ目が白く光る
@@ -666,6 +969,10 @@ func _show_chapter(i: int, cut: bool) -> void:
 
 
 func _close() -> void:
+	_leave_audience()
+	_drop_doubles()
+	if _screen_vp != null:
+		_screen_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_layer.visible = false
 	_card_box.visible = false
 	_card_t = 0.0
@@ -674,7 +981,17 @@ func _close() -> void:
 	_bubble.visible = false
 	_await_tally = false
 	_tally_done = false
+	_shade.color = Color(0, 0, 0, 0)
 	screening = -1
+
+
+# 見ている間は、物を持つ・発注するなどはしない（歩き回るだけ）
+func hook_f(_me: Node) -> bool:
+	return game.audience
+
+
+func hook_click(_me: Node) -> bool:
+	return game.audience
 
 
 # 読み上げの間の Enter は、精算の画面の「帰社」へ回さず、読み上げを先へ進める
@@ -683,9 +1000,203 @@ func hook_input(event: InputEvent) -> bool:
 		return false
 	if screening >= 0 and game.state == game.S.RESULT:
 		return event is InputEventKey or event is InputEventMouseButton     # 題名の札の間
+	if screening >= 0 and game.state == game.S.REPLAY and event is InputEventKey and event.physical_keycode in [KEY_SPACE, KEY_R]:
+		return true          # 見ている間の Space（跳ぶ）・R で、試写会が止まらないように
 	if not (_sheet.visible or _await_tally):
 		return false
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
 		finish_tally()
 		return true
 	return false
+
+
+# ---- 事務所の試写用スクリーン（巻き上げ式）と、固定カメラ ----
+
+func _build_room() -> void:
+	var office: Node3D = game.production.get("_office_root")
+	_room = Node3D.new()
+	_room.name = "PremiereScreen"
+	office.add_child(_room)
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color("2b2e31")
+	dark.roughness = 0.6
+	var case := MeshInstance3D.new()
+	var case_mesh := BoxMesh.new()
+	case_mesh.size = Vector3(SCREEN_W + 0.36, 0.18, 0.18)
+	case.mesh = case_mesh
+	case.material_override = dark
+	case.position = SCREEN_TOP + Vector3(0, 0.1, 0)
+	_room.add_child(case)
+	for side: float in [-1.0, 1.0]:
+		var pole := MeshInstance3D.new()
+		var pole_mesh := BoxMesh.new()
+		pole_mesh.size = Vector3(0.06, SCREEN_TOP.y + 0.2, 0.06)
+		pole.mesh = pole_mesh
+		pole.material_override = dark
+		pole.position = Vector3(SCREEN_TOP.x + side * (SCREEN_W * 0.5 + 0.22), (SCREEN_TOP.y + 0.2) * 0.5, SCREEN_TOP.z)
+		_room.add_child(pole)
+	# 布：上の端を軸にして、縦に伸ばして下ろす。白い縁の上に、映画の絵
+	_blind = Node3D.new()
+	_blind.position = SCREEN_TOP
+	_blind.scale = Vector3(1, 0.001, 1)
+	_room.add_child(_blind)
+	var edge := MeshInstance3D.new()
+	var edge_mesh := QuadMesh.new()
+	edge_mesh.size = Vector2(SCREEN_W + 0.16, SCREEN_H + 0.2)
+	edge.mesh = edge_mesh
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = Color("ecebe4")
+	cloth.roughness = 0.9
+	edge.material_override = cloth
+	edge.position = Vector3(0, -SCREEN_H * 0.5 - 0.06, -0.005)
+	_blind.add_child(edge)
+	var picture := MeshInstance3D.new()
+	var picture_mesh := QuadMesh.new()
+	picture_mesh.size = Vector2(SCREEN_W, SCREEN_H)
+	picture.mesh = picture_mesh
+	var shown := StandardMaterial3D.new()
+	shown.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shown.albedo_texture = _screen_vp.get_texture()
+	picture.material_override = shown
+	picture.position = Vector3(0, -SCREEN_H * 0.5 - 0.02, 0)
+	_blind.add_child(picture)
+	var weight := MeshInstance3D.new()
+	var weight_mesh := BoxMesh.new()
+	weight_mesh.size = Vector3(SCREEN_W + 0.24, 0.05, 0.05)
+	weight.mesh = weight_mesh
+	weight.material_override = dark
+	weight.position = Vector3(0, -SCREEN_H - 0.17, 0)
+	_blind.add_child(weight)
+	_cam = Camera3D.new()
+	_cam.name = "PremiereCamera"
+	_cam.fov = 50.0
+	_room.add_child(_cam)
+	_cam.global_position = VIEW_AT
+	_cam.look_at(SCREEN_TOP + Vector3(0, -SCREEN_H * 0.62, 0))
+
+
+# スクリーンを下ろす（down）・巻き上げる
+func _roll_screen(down: bool) -> void:
+	if _blind == null:
+		return
+	var t := create_tween()
+	t.tween_property(_blind, "scale:y", 1.0 if down else 0.001, ROLL_SEC).set_trans(Tween.TRANS_SINE)
+
+
+# 見ている間：カメラはスクリーンの方に固定。プレイヤーの体は撮影カメラに映さない（家の前で撮った映画にも、見ている人は写らない）
+func _enter_audience() -> void:
+	if _room == null and game.production != null and game.production.get("_office_root") != null:
+		_build_room()
+	game.audience = true
+	_roll_screen(true)
+	_prev_cam = get_viewport().get_camera_3d()
+	if _cam != null:
+		_cam.make_current()
+	_layers.clear()
+	for p: Node in game.players.values():
+		for v: Node in p.find_children("*", "VisualInstance3D", true, false):
+			_layers[v] = (v as VisualInstance3D).layers
+			(v as VisualInstance3D).layers = AUDIENCE_LAYER
+	# いつもの画面（撮影カメラの映像を全面に出す見返しの画面・確認の札・精算）は、試写会のあいだ隠す
+	_hidden_ui.clear()
+	for ui: Variant in [game.get("hud"), game.get("production_hud")]:
+		if ui is CanvasLayer and (ui as CanvasLayer).visible:
+			(ui as CanvasLayer).visible = false
+			_hidden_ui.append(ui)
+
+
+func _leave_audience() -> void:
+	if not game.audience:
+		return
+	game.audience = false
+	_roll_screen(false)
+	for v: Object in _layers:
+		if is_instance_valid(v):
+			(v as VisualInstance3D).layers = _layers[v]
+	_layers.clear()
+	for ui: Object in _hidden_ui:
+		if is_instance_valid(ui):
+			(ui as CanvasLayer).visible = true
+	_hidden_ui.clear()
+	if _prev_cam != null and is_instance_valid(_prev_cam) and _prev_cam.is_inside_tree():
+		_prev_cam.make_current()
+	else:
+		var me: Node = game.local_player()
+		if me != null and me.get("cam") is Camera3D:
+			(me.cam as Camera3D).make_current()
+
+
+# ---- 人形（撮影中の班の動きを、見返しで再現する） ----
+
+func _make_doubles(tags: Dictionary) -> void:
+	for id: int in tags:
+		if _doubles.has(id):
+			continue
+		var d := Double.new()
+		d.name = "PremiereDouble%d" % id
+		game.add_child(d)
+		d.setup(str(tags[id]))
+		var body: Node3D = game.players.get(id)
+		if body != null:
+			d.global_position = body.global_position
+		_doubles[id] = d
+	if Net.is_host():
+		game.replay_doubles = _doubles
+
+
+func _drop_doubles() -> void:
+	game.replay_doubles = {}
+	for d: Node in _doubles.values():
+		if is_instance_valid(d):
+			d.queue_free()
+	_doubles = {}
+
+
+class Double extends Node3D:
+	const CastVisual := preload("res://scripts/cast_visual.gd")
+	var vis: Node3D
+	var _goal_pos := Vector3.ZERO
+	var _goal_yaw := 0.0
+	var _following := false
+
+	func setup(tag: String) -> void:
+		vis = CastVisual.new()
+		add_child(vis)
+		if tag != "":
+			vis.setup(tag)
+
+	# 見返し（ホスト）が、コマごとに呼ぶ（main.gd の _replay_step）
+	func apply_state(s: Array) -> void:
+		if s.size() >= 5 and str(s[4]) != "" and str(s[4]) != str(vis.tag):
+			var keep: float = vis.rotation.y
+			vis.queue_free()
+			vis = CastVisual.new()
+			add_child(vis)
+			vis.setup(str(s[4]))
+			vis.rotation.y = keep
+		global_position = s[0]
+		vis.rotation.y = s[1]
+		vis.play(str(s[2]), 0.12)
+		vis.set_face(str(s[3]))
+
+	func state() -> Array:
+		return [global_position, vis.rotation.y, vis.current, vis.face]
+
+	# ほかの人の画面：届いた動きへ、なめらかに寄せる
+	func follow(s: Array) -> void:
+		if not _following:
+			global_position = s[0]
+			vis.rotation.y = s[1]
+		_following = true
+		_goal_pos = s[0]
+		_goal_yaw = s[1]
+		vis.play(str(s[2]), 0.12)
+		vis.set_face(str(s[3]))
+
+	func smooth(delta: float) -> void:
+		if not _following:
+			return
+		var w := clampf(delta * 12.0, 0.0, 1.0)
+		global_position = global_position.lerp(_goal_pos, w)
+		vis.rotation.y = lerp_angle(vis.rotation.y, _goal_yaw, w)
+

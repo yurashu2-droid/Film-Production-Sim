@@ -76,6 +76,19 @@ func run() -> void:
 	await frames(int(premiere.CARD_SEC * 60.0) + 10)
 	check(game.state == S.REPLAY and premiere._layer.visible and not premiere._card_box.visible, "札のあとで、試写会でテイクが流れる")
 	check(premiere._name.text != "" and premiere._title.text.contains(str(flow.job()["title"])), "依頼主の名前と、映画の題が出る")
+	# 歩ける試写会：全員が事務所のスクリーンの前に集まり、カメラはスクリーンの方。見ている間も歩ける
+	var me: Node3D = game.local_player()
+	check(game.audience and me.global_position.distance_to(premiere.SEATS) < 3.0, "試写会は、事務所のスクリーンの前に集まって見る（%s）" % str(me.global_position))
+	check(get_root().get_viewport().get_camera_3d() == premiere._cam, "カメラは、スクリーンの方を向いたまま")
+	check(not premiere._doubles.is_empty() and game.replay_doubles.size() == premiere._doubles.size(), "撮影中の班の動きは、人形が再現する（%d 体）" % premiere._doubles.size())
+	var before := me.global_position
+	var locked: bool = game.input_locked
+	game.input_locked = false
+	Input.action_press("move_forward")
+	await frames(40)
+	Input.action_release("move_forward")
+	game.input_locked = locked
+	check(me.global_position.distance_to(before) > 0.4 and game.state == S.REPLAY, "見ている間も、プレイヤーは歩ける（%.2f m）" % me.global_position.distance_to(before))
 	game.request_deliver(0)
 	await frames(1)
 	check(game.state == S.REPLAY and flow.phase == 4, "流している間に、もう一度押しても納品しない")
@@ -98,6 +111,7 @@ func run() -> void:
 	check(premiere._total.text.contains("+%d" % int(flow.last_payment)), "最後に、ギャラの合計が出る")
 	premiere.finish_tally()
 	check(not premiere._layer.visible and premiere.screening == -1, "読み上げを閉じると、いつもの精算の画面に戻る")
+	check(not game.audience and game.replay_doubles.is_empty() and get_root().get_viewport().get_camera_3d() != premiere._cam, "終わると、カメラも体も元に戻り、人形は片づく")
 	print("PREMIERE_TEST_FAIL" if failed else "PREMIERE_TEST_OK")
 	var sfx := root.get_node_or_null("Sfx")
 	if sfx != null:

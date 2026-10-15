@@ -125,8 +125,9 @@ func build() -> void:
 	view_cam.far = 120.0
 	# 撮影カメラは、世界と同じ光（昼の空・もや・色味）で写す。目で見えているとおりに映る
 	# （以前は撮影側だけ暗く締めて夜に見せていた。昼なのに夜に映るのが不自然なのでやめた）
-	# 制作班だけに見える札（CREW_LAYER）と、一人称の手の写し（1 << 13。first_person_arms.gd）は、映画には映さない
-	view_cam.cull_mask = 0xFFFFF & ~CREW_LAYER & ~(1 << 13)
+	# 制作班だけに見える札（CREW_LAYER）と、一人称の手の写し（1 << 13。first_person_arms.gd）と、
+	# 試写会を見ている人（1 << 15。features/premiere.gd）は、映画には映さない
+	view_cam.cull_mask = 0xFFFFF & ~CREW_LAYER & ~(1 << 13) & ~(1 << 15)
 	view.add_child(view_cam)
 	view_cam.current = true
 	monitor_surface = body.find_child("LCD*single*image*display*",true,false) as MeshInstance3D

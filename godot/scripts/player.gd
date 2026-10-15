@@ -444,7 +444,7 @@ func _physics_process(delta: float) -> void:
 	if not is_local:
 		_follow_net(delta)
 		return
-	if game.replaying:
+	if game.replaying and not game.audience:
 		return
 	var blocked: bool = game.ui_blocking()
 	var iv := Vector2.ZERO

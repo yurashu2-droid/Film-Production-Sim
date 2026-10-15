@@ -88,6 +88,10 @@ var delivered_ok := false
 var reunion_cued := false
 var replaying := false
 var replay_t := 0.0
+# 歩ける試写会（features/premiere.gd）：見返しの間も、プレイヤーは自分の体で歩ける。
+# 撮影中の班の動きは、プレイヤーの体ではなく replay_doubles（プレイヤーの番号 → 人形）に再現する
+var audience := false
+var replay_doubles := {}
 var character_open := false
 var help_open := false
 var input_locked := false      # 自動確認中は手元の入力を受けない
@@ -227,7 +231,8 @@ func recover_player(player: Node3D) -> void:
 
 
 func ui_blocking() -> bool:
-	return state == S.RESULT or state == S.DELIVERED or state == S.REPLAY or ordering() or character_open or help_open or input_locked
+	# 歩ける試写会（audience）の見返しの間は、歩くことだけはできる（物の操作は、見返しの間はホストが受け付けない）
+	return state == S.RESULT or state == S.DELIVERED or (state == S.REPLAY and not audience) or ordering() or character_open or help_open or input_locked
 
 
 # 自分の画面に、発注の画面が開いているか。
@@ -1663,8 +1668,9 @@ func _replay_step(delta: float) -> void:
 	for i in actors.size():
 		actors[i].apply_state(_blend(wa["a"][i], wb["a"][i], w), true)
 	for id: int in wa["pl"]:
-		if players.has(id) and wb["pl"].has(id):
-			players[id].apply_state(_blend(wa["pl"][id], wb["pl"][id], w))
+		var body: Node = replay_doubles.get(id, players.get(id))
+		if body != null and wb["pl"].has(id):
+			body.apply_state(_blend(wa["pl"][id], wb["pl"][id], w))
 	var evs: Array = _replay["events"]
 	while _replay_ev < evs.size() and float(evs[_replay_ev][0]) <= replay_t:
 		ev.rpc(evs[_replay_ev][1], evs[_replay_ev][2])

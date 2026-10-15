@@ -190,6 +190,13 @@ func shoot(debut: int, site: String) -> void:
 		await physics_frame
 	await frames(30)
 	await snap("cm_4_end")
+	# フィルムが流れている途中（点の付いたコマが窓に来たあたり）
+	for i in 900:
+		if premiere._sheet.visible:
+			break
+		await process_frame
+	await frames(80)
+	await snap("cm_5a_strip")
 	for i in 900:
 		if premiere._tally_done:
 			break
