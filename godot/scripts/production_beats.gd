@@ -269,6 +269,7 @@ func _process(delta: float) -> void:
 	for cam: Node in game.camera_switcher.cameras:
 		cam.set_film(on and flow.phase in [2, 4, 5], frac, rolling, low)
 	game.camera_switcher.monitor.set_marks(lamps() if on else [], frac)
+	_sync_hold_sign(on and holding and game.state == S.TAKE)
 	# 残りわずか：リールがカタカタ鳴る。切れる間際ほど、せわしなく
 	if not low:
 		_rattle = 0.0
@@ -279,6 +280,39 @@ func _process(delta: float) -> void:
 		var sfx: Node = get_node_or_null("/root/Sfx")
 		if sfx != null and sfx.has_sound("ui_select"):
 			sfx.play("ui_select", (game.program_camera() as Node3D).global_position + Vector3(0, 1.4, 0), -3.0)
+
+
+# 場転の札：フィルムを止めている間、撮影カメラの上に浮かぶ（制作班にだけ見える。映画には映らない）。
+# 画面の隅の文字ではなく、現場の物で「いまは止まっている・次は何の場面か」が分かるように
+var _hold_sign: Label3D
+
+
+func _sync_hold_sign(show: bool) -> void:
+	if _hold_sign == null:
+		if not show:
+			return
+		_hold_sign = Label3D.new()
+		_hold_sign.name = "HoldSign"
+		_hold_sign.font = game.font
+		_hold_sign.font_size = 30
+		_hold_sign.pixel_size = 0.0012
+		_hold_sign.fixed_size = true
+		_hold_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_hold_sign.no_depth_test = true
+		_hold_sign.modulate = Color("ffcc00")
+		_hold_sign.outline_modulate = Color(0, 0, 0, 0.85)
+		_hold_sign.outline_size = 14
+		_hold_sign.layers = CREW_LAYER
+		add_child(_hold_sign)
+	_hold_sign.visible = show
+	if not show:
+		return
+	var cam: Node3D = game.program_camera()
+	if cam != null:
+		_hold_sign.global_position = cam.global_position + Vector3(0, 2.25, 0)
+	var titles: Array = flow.job()["scenes"]
+	var title: String = str(titles[next_scene]).get_slice("（", 0) if next_scene >= 0 and next_scene < titles.size() else ""
+	_hold_sign.text = "場転中（フィルム停止）\n次：%s　／　1 で回す" % title
 
 
 # ---- 場面を進める ----
