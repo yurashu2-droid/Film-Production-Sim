@@ -173,7 +173,8 @@ static func _street(b: Look.Batch, root: Node3D, font: Font) -> void:
 
 
 # 歩けない場所に落ちないよう、床と、通りの南と西の見えない壁。今の道（x 73.5 から東）の床とは重ねず、高さも道の床にそろえる。
-# 当たり判定は、フェンスと同じ体にまとめる（体を1つ増やすだけで物理の計算の順が変わり、荷台のロープの揺れ方が変わるため）
+# 当たり判定は、フェンスなどと同じ体（WardLot）に入れている。別の体に分けてもよい
+# （体の数・作る順が変わっても、荷台のロープの確認 carton_rope_test.gd の結果は変わらない）
 static func _street_solids(b: Look.Batch) -> void:
 	var x1 := 73.45
 	b.solidp(Vector3((STREET_X.x + x1) * 0.5, -0.21, (STREET_Z.x + STREET_Z.y + 1.1) * 0.5), Vector3(x1 - STREET_X.x, 0.4, STREET_Z.y + 1.1 - STREET_Z.x))
