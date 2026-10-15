@@ -365,9 +365,12 @@ func _lab_moves() -> void:
 
 
 
-# 足音の素材から、at 秒の1歩を切り出す（頭の鳴っていない所を詰め、cutoff Hz より高い音を削る）
+# 足音の素材から、at 秒の1歩を切り出す（頭の鳴っていない所を詰め、cutoff Hz より高い音を削る）。
+# 素材は0.19秒おきに次の1歩が来るので、0.14秒までになめらかに消す（ぶつ切りや次の1歩の出だしが、重ねた音の終わりでノイズになった）
 func _step_hit(from: PackedFloat32Array, at: float, cutoff: float) -> PackedFloat32Array:
-	return trim_head(lowpass(cut(from, at - 0.04, at + 0.2), cutoff), 0.15)
+	var b := trim_head(lowpass(cut(from, at - 0.04, at + 0.18), cutoff), 0.15)
+	fade_out(b, 0.06, 0.08)
+	return b
 
 # 素材の長さと、音が鳴っている区間を表示する（耳で聞けない代わりの下調べ）
 func _probe() -> void:
