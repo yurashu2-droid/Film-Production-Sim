@@ -391,7 +391,11 @@ func hook_event(n: String, a: Array) -> void:
 		"premiere_off":
 			screening = -1
 			_closing_line = [str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy"]
-			_show_card("", "終", END_SEC)
+			# 会社のCMは、テレビの終わり方（提供の札）。ほかは映画の「終」
+			if _on_air():
+				_show_card("提供", "格安アクション映画制作班", END_SEC)
+			else:
+				_show_card("", "終", END_SEC)
 			_end_t = END_SEC
 			_await_tally = true
 			_hint.text = "精算を待っています…"
@@ -414,13 +418,18 @@ func hook_core_event(n: String, a: Array) -> void:
 	_say(line, "wow")
 
 
+# 会社のCM（最初の一本）は、試写会ではなく、テレビの深夜枠での放送として見せる
+func _on_air() -> bool:
+	return game.production != null and bool(game.production.job().get("debut", false))
+
+
 func _open() -> void:
 	var flow: Node = game.production
 	var brief: Dictionary = Briefs.brief(int(flow.chosen_job))
 	var path := "res://assets/ui/clients/%s.png" % str(brief.get("cast", ""))
 	_face.texture = load(path) if ResourceLoader.exists(path) else null
 	_name.text = str(brief.get("name", "依頼主"))
-	_title.text = "試写会　『%s』" % str(game.film_title())
+	_title.text = ("深夜枠で放送中　『%s』" if _on_air() else "試写会　『%s』") % str(game.film_title())
 	_hint.text = "Enter・Esc：とばして結果へ"
 	_shade.color = Color(0, 0, 0, 0)
 	_sheet.visible = false
@@ -436,7 +445,7 @@ func _open() -> void:
 	_end_t = 0.0
 	_closing_line = []
 	_chapter.modulate.a = 0.0
-	_show_card("格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
+	_show_card("このあとは　コマーシャル" if _on_air() else "格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
 
 
 # 依頼主のひとこと。気分で、顔の動きと音を変える（happy はねる / wow びくっ / sad かしげる / neutral うなずく）
