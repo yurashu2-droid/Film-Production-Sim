@@ -172,7 +172,7 @@ func shoot(debut: int, site: String) -> void:
 	# ---- 試写会（放送）→ 電話 ----
 	if game.state == S.RESULT:
 		game.request_deliver(0)
-		await frames(30)
+		await frames(140)
 		var premiere: Node = game.hooks.feature("premiere")
 		check(game.state == S.REPLAY and premiere.screening == 0, "%s：納品を頼むと、試写会（放送）が始まる" % site)
 		game.h_stop_replay()

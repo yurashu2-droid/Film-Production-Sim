@@ -65,9 +65,15 @@ func run() -> void:
 	# 画面から納品を頼む：試写会が始まる
 	game.request_deliver(0)
 	await frames(2)
-	check(game.state == S.REPLAY and premiere.screening == 0 and premiere._layer.visible, "納品を頼むと、試写会でテイクが流れる")
+	check(game.state == S.RESULT and premiere.screening == 0 and premiere._layer.visible and premiere._card_box.visible, "納品を頼むと、まず題名の札（映画は、札のあとで流れ始める）")
+	check(premiere._card_big.text.contains(str(flow.job()["title"])), "札には、映画の題名")
+	var space := InputEventKey.new()
+	space.physical_keycode = KEY_SPACE
+	space.pressed = true
+	check(premiere.hook_input(space), "札の間は、撮り直し（Space）などのキーが効かない")
+	await frames(int(premiere.CARD_SEC * 60.0) + 10)
+	check(game.state == S.REPLAY and premiere._layer.visible and not premiere._card_box.visible, "札のあとで、試写会でテイクが流れる")
 	check(premiere._name.text != "" and premiere._title.text.contains(str(flow.job()["title"])), "依頼主の名前と、映画の題が出る")
-	check(premiere._card_box.visible and premiere._card_big.text.contains(str(flow.job()["title"])), "始まりに、題名の札が出る")
 	game.request_deliver(0)
 	await frames(1)
 	check(game.state == S.REPLAY and flow.phase == 4, "流している間に、もう一度押しても納品しない")

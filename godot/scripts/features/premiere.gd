@@ -67,7 +67,7 @@ func _build_card(root: Control) -> void:
 	_card_box = ColorRect.new()
 	(_card_box as ColorRect).color = Color.BLACK
 	_card_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_card_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_box.mouse_filter = Control.MOUSE_FILTER_STOP      # 札の下の、確認の画面のボタンを押させない
 	_card_box.visible = false
 	root.add_child(_card_box)
 	var column := VBoxContainer.new()
@@ -314,19 +314,28 @@ func hook_deliver(index: int) -> bool:
 		return false
 	if (game._take_data[index]["frames"] as Array).size() < 2:
 		return false
-	game.h_replay(index)
-	if game.state != game.S.REPLAY:
-		return false
 	_cues = _plan(index)
 	_cue_i = 0
 	game.host_ev("premiere_on", [index])
+	_roll.call_deferred(index)
 	return true
+
+
+# 題名の札（CARD_SEC 秒）のあとで、映画（見返し）を流し始める。流せなければ、そのまま納品する
+func _roll(index: int) -> void:
+	await get_tree().create_timer(CARD_SEC).timeout
+	if screening != index or game.state != game.S.RESULT:
+		return
+	game.h_replay(index)
+	if game.state != game.S.REPLAY:
+		game.host_ev("premiere_off", [_closing(index)])
+		_finish.call_deferred(index)
 
 
 # 依頼主の反応の予定：始まりのひとこと、場面が撮れた時刻ごとのひとこと
 func _plan(index: int) -> Array:
 	var job: int = int(game.production.chosen_job)
-	var plan: Array = [[0.4, START[job % START.size()], "neutral"]]
+	var plan: Array = [[0.0, START[job % START.size()], "neutral"]]      # 札が明けたら、すぐ
 	var titles: Array = game.scene_titles()
 	var times: Array = _times.get(index, [])
 	for i in times.size():
@@ -389,10 +398,20 @@ func hook_event(n: String, a: Array) -> void:
 
 
 # 試写会の間の爆発には、依頼主がびっくりする（見返しでも、爆発の知らせは届く）
-func hook_core_event(n: String, _a: Array) -> void:
-	if n == "burst" and screening >= 0:
-		_say(WOW[_wow_i % WOW.size()], "wow")
-		_wow_i += 1
+# 見ごたえのある爆発（scripts/features/spectacle.gd の測り方。見返しの撮影カメラで、各自の画面で測る）には、もっと驚く
+func hook_core_event(n: String, a: Array) -> void:
+	if n != "burst" or screening < 0:
+		return
+	var line: String = WOW[_wow_i % WOW.size()]
+	_wow_i += 1
+	var spectacle: Node = game.hooks.feature("spectacle")
+	if spectacle != null and a.size() >= 2:
+		var seen: Dictionary = spectacle.measure(a[0], float(a[1]))
+		if float(seen["size"]) >= spectacle.FILL:
+			line = "画面いっぱいの爆発！ 迫力あるねえ！"
+		elif bool(seen["close"]):
+			line = "近い近い！ 役者さん、大丈夫！？"
+	_say(line, "wow")
 
 
 func _open() -> void:
@@ -624,7 +643,11 @@ func _close() -> void:
 
 # 読み上げの間の Enter は、精算の画面の「帰社」へ回さず、読み上げを先へ進める
 func hook_input(event: InputEvent) -> bool:
-	if _layer == null or not _layer.visible or not (_sheet.visible or _await_tally):
+	if _layer == null or not _layer.visible:
+		return false
+	if screening >= 0 and game.state == game.S.RESULT:
+		return event is InputEventKey or event is InputEventMouseButton     # 題名の札の間
+	if not (_sheet.visible or _await_tally):
 		return false
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
 		finish_tally()

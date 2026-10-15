@@ -84,9 +84,14 @@ func run() -> void:
 	check(lines.size() == 2 and int(lines[0][1]) + int(lines[1][1]) == spectacle.FILL_COINS + spectacle.CLOSE_COINS, "役者のすぐそばで、画面いっぱいに映った爆発は、両方の上乗せ")
 	var bare: int = flow.take_fee(1) - spectacle.FILL_COINS - spectacle.CLOSE_COINS
 	check(bare >= 150, "上乗せは、ギャラに入る（%d = 上乗せなしの %d ＋ %d）" % [flow.take_fee(1), bare, spectacle.FILL_COINS + spectacle.CLOSE_COINS])
-	# 精算の文にも出る
-	game.h_deliver(1)
-	await frames(10)
+	# 試写会：その爆発のところで、依頼主がもっと驚く。とばすと納品になり、精算の文にも出る
+	var premiere: Node = game.hooks.feature("premiere")
+	game.request_deliver(1)
+	await frames(140)
+	print("SPECTACLE_MEASURE 試写会のひとこと＝", premiere.last_line)
+	check(game.state == game.S.REPLAY and premiere.last_line.contains("画面いっぱい"), "試写会で、その爆発に依頼主がもっと驚く")
+	game.h_stop_replay()
+	await frames(20)
 	check(flow.last_flubs.any(func(l: String) -> bool: return "画面いっぱいの爆発" in l) and flow.last_flubs.any(func(l: String) -> bool: return "間一髪" in l), "精算の文（試写会の読み上げ）に出る")
 	print("SPECTACLE_TEST_FAIL" if failed else "SPECTACLE_TEST_OK")
 	root.get_node("Sfx").silence_all()
