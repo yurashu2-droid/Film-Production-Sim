@@ -1276,6 +1276,19 @@ func h_retake() -> void:
 		return
 	super.h_retake()
 
+# 画面（ボタン・Enter）から納品を頼む。試写会など、納品の前に流す仕組みがあれば、そちらが先（各仕組みの hook_deliver）。
+# 自動確認などが h_deliver を直接呼ぶと、今までどおり、すぐ納品になる
+func request_deliver(index: int) -> void:
+	h_request_deliver.rpc_id(1, index)
+
+@rpc("any_peer","call_local","reliable")
+func h_request_deliver(index: int) -> void:
+	if not Net.is_host() or state != S.RESULT:
+		return
+	if production and hooks.first("hook_deliver", [index]):
+		return
+	h_deliver(index)
+
 @rpc("any_peer","call_local","reliable")
 func h_deliver(index: int) -> void:
 	var valid := Net.is_host() and state == S.RESULT and index >= 0 and index < takes.size()
@@ -1354,6 +1367,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if production and beats != null and beats.active() and production.phase == 4 and state in [S.PREP, S.TAKE] and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_1, KEY_2, KEY_3] and not ui_blocking():
 		if event.physical_keycode != KEY_3:
 			h_beat.rpc_id(1, 1 if event.physical_keycode == KEY_1 else 2)
+		return
+	# 確認の画面の Enter（納品）：試写会を通す（request_deliver）
+	if production and state == S.RESULT and not character_open and not help_open and not input_locked and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		request_deliver(selected)
 		return
 	# 爆弾は合図キーでは鳴らない（そばで F を押して点火する）
 	if production and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_2 and state in [S.PREP, S.TAKE] and not ui_blocking() and bomb_armed():

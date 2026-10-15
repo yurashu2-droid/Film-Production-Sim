@@ -31,6 +31,7 @@ const HOOKS := {
 	"hook_retake": "()：撮り直し：物の置き場所を戻す前（ホスト）",
 	"hook_retake_done": "()：撮り直し：物の置き場所を戻したあと（ホスト）",
 	"hook_playback": "(on: bool)：見返しの始まり（on。見返しに入る前）と終わり（off。戻ったあと）（ホスト）",
+	"hook_deliver": "(index: int) -> bool：画面（ボタン・Enter）から納品を頼まれた（ホスト）。true なら、その仕組みが先に何かを流し、終わったら自分で game.h_deliver を呼ぶ（試写会）",
 }
 
 # ---- 順番 ----

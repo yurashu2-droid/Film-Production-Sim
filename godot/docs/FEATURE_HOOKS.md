@@ -36,6 +36,7 @@
 | `hook_take_ready()` / `hook_take_start()` / `hook_take_cut()` | テイクを始める直前（撮り直しで戻す物を覚える）／本番が始まった／カット（ホスト） |
 | `hook_retake()` / `hook_retake_done()` | 撮り直し：物の置き場所を戻す前／戻したあと（ホスト） |
 | `hook_playback(on)` | 見返しの始まりと終わり（ホスト） |
+| `hook_deliver(index) -> bool` | 画面（ボタン・Enter）から納品を頼まれた（ホスト）。`true` なら、その仕組みが先に何かを流し、終わったら自分で `game.h_deliver` を呼ぶ（試写会） |
 
 名前を書きまちがえた `hook_〜` は、確認が「決まった名前に無い」と知らせる。
 
@@ -78,6 +79,7 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 登録してある仕組み：`adhesive`（接着剤）・`cue_cards`（カンペ・等身大パネル）・`cargo_kit`（箱とロープ）・`bomb_kit`（爆弾の道具）・
 `beats`（5場面の台本）・`rope_grab`（ロープをつかむ）・`talent`（特技）・`director`（監督の机）。
 これらは `production_main.gd` の `_ready()` で作っている（物を作る順番が決まっているため）。
+`scripts/features/` に置いてある仕組み：`online_room`・`premiere`（試写会）・`psychic_hold`。
 
 まだ中心のファイルに直接書いてある物（動きは同じ。移すときは、順番が変わらないことを確かめる）：
 接着剤・カンペ・特技の「あとから入った人への送り直し」（送る時が、ほかより早い）、特技と接着剤と机の画面の案内、

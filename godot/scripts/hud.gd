@@ -1193,7 +1193,11 @@ func _build_result(t: Dictionary, sel: int, prod: Node, saved: String) -> void:
 	fill2.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	main_row.add_child(fill2)
 	var deliver := UI.KeyButton.new().setup("このテイクを納品", "Enter", "tape", 17, 48)
-	deliver.pressed.connect(func() -> void: game.h_deliver.rpc_id(1, game.selected))
+	deliver.pressed.connect(func() -> void:
+		if game.has_method("request_deliver"):
+			game.request_deliver(game.selected)      # 制作モード：試写会を通す
+		else:
+			game.h_deliver.rpc_id(1, game.selected))
 	main_row.add_child(deliver)
 
 
