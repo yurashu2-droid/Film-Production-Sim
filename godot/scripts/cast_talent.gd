@@ -1461,7 +1461,7 @@ func _show_lamp(vis: Node3D, on: bool) -> void:
 		light.spot_angle_attenuation = 0.6
 		light.spot_attenuation = 1.0
 		light.light_color = Color(1.0, 0.86, 0.58)
-		light.light_energy = 7.0
+		light.light_energy = 2.6
 		light.shadow_enabled = true
 		light.shadow_bias = 0.06
 		vis.add_child(light)
@@ -1472,7 +1472,7 @@ func _show_lamp(vis: Node3D, on: bool) -> void:
 		glow_light.omni_range = 2.6
 		glow_light.omni_attenuation = 1.4
 		glow_light.light_color = Color(1.0, 0.84, 0.52)
-		glow_light.light_energy = 3.0
+		glow_light.light_energy = 1.4
 		light.add_child(glow_light)
 	if light != null:
 		light.visible = on

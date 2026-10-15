@@ -70,7 +70,7 @@ func _startup_step(incremental: bool) -> void:
 
 func _build_room() -> void:
 	# 倉庫の照明：天井からの作業灯（影つき）と、弱い環境光。
-	# 撮影カメラ側は露出を下げて見るので、同じ光が「夜の薄明かり」に写る。
+	# 撮影カメラも、この光をそのまま写す。
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR

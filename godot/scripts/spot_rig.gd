@@ -1,7 +1,8 @@
 extends "res://scripts/prop.gd"
 # スタンドつきスポットライト。置けばその向きを照らし続ける。
 
-const ENERGY := [0.0, 7.0, 13.0, 22.0]
+# 見た目の明るさ。撮影カメラも昼の光で写すので、日なたに足す補助の光の強さ（判定の明るさは FACTOR で別に決まる）
+const ENERGY := [0.0, 2.2, 3.8, 6.0]
 const FACTOR := [0.0, 0.6, 1.0, 1.6]   # 判定で使う明るさの係数
 const RANGE := 24.0
 const ANGLE := 21.0

@@ -123,7 +123,8 @@ func build() -> void:
 	view_cam = Camera3D.new()
 	view_cam.near = 0.15
 	view_cam.far = 120.0
-	view_cam.environment = _film_environment()
+	# 撮影カメラは、世界と同じ光（昼の空・もや・色味）で写す。目で見えているとおりに映る
+	# （以前は撮影側だけ暗く締めて夜に見せていた。昼なのに夜に映るのが不自然なのでやめた）
 	# 制作班だけに見える札（CREW_LAYER）と、一人称の手の写し（1 << 13。first_person_arms.gd）は、映画には映さない
 	view_cam.cull_mask = 0xFFFFF & ~CREW_LAYER & ~(1 << 13)
 	view.add_child(view_cam)
@@ -145,27 +146,6 @@ func operation_view() -> Transform3D:
 		target += lens.global_basis.y * 0.05
 		eye = target + (eye - target) * 1.4
 	return Transform3D(Basis.IDENTITY,eye).looking_at(target,Vector3.UP)
-
-
-# 撮影側だけ暗く締めて、当てた光と爆発が映えるようにする
-func _film_environment() -> Environment:
-	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.012, 0.016, 0.04)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.35, 0.45, 0.8)
-	e.ambient_light_energy = 0.5
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	e.tonemap_exposure = 0.28
-	e.tonemap_white = 3.0
-	e.glow_enabled = true
-	e.glow_intensity = 0.9
-	e.glow_hdr_threshold = 2.2
-	e.glow_bloom = 0.15
-	e.adjustment_enabled = true
-	e.adjustment_contrast = 1.12
-	e.adjustment_saturation = 1.1
-	return e
 
 
 func aim(dyaw: float, dpitch: float, dfov: float) -> void:
