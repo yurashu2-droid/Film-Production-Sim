@@ -7,6 +7,7 @@ extends RefCounted
 
 const Slots := preload("res://scripts/production_yard_slots.gd")
 const Dump := preload("res://scripts/dump_dressing.gd")
+const Ward := preload("res://scripts/ward_lot.gd")
 const Look := preload("res://scripts/production_look.gd")
 
 const YARD_PATH := "res://assets/stage/yard/dirty_yard_seed_41.glb"
@@ -54,6 +55,7 @@ static func build(parent: Node3D) -> Node3D:
 		_place(root, _merge(box_src, func(_nm: String, _box: AABB) -> bool: return true, 0.6), xform() * Transform3D(Basis.IDENTITY, CONTAINER_LOCAL))
 		box_src.free()
 	Dump.build(root, xform())
+	Ward.build(root)
 	_surroundings(root)
 	return root
 
@@ -194,8 +196,9 @@ static func _surroundings(root: Node3D) -> void:
 	# 北・東・南・道沿い・突き当たりの建物。向きは「敷地のほうへ正面」
 	_row(dress, "RowNorth", Vector3(31.6, 0, -21.0), Vector3.RIGHT, 106.0, 0.0, rng)
 	_row(dress, "RowEast", Vector3(99.0, 0, -18.0), Vector3.BACK, 40.0, -PI * 0.5, rng)
-	_row(dress, "RowSouth", Vector3(31.6, 0, 43.0), Vector3.RIGHT, 62.0, PI, rng)
-	_row(dress, "RoadWest", Vector3(66.5, 0, 38.0), Vector3.BACK, 90.0, PI * 0.5, rng)
+	# 南の列と道の西の列は、区道（ward_lot.gd）の分だけ下げる
+	_row(dress, "RowSouth", Vector3(31.6, 0, 50.2), Vector3.RIGHT, 62.0, PI, rng)
+	_row(dress, "RoadWest", Vector3(66.5, 0, 47.0), Vector3.BACK, 90.0, PI * 0.5, rng)
 	_row(dress, "RoadEast", Vector3(93.7, 0, 38.0), Vector3.BACK, 90.0, -PI * 0.5, rng)
 	_row(dress, "RowFar", Vector3(58.0, 0, 94.5), Vector3.RIGHT, 112.0, PI, rng)
 	_skyline(dress, rng)
@@ -206,10 +209,14 @@ static func _surroundings(root: Node3D) -> void:
 static func _perimeter(b: Look.Batch, dress: Node3D) -> void:
 	_wall(b, Vector3(62.0, 1.4, -14.4), Vector3(60.4, 2.8, 0.25))
 	_wall(b, Vector3(92.4, 1.4, 11.0), Vector3(0.25, 2.8, 50.4))
-	_wall(b, Vector3(52.0, 1.4, 36.4), Vector3(41.0, 2.8, 0.25))
+	# 南の塀：区の入口（ward_lot.gd の引き戸の門）のところだけ開ける
+	var gx: Vector2 = Ward.GATE_X
+	_wall(b, Vector3((31.5 + gx.x) * 0.5, 1.4, 36.4), Vector3(gx.x - 31.5, 2.8, 0.25))
+	_wall(b, Vector3((gx.y + 72.5) * 0.5, 1.4, 36.4), Vector3(72.5 - gx.y, 2.8, 0.25))
 	_wall(b, Vector3(89.9, 1.4, 36.4), Vector3(5.0, 2.8, 0.25))
-	for sx: float in [72.6, 87.4]:
-		_wall(b, Vector3(sx, 1.3, 58.0), Vector3(0.25, 2.6, 46.0))
+	# 道の両脇の塀。西側は、区道の出口（z 36.4〜45.6）を開ける
+	_wall(b, Vector3(72.6, 1.3, 63.3), Vector3(0.25, 2.6, 35.4))
+	_wall(b, Vector3(87.4, 1.3, 58.0), Vector3(0.25, 2.6, 46.0))
 	# 西の高い塀：波板と鉄骨の柱。撮影現場側へは何も出さない
 	var sheet := Look.mat("metal", Color("8f9aa0"))
 	var post := Look.mat("concrete", Color("74777a"))
@@ -461,7 +468,7 @@ static func _poles(dress: Node3D) -> void:
 	_pole_line(b, line, wood, dark, ins)
 	var east: Array = []
 	for k in 6:
-		east.append(Vector3(72.0, 0.0, 40.0 + k * 9.0))
+		east.append(Vector3(72.0, 0.0, 49.0 + k * 9.0))
 	_pole_line(b, east, wood, dark, ins)
 	var west: Array = []
 	for k in 6:
@@ -469,7 +476,7 @@ static func _poles(dress: Node3D) -> void:
 	_pole_line(b, west, wood, dark, ins)
 	# 道をまたぐ電線
 	for k in 4:
-		var z := 40.0 + k * 9.0 + 4.5
+		var z := 49.0 + k * 9.0 + 4.5
 		_wire(b, Vector3(72.0, 8.3, z), Vector3(88.0, 8.3, z), 0.7, dark)
 	b.build(dress, "Poles")
 

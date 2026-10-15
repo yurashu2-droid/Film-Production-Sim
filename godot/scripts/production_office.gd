@@ -79,9 +79,10 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	# 道の脇の歩道（敷地の外は一段高く。歩けない場所なので見た目だけ）
 	var side := Look.Batch.new()
 	side.no_shadow = true
-	for sd: Array in [[72.725, 73.55], [86.45, 87.275]]:
-		side.quad_up(paving, sd[0], sd[1], 36.4, 81.0, 0.12)
-		side.boxp(Look.mat("concrete", Color("d6d1c4")), Vector3(sd[0] if sd[0] > 80.0 else sd[1], 0.06, 58.7), Vector3(0.12, 0.12, 44.6), GROUND)
+	# 西側の歩道は、区道（ward_lot.gd）の出口のところで切れる
+	for sd: Array in [[72.725, 73.55, 45.6], [86.45, 87.275, 36.4]]:
+		side.quad_up(paving, sd[0], sd[1], sd[2], 81.0, 0.12)
+		side.boxp(Look.mat("concrete", Color("d6d1c4")), Vector3(sd[0] if sd[0] > 80.0 else sd[1], 0.06, (sd[2] + 81.0) * 0.5), Vector3(0.12, 0.12, 81.0 - sd[2]), GROUND)
 	# 白線・黄線（かすれた塗装）
 	var white := Look.mat("paint", Color("ece6d2"))
 	var cream := Look.mat("paint", Color("e6d9a4"))
@@ -606,9 +607,16 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	var zones: Array = []
 	var b := Look.Batch.new()
 	zones.append(b)
-	# 北西：資材の差し掛け小屋とフォークリフト
+	# 北西：区の清掃事務所の車庫（差し掛け小屋とフォークリフト。粗大ごみを運ぶ）。ここから西は区の土地（ward_lot.gd）
 	_shed(b, 38.0, 60.0, -13.8, -9.5)
-	_forklift(b, Vector3(50.5, 0, -4.4), 0.45)
+	_forklift(b, Vector3(50.5, 0, -4.4), 0.45, Color("3f8a5a"))
+	var fl := Transform3D(Basis(Vector3.UP, 0.45), Vector3(50.5, 0, -4.4))
+	for s: float in [-1.0, 1.0]:
+		Look.label(root, fl * Transform3D(Basis(Vector3.UP, s * PI * 0.5), Vector3(s * 0.53, 0.62, -0.2)), "みどり区", 0.0032, 64, Color.WHITE, font, false)
+	b.boxp(P(Color("f4f2ea"), 0.6), Vector3(49.0, 2.78, -9.42), Vector3(3.2, 0.62, 0.04), ALL)
+	b.boxp(P(Color("2f7d4f"), 0.6), Vector3(49.0, 2.98, -9.398), Vector3(3.2, 0.2, 0.01), ALL)
+	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(49.0, 2.98, -9.39)), "みどり区　清掃事務所", 0.0028, 64, Color.WHITE, font, false)
+	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(49.0, 2.7, -9.395)), "車庫・資材置場", 0.0036, 64, Color("1f2a24"), font, false)
 	_pallet_stack(b, Vector3(44.0, 0, -5.9), 0.1, 4, true, rng)
 	_pallet_stack(b, Vector3(45.4, 0, -6.1), -0.2, 2, false, rng)
 	for k in 5:
@@ -617,8 +625,7 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 		_drum(b, Vector3(57.5 + (k % 3) * 0.65, 0, -5.2 + (k / 3) * 0.65), [Color("3b6ea5"), Color("c4503a"), Color("d9a441")][k % 3])
 	_tires(b, Vector3(35.4, 0, -5.4), 3)
 	_tires(b, Vector3(36.5, 0, -4.8), 2)
-	_light_stand(b, Vector3(61.0, 0, -2.4), 0.5)
-	_light_stand(b, Vector3(62.3, 0, -3.8), 0.8)
+
 	_tree(b, Vector3(33.9, 0, -2.0), 1.2)
 	b = Look.Batch.new()
 	zones.append(b)
@@ -644,7 +651,10 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	_planter(b, Vector3(76.6, 0, 5.15), 3.2, 9)
 	_tree(b, Vector3(89.6, 0, 3.6), 1.4)
 	_tree(b, Vector3(90.2, 0, -8.5), 1.2)
-	_tree(b, Vector3(63.2, 0, 7.5), 1.2)
+	_tree(b, Vector3(64.4, 0, 8.6), 1.2)
+	# 班の照明（出しっぱなし）。書割の立てかけの横
+	_light_stand(b, Vector3(88.9, 0, -1.4), 0.5)
+	_light_stand(b, Vector3(87.7, 0, 4.6), 2.0)
 	for k in 5:
 		_flat(b, Vector3(91.35, 0, -0.5 + k * 1.15), k)
 	_light_stand(b, Vector3(88.0, 0, 1.6), 2.4)
@@ -667,10 +677,10 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	zones.append(b)
 	# 南：生け垣と照明、パレットとパイプ
 	for k in 5:
-		_planter(b, Vector3(36.5 + k * 5.4, 0, 35.2), 4.0)
+		if k != 1:            # 区の入口（ward_lot.gd）の前は空ける
+			_planter(b, Vector3(36.5 + k * 5.4, 0, 35.2), 4.0)
 	_pallet_stack(b, Vector3(36.0, 0, 32.0), 0.0, 5, true, rng)
 	_pallet_stack(b, Vector3(37.4, 0, 32.2), 0.1, 3, false, rng)
-	_crate_stack(b, Vector3(46.0, 0, 33.4), rng)
 	_pipes(b, Vector3(58.5, 0, 33.8))
 	_tires(b, Vector3(52.0, 0, 33.8), 4)
 	_lamp_post(b, Vector3(41.0, 0, 31.6), root, false)
@@ -738,9 +748,9 @@ static func _shed(b: Look.Batch, x0: float, x1: float, zb: float, zf: float) -> 
 		b.bar(P(Color("c8a96a")), Vector3(x1 - 0.6, yy, zb + 0.46 - yy * 0.1), Vector3(x1 - 0.1, yy, zb + 0.46 - yy * 0.1), 0.04)
 
 
-static func _forklift(b: Look.Batch, pos: Vector3, yaw: float) -> void:
+static func _forklift(b: Look.Batch, pos: Vector3, yaw: float, paint := Color("d9a441")) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos)
-	var body := P(Color("d9a441"), 0.6)
+	var body := P(paint, 0.6)
 	var dark := P(Color("33373a"), 0.6, 0.4)
 	var tire := P(Color("202224"), 0.9)
 	b.box(body, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.55, -0.2)), Vector3(1.05, 0.7, 1.7), GROUND)
@@ -998,7 +1008,11 @@ static func _road(b: Look.Batch, root: Node3D, font: Font, rng: RandomNumberGene
 		for k in zs.size():
 			var z: float = zs[k] + rng.randf_range(-0.5, 0.5) + side * 1.3
 			var i := (k * 3 + side * 5) % titles.size()
-			_poster(b, root, font, Vector3(x, 1.25 + rng.randf_range(-0.1, 0.25), z), yaw + rng.randf_range(-0.0, 0.0), Vector2(0.9, 1.25), cols[i], titles[i], Color("f6efd6") if i % 2 == 0 else Color("2b2018"), i % 4)
+			var y := 1.25 + rng.randf_range(-0.1, 0.25)
+			var turn := yaw + rng.randf_range(-0.0, 0.0)
+			if side == 0 and z < 46.2:
+				continue        # 西側は、区道（ward_lot.gd）の出口で塀が切れている
+			_poster(b, root, font, Vector3(x, y, z), turn, Vector2(0.9, 1.25), cols[i], titles[i], Color("f6efd6") if i % 2 == 0 else Color("2b2018"), i % 4)
 	# 落書き（吹き付けの文字）
 	var tag := Look.label(root, Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(87.25, 1.5, 53.9)), "ガンバレ!", 0.008, 128, Color("ff5fa8"), font, false)
 	tag.outline_size = 14

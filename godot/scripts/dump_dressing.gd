@@ -114,7 +114,16 @@ static func _notices(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -
 
 # ---- ゴミ集積所（フェンスの外。袋の山とカラス除けネット、収集日の札） ----
 
-static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font, at: Vector3, bags: int) -> void:
+# 区道に面したゴミ集積所（ワールド座標。札は塀の面 wall_z に、南向きに貼る）
+static func street_point(b: Look.Batch, root: Node3D, font: Font, at: Vector3, wall_z: float) -> void:
+	_collection_point(b, root, Transform3D.IDENTITY, font, at, 8, wall_z)
+
+
+static func net_mat() -> StandardMaterial3D:
+	return _net()
+
+
+static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font, at: Vector3, bags: int, sign_z := 12.06) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0)))
 	var spots: Array = []
@@ -132,7 +141,7 @@ static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, font
 	var w := 1.0 + float(bags) / 3.0 * 0.36
 	b.lump(Look.Tint.new(_net(), Color("2f6fd0")), at + Vector3(-0.35 + (w - 1.0) * 0.2, 0.05, 0.1), Vector3(w, 0.66, 0.7), at, rng, 0.0, 6, 14, 0.08)
 	# 収集日の札（フェンスに結び付けた）
-	var s := Vector3(at.x + 0.1, 1.35, 12.06)
+	var s := Vector3(at.x + 0.1, 1.35, sign_z)
 	b.boxp(Look.plain(Color("f4f2ea"), 0.6), s, Vector3(0.95, 0.62, 0.02), Look.Batch.ALL)
 	b.boxp(Look.plain(GREEN, 0.6), s + Vector3(0, 0.23, 0.012), Vector3(0.95, 0.16, 0.01), Look.Batch.ALL)
 	_text(root, xf, s + Vector3(0, 0.23, 0.02), "ごみ集積所", 0.0022, Color.WHITE, font)
