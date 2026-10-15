@@ -64,10 +64,10 @@ const JOBS := [
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
 	# 最初の一本（debut）：会社のCM。1日目は、これだけが来る。試写会（放送）のあと、2日目から依頼の電話が来る
-	{"title":"わが社のCM（深夜枠・30秒）", "budget":300, "location":"室内スタジオ", "site":1, "script":"castle", "board":"pr", "debut":true,
+	{"title":"わが社のCM（深夜枠・30秒）", "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300,
 		"scenes":["城の前の二人（わが社の腕前）", "二人の背後で爆発", "寄りで決めポーズ"],
-		"description":"会社の宣伝を撮る。城の見立て → 背後で爆発 → 寄りで決めポーズの3カット。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
+		"description":"会社の宣伝を、会社の前（事務所の正面）で撮る。城の見立て → 背後で爆発 → 寄りで決めポーズの3カット。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
 	# 場所が変わるカット割り：城の門 → 月夜の丘（城を片づけて月を出す）→ 爆発 → 寄りで決め
 	{"title":"旅する二人", "budget":520, "location":"倉庫", "site":0, "script":"castle", "board":"travel",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":350, "cast_at":[1, 2],
@@ -76,6 +76,8 @@ const JOBS := [
 ]
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
+# 会社の前の撮影場所（事務所の正面。店構えを背に撮れる）。home の依頼（会社のCM）は、出発せずに、ここで撮る
+const HOME_SET := Vector3(70.0, 0.0, 12.5)
 const OFFSET := HOME_TRUCK - SITE_TRUCK
 # 会社の機材（カメラ3台・ライト2台・カチンコ・カンペ・確認用モニター）。荷台には積まない。
 # 会社では機材置き場（軽トラの北東。囲いは production_office.gd の GEAR_YARD）に並べておき、
@@ -381,7 +383,18 @@ func whereabouts(prop: Node3D) -> Vector3:
 # 現場に持ってきた物か（場所で見分ける。会社に置いてきた物は遠い）
 func at_site(prop: Node3D) -> bool:
 	var at: Vector3 = whereabouts(prop)
-	return Vector2(at.x, at.z).length() < SITE_RADIUS
+	var center: Vector3 = site_center()
+	return Vector2(at.x - center.x, at.z - center.z).length() < SITE_RADIUS
+
+
+# 今回の依頼を、会社の前で撮るか（会社のCM。出発しない）
+func shoots_home() -> bool:
+	return phase >= 1 and bool(job().get("home", false))
+
+
+# 撮影現場の真ん中（会社の前で撮る依頼は、事務所の正面。ほかは、軽トラで行く現場）
+func site_center() -> Vector3:
+	return HOME_SET if shoots_home() else Vector3.ZERO
 
 
 # いま撮影に使える場所にあるか。会社にいる間は全部。現場に着いてからは、持ってきた物だけ
@@ -651,6 +664,8 @@ func site_index() -> int:
 
 # 撮影場所の名前
 func location_name() -> String:
+	if shoots_home():
+		return "会社の前"
 	return str(TRACKS["studio"]["levels"][clampi(int(levels.get("studio", 0)), 0, 2)]["name"]) if hazards else str(job()["location"])
 
 
@@ -982,7 +997,7 @@ func bed_load() -> Dictionary:
 # 突風（野外の空き地だけ）。音と案内のあと、固定していない物を風下へ押す。
 # 面が広くて軽い物ほどよく動く。G で固定した物・手に持っている物・台に載せた物は動かない
 func _wind(delta: float) -> void:
-	if not hazards or site_index() != 2 or game.replaying:
+	if not hazards or shoots_home() or site_index() != 2 or game.replaying:
 		return
 	_gust_in -= delta
 	if not _gust_warned and _gust_in <= GUST_WARN:
@@ -1322,6 +1337,9 @@ func depart() -> void:
 	if not can_depart():
 		game.host_ev("toast", ["全員が軽トラのそばへ集まろう（会社の機材は、積まなくてもいっしょに運ばれる）",1])
 		return
+	if shoots_home():
+		_shoot_home()
+		return
 	# 荷台に載っている物（と、それに接着した物）は、軽トラが運ぶ。
 	# 会社の機材は、荷台に積んでいなければ、先に現場の搬入口へ送る。わざわざ積んだ機材は、荷台に載ったまま行く
 	var riding := cargo(false)
@@ -1468,6 +1486,24 @@ func arrive() -> void:
 	game.move_crew(game.SPAWN,-PI/2)
 	game.host_ev("toast",["到着！ 会社の機材は搬入口に並べてある。荷台の物を降ろそう。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
 	_settle_ahead()
+
+
+# 会社の前で撮る（出発しない）：物はその場のまま、撮影の時計を回し始める
+func _shoot_home() -> void:
+	peeper = 0
+	_drop_order()
+	_ahead = []
+	_parked = {}
+	_loaded = []
+	lost = []
+	phase = 4
+	var late := maxf(0.0,-prep_left) if hazards else 0.0
+	lease_left = maxf(MIN_LEASE,lease_time()-late)
+	_notice = 0
+	while _notice < _warnings.size() and lease_left <= _warnings[_notice]: _notice += 1
+	game._set_state(game.S.PREP)
+	game.production_sync.rpc(snapshot())
+	game.host_ev("toast",["ここで撮る！ 撮影現場は、事務所の前。廃材置き場も機材置き場も、すぐそば。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
 
 
 func expire() -> void:

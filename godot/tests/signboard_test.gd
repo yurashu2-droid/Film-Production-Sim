@@ -41,25 +41,26 @@ func run() -> void:
 	game.local_player().global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	await frames(3)
 	game.h_depart()
-	await frames(490)
+	await frames(20)
 	check(flow.phase == 4, "現場に着いた")
+	var O: Vector3 = flow.site_center()          # 会社のCMは、会社の前で撮る
 	var film: Node = game.film
-	film.restore([Vector3(0, 0, 5), Quaternion.IDENTITY, true])
-	game.local_player().global_position = Vector3(3.0, 0.1, 6.5)
+	film.restore([O + Vector3(0, 0, 5), Quaternion.IDENTITY, true])
+	game.local_player().global_position = O + Vector3(3.0, 0.1, 6.5)
 	await frames(10)
-	game._aim_camera(Vector3(0, 1.0, -1.6), 56.0)
+	game._aim_camera(O + Vector3(0, 1.0, -1.6), 56.0)
 	var card: RigidBody3D = game.cue_cards.card
-	card.restore([Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
+	card.restore([O + Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
 	await frames(10)
 	check(not sign.showing(), "白紙のカンペは、看板にならない")
 	for i in 12:
 		card.draw_line(Vector2(80, 80 + i * 50), Vector2(940, 100 + i * 50), Color.BLACK, 22.0)
 	print("SIGNBOARD_MEASURE 描いた割合=%.2f" % float(card.painted()))
 	check(sign.showing(), "会社の名前を描いたカンペが、表をカメラへ向けて映っている")
-	card.restore([Vector3(1.4, 0.0, 0.0), Quaternion(Vector3.UP, PI), true])
+	card.restore([O + Vector3(1.4, 0.0, 0.0), Quaternion(Vector3.UP, PI), true])
 	await frames(10)
 	check(not sign.showing(), "裏を向けると、映っていない")
-	card.restore([Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
+	card.restore([O + Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
 	await frames(10)
 	# 本番：1秒以上映して、カット
 	game.h_take()

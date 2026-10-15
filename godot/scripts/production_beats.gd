@@ -62,6 +62,7 @@ const NO_REASON := {
 var game: Node
 var flow: Node
 var marks: Array = [[], []]       # 役者ごとの印 [①, ②, ③]
+var _mark_start: Array = []       # 印の最初の置き場所（setup のとき）
 var scene := -1                   # いまの場面（-1＝まだ始めていない）。全員の画面で同じ
 var lit: Array = []               # 場面ごとに、撮れたか（確認用モニターのランプ）
 var rehearsal := false            # 通し稽古の最中か（準備中に場面を進めた）
@@ -118,6 +119,11 @@ func setup() -> void:
 	for aid in 2:
 		for step in 3:
 			_dress(marks[aid][step], aid, step)
+	# 最初の置き場所（会社の前で撮ったあと、ここへ戻す）
+	for aid in 2:
+		_mark_start.append([])
+		for step in 3:
+			(_mark_start[aid] as Array).append((marks[aid][step] as RigidBody3D).get_state())
 	refresh()
 
 
@@ -219,10 +225,21 @@ func host_new_job() -> void:
 	if active():
 		for aid in 2:
 			for step in 3:
-				(marks[aid][step] as RigidBody3D).restore([MARK_HOME[aid][step], Quaternion.IDENTITY, false])
+				(marks[aid][step] as RigidBody3D).restore([MARK_HOME[aid][step] + flow.site_center(), Quaternion.IDENTITY, false])
 		for a: CharacterBody3D in game.actors:
 			a.set_state(a.St.STANDBY)
 	_broadcast()
+
+
+# 帰社（ホスト）：会社の前で撮ったあとは、印を、軽トラで行く現場の最初の置き場所へ戻す（役者もそこへ戻る）
+func hook_return_office() -> void:
+	if not multiplayer.is_server() or not flow.shoots_home():
+		return
+	for aid in 2:
+		for step in 3:
+			(marks[aid][step] as RigidBody3D).restore(_mark_start[aid][step])
+	for a: CharacterBody3D in game.actors:
+		a.set_state(a.St.STANDBY)
 
 
 # ---- 画面に出す物（全員） ----

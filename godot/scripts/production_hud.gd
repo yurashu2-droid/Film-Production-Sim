@@ -118,7 +118,7 @@ func build() -> void:
 役者は場面ごとに、印①②③へ動く。物にぶつかると立ち止まる。準備中に 1 で進めると通し稽古（B で戻す）。
 完全版のテイクは、フィルム1本ぶん。残りは、カメラの上のリールと、モニターの枠の目盛りで見る。撮れた場面は、モニターの枠のランプが点く。
 完全版では、班の誰かが映っている間、その場面は撮れていない。物の陰に隠れていれば、映っていない。
-最初の一本は、会社のCM（地方テレビ局の深夜枠）。CMが流れると、2日目から依頼の電話が来る。
+最初の一本は、会社のCM（地方テレビ局の深夜枠）。軽トラで出発せず、会社の前（事務所の正面）で撮る。CMが流れると、2日目から依頼の電話が来る。
 「カット割り」の依頼（会社のCM・怪獣ドラマ）は、場面が撮れるとフィルムが止まる（場転）。止まっている間は、フィルムも時間の数えも減らない。
 場転の間に、次の場面の物を出す・カメラを寄せる・ライトを向け直す。用意ができたら、台本を読める人が 1 で回す。回している間の 1 はカット（撮れていなければ、同じ場面を撮り直す）。
 「このテイクを納品」を押すと、試写会。依頼主と一緒に見てから、ギャラが決まる（Enter・Esc でとばせる）。
@@ -830,6 +830,8 @@ func _refresh() -> void:
 		_lobby_status.text = "制作班 %d / 4 人" % game.players.size()
 		_lobby_sub.text = "会社を開いています" if Net.mode == "host" else "友達の会社" if Net.mode == "client" else "ひとりで準備中"
 	_packing.visible = menu == "packing" and not picker_open and not game.help_open
+	if _packing.visible:
+		_depart.text = "ここ（会社の前）で撮影を始める" if production.shoots_home() else "全員そろったら出発"
 	_travel.visible = phase == 3
 	_settled.visible = phase == 5 and not game.help_open
 	_growth.visible = _settled.visible

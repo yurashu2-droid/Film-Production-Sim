@@ -1,5 +1,5 @@
 extends SceneTree
-# 会社のCMの試写会を撮る（題名の札・場面の見出し・「終」・読み上げ）
+# 会社のCMの放送（試写会）を撮る：会社の前で撮った映像・題名の札・場面の見出し・提供の札・読み上げ。
 #   godot --path godot --position -32000,-32000 --audio-driver Dummy --fixed-fps 60 --script res://tests/premiere_cm_shot.gd
 const OUT := "res://tests/shots/premiere/"
 var game: Node
@@ -93,8 +93,10 @@ func run() -> void:
 	check(debut >= 0 and flow.offered() == [debut], "1日目の依頼は、会社のCMだけ")
 	check(beats.Scripts.cuts(debut) and (beats.Scripts.beats(debut) as Array).size() == 3 and (flow.JOBS[debut]["scenes"] as Array).size() == 3, "CMは、3カットのカット割り")
 	check(str(flow.Briefs.brief(debut)["name"]) == "ランプ部長" and (flow.Briefs.BOARDS["pr"] as Array).size() == 3, "依頼主と絵コンテの文がある")
-	# ふつうに遊ぶときと同じ：現場はスタジオの段階で決まり、事故もある
-	await shoot(debut, str(flow.JOBS[debut]["location"]))
+	# ふつうに遊ぶときと同じ：事故あり。スタジオの段階を変えても、撮るのは会社の前
+	flow.hazards = true
+	await shoot(debut, "会社の前")
+	check(int(game.hooks.feature("debut_calls").rang) >= 1, "CMを放送して帰社すると、事務所の電話が鳴る（依頼の電話）")
 	check(flow.day == 2 and debut not in flow.offered() and 0 in flow.offered() and flow.offered().size() == flow.JOBS.size() - 1, "2日目から、ほかの依頼が全部来る（CMは、もう来ない）")
 	print("CMSHOT done failed=", failed)
 	await frames(4)
@@ -106,33 +108,37 @@ func shoot(debut: int, site: String) -> void:
 	game.h_accept_job(debut)
 	await frames(20)
 	check(flow.phase >= 1 and beats.cut_mode() and str(flow.story()) == "castle", "%s：受けると、城の台本の役（城・爆発）で、カット割りで進む" % site)
+	check(flow.shoots_home() and flow.site_center() == flow.HOME_SET, "%s：CMは、会社の前で撮る依頼" % site)
+	var O: Vector3 = flow.site_center()
+	check((beats.mark(0, 0) as Node3D).global_position.distance_to(beats.MARK_HOME[0][0] + O) < 0.3, "%s：役者の印は、事務所の前に並ぶ" % site)
 	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	await frames(3)
+	var truck_at: Vector3 = game.truck.global_position
 	game.h_depart()
-	await frames(490)
-	check(flow.phase == 4 and flow.location_name() == site, "%s：現場に着いた" % site)
+	await frames(10)
+	check(flow.phase == 4 and flow.location_name() == site and game.truck.global_position.distance_to(truck_at) < 0.1, "%s：出発せずに、その場で撮影が始まる" % site)
 	# ---- 現場：アーチを城に見立て、爆炎の書割を奥に立て、ライトを二人へ ----
 	var arch: Node = of_kind("scrap_arch")[0]
 	var flat: Node = of_kind("boomflat")[0]
 	var film: Node = game.film
-	place(film, CAM_AT)
-	place(arch, CASTLE_AT, PI)
-	place(flat, FLAT_AT, 0.0)
+	place(film, O + CAM_AT)
+	place(arch, O + CASTLE_AT, PI)
+	place(flat, O + FLAT_AT, 0.0)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			(beats.mark(aid, step) as Node).restore([O + MARKS[aid][step], Quaternion.IDENTITY, false])
 	for i in 2:
-		place(game.spots[i], SPOT_AT[i], PI)
+		place(game.spots[i], O + SPOT_AT[i], PI)
 	var book: Node = flow.script_prop
-	me.global_position = ME_AT
-	place(book, ME_AT + Vector3(0.6, 0.0, 0.0), 0.0, false)
+	me.global_position = O + ME_AT
+	place(book, O + ME_AT + Vector3(0.6, 0.0, 0.0), 0.0, false)
 	await frames(30)
 	check(flow.cast_set(arch.pid, "castle") and flow.role_of(arch) == "castle", "%s：アーチを、城の役にする" % site)
 	check(flow.role_of(flat) == "boom", "%s：爆炎の書割は、最初から爆発の役" % site)
 	for i in 2:
-		game._aim_spot(game.spots[i], Vector3(0.0, 1.3, -1.0))
+		game._aim_spot(game.spots[i], O + Vector3(0.0, 1.3, -1.0))
 		game.spots[i].level = 3
-	game._aim_camera(AIM_WIDE, 56.0)
+	game._aim_camera(O + AIM_WIDE, 56.0)
 	game.h_standby()
 	await frames(30)
 	# ---- 本番 ----
@@ -151,9 +157,9 @@ func shoot(debut: int, site: String) -> void:
 	check(await wait_lit(1, 8.0), "%s：2カット目：二人の背後で、書割が爆ぜた" % site)
 	check(await wait_hold(3.0) and beats.next_scene == 2, "%s：撮れたら、また止まる" % site)
 	# 場転：カメラを二人へ寄せて、ライトを手前へ向け直す（向け直さないと、顔が暗い）
-	game._aim_camera(AIM_CLOSE, 40.0)
+	game._aim_camera(O + AIM_CLOSE, 40.0)
 	for i in 2:
-		game._aim_spot(game.spots[i], Vector3(0.0, 1.2, 1.8))
+		game._aim_spot(game.spots[i], O + Vector3(0.0, 1.2, 1.8))
 	await frames(150)
 	game.h_beat(1)
 	await frames(5)
@@ -164,13 +170,13 @@ func shoot(debut: int, site: String) -> void:
 		await physics_frame
 	check(game.state == S.RESULT and not false in game.takes[0]["passed"], "%s：3カットそろって、テイクが終わる" % site)
 	print("PR_MEASURE %s：テイクの長さ（回していた分だけ）%.1f 秒" % [site, float(game.takes[0]["dur"]) if not game.takes.is_empty() else -1.0])
-	# ---- 試写会を撮る ----
+	# ---- 放送を撮る ----
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	var premiere: Node = game.hooks.feature("premiere")
 	game.request_deliver(0)
 	await frames(40)
 	await snap("cm_1_title")
-	await frames(110)
+	await frames(150)
 	await snap("cm_2_chapter")
 	for i in 900:
 		if int(game.beats.scene) == 1:
@@ -192,6 +198,7 @@ func shoot(debut: int, site: String) -> void:
 	await snap("cm_5_tally")
 	game.h_return_office()
 	await frames(20)
+	check((beats.mark(0, 0) as Node3D).global_position.distance_to(beats._mark_start[0][0][0]) < 0.3, "%s：帰社すると、役者の印は元の現場へ戻る" % site)
 
 
 func snap(name: String) -> void:

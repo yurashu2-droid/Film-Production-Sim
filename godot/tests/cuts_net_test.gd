@@ -16,6 +16,7 @@ const FLAT_AT := Vector3(1.9, 0.0, -3.0)
 const SPOT_AT := [Vector3(-2.6, 0.0, 2.6), Vector3(2.6, 0.0, 2.6)]
 const HOST_AT := Vector3(3.0, 0.1, 6.0)        # 監督（ホスト）：カメラの後ろ、台本のそば
 const CLIENT_AT := Vector3(-3.0, 0.1, 6.5)     # 参加者：カメラの後ろ（画面の外）
+var O := Vector3.ZERO                          # 撮影現場の真ん中（会社のCMは、会社の前）
 
 
 func configure() -> void:
@@ -54,27 +55,28 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 			game.h_depart()
 			await until(func() -> bool: return flow.phase == 4, 20.0)
 			await wait(0.5)
-			place(game.film, CAM_AT)
-			place(first("scrap_arch"), CASTLE_AT, PI)
-			place(first("boomflat"), FLAT_AT)
+			O = flow.site_center()
+			place(game.film, O + CAM_AT)
+			place(first("scrap_arch"), O + CASTLE_AT, PI)
+			place(first("boomflat"), O + FLAT_AT)
 			for aid in 2:
 				for step in 3:
-					(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+					(beats.mark(aid, step) as Node).restore([O + MARKS[aid][step], Quaternion.IDENTITY, false])
 			for i in 2:
-				place(game.spots[i], SPOT_AT[i], PI)
-			crew_to(1, HOST_AT)
-			crew_to(who, CLIENT_AT)
+				place(game.spots[i], O + SPOT_AT[i], PI)
+			crew_to(1, O + HOST_AT)
+			crew_to(who, O + CLIENT_AT)
 			var book: Node = flow.script_prop
 			var state: Array = book.get_state()
-			state[0] = HOST_AT + Vector3(0.6, 0.0, 0.0)
+			state[0] = O + HOST_AT + Vector3(0.6, 0.0, 0.0)
 			state[2] = false
 			book.restore(state)
 			await wait(0.5)
 			flow.cast_set(first("scrap_arch").pid, "castle")
 			for i in 2:
-				game._aim_spot(game.spots[i], Vector3(0.0, 1.3, -1.0))
+				game._aim_spot(game.spots[i], O + Vector3(0.0, 1.3, -1.0))
 				game.spots[i].level = 3
-			game._aim_camera(AIM_WIDE, 56.0)
+			game._aim_camera(O + AIM_WIDE, 56.0)
 			game.h_standby()
 			await wait(0.5)
 		"roll":
@@ -89,9 +91,9 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 			await roll_until_hold(1)
 		"close":
 			# 場転：カメラを寄せて、ライトを手前へ → 1 で回して、3カット目が撮れてテイクが終わるまで
-			game._aim_camera(AIM_CLOSE, 40.0)
+			game._aim_camera(O + AIM_CLOSE, 40.0)
 			for i in 2:
-				game._aim_spot(game.spots[i], Vector3(0.0, 1.2, 1.8))
+				game._aim_spot(game.spots[i], O + Vector3(0.0, 1.2, 1.8))
 			await wait(1.5)
 			game.h_beat(1)
 			await until(func() -> bool: return game.state == game.S.RESULT, 15.0)
