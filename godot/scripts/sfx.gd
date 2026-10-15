@@ -221,8 +221,20 @@ func silence_all() -> void:
 		ap.stop()
 	for n in _oneshots:
 		if is_instance_valid(n):
+			n.call("stop")
 			n.queue_free()
 	_oneshots.clear()
+
+
+# ゲームを閉じるとき：鳴っている音を全部止めて、音の処理（別の流れで動いている）が手放すまで、ほんの少し待つ。
+# 鳴らしたまま閉じると、再生中の音が使い終わっていない資源として残り、終了時のエラーになる
+func _exit_tree() -> void:
+	silence_all()
+	for mp in _music_players:
+		mp.stream = null
+	for ap in _amb_players:
+		ap.stream = null
+	OS.delay_msec(60)
 
 
 # ---------------------------------------------------------------- internals
