@@ -1,0 +1,137 @@
+extends "res://tests/pair_net_base.gd"
+# カット割りと試写会の二人通信（会社のCM）：
+#   場転　：ホストの監督が撮った場面でフィルムが止まると、参加者の画面でも「場転中」になり、フィルムの時計も止まって見える。
+#           回し直すと、参加者の画面でも本番に戻る
+#   試写会：参加者が「このテイクを納品」を頼むと、ホストが試写会を始め、参加者の画面にも題名の札・場面の見出し・依頼主が出る。
+#           とばすと納品になり、参加者の画面でも「終」の札のあと、ギャラの読み上げが出る
+#   godot --headless --path godot res://tests/cuts_net_test.tscn -- --cuts-net-test-host   （参加者は -client）
+
+const CAM_AT := Vector3(0.0, 0.0, 5.0)
+const AIM_WIDE := Vector3(0.0, 1.0, -1.6)
+const AIM_CLOSE := Vector3(0.0, 0.8, 1.8)
+const MARKS := [[Vector3(-0.7, 0.05, -1.6), Vector3(-1.0, 0.05, -0.5), Vector3(-0.6, 0.05, 1.8)],
+	[Vector3(0.7, 0.05, -1.6), Vector3(1.0, 0.05, -0.5), Vector3(0.6, 0.05, 1.8)]]
+const CASTLE_AT := Vector3(0.0, 0.0, -2.8)
+const FLAT_AT := Vector3(1.9, 0.0, -3.0)
+const SPOT_AT := [Vector3(-2.6, 0.0, 2.6), Vector3(2.6, 0.0, 2.6)]
+const HOST_AT := Vector3(3.0, 0.1, 6.0)        # 監督（ホスト）：カメラの後ろ、台本のそば
+const CLIENT_AT := Vector3(-3.0, 0.1, 6.5)     # 参加者：カメラの後ろ（画面の外）
+
+
+func configure() -> void:
+	prefix = "CUTS_NET"
+	port = 24893
+	flag = "cuts-net-test"
+	budget = 150.0
+
+
+func view() -> Dictionary:
+	var beats: Node = game.beats
+	var premiere: Node = game.hooks.feature("premiere")
+	return {"phase": game.production.phase, "state": game.state, "hold": beats.holding, "next": beats.next_scene,
+		"scene": beats.scene, "lit": beats.lit.duplicate(), "screening": premiere.screening if premiere != null else -2,
+		"payment": game.production.last_payment, "flubs": game.production.last_flubs.size()}
+
+
+# 場面が撮れて、フィルムが止まるまで（ホスト）
+func roll_until_hold(i: int) -> void:
+	var beats: Node = game.beats
+	await until(func() -> bool: return i < beats.lit.size() and bool(beats.lit[i]), 10.0)
+	await until(func() -> bool: return beats.holding or game.state != game.S.TAKE, 4.0)
+
+
+func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
+	var flow: Node = game.production
+	var beats: Node = game.beats
+	match action:
+		"setup":
+			# 会社のCMを受けて、現場へ。アーチを城に、書割を奥に、ライトを二人へ
+			game.h_accept_job(flow.debut_job())
+			await frames(10)
+			crew_to(1, flow.HOME_TRUCK + Vector3(-3, 0.1, 0))
+			crew_to(who, flow.HOME_TRUCK + Vector3(-3, 0.1, 1.5))
+			await wait(0.3)
+			game.h_depart()
+			await until(func() -> bool: return flow.phase == 4, 20.0)
+			await wait(0.5)
+			place(game.film, CAM_AT)
+			place(first("scrap_arch"), CASTLE_AT, PI)
+			place(first("boomflat"), FLAT_AT)
+			for aid in 2:
+				for step in 3:
+					(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			for i in 2:
+				place(game.spots[i], SPOT_AT[i], PI)
+			crew_to(1, HOST_AT)
+			crew_to(who, CLIENT_AT)
+			var book: Node = flow.script_prop
+			var state: Array = book.get_state()
+			state[0] = HOST_AT + Vector3(0.6, 0.0, 0.0)
+			state[2] = false
+			book.restore(state)
+			await wait(0.5)
+			flow.cast_set(first("scrap_arch").pid, "castle")
+			for i in 2:
+				game._aim_spot(game.spots[i], Vector3(0.0, 1.3, -1.0))
+				game.spots[i].level = 3
+			game._aim_camera(AIM_WIDE, 56.0)
+			game.h_standby()
+			await wait(0.5)
+		"roll":
+			# カチンコで回す → 1カット目が撮れて、止まるまで
+			game.h_take()
+			await until(func() -> bool: return game.state == game.S.TAKE, 8.0)
+			await roll_until_hold(0)
+		"action":
+			# 監督が 1 で回し直す（2カット目）→ 撮れて、止まるまで
+			game.h_beat(1)
+			await wait(0.2)
+			await roll_until_hold(1)
+		"close":
+			# 場転：カメラを寄せて、ライトを手前へ → 1 で回して、3カット目が撮れてテイクが終わるまで
+			game._aim_camera(AIM_CLOSE, 40.0)
+			for i in 2:
+				game._aim_spot(game.spots[i], Vector3(0.0, 1.2, 1.8))
+			await wait(1.5)
+			game.h_beat(1)
+			await until(func() -> bool: return game.state == game.S.RESULT, 15.0)
+		"skip":
+			game.h_stop_replay()
+			await until(func() -> bool: return flow.phase == 5, 5.0)
+	await frames(4)
+	return {}
+
+
+func client_run() -> void:
+	var beats: Node = game.beats
+	var premiere: Node = game.hooks.feature("premiere")
+	var reply: Dictionary = await request("setup")
+	check(int(reply["view"]["phase"]) == 4, "the host takes the commercial to the set")
+	check(await until(func() -> bool: return game.production.phase == 4, 10.0), "the participant arrives too")
+	# ---- 場転：止まると、参加者の画面でも止まって見える ----
+	reply = await request("roll")
+	check(bool(reply["view"]["hold"]) and int(reply["view"]["next"]) == 1, "the first cut is captured and the host's film stops")
+	await sees(reply["view"], ["hold", "next", "state"], "the participant's film stops too")
+	check(game.take_held(), "the participant's take is held")
+	await wait(0.6)          # 止まる直前の時計（0.2秒ごとの知らせ）が届き終わるのを待つ
+	var held_clock: float = game.take_t
+	await wait(1.0)
+	check(is_equal_approx(float(game.take_t), held_clock), "the participant's film clock stands still during the set change")
+	check(str(game.hud.order_state.text).begins_with("場転中"), "the participant's panel says the set is being changed")
+	reply = await request("action")
+	check(bool(reply["view"]["hold"]) and int(reply["view"]["next"]) == 2 and bool((reply["view"]["lit"] as Array)[1]), "the host rolls again, and the second cut is captured")
+	await sees(reply["view"], ["hold", "next", "lit"], "the participant follows the second cut")
+	reply = await request("close")
+	check(int(reply["view"]["state"]) == game.S.RESULT and not false in (reply["view"]["lit"] as Array), "the third cut ends the take with every cut captured")
+	check(await until(func() -> bool: return game.state == game.S.RESULT, WAIT), "the participant sees the result")
+	# ---- 試写会：参加者が納品を頼む ----
+	game.request_deliver(game.selected)
+	check(await until(func() -> bool: return premiere.screening == 0 and premiere._layer.visible, WAIT), "the participant's delivery request starts the screening on the participant's screen")
+	check(premiere._card_box.visible and premiere._card_big.text.contains(str(game.production.job()["title"])), "the participant sees the title card")
+	check(await until(func() -> bool: return premiere._chapter.text.begins_with("第") and premiere._chapter.modulate.a > 0.1, 10.0), "the participant sees a scene heading during the screening (%s)" % premiere._chapter.text)
+	reply = await request("skip")
+	check(int(reply["view"]["phase"]) == 5 and int(reply["view"]["payment"]) > 0, "skipping delivers the take on the host")
+	check(await until(func() -> bool: return premiere._card_big.text == "終" or premiere._sheet.visible, WAIT), "the participant sees the end card")
+	check(await until(func() -> bool: return premiere._sheet.visible and not premiere.tally.is_empty(), 10.0), "then the client's readout")
+	premiere.finish_tally()
+	check(premiere._total.text.contains("+%d" % int(reply["view"]["payment"])), "the readout ends on the same fee as the host (%s)" % premiere._total.text)
