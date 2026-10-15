@@ -6,6 +6,7 @@ const UI := preload("res://scripts/ui/ui_theme.gd")
 
 const Catalog := preload("res://scripts/ui/order_catalog.gd")
 const Cast := preload("res://scripts/production_cast.gd")
+const Scripts := preload("res://scripts/production_script.gd")
 const Briefing := preload("res://scripts/ui/briefing.gd")
 const ScriptPage := preload("res://scripts/ui/script_page.gd")
 const TalentSlots := preload("res://scripts/ui/talent_slots.gd")
@@ -427,7 +428,9 @@ func _job_card(index: int, job: Dictionary) -> Control:
 	head.add_child(title)
 	# 場面の多い依頼（5場面の完全版）は、場面の数を印にする
 	var scene_count: int = (job.get("scenes", []) as Array).size()
-	var tag := UI.Stamp.new().setup(("%d場面" % scene_count) if scene_count > 3 else ("怪獣" if kaiju else "城"), 13, UI.STAMP_RED if kaiju else UI.MUTED)
+	# カット割りの依頼（場面ごとにフィルムが止まる）は、そう書く。長回しとの違いが、ボードで分かるように
+	var cut: bool = Scripts.cuts(index)
+	var tag := UI.Stamp.new().setup(("カット割り %d" % scene_count) if cut else (("長回し %d" % scene_count) if scene_count > 3 else ("怪獣" if kaiju else "城")), 13, UI.TAPE if cut else (UI.STAMP_RED if kaiju else UI.MUTED))
 	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(tag)
 	var scenes: Array = job.get("scenes", [])
