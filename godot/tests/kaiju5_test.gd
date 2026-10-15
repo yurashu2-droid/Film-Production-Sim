@@ -230,9 +230,9 @@ func run() -> void:
 
 func test_office() -> void:
 	for i in flow.JOBS.size():
-		if not (beats.Scripts.beats(i) as Array).is_empty():
-			job = i
-	check(job >= 0 and flow.JOBS.size() == 6 and (flow.JOBS[job]["scenes"] as Array).size() == 5 and (beats.Scripts.of(job)["scenes"] as Array).size() == 5 and (beats.list() as Array).is_empty(),
+		if job < 0 and not (beats.Scripts.beats(i) as Array).is_empty() and not beats.Scripts.cuts(i):
+			job = i          # 長回しの完全版（カット割りの依頼は cuts_test.gd）
+	check(job >= 0 and flow.JOBS.size() >= 6 and (flow.JOBS[job]["scenes"] as Array).size() == 5 and (beats.Scripts.of(job)["scenes"] as Array).size() == 5 and (beats.list() as Array).is_empty(),
 		"a sixth job exists with five scenes and a scene list")
 	var old_jobs := 0
 	for i in flow.JOBS.size():
@@ -265,7 +265,7 @@ func test_office() -> void:
 	check(flow.take_fee(0) == 1800 and flow.take_fee(1) == 150 + 3 * 250, "five scenes pay 1800, half as much again as the old 1200 (%d / %d)" % [flow.take_fee(0), flow.take_fee(1)])
 	game.takes = []
 	check((game.scene_titles() as Array).size() == 5 and game.cue_names() == ["次の場面へ", "この場面をもう一度"], "the HUD names follow the job: five scenes, two keys")
-	check(flow.Briefs.BRIEFS.size() == 6 and (flow.Briefs.BOARDS["kaiju5"] as Array).size() == 5 and str(flow.JOBS[job]["board"]) == "kaiju5", "the job has its own client and five storyboard captions")
+	check(flow.Briefs.BRIEFS.size() == flow.JOBS.size() and (flow.Briefs.BOARDS["kaiju5"] as Array).size() == 5 and str(flow.JOBS[job]["board"]) == "kaiju5", "the job has its own client and five storyboard captions")
 	# 絵コンテ5枚（鉛筆の絵）と、のぞき箱の参考スライド
 	var boards := 0
 	var same_as_old := 0

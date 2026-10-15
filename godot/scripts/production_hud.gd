@@ -897,8 +897,13 @@ func _hint_under_panel(legacy: Node, paging: bool) -> void:
 func _sync_paging(legacy: Node) -> void:
 	var can: bool = game.directs()
 	var text: String = legacy.keys.text
+	# カット割りの依頼の本番：回している間は「1 カット」、止めている間（場転）は「1 回す」
+	var take_keys := "1 次の場面 ／ 2 もう一度 ／ "
+	if game.beats != null and game.beats.cut_mode() and game.state == game.S.TAKE:
+		take_keys = "1 回す（アクション） ／ " if game.beats.holding else "1 カット（場転へ） ／ 2 もう一度 ／ "
+		text = text.replace("T かカチンコでカット", "T かカチンコでテイク終了")     # 場面ごとのカット（1）と、まぎれないように
 	text = text.replace(" ／ 1・2・3 合図のリハーサル", " ／ 1 次の場面（通し稽古） ／ 2 もう一度" if can else "")
-	text = text.replace("1・2・3 合図 ／ ", "1 次の場面 ／ 2 もう一度 ／ " if can else "")
+	text = text.replace("1・2・3 合図 ／ ", take_keys if can else "")
 	text = text.replace("左クリック 次の合図 ／ ", "左クリック 次の場面 ／ " if can else "")
 	legacy.keys.text = text
 

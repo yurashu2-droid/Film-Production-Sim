@@ -1520,6 +1520,12 @@ func take_limit() -> float:
 	return TAKE_SEC
 
 
+# 本番中に、フィルムを止めているか（カット割りの依頼の場転。production_main.gd が上書きする）。
+# 止めている間は、テイクの時計・記録・採点が進まない。見返しでは、止める前と回し直したあとが、つながって流れる
+func take_held() -> bool:
+	return false
+
+
 @rpc("any_peer", "call_local", "reliable")
 func h_standby() -> void:
 	if Net.is_host() and state == S.PREP:
@@ -1730,7 +1736,7 @@ func _physics_process(delta: float) -> void:
 			host_ev("sfx", ["countdown", null])
 		if countdown_t <= 0.0:
 			_begin_take()
-	elif state == S.TAKE:
+	elif state == S.TAKE and not take_held():
 		judge.tick(delta)
 		take_t += delta
 		_rec_t -= delta
@@ -1826,7 +1832,7 @@ func _update_live() -> void:
 # ---- 全員への知らせ ----
 
 func host_ev(n: String, a: Array) -> void:
-	if state == S.TAKE and (n in REC_EVENTS or hooks.records(n)):
+	if state == S.TAKE and not take_held() and (n in REC_EVENTS or hooks.records(n)):
 		_rec_events.append([take_t, n, a])
 	ev.rpc(n, a)
 

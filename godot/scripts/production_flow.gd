@@ -58,6 +58,11 @@ const JOBS := [
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"5場面を、フィルム1本で止めずに撮る。怪獣は出番まで映さず、技で街だけを倒し、最後は寄りで万歳。場面は、台本を読める人が進める。"},
+	# カット割りの依頼（production_script.gd の cuts）：同じ5場面を、場面ごとにフィルムを止めて撮る。止めている間に、次の場面の用意（場転）
+	{"title":"怪獣ドラマ 第1話（カット割り）", "budget":650, "location":"室内スタジオ", "site":1, "script":"kaiju", "board":"kaiju5",
+		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":400, "cast_at":[1, 2],
+		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
+		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
 ]
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
@@ -1374,7 +1379,7 @@ func _physics_process(delta: float) -> void:
 	elif phase in [1,2]:
 		prep_left -= delta
 	elif phase == 4 and not expired and game.state != game.S.DELIVERED:
-		if game.state == game.S.TAKE:
+		if game.state == game.S.TAKE and not game.take_held():     # 場転でフィルムを止めている間は、映り込みを数えない
 			notes.tick(delta)
 			bonus_progress = "映り込み %.1f秒" % notes.crew_seconds if job()["bonus"] == "no_crew" else ("月 %.1f / 2秒" % notes.moon_seconds if job()["bonus"] == "moon" else "最初のテイク" if game.takes.is_empty() else "撮り直し中")
 		_wind(delta)

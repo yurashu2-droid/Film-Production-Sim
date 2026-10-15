@@ -801,13 +801,14 @@ func _process(delta: float) -> void:
 			UI.recolor(rows[i], UI.CLAP_WHITE if scene_now < 0 or scene_now == i else UI.MUTED)
 	var names := {S.PREP: "仕込み中", S.COUNTDOWN: "まもなく本番", S.TAKE: "本番", S.RESULT: "確認",
 		S.REPLAY: "見返し中", S.DELIVERED: "納品", S.ORDER: "依頼を受ける"}
-	order_state.text = "%s　テイク %d / %d" % [names[st], game.takes.size() + (1 if st in [S.PREP, S.COUNTDOWN, S.TAKE] else 0), game.MAX_TAKES]
+	var film_held: bool = st == S.TAKE and game.take_held()
+	order_state.text = "%s　テイク %d / %d" % ["場転中（フィルム停止）" if film_held else names[st], game.takes.size() + (1 if st in [S.PREP, S.COUNTDOWN, S.TAKE] else 0), game.MAX_TAKES]
 	if Net.mode != "solo":
 		order_state.text += "　参加 %d人" % game.players.size()
 
 	# 足りないこと
 	var hl: Array = live.get("hints", [])
-	var recording: bool = st == S.TAKE
+	var recording: bool = st == S.TAKE and not film_held
 	if st == S.PREP or st == S.TAKE or st == S.COUNTDOWN:
 		if hl.is_empty():
 			# 場面の列を持つ依頼では、準備中に答えを出さない（live の mute）

@@ -624,6 +624,11 @@ func take_limit() -> float:
 	return float(beats.FILM_SEC) if beats != null and beats.active() else super.take_limit()
 
 
+# カット割りの依頼の場転：フィルムを止めている間（production_beats.gd の holding）
+func take_held() -> bool:
+	return state == S.TAKE and beats != null and beats.holding
+
+
 # 場面の列を持つ依頼では、準備中に「足りないこと」を出さない。場面の数も、その依頼の数に合わせる
 func _update_live() -> void:
 	super._update_live()
@@ -1311,6 +1316,9 @@ func scene_titles() -> Array:
 
 func cue_names() -> Array:
 	if beats != null and beats.active():
+		if beats.cut_mode() and state == S.TAKE:
+			# カット割りの依頼の本番：回している間は「カット」、止めている間（場転）は「回す」
+			return ["回す（アクション）", "回す（アクション）"] if beats.holding else ["カット（場転へ）", "この場面をもう一度"]
 		return ["次の場面へ", "この場面をもう一度"]
 	return ["驚く", "爆発", "勝利"] if production and production.job()["script"] == "kaiju" else super.cue_names()
 

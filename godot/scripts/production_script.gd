@@ -93,6 +93,30 @@ const SCRIPTS := [
 			{"rule": "attack", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "monster", "face": ["shock", "shock"], "boom": true},
 			{"rule": "topple", "from": 2, "to": 2, "gait": "walk", "pose": "idle", "look": "monster", "face": ["surprised", "surprised"], "music": ""},
 			{"rule": "cheer", "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 6 怪獣ドラマ 第1話（地方テレビ局。同じ5場面を、場面ごとにカットを割って撮る）
+	#   cuts：場面が撮れたら、フィルムが止まる（カット）。止まっている間に次の場面の用意（場転）をして、1 で回し直す
+	{"cuts": true, "scenes": [
+		{"dir": "のどかな街。二人が歩いてくる。",
+			"lines": [["A", "この街も、平和になったね"], ["B", "前回までのあらすじ、ありましたっけ"], ["A", "第1話だよ"]],
+			"memo": "歩いている二人と、街役の物を2つ以上映す。怪獣役の物は、まだ映さない（カットのあとで出す）"},
+		{"dir": "【場転】街の向こうに、巨大な怪獣。二人は見上げて固まる。",
+			"lines": [["B", "あれは……"], ["A", "{怪獣}だ！"], ["（怪獣の声）", "ガオー"]],
+			"memo": "カットの間に、怪獣役の物をカメラの手前へ。街より大きく映す"},
+		{"dir": "【場転】怪獣の技が街を襲う。二人は走って逃げる。",
+			"lines": [["A", "{技}が来る！"], ["B", "CMまで持ちこたえて！"], ["（爆発）", ""]],
+			"memo": "カットの間に、爆弾に火薬を詰めて、街の奥へ。爆発のあと、街役の物が2つ以上倒れること。怪獣は立ったまま"},
+		{"dir": "【場転】怪獣が、なぜか、ひとりでに倒れる。",
+			"lines": [["B", "怪獣は、段差につまずきました"], ["A", "毎週つまずくの？"]],
+			"memo": "カットの間に、倒れた街を片づけてもいい。立っている怪獣が倒れるところを映す。倒す人は映さない"},
+		{"dir": "【場転】倒れた怪獣の前。二人が近づいて、万歳。次回へ続く。",
+			"lines": [["A", "勝ったの？"], ["B", "来週もまた見てね"], ["二人", "ばんざーい！"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。倒れた怪獣の前の二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "stroll", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "neutral"]},
+			{"rule": "appear", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "monster", "face": ["surprised", "surprised"], "music": "music_tension", "roar": true},
+			{"rule": "attack", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "monster", "face": ["shock", "shock"], "boom": true},
+			{"rule": "topple", "from": 2, "to": 2, "gait": "walk", "pose": "idle", "look": "monster", "face": ["surprised", "surprised"], "music": ""},
+			{"rule": "cheer", "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 
 
@@ -112,3 +136,11 @@ static func beats(index: int) -> Array:
 	if index < 0 or index >= SCRIPTS.size():
 		return []
 	return SCRIPTS[index].get("beats", [])
+
+
+# その台本は、場面ごとにカットを割って撮るか（場面が撮れるとフィルムが止まり、場転のあと 1 で回し直す）。
+# false なら長回し（フィルムは、切れるまで止まらない）
+static func cuts(index: int) -> bool:
+	if index < 0 or index >= SCRIPTS.size():
+		return false
+	return bool(SCRIPTS[index].get("cuts", false))

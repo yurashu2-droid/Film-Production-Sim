@@ -24,6 +24,7 @@ const DIRECT_REACH := 2.5         # 置いた台本から、この距離まで�
 const STEP_GAP := 0.35            # 続けて押したときに、場面を飛ばさないための間（秒）
 const BOOM_DELAY := 0.9           # 場面に入ってから、爆発役の物（爆弾を除く）に合図が出るまで
 const MEET_GAP := 1.0             # 「近づく」場面で、二人が向かい合って立つ間隔
+const CUT_TAIL := 1.2             # カット割りの依頼：場面が撮れてから、フィルムを止める（カット）までの間
 # ---- 採点の数字 ----
 const NEED_STROLL := 1.5          # 街を歩く：歩いている二人と街が、映っている秒数
 const NEED_APPEAR := 2.0          # 怪獣あらわる：怪獣・街・固まった二人が、映っている秒数
@@ -41,8 +42,9 @@ const NEED_CHEER := 1.5           # 勝利：万歳する二人と倒れた怪�
 const CLOSE_MIN := 0.30           # 寄り：画面の高さに対する、二人の大きさの下限（ふつうの場面は judge.MIN_SIZE＝0.10）
 const CLOSE_TIMES := 1.3          # 寄り：「怪獣あらわる」で映っていた大きさの、この倍より大きく
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
-const MARK_HOME := [[Vector3(-4.6, 0.05, -1.5), Vector3(-1.2, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
-	[Vector3(-4.6, 0.05, -0.3), Vector3(-1.2, 0.05, -0.3), Vector3(2.6, 0.05, -0.3)]]
+# （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
+const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
+	[Vector3(-3.4, 0.05, -0.3), Vector3(-0.6, 0.05, -0.3), Vector3(2.6, 0.05, -0.3)]]
 const ACTORS := ["A", "B"]
 const STEPS := ["①", "②", "③"]
 # 場面ごとの、理由が1つも控えられなかったときの文
@@ -62,6 +64,11 @@ var lit: Array = []               # 場面ごとに、撮れたか（確認用�
 var rehearsal := false            # 通し稽古の最中か（準備中に場面を進めた）
 var why: Array = []               # 場面ごとの「足りなかった理由」と秒数（ホスト）
 var met_at: Array = []            # 場面が撮れた時刻（-1＝撮れていない。ホスト）
+# カット割りの依頼（production_script.gd の cuts）：本番中に、フィルムを止めている（場転）。全員の画面で同じ。
+# 止めている間は、テイクの時計・記録・採点・映り込みの数えが進まない（main.gd の take_held）
+var holding := false
+var next_scene := -1              # 場転のあと、1 で回し直したときに撮る場面
+var _hold_in := -1.0              # 場面が撮れてから、カットするまでの残り（ホスト）
 
 var _acc: Array = []              # 場面ごとの、撮れている時間
 var _entered: Array = []          # 本番で、その場面へ進んだか
@@ -165,6 +172,11 @@ func active() -> bool:
 	return flow != null and flow.phase >= 1 and not list().is_empty()
 
 
+# いまの依頼が、場面ごとにカットを割って撮る依頼か（そうでなければ長回し）
+func cut_mode() -> bool:
+	return active() and Scripts.cuts(flow.chosen_job)
+
+
 func _falses(count: int) -> Array:
 	var out: Array = []
 	out.resize(count)
@@ -249,7 +261,7 @@ func _process(delta: float) -> void:
 	var S: Dictionary = game.S
 	var used := film_used() if on else 0.0
 	var frac := clampf(1.0 - used / FILM_SEC, 0.0, 1.0)
-	var rolling: bool = on and game.state in [S.TAKE, S.REPLAY]
+	var rolling: bool = on and game.state in [S.TAKE, S.REPLAY] and not holding     # 場転の間は、リールが止まる
 	var low: bool = rolling and FILM_SEC - used < LOW_SEC
 	for cam: Node in game.camera_switcher.cameras:
 		cam.set_film(on and flow.phase in [2, 4, 5], frac, rolling, low)
@@ -308,6 +320,18 @@ func host_step(who: int, n: int) -> void:
 	if _clock - _step_at < STEP_GAP:
 		return
 	var count := list().size()
+	# カット割りの依頼の本番：場転の間は、1 でも 2 でも「回し直す」（用意した場面から）。
+	# 回している間の 1 は「カット」（撮れていれば次の場面へ、撮れていなければ同じ場面を、場転のあとに撮り直す）
+	if cut_mode() and game.state == S.TAKE:
+		if holding:
+			_action()
+		elif n == 1 and scene >= 0:
+			var ahead: bool = scene < lit.size() and bool(lit[scene]) and scene < count - 1
+			_start_hold(scene + 1 if ahead else scene)
+		elif n == 2 and scene >= 0:
+			_enter(scene, true)
+		_step_at = _clock
+		return
 	if n == 1:
 		if scene >= count - 1:
 			_tell(who, "最後の場面まで来ている（2 で、もう一度）", false)
@@ -368,15 +392,45 @@ func _enter(i: int, again: bool) -> void:
 	_broadcast()
 
 
+# カット（ホスト。カット割りの依頼の本番）：フィルムを止めて、場転に入る。
+# 役者は、次に撮る場面の最初の印へ歩いて行き、そこで待つ。テイクは続いている（時計と記録が止まるだけ）
+func _start_hold(next: int) -> void:
+	_hold_in = -1.0
+	_boom_in = -1.0
+	next_scene = clampi(next, 0, list().size() - 1)
+	var b: Dictionary = list()[next_scene]
+	for a: CharacterBody3D in game.actors:
+		a.play_beat({"to": mark(a.aid, int(b.get("from", 0))).global_position, "gait": "walk", "pose": "idle",
+			"look": "", "face_go": "neutral", "face_hold": "neutral"})
+	game.host_ev("music", [""])
+	game.host_ev("sfx", ["clap", null])
+	var titles: Array = flow.job()["scenes"]
+	var title: String = str(titles[next_scene]) if next_scene < titles.size() else ""
+	game.host_ev("toast", ["カット！ フィルムを止めた。場転：『%s』の用意ができたら、台本を読める人が 1 で回す" % title, 0])
+	holding = true          # 止めてから配る（止めた知らせは、見返しの記録に入らない）
+	_broadcast()
+
+
+# 回し直す（ホスト）：場転で用意した場面から、フィルムを回す
+func _action() -> void:
+	holding = false
+	game.host_ev("sfx", ["clap", null])
+	_enter(next_scene, false)
+	next_scene = -1
+
+
 # 場面を閉じる（ホスト。テイクが終わった・準備へ戻った・役者を印へ戻した）
 func host_reset() -> void:
 	if not multiplayer.is_server():
 		return
 	_boom_in = -1.0
-	if scene == -1 and not rehearsal:
+	_hold_in = -1.0
+	if scene == -1 and not rehearsal and not holding:
 		return
 	scene = -1
 	rehearsal = false
+	holding = false
+	next_scene = -1
 	_broadcast()
 
 
@@ -409,6 +463,11 @@ func _physics_process(delta: float) -> void:
 	if flow == null or not multiplayer.is_server():
 		return
 	_clock += delta
+	# カット割りの依頼：場面が撮れたら、少し回してからカット（最後の場面は、テイクの終わり＝main.gd の自動カット）
+	if _hold_in > 0.0 and game.state == game.S.TAKE and not holding:
+		_hold_in -= delta
+		if _hold_in <= 0.0:
+			_start_hold(scene + 1)
 	if _boom_in > 0.0:
 		_boom_in -= delta
 		if _boom_in <= 0.0:
@@ -423,7 +482,7 @@ func _physics_process(delta: float) -> void:
 # ---- 通信 ----
 
 func view() -> Dictionary:
-	return {"scene": scene, "lit": lit.duplicate(), "rehearsal": rehearsal}
+	return {"scene": scene, "lit": lit.duplicate(), "rehearsal": rehearsal, "hold": holding, "next": next_scene}
 
 
 # 全員へ配る（ホスト）。本番中の合図は、見返しのために記録にも残る（production_main.gd の host_ev）
@@ -449,6 +508,8 @@ func _apply(data: Dictionary) -> void:
 	scene = int(data.get("scene", -1))
 	lit = (data.get("lit", []) as Array).duplicate()
 	rehearsal = bool(data.get("rehearsal", false))
+	holding = bool(data.get("hold", false))
+	next_scene = int(data.get("next", -1))
 
 
 # 見返しの始まりと終わり（ホスト）。見返しの間は記録どおりに見せ、終わったら今の様子へ戻す
@@ -521,6 +582,8 @@ func _met(i: int) -> void:
 	lit[i] = true
 	met_at[i] = float(game.judge.t)
 	game.host_condition_met(i)
+	if cut_mode() and i == scene and i < list().size() - 1:
+		_hold_in = CUT_TAIL
 	_broadcast()
 
 
@@ -639,6 +702,8 @@ func _rule_appear(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 
 # 爆発が起きた（judge.on_burst から）。怪獣の技の場面の間に起きた、最初の爆発を数える
 func on_burst(pos: Vector3, src: int) -> bool:
+	if holding:
+		return true          # フィルムを止めている間の爆発は、映画に映らない（使い損）
 	var jd: RefCounted = game.judge
 	var at := _rule_index("attack")
 	if at < 0 or scene != at or at >= lit.size() or lit[at]:
@@ -844,11 +909,14 @@ func hook_take_ready() -> void:
 	host_reset()
 
 
-# 本番が始まった：場面は最初から。ランプは全部消えている（この知らせは、見返しの最初にも流れる）
+# 本番が始まった：場面は最初から。ランプは全部消えている（この知らせは、見返しの最初にも流れる）。
+# カット割りの依頼では、カチンコの合図で、最初の場面がそのまま始まる
 func hook_take_start() -> void:
 	if active():
 		host_reset()
 		_broadcast()
+		if cut_mode():
+			_enter(0, false)
 
 
 func hook_take_cut() -> void:
