@@ -234,7 +234,9 @@ func open(index: int) -> void:
 	# 条件の文：場面の数と、全部そろったときの上乗せは、依頼ごと
 	var paging: bool = not (Scripts.beats(index) as Array).is_empty()
 	_terms.text = "借り物は制作費の中から。使わなかった制作費は、そのまま会社の儲けになる。\nギャラは、成立した場面1つにつき250コイン、%dつそろえばさらに%dコイン。準備は3分。\n" % [scenes.size(), int(job.get("fee_all", 300))]
-	if paging:
+	if paging and Scripts.cuts(index):
+		_terms.text += "カット割り：場面が撮れるとフィルムが止まる。止まっている間に次の場面を用意して、台本を読める人が 1 で回す。回している間に班の誰かが映ると、撮れていない。\n"
+	elif paging:
 		_terms.text += "場面は、台本を読める人が進める。テイクは、フィルム1本ぶん（止まらない）。班の誰かが映っている間は、撮れていない。\n"
 	_terms.text += "「？」の役は、どの物を使ってもいい。らしい物ほどギャラが増え、同じ属性の物を別々の役に使うとコンボでさらに増える。依頼主の好みの属性の物を使えば、役ごとに +60。"
 	_bonus.text = "追加注文　" + str(job["bonus_title"])

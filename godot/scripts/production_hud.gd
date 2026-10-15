@@ -44,6 +44,7 @@ var _lobby_status: Label
 var _addresses: Array[String] = []
 # 見た目の追加分
 var _job_cards: Array[Control] = []
+var _job_keys: Array = []          # 依頼の札の番号（見えている順に振り直す）
 var _packing_rows: VBoxContainer
 var _packing_sig := ""
 var _packing_aside: Label
@@ -414,7 +415,9 @@ func _job_card(index: int, job: Dictionary) -> Control:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	rows.add_child(head)
-	head.add_child(UI.KeyCap.new().setup(str(index + 1)))
+	var key: Control = UI.KeyCap.new().setup(str(index + 1))
+	_job_keys.append(key)
+	head.add_child(key)
 	var title := _label(str(job.get("title", "")), 20, UI.CLAP_WHITE, "bold")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -811,6 +814,12 @@ func _refresh() -> void:
 		var offered: Array = production.offered()
 		for index in _job_cards.size():
 			(_job_cards[index] as Control).visible = index in offered
+			# 番号は、見えている順（数字キーで開く順と同じ）
+			if index < _job_keys.size() and index in offered:
+				var number := str(offered.find(index) + 1)
+				if _job_keys[index].text != number:
+					_job_keys[index].text = number
+					_job_keys[index].queue_redraw()
 		_office_head.text = "初仕事" if production.day <= 1 else "%d日目の一本" % production.day
 	if _lobby:
 		_lobby.visible = menu == "pause" and not picker_open and not game.help_open
