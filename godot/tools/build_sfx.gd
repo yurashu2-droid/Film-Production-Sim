@@ -103,6 +103,55 @@ func _impacts() -> void:
 		mix(b, pitch(src(IMPACT + "impactWood_light_" + n + ".ogg"), 1.0), 0.24, 0.25)
 		fade_out(b, 0.45, 0.5)
 		save("bump", i, b, 0.78)
+	_moves()
+
+
+# ---- レシピ：体と物の動きの音（足音・着地・風切り）。素材が無い環境で鳴らす代わりの音 ----
+# 本命は _lab の足音・風切り（参考にしたゲーム映像に、長さ・明るさを合わせた物）
+
+func _moves() -> void:
+	# 足音：靴でコンクリートを踏む（5種）。こもらせて、足の裏の柔らかい当たりにする
+	for i in 5:
+		var b := trim_head(lowpass(src(IMPACT + "footstep_concrete_%03d.ogg" % i), 5000.0))
+		fade_out(b, 0.06, 0.06)
+		save("step", i, b, 0.5)
+	# 着地：両足の足音を0.03秒ずらして重ね、柔らかい重い当たりを低く足す（3種）
+	for i in 3:
+		var b := buf(0.4)
+		mix(b, pitch(trim_head(src(IMPACT + "footstep_concrete_%03d.ogg" % i)), 0.85), 0.0, 1.0)
+		mix(b, pitch(trim_head(src(IMPACT + "footstep_concrete_%03d.ogg" % (i + 2))), 0.9), 0.03, 0.8)
+		mix(b, lowpass(pitch(trim_head(src(IMPACT + "impactSoft_medium_%03d.ogg" % i)), 0.7), 600.0), 0.0, 0.6)
+		fade_out(b, 0.15, 0.15)
+		save("land", i, b, 0.6)
+	# 風切り：Kenney に無いので、雑音を帯域で絞って作る（素材が無い環境だけで鳴る）
+	for i in 3:
+		save("whoosh", i, noise_whoosh(0.15, 0.04, 300.0, 1000.0, 11 + i), 0.7)
+		save("whoosh_soft", i, noise_whoosh(0.3, 0.09, 150.0, 900.0, 21 + i), 0.5)
+
+
+# 雑音の風切り：peak 秒かけて強まり、length 秒で消える。lo〜hi Hz の帯域に絞る
+func noise_whoosh(length: float, peak: float, lo: float, hi: float, seed_n: int) -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_n
+	var b := buf(length)
+	for i in b.size():
+		b[i] = rng.randf_range(-1.0, 1.0)
+	b = highpass(lowpass(b, hi), lo)
+	for i in b.size():
+		var t := i / float(RATE)
+		b[i] *= pow(t / peak, 2.0) if t < peak else exp(-(t - peak) / ((length - peak) * 0.3))
+	return b
+
+
+# 頭の、鳴っていない所を詰める（いちばん大きい所の level 倍に届くまで）
+func trim_head(b: PackedFloat32Array, level: float = 0.04) -> PackedFloat32Array:
+	var top := 0.0001
+	for v in b:
+		top = maxf(top, absf(v))
+	var first := 0
+	while first < b.size() - 1 and absf(b[first]) < top * level:
+		first += 1
+	return b.slice(maxi(first - 16, 0))
 
 
 # ---- レシピ：画面の音（Kenney Interface Sounds, CC0） ----
@@ -270,7 +319,55 @@ func _lab() -> void:
 	b = cut(src(LAB + "decision38.mp3"), 0.0, 0.3)
 	fade_out(b, 0.12, 0.15)
 	save("cue", 0, b, 0.55)
+	_lab_moves()
 
+
+# 足音・着地・風切り。参考にしたゲーム映像（一人称で棒を持って走り回る）の音を測って合わせた：
+#   足音＝0.03〜0.04秒の柔らかい低い当たり（明るさの重心 120〜160Hz、250Hz以下が9割）。走ると0.29秒おき
+#   振り＝0.1秒の「ブンッ」。0.08秒かけて強まり、すぐ切れる。重心 600〜760Hz、低音は2割
+#   振り向き（持った物が視点と一緒に動く）＝0.26〜0.3秒の弱い低い風。重心 640Hz、低音7割。振りより20dB小さい
+func _lab_moves() -> void:
+	# 足音：見た目（明るい・角ばった・おもちゃっぽい町）に合わせて、やわらかい「トッ」にする（2026-10-15、聞き比べで決定）。
+	# 畳を走る音の低い当たりに、上履きで走る音の軽い当たり（400Hz より上だけ）をうっすら重ねる（6種）
+	var tatami := src(LAB + "dash-tatami1.mp3")
+	var school := src(LAB + "dash-school1.mp3")
+	var soft_at := [0.672, 0.910, 1.759, 1.968, 2.159, 2.788]
+	var tap_at := [0.244, 0.967, 1.678, 1.917, 2.411, 2.660]
+	for i in soft_at.size():
+		var b := buf(0.24)
+		mix(b, _step_hit(tatami, soft_at[i], 3000.0), 0.0, 1.0)
+		mix(b, highpass(_step_hit(school, tap_at[i], 6000.0), 400.0), 0.0, 0.3)
+		fade_out(b, 0.07, 0.07)
+		save("step", i, b, 0.5)
+	# 着地：畳の重い2歩を0.03秒ずらして重ね、上履きの当たりを少し足す（3種）
+	var heavy := [2.159, 3.945, 1.968, 0.672]
+	for i in 3:
+		var b := buf(0.4)
+		mix(b, pitch(_step_hit(tatami, heavy[i], 3000.0), 0.9), 0.0, 1.0)
+		mix(b, _step_hit(tatami, heavy[i + 1], 3000.0), 0.03, 0.75)
+		mix(b, highpass(_step_hit(school, tap_at[i + 2], 6000.0), 400.0), 0.0, 0.25)
+		fade_out(b, 0.16, 0.14)
+		save("land", i, b, 0.62)
+	# 振る：剣・鞭・パンチの素振りを低くし、中音（300Hz〜1kHz あたり）に絞って、参考の「ブンッ」に寄せる（4種）
+	# [素材, 高さ, これより低い音を削る Hz, これより高い音を削る Hz]
+	var swings := [["sword-gesture2.mp3", 0.7, 300.0, 900.0], ["sword-gesture2.mp3", 0.8, 300.0, 1200.0],
+		["whip-gesture1.mp3", 0.7, 200.0, 1200.0], ["punch-real-swing1.mp3", 0.8, 300.0, 2500.0]]
+	for i in swings.size():
+		var b := lowpass(highpass(pitch(trim_head(src(LAB + swings[i][0])), swings[i][1]), swings[i][2]), swings[i][3])
+		fade_out(b, 0.08, 0.07)
+		save("whoosh", i, b, 0.75)
+	# 振り向く・大きく動かす：パンチ・キックの素振りを、低い風として長めに残す（3種）
+	var soft := [["punch-real-swing1.mp3", 0.8], ["punch-real-swing1.mp3", 1.15], ["kick-real-swing3.mp3", 0.7]]
+	for i in soft.size():
+		var b := lowpass(highpass(pitch(trim_head(src(LAB + soft[i][0])), soft[i][1]), 300.0), 4000.0)
+		fade_out(b, 0.22, 0.12)
+		save("whoosh_soft", i, b, 0.5)
+
+
+
+# 足音の素材から、at 秒の1歩を切り出す（頭の鳴っていない所を詰め、cutoff Hz より高い音を削る）
+func _step_hit(from: PackedFloat32Array, at: float, cutoff: float) -> PackedFloat32Array:
+	return trim_head(lowpass(cut(from, at - 0.04, at + 0.2), cutoff), 0.15)
 
 # 素材の長さと、音が鳴っている区間を表示する（耳で聞けない代わりの下調べ）
 func _probe() -> void:

@@ -66,6 +66,28 @@ BGM。それ以外も、下の効果音ラボの音が無い環境では合成�
 | success_fanfare 成功 | trumpet1 ＋ people-performance-cheer1 | ラッパのあとに歓声と拍手を重ねる |
 | ui_ok・ui_fail・cue | decision34、cancel2、decision38 | 頭を切り出す |
 
+## 体と物の動きの音（足音・着地・風切り）
+
+- 鳴らし方：`godot/scripts/features/motion_sounds.gd`。各自の画面で、見えている動きから決めて鳴らす（通信は増やさない）。
+  足音＝左右の足のどちらが低いかが入れ替わった瞬間（歩き・走り・しゃがみ歩き。車輪のロボット M02 は鳴らない）。
+  着地＝0.3秒より長く宙にいて降りた時。風切り＝物の速さが0.15秒で4m/秒より上がって7m/秒を超えた時
+  （14m/秒より速ければ whoosh、遅ければ whoosh_soft。回る速さは持っている物だけ数える）。確認は `tests/motion_sounds_test.gd`。
+- 参考：ゲーム映像（一人称で棒を持って走り回る、12秒）の音を測った。足音＝0.03〜0.04秒の柔らかい低い当たり、走ると0.29秒おき。
+  振り＝0.1秒の「ブンッ」（重心 580〜760Hz）。持った物ごと振り向く＝0.3秒の弱い低い風。足音・振り向きは、振りより約20dB小さい。
+- 足音は、写実的なアスファルトの足音だと見た目（明るい・角ばった町）から浮いて聞こえたので、4通りを聞き比べて、やわらかい「トッ」に決めた（2026-10-15）。
+
+効果音ラボの素材から作った音（公開リポジトリには入れない。出力は `sfx_local/`）：
+
+| 音 | 元ファイル | 加工 |
+|---|---|---|
+| step 足音（6種） | dash-tatami1 ＋ dash-school1 | 畳を走る音から1歩ずつ切り出し、3kHz以上を削る。上履きの当たり（400Hz以下を削る）を0.3倍で重ねる |
+| land 着地（3種） | dash-tatami1 ＋ dash-school1 | 畳の重い2歩を0.03秒ずらして重ね（主音は0.9倍）、上履きの当たりを少し足す |
+| whoosh 振る（4種） | sword-gesture2、whip-gesture1、punch-real-swing1 | 0.7〜0.8倍に下げ、200〜300Hz以下と0.9〜2.5kHz以上を削る。0.15秒で切る |
+| whoosh_soft 振り向く（3種） | punch-real-swing1、kick-real-swing3 | 0.7〜1.15倍、300Hz以下と4kHz以上を削る。0.34秒で切る |
+
+素材が無い環境の代わり（公開してよい。`sfx/`）：step・land は Kenney Impact Sounds（CC0）の footstep_concrete（着地は impactSoft_medium を低く重ねる）。
+whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯域で絞って作る。
+
 ## 画面の音（選ぶ・開く・戻る・決定・失敗）
 
 - 配布元・作者：[Kenney / Interface Sounds 1.0](https://kenney.nl/assets/interface-sounds)、Kenney。ライセンス：CC0（同梱・加工可能）。
