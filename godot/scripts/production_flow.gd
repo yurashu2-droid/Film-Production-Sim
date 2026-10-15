@@ -63,6 +63,11 @@ const JOBS := [
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
+	# 最初の一本（debut）：会社のCM。1日目は、これだけが来る。試写会（放送）のあと、2日目から依頼の電話が来る
+	{"title":"わが社のCM（深夜枠・30秒）", "budget":300, "location":"室内スタジオ", "site":1, "script":"castle", "board":"pr", "debut":true,
+		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300,
+		"scenes":["城の前の二人（わが社の腕前）", "二人の背後で爆発", "寄りで決めポーズ"],
+		"description":"会社の宣伝を撮る。城の見立て → 背後で爆発 → 寄りで決めポーズの3カット。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
 ]
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
@@ -534,7 +539,19 @@ func apply(data: Dictionary) -> void:
 
 # きょう掲示板に出る依頼。初日は1件だけ
 func offered() -> Array:
-	return [0] if day <= 1 else range(JOBS.size())
+	# 1日目は、会社のCM（debut）だけ。CMが流れた2日目からは、ほかの依頼が全部来る
+	var debut := debut_job()
+	if day <= 1:
+		return [debut] if debut >= 0 else [0]
+	return range(JOBS.size()).filter(func(i: int) -> bool: return i != debut)
+
+
+# 最初の一本（会社のCM）の番号（無ければ -1）
+func debut_job() -> int:
+	for i in JOBS.size():
+		if bool(JOBS[i].get("debut", false)):
+			return i
+	return -1
 
 
 # 依頼を受ける：買い物は後回し。まず廃材置き場の門が開く
@@ -1509,6 +1526,10 @@ func settle(index: int) -> void:
 	for result: Dictionary in game.takes[index]["results"]:
 		if not result["ok"]:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
+	# 最初の一本（会社のCM）：放送のあと、依頼の電話が鳴り出す（2日目から、ほかの依頼が来る）
+	if bool(job().get("debut", false)):
+		last_flubs.append("依頼主『CMが流れました。……もう、うちの局に電話が来てますよ。明日から忙しくなりますね』")
+		said = true
 	if count == passed.size() and count > 0 and not said:
 		last_flubs.append("依頼主『あの怪獣、本物を呼んだのかと思ったよ！』" if job()["script"] == "kaiju" else "依頼主『これをこの予算で？ 次も頼むよ！』")
 	elif count == 0:

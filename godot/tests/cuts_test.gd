@@ -50,8 +50,8 @@ func run() -> void:
 	# ---- 依頼 ----
 	var job := -1
 	for i in flow.JOBS.size():
-		if beats.Scripts.cuts(i):
-			job = i
+		if job < 0 and beats.Scripts.cuts(i) and (beats.Scripts.beats(i) as Array).size() == 5:
+			job = i          # 怪獣ドラマ（会社のCMも、カット割りの依頼）
 	check(job >= 0 and (flow.JOBS[job]["scenes"] as Array).size() == 5 and (beats.Scripts.beats(job) as Array).size() == 5, "カット割りの依頼がある（5場面）")
 	check(not beats.Scripts.cuts(job - 1), "完全版は、長回しのまま")
 	check(str(flow.Briefs.brief(job).get("name", "")) != "" and (flow.Briefs.brief(job)["lines"] as Array).size() >= 3, "依頼主の打ち合わせがある")

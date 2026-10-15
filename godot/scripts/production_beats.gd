@@ -41,6 +41,7 @@ const CREW_GRACE := 0.5           # 怪獣が倒れる前後、この秒数の�
 const NEED_CHEER := 1.5           # 勝利：万歳する二人と倒れた怪獣が、寄りで映っている秒数
 const CLOSE_MIN := 0.30           # 寄り：画面の高さに対する、二人の大きさの下限（ふつうの場面は judge.MIN_SIZE＝0.10）
 const CLOSE_TIMES := 1.3          # 寄り：「怪獣あらわる」で映っていた大きさの、この倍より大きく
+const NEED_SHOW := 1.5            # 見せる（show）：着いた二人（と、決めた役の物）が映っている秒数
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
@@ -54,6 +55,8 @@ const NO_REASON := {
 	"attack": "爆発が起きなかった",
 	"topple": "怪獣が倒れなかった",
 	"cheer": "万歳する二人が映る時間が足りなかった",
+	"show": "二人が映る時間が足りなかった",
+	"blast": "爆発が起きなかった",
 }
 
 var game: Node
@@ -592,7 +595,7 @@ func _restart_rule(i: int) -> void:
 	_acc[i] = 0.0
 	why[i] = {}
 	match str(list()[i].get("rule", "")):
-		"attack":
+		"attack", "blast":
 			_reset_attack()
 		"topple":
 			_reset_topple()
@@ -647,6 +650,10 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_topple(scene, f, dt, crew, t)
 		"cheer":
 			_rule_cheer(scene, f, dt, crew)
+		"show":
+			_rule_show(scene, f, dt, crew)
+		"blast":
+			_rule_blast(scene, f, dt, crew, t)
 
 
 func _stuck() -> bool:
@@ -705,6 +712,18 @@ func on_burst(pos: Vector3, src: int) -> bool:
 	if holding:
 		return true          # フィルムを止めている間の爆発は、映画に映らない（使い損）
 	var jd: RefCounted = game.judge
+	# 背後で爆発（blast）の場面の間に起きた爆発：そこから BOOM_WINDOW 秒の映り方を数える
+	var beats_now := list()
+	if scene >= 0 and scene < beats_now.size() and str(beats_now[scene].get("rule", "")) == "blast" and scene < lit.size() and not lit[scene]:
+		if _boom_t >= 0.0 and jd.t - _boom_t < jd.BOOM_WINDOW:
+			return true          # 数えている最中の爆発に、もう1つ重なった
+		_reset_attack()
+		_boom_t = jd.t
+		jd.boom_t0 = jd.t
+		jd.boom_pos = pos
+		jd.boom_src = src
+		jd.boom_power = 0
+		return true
 	var at := _rule_index("attack")
 	if at < 0 or scene != at or at >= lit.size() or lit[at]:
 		if at >= 0 and scene < at:
@@ -858,6 +877,58 @@ func _rule_cheer(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if crew:
 		r.append("スタッフが映っていた")
 	_count(i, r, dt, NEED_CHEER)
+
+
+# 見せる（どの台本でも使える）：着いた二人が、明るく映っている。
+#   role＝その役の物も一緒に映る（いまは "castle"：城役が、倒れず・裏を見せずに映る）/ close＝寄りで大きく、二人が近づいている
+func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if _stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
+		return
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		return
+	var b: Dictionary = list()[i]
+	var r: Array = game.judge.problems(f)
+	if str(b.get("role", "")) == "castle" and not f.get("castle", false):
+		r.append("城の裏側が映っていた" if f.get("castle_back", false) else ("城役の物が映っていなかった" if f.get("castle_any", false) else "城役の物が決まっていない（物を見て Y で城の役にする）"))
+	if b.get("close", false):
+		var acts: Array = f["actors"]
+		if not f["close"]:
+			r.append("二人が近づいていなかった")
+		elif r.is_empty() and minf(float(acts[0]["h"]), float(acts[1]["h"])) < CLOSE_MIN:
+			r.append("寄りが足りない（カメラを二人へ寄せる）")
+	if crew:
+		r.append("スタッフが映っていた")
+	_count(i, r, dt, NEED_SHOW)
+
+
+# 背後で爆発（どの台本でも使える）：この場面の間に起きた爆発が、二人の背後に、二人と一緒に映る。
+# 爆発から judge.BOOM_WINDOW 秒のうちに NEED_BOOM 秒。だめなら、次の爆発を待つ
+func _rule_blast(i: int, f: Dictionary, dt: float, crew: bool, t: float) -> void:
+	if _boom_t < 0.0 or _boom_done:
+		return
+	var jd: RefCounted = game.judge
+	if t - _boom_t <= jd.BOOM_WINDOW:
+		var r: Array = jd.problems(f, false)
+		if not f["fx_in"]:
+			r.append("爆発が画面に入っていなかった")
+		elif not f["fx_behind"]:
+			r.append("爆発が二人より手前だった")
+		if crew:
+			r.append("スタッフが映っていた")
+		if r.is_empty():
+			_boom_acc += dt
+			if _boom_acc >= NEED_BOOM:
+				_boom_done = true
+				_met(i)
+		else:
+			_note(i, r, dt)
+		return
+	# 間に合わなかった：次の爆発を待つ
+	if _top_reason(i) == "":
+		_note(i, ["爆発と二人が一緒に映る時間が足りなかった"], 1.0)
+	_boom_t = -1.0
+	_boom_acc = 0.0
 
 
 # テイクの結果（場面ごとの成否と、撮れなかった理由）

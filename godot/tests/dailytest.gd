@@ -40,7 +40,7 @@ func run() -> void:
 	var yard: Node3D = flow._yard_root
 	# しまってあるのは、段ボール置き場の奥の箱だけ（箱は日替わりの廃材ではない。cargo_kit.gd が出す）
 	check(flow.stash.all(func(pid: int) -> bool: return game.props[pid].kind == "carton") and not shown().any(func(p: Node) -> bool: return p.kind == "carton"), "automatic checks start with every scrap item out")
-	check(flow.offered() == [0], "first day offers a single job")
+	check(flow.offered() == [flow.debut_job()] and flow.debut_job() >= 0, "first day offers only the company commercial")
 	check(not (yard.get_node("GateBlock").get_child(0) as CollisionShape3D).disabled, "gate is shut before a job is taken")
 
 	# 日替わりにして並べ直す：数が絞られ、どの依頼も撮れる組み合わせが残る
@@ -189,7 +189,7 @@ func run() -> void:
 	game.h_return_office()
 	await frames(5)
 	check(flow.phase == 0 and flow.day == 4 and flow.rent_in() == 3, "returning starts the next day")
-	check(flow.offered().size() == flow.JOBS.size(), "later days offer every job")
+	check(flow.offered().size() == flow.JOBS.size() - 1 and flow.debut_job() not in flow.offered(), "later days offer every job but the commercial")
 	check(shown().size() == flow.DAILY_COUNT, "next day's stock is the same size")
 	await frames(90)
 	check(not (yard.get_node("GateBlock").get_child(0) as CollisionShape3D).disabled, "gate shuts again at the office")
@@ -207,6 +207,6 @@ func run() -> void:
 	game.h_return_office()
 	await frames(5)
 	check(flow.phase == 0 and flow.day == 1 and flow.wallet == flow.START_WALLET and flow.rent_no == 0 and int(flow.levels["plan"]) == 0 and not flow.bankrupt, "bankruptcy starts a fresh company")
-	check(flow.offered() == [0], "the fresh company starts from the first job again")
+	check(flow.offered() == [flow.debut_job()], "the fresh company starts from the commercial again")
 	print("DAILYTEST_FAIL" if failed else "DAILYTEST_OK")
 	quit(1 if failed else 0)

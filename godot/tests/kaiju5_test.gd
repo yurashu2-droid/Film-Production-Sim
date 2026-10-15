@@ -239,7 +239,7 @@ func test_office() -> void:
 		if (beats.Scripts.beats(i) as Array).is_empty() and (flow.JOBS[i]["scenes"] as Array).size() == 3:
 			old_jobs += 1
 	check(old_jobs == 5, "the five earlier jobs keep their three scenes")
-	check(flow.offered() == [0], "on the first day only the practice job is offered")
+	check(flow.offered() == [flow.debut_job()], "on the first day only the company commercial is offered")
 	flow.day = 2
 	check(job in flow.offered(), "from the second day the complete edition is offered")
 	check(not beats.active() and game.judge.beats == null and of_kind("mark").size() == 2, "before the job: two marks, and the old judge")

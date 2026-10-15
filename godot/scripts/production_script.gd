@@ -117,6 +117,21 @@ const SCRIPTS := [
 			{"rule": "attack", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "monster", "face": ["shock", "shock"], "boom": true},
 			{"rule": "topple", "from": 2, "to": 2, "gait": "walk", "pose": "idle", "look": "monster", "face": ["surprised", "surprised"], "music": ""},
 			{"rule": "cheer", "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 7 わが社のCM（最初の一本。地方テレビ局の深夜枠に流す、会社の宣伝。3カットのカット割り）
+	{"cuts": true, "scenes": [
+		{"dir": "【わが社の腕前】どう見ても城。その前に、二人が立つ。",
+			"lines": [["A", "格安アクション映画制作班です"], ["B", "城だって、このとおり"], ["A", "{城}ですけどね"]],
+			"memo": "城役の物と二人を、一緒に明るく映す（城役は、物を見て Y で決める）"},
+		{"dir": "【場転】二人の背後で、爆発。",
+			"lines": [["B", "爆発だって、お手のもの"], ["（爆発）", ""], ["A", "近い近い！"]],
+			"memo": "カットの間に、爆炎の書割（廃材置き場にある）を二人の奥に立てる。1 で回すと、書割が爆ぜる（借りた爆弾に火を付けてもいい）"},
+		{"dir": "【場転】二人が寄ってきて、決めポーズ。",
+			"lines": [["二人", "ご依頼、お待ちしています！"]],
+			"memo": "カットの間に、カメラを二人へ寄せて、ライトも手前の二人へ向け直す。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "role": "castle", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "blast", "from": 0, "to": 1, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "music": "", "boom": true},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 
 
