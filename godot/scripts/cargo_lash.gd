@@ -569,10 +569,12 @@ func _slacken(cord: Node3D, by: float) -> void:
 					runs.append([run_from, i - run_from, 0])
 				run_from = -1
 	if not runs.is_empty():
+		# 1つずつ、足したあとの割合（足した数＋1 ／ 区間の節の数）がいちばん小さい区間へ。足す数が少ないときは長い区間から垂れる
+		# （足した数だけで比べると、根元の側の短い区間＝フックの横の垂れ下がりから順に埋まり、渡っている所が垂れない）
 		for k in extra:
 			var pick: Array = runs[0]
 			for run: Array in runs:
-				if float(run[2]) / float(run[1]) < float(pick[2]) / float(pick[1]):
+				if float(int(run[2]) + 1) / float(run[1]) < float(int(pick[2]) + 1) / float(pick[1]):
 					pick = run
 			pick[2] = int(pick[2]) + 1
 		# 後ろの区間から足す（前の区間の節の番号が、ずれないように）。区間の真ん中に、少し下げて置く。あとは、ひもの計算が垂らす
@@ -1158,6 +1160,10 @@ func physics(delta: float) -> bool:
 		if int(lash["b"]) == END_COIL:
 			cord.b_local = reels._coil_exit(int(lash.get("coil", 0)))
 		var awake: bool = not cord.asleep
+		# 前のコマの終わりには止まっていた：その後に起こされた（ゆるめた・切った・荷台の物が動いた）。止めるまでの数を数え直す
+		# （数え直さないと、止まった直後のコマに起こされたロープが、すぐまた止められ、垂れる前の形で固まる）
+		if awake and bool(lash.get("slept", false)):
+			lash["awake"] = 0
 		cord.step(delta)
 		if awake:
 			_unbury(cord)
@@ -1169,6 +1175,7 @@ func physics(delta: float) -> bool:
 		if int(lash["awake"]) > 240 and flow.phase != 3 and int(lash["b"]) != END_COIL and (cord.speed() < 1.5 or int(lash["awake"]) > 480):
 			cord.asleep = true
 			cord.old = cord.pts.duplicate()
+		lash["slept"] = cord.asleep
 	var host: bool = Net.is_host() and not game.replaying
 	if host:
 		_host_lashes(delta)

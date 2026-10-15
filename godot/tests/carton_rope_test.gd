@@ -11,6 +11,7 @@ extends SceneTree
 #     数字の表示は無い。置いて数秒でロープが止まる。現場に着いても掛かったまま（自分でほどく）
 #   現場：箱ごと届き、取り出せる。見返しは記録どおり、撮り直しでテイク前の中身に戻る。帰社で全部元へ
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/carton_rope_test.gd
+const BESIDE := 1.0          # フックの外に立って束・はさみを手に持つとき、いったん置く所までの距離（荷台の外）
 var game: Node
 var flow: Node
 var kit: Node
@@ -60,12 +61,13 @@ func put(prop: Node, pos: Vector3, yaw: float = 0.0) -> void:
 	prop.restore(state)
 
 
-# 目の前に置いて、手に持つ
-func take(prop: Node) -> void:
+# 目の前に置いて、手に持つ。ahead＝置く所までの距離（持った物は、その位置のまま手に付いて来る。
+# フックの外に立って 1.4m 先に置くと荷台の中に入り、積んだ箱を突き飛ばす。軽トラの横では BESIDE）
+func take(prop: Node, ahead: float = 1.4) -> void:
 	if me.held != 0:
 		game.h_release()
 		await frames(2)
-	put(prop, me.global_position + Vector3(0, 1.0, 0) + me.flat_forward() * 1.4)
+	put(prop, me.global_position + Vector3(0, 1.0, 0) + me.flat_forward() * ahead)
 	await frames(2)
 	game.h_grab(prop.pid)
 	await frames(3)
@@ -127,12 +129,12 @@ func stand_at(hook: int) -> void:
 func lash(from: int, to: int, near: bool = true) -> int:
 	var before: Array = kit.lashes.keys()
 	await stand_at(from)
-	await take(kit.rope)
+	await take(kit.rope, BESIDE)
 	kit.h_hook(from)
 	await frames(15)
 	if near:
 		await stand_at(to)
-		await take(kit.rope)
+		await take(kit.rope, BESIDE)
 		await frames(10)
 	kit.h_hook(to)
 	await frames(15)
@@ -196,6 +198,14 @@ func height_between(cord: Node3D, from: float, to: float) -> float:
 			sum += l.y
 			count += 1
 	return sum / float(maxi(count, 1))
+
+
+# ロープが止まる（眠る）まで待つ。止まらなければ limit コマで打ち切る（確かめる側で asleep を見る）
+func settle(cord: Node3D, limit: int = 600) -> void:
+	for i in limit:
+		if cord.asleep:
+			return
+		await physics_frame
 
 
 # 撮らずに納品して、事務所へ戻る
@@ -426,7 +436,7 @@ func run() -> void:
 	# 束を持つ：案内は動作だけ
 	kit.rng.seed = 11
 	await stand_at(4)
-	await take(kit.rope)
+	await take(kit.rope, BESIDE)
 	check(me.held == kit.rope.pid and is_equal_approx(kit.stock(), float(bk.COIL_M)), "the rope coil is in hand, with all its rope on it")
 	aim(me.global_position + Vector3(0, 30, 0) + me.flat_forward())          # 何も狙っていない
 	var hint: String = str(kit.hud_view(me).get("keys_all", ""))
@@ -448,7 +458,7 @@ func run() -> void:
 	check(kit.f_action(me).get("do", "") == "unhook" and str(kit.hud_view(me).get("keys_all", "")).begins_with("F ほどく"), "aiming at the same hook offers to untie it again")
 	# 束を持って反対側へ：ロープが束から出ていく
 	await stand_at(9)
-	await take(kit.rope)
+	await take(kit.rope, BESIDE)
 	await frames(40)
 	check(cord.length > 2.0 and absf(kit.stock() + cord.length - float(bk.COIL_M)) < 0.01, "carrying the coil to the other side pays the rope out (%.2f m)" % cord.length)
 	# 2つ目のフックに結ぶ：1本のロープが、箱の上に掛かる
@@ -515,7 +525,7 @@ func run() -> void:
 	var rope_two: Node3D = kit.lashes[both]["cord"]
 	var used_two: float = rope_two.length
 	await stand_at(7)
-	await take(bk.scissors)
+	await take(bk.scissors, BESIDE)
 	var mid: float = rope_two.length * 0.5
 	aim(rope_two.point_at(mid))
 	act = kit.f_action(me)
@@ -536,6 +546,8 @@ func run() -> void:
 	# ほどく：束に巻き戻る
 	game.h_release()
 	await frames(2)
+	# はさみは片付ける（フックの横に落ちたままだと、あおりに立てかかり、次にそのフックへ結ぶロープが、はさみの先に載る）
+	bk.scissors.restore((flow._home_layout[bk.scissors.pid] as Array).duplicate())
 	var before_untie: float = kit.stock()
 	for piece: Dictionary in pieces:
 		kit.h_untie(int(piece["id"]))
@@ -552,6 +564,7 @@ func run() -> void:
 	await frames(120)
 	var rope_c: Node3D = kit.lashes[again]["cord"]
 	check(kit.pinned(box_c.pid) and kit.grip_of(low_box.pid) == 0.0, "the rope holds the carton it rests on; the low apple box beside it, which the rope does not touch, is not held")
+	await settle(rope_c)
 	note("tight over box_c", [box_b, box_c, low_box])
 	var sag_tight: float = height_between(rope_c, -1.0, 1.0)
 	kit.host_loosen(again, 0.35)
@@ -573,7 +586,7 @@ func run() -> void:
 	var third: int = await lash(1, 6, false)
 	check(third == 0 and kit.lash_count() == 2 and not kit.open_lash().is_empty() and int(kit.open_lash()["a"]) == 1, "with %.1f m left on the coil the rope does not reach over the tall partition: the second end is refused" % left_over)
 	await stand_at(1)
-	await take(kit.rope)
+	await take(kit.rope, BESIDE)
 	kit.h_hook(1)
 	await frames(4)
 	check(kit.open_lash().is_empty() and absf(kit.stock() - left_over) < 0.05, "F on the first hook again takes the rope back")
@@ -601,9 +614,13 @@ func run() -> void:
 	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	await frames(3)
 	game.h_depart()
-	await frames(200)
+	# 走っている間ずっと（発進から、1つ目の段差を越えたあとまで）、荷台の上でのずれのいちばん大きい値を見る
+	var drift := 0.0
+	for i in 200:
+		await physics_frame
+		drift = maxf(drift, on_truck(box_b).distance_to(held_at))
 	note("trip 1, driving", [box_b, box_c, partition])
-	check(flow.phase == 3 and on_truck(box_b).distance_to(held_at) < 0.01, "a carton under a tight rope does not move on the deck while driving (%.3f m)" % on_truck(box_b).distance_to(held_at))
+	check(flow.phase == 3 and drift < 0.01, "a carton under a tight rope does not move on the deck while driving, over the first bump too (%.3f m at most)" % drift)
 	check(cord.root().distance_to(kit.hook_at(4)) < 0.05 and knots_over(cord, box_b) >= 6, "the rope rides along with the truck, still across the carton")
 	while flow.phase == 3:
 		await physics_frame
