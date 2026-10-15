@@ -25,6 +25,8 @@ var tally: Array = []        # 読み上げる行 [文, コイン（無ければ
 # ホストだけ
 var _times := {}             # テイクの番号 → 場面ごとの撮れた時刻（撮れていなければ -1）
 var _watch: Array = []       # 本番中に測っている時刻
+var _cue_watch: Array = []   # 本番中に出た合図 [時刻, 場面]（3場面の依頼）
+var _cue_times := {}         # テイクの番号 → _cue_watch
 var _cues: Array = []        # 試写会で出す反応 [時刻, せりふ, 気分]（時刻順）
 var _cue_i := 0
 var _wow_i := 0
@@ -272,15 +274,24 @@ func setup() -> void:
 
 func hook_take_start() -> void:
 	_watch = []
+	_cue_watch = []
+
+
+# 3場面の依頼の合図（1・2・3）：本番中の時刻を控えて、試写会で、その時刻に場面の見出しを出す
+func hook_cue(n: int) -> void:
+	if game.state == game.S.TAKE and not game.take_held() and n >= 1:
+		_cue_watch.append([float(game.take_t), n - 1])
 
 
 func hook_take_cut() -> void:
 	if not (game.takes as Array).is_empty():
 		_times[game.takes.size() - 1] = _watch.duplicate()
+		_cue_times[game.takes.size() - 1] = _cue_watch.duplicate()
 
 
 func hook_new_job() -> void:
 	_times.clear()
+	_cue_times.clear()
 
 
 func hook_return_office() -> void:
@@ -342,6 +353,9 @@ func _plan(index: int) -> Array:
 		if float(times[i]) >= 0.0:
 			var line: String = HAPPY[(i + job) % HAPPY.size()] % _short(str(titles[i]) if i < titles.size() else "")
 			plan.append([maxf(float(times[i]), 0.8), line, "happy"])
+	# 3場面の依頼：合図を出した時刻に、場面の見出し
+	for cue: Array in _cue_times.get(index, []):
+		plan.append([maxf(float(cue[0]), 0.05), "", "chapter:%d" % int(cue[1])])
 	# ほかの仕組みが足す反応（手描きの看板が映った など。各仕組みの hook_premiere_cues）
 	for target: Object in game.hooks.in_order("hook_premiere_cues"):
 		plan.append_array(target.hook_premiere_cues(index))
@@ -390,7 +404,10 @@ func hook_event(n: String, a: Array) -> void:
 			screening = int(a[0])
 			_open()
 		"premiere_react":
-			_say(str(a[0]), str(a[1]))
+			if str(a[1]).begins_with("chapter:"):
+				_show_chapter(int(str(a[1]).trim_prefix("chapter:")), false)
+			else:
+				_say(str(a[0]), str(a[1]))
 		"premiere_off":
 			screening = -1
 			_closing_line = [str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy"]
@@ -632,8 +649,13 @@ func _sync_chapter() -> void:
 		return
 	var cut: bool = _scene_seen >= 0 and beats.cut_mode()
 	_scene_seen = now
+	_show_chapter(now, cut)
+
+
+# 場面の見出し「第N場　題」を出す。cut＝カット割りのつなぎ目（白く光る）
+func _show_chapter(i: int, cut: bool) -> void:
 	var titles: Array = game.scene_titles()
-	_chapter.text = "第%d場　%s" % [now + 1, _short(str(titles[now]) if now < titles.size() else "")]
+	_chapter.text = "第%d場　%s" % [i + 1, _short(str(titles[i]) if i >= 0 and i < titles.size() else "")]
 	var fade := create_tween()
 	fade.tween_property(_chapter, "modulate:a", 1.0, 0.25)
 	fade.tween_interval(2.2)

@@ -48,7 +48,9 @@ func run() -> void:
 			break
 		await physics_frame
 	check(game.state == S.TAKE, "本番が始まった")
-	await frames(150)
+	await frames(30)
+	game.h_cue(1)          # 合図1（告白）。試写会では、この時刻に「第1場」の見出しが出る
+	await frames(120)
 	game._cut()
 	await frames(5)
 	check(game.state == S.RESULT and game.takes.size() == 1, "カットして確認の画面になった")
@@ -80,6 +82,7 @@ func run() -> void:
 	await frames(60)
 	print("PREMIERE_MEASURE 依頼主のひとこと＝", premiere.last_line)
 	check(premiere.last_line.contains("告白"), "場面が撮れた時刻に、依頼主が反応する")
+	check(premiere._chapter.text.begins_with("第1場"), "3場面の依頼でも、合図を出した時刻に場面の見出しが出る（%s）" % premiere._chapter.text)
 	# とばす（Enter・Esc は見返しを止める）：締めのひとことのあと、納品になる
 	game.h_stop_replay()
 	await frames(10)

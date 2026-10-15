@@ -605,6 +605,9 @@ func h_cue(n: int) -> void:
 	if beats != null and beats.active():
 		return
 	super.h_cue(n)
+	# 合図を聞きたい仕組みへ（試写会の場面の見出し など。各仕組みの hook_cue）
+	if Net.is_host() and state in [S.PREP, S.TAKE]:
+		hooks.run("hook_cue", [n])
 
 
 # 自分が、場面を進められる人か：台本を読める人と、置いてある台本のすぐそばにいる人。
