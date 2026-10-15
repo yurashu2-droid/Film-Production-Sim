@@ -48,6 +48,73 @@ var _sheet: PanelContainer
 var _rows: VBoxContainer
 var _total: Label
 var _tween: Tween
+var _flash: ColorRect
+var _chapter: Label
+var _card_box: Control         # 黒地の札（始まりの題名・終わりの「終」）
+var _card_small: Label
+var _card_big: Label
+var _card_ring: PanelContainer
+var _card_t := 0.0             # 札を出しておく残り（秒）
+var _end_t := 0.0              # 「終」を見せ終わるまで、読み上げを待つ
+var _scene_seen := -2          # 見出しを出した場面
+var _closing_line: Array = []  # 「終」のあとに言う、締めのひとこと [文, 気分]
+const CARD_SEC := 1.8          # 始まりの題名を出しておく秒数
+const END_SEC := 1.6           # 「終」を出しておく秒数
+
+
+# 黒地の札：始まりは「格安アクション映画制作班 作品／題名」、終わりは「終」
+func _build_card(root: Control) -> void:
+	_card_box = ColorRect.new()
+	(_card_box as ColorRect).color = Color.BLACK
+	_card_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_card_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_box.visible = false
+	root.add_child(_card_box)
+	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_CENTER)
+	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 14)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card_box.add_child(column)
+	_card_small = UI.label("", 20, UI.MUTED, "body")
+	_card_small.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(_card_small)
+	# 大きい字。「終」のときだけ、昔の映画の終わりの札のように丸で囲む
+	_card_ring = PanelContainer.new()
+	_card_ring.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_card_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(_card_ring)
+	_card_big = UI.label("", 52, UI.PAPER, "display")
+	_card_big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_big.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_card_ring.add_child(_card_big)
+
+
+# 「終」を囲む丸（UI の箱の決まり＝角の丸みは小さく、には従わない。映画の札なので）
+static func _ring_style() -> StyleBoxFlat:
+	var ring := StyleBoxFlat.new()
+	ring.bg_color = Color(0, 0, 0, 0)
+	ring.border_color = UI.PAPER
+	ring.set_border_width_all(4)
+	ring.set_corner_radius_all(80)
+	ring.set_content_margin_all(8)
+	ring.anti_aliasing = true
+	return ring
+
+
+func _show_card(small: String, big: String, sec: float) -> void:
+	_card_small.text = small
+	_card_small.visible = small != ""
+	_card_big.text = big
+	var ring: bool = big == "終"
+	_card_big.add_theme_font_size_override("font_size", 64 if ring else 52)
+	_card_big.custom_minimum_size = Vector2(118, 118) if ring else Vector2.ZERO
+	_card_ring.add_theme_stylebox_override("panel", _ring_style() if ring else StyleBoxEmpty.new())
+	_card_box.visible = true
+	_card_box.modulate.a = 1.0
+	_card_t = sec
 
 
 func setup() -> void:
@@ -73,6 +140,36 @@ func setup() -> void:
 	_film.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_film.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_film)
+	# 四隅を少し暗く（映写した画面らしく。真ん中は、そのまま）
+	var falloff := Gradient.new()
+	falloff.offsets = PackedFloat32Array([0.0, 0.62, 1.0])
+	falloff.colors = PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.55)])
+	var vignette_tex := GradientTexture2D.new()
+	vignette_tex.gradient = falloff
+	vignette_tex.fill = GradientTexture2D.FILL_RADIAL
+	vignette_tex.fill_from = Vector2(0.5, 0.5)
+	vignette_tex.fill_to = Vector2(1.0, 1.0)
+	var vignette := TextureRect.new()
+	vignette.texture = vignette_tex
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.offset_top = 64
+	vignette.offset_bottom = -52
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(vignette)
+	# つなぎ目の白い光（カット割りの依頼で、場面が切り替わる所）
+	_flash = ColorRect.new()
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.color = Color(1, 1, 1, 0)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_flash)
+	# 場面の見出し（左上。「第1場　城の前の二人」）
+	_chapter = UI.label("", 24, UI.PAPER, "bold", true)
+	_chapter.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_chapter.position = Vector2(34, 84)
+	_chapter.modulate.a = 0.0
+	root.add_child(_chapter)
 	_shade = ColorRect.new()
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shade.color = Color(0, 0, 0, 0)
@@ -161,6 +258,7 @@ func setup() -> void:
 	_sheet.add_child(column)
 	var head := UI.label("依頼主の感想とギャラ", 24, UI.TAPE, "display")
 	column.add_child(head)
+	_build_card(root)
 	_rows = VBoxContainer.new()
 	_rows.add_theme_constant_override("separation", 4)
 	_rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -283,7 +381,9 @@ func hook_event(n: String, a: Array) -> void:
 			_say(str(a[0]), str(a[1]))
 		"premiere_off":
 			screening = -1
-			_say(str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy")
+			_closing_line = [str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy"]
+			_show_card("", "終", END_SEC)
+			_end_t = END_SEC
 			_await_tally = true
 			_hint.text = "精算を待っています…"
 
@@ -313,6 +413,11 @@ func _open() -> void:
 	_tally_done = false
 	tally.clear()
 	_wow_i = 0
+	_scene_seen = -2
+	_end_t = 0.0
+	_closing_line = []
+	_chapter.modulate.a = 0.0
+	_show_card("格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
 
 
 # 依頼主のひとこと。気分で、顔の動きと音を変える（happy はねる / wow びくっ / sad かしげる / neutral うなずく）
@@ -360,11 +465,22 @@ func _process(delta: float) -> void:
 	var camera: Node = game.program_camera()
 	if camera != null and camera.get("view") is SubViewport:
 		_film.texture = (camera.view as SubViewport).get_texture()
+	if _card_t > 0.0:
+		_card_t -= delta
+		_card_box.modulate.a = clampf(_card_t / 0.35, 0.0, 1.0)
+		if _card_t <= 0.0:
+			_card_box.visible = false
+	_sync_chapter()
+	if _end_t > 0.0:
+		_end_t -= delta
+		if _end_t <= 0.0 and not _closing_line.is_empty():
+			_say(str(_closing_line[0]), str(_closing_line[1]))
+			_closing_line = []
 	if _bubble_t > 0.0:
 		_bubble_t -= delta
 		if _bubble_t <= 0.0 and not _sheet.visible:
 			_bubble.visible = false
-	if _await_tally and game.state == game.S.DELIVERED and int(game.production.phase) == 5:
+	if _await_tally and _end_t <= 0.0 and game.state == game.S.DELIVERED and int(game.production.phase) == 5:
 		_await_tally = false
 		_start_tally()
 	if _sheet.visible and not _tally_done:
@@ -458,7 +574,14 @@ func _row(row: Array) -> Control:
 # 読み上げを最後まで出す（Enter）。もう出し終わっていれば、精算の画面へ
 func finish_tally() -> void:
 	if not _sheet.visible:
-		return
+		# 「終」の札の最中：札をとばして、精算が届いていれば読み上げへ
+		if not _await_tally or game.state != game.S.DELIVERED or int(game.production.phase) != 5:
+			return
+		_card_box.visible = false
+		_card_t = 0.0
+		_end_t = 0.0
+		_await_tally = false
+		_start_tally()
 	if _tally_done:
 		_close()
 		return
@@ -466,8 +589,32 @@ func finish_tally() -> void:
 		_next_row()
 
 
+# 場面の見出し（場面の列を持つ依頼。見返しで場面が進むたび）。カット割りの依頼では、つなぎ目が白く光る
+func _sync_chapter() -> void:
+	var beats: Node = game.get("beats")
+	if screening < 0 or _card_t > 0.0 or beats == null or not beats.active():
+		return
+	var now: int = int(beats.scene)
+	if now < 0 or now == _scene_seen:
+		return
+	var cut: bool = _scene_seen >= 0 and beats.cut_mode()
+	_scene_seen = now
+	var titles: Array = game.scene_titles()
+	_chapter.text = "第%d場　%s" % [now + 1, _short(str(titles[now]) if now < titles.size() else "")]
+	var fade := create_tween()
+	fade.tween_property(_chapter, "modulate:a", 1.0, 0.25)
+	fade.tween_interval(2.2)
+	fade.tween_property(_chapter, "modulate:a", 0.0, 0.5)
+	if cut:
+		_flash.color.a = 0.8
+		create_tween().tween_property(_flash, "color:a", 0.0, 0.3)
+
+
 func _close() -> void:
 	_layer.visible = false
+	_card_box.visible = false
+	_card_t = 0.0
+	_end_t = 0.0
 	_sheet.visible = false
 	_bubble.visible = false
 	_await_tally = false
@@ -477,7 +624,7 @@ func _close() -> void:
 
 # 読み上げの間の Enter は、精算の画面の「帰社」へ回さず、読み上げを先へ進める
 func hook_input(event: InputEvent) -> bool:
-	if _layer == null or not _layer.visible or not _sheet.visible:
+	if _layer == null or not _layer.visible or not (_sheet.visible or _await_tally):
 		return false
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
 		finish_tally()
