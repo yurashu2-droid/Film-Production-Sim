@@ -211,6 +211,7 @@ script_case pr 420 'PR_TEST_OK' pr_test.gd --fixed-fps 60
 script_case spectacle 120 'SPECTACLE_TEST_OK' spectacle_test.gd --fixed-fps 60
 script_case travel 200 'TRAVEL_TEST_OK' travel_test.gd --fixed-fps 60
 script_case signboard 120 'SIGNBOARD_TEST_OK' signboard_test.gd --fixed-fps 60
+script_case office-facade 60 'OFFICE_FACADE_TEST_OK' office_facade_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
 run_pair cuts-net 160 'CUTS_NET_TEST_OK' 'CUTS_NET_TEST_OK'

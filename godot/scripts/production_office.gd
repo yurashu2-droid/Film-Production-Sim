@@ -7,6 +7,9 @@ const Look := preload("res://scripts/production_look.gd")
 const ALL := 63
 const GROUND := 55
 const FACADE := 23
+# 事務所の正面の「書割の社屋」（2階建てに見える正面だけの板）。事務所の中にいる人の視点からは、この層を映さない
+# （屋根の無い事務所に三人称のカメラが入るため。features/office_facade.gd）。撮影カメラには、いつでも映る
+const FACADE_LAYER := 1 << 14
 
 const CONTRACT_POINT := Vector3(72, 0, 1.5)
 const TRUCK_POINT := Vector3(82, 0, 18)
@@ -36,6 +39,7 @@ static func build(parent: Node3D, font: Font) -> Node3D:
 	var office := Look.Batch.new()
 	var departure := _office(office, root, font)
 	office.build(root, "OfficeBuilding")
+	_facade(root, font)
 	_lot(root, font, rng)
 	var road := Look.Batch.new()
 	_road(road, root, font, rng)
@@ -337,6 +341,80 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	light.shadow_enabled = false
 	root.add_child(light)
 	return departure
+
+
+# ---- 書割の社屋：事務所の正面に立てた、2階建てに見える「正面だけ」の板 ----
+# 表は、2階の窓・社名の看板・カチンコの飾りのある、ちゃんとした社屋。裏は、ベニヤ板と斜めの支え（映画のセットと同じ作り）。
+# 低い壁の事務所が「柵で囲った場所」に見えないように、通りとCMの画に、建物の顔を作る
+static func _facade(root: Node3D, font: Font) -> void:
+	var b := Look.Batch.new()
+	var wall := Look.mat("plaster", Color("e6d9bb"))
+	var band := Look.mat("plaster", TEAL)
+	var trim := P(Color("f3ecd9"), 0.8)
+	var sill := Look.mat("concrete", Color("cfc8b6"))
+	var glass := P(Color("3e4c58"), 0.15, 0.4)       # 外から見た窓：暗く、少し映り込む
+	var lit := Look.mat("lit", Color("ffd58a"))
+	var curtain := P(Color("b9604a"), 0.9)
+	var curtain2 := P(Color("5f7f6a"), 0.9)
+	var iron := P(Color("33373a"), 0.6, 0.4)
+	var ply := Look.mat("wood", Color("caa877"))
+	var lumber := Look.mat("wood", Color("9c7a52"))
+	var z := 4.0                         # 前の壁と同じ面
+	var y0 := 2.48                       # 1階の壁の上から
+	var y1 := 6.5                        # てっぺん
+	var mid := (y0 + y1) * 0.5
+	# 壁と、1階と2階の境の帯、両端の付け柱
+	b.boxp(wall, Vector3(72, mid, z), Vector3(14.4, y1 - y0, 0.16), ALL)
+	b.boxp(band, Vector3(72, 2.62, z + 0.06), Vector3(14.6, 0.24, 0.3), ALL)
+	for x: float in [64.85, 79.15]:
+		b.boxp(trim, Vector3(x, mid, z + 0.05), Vector3(0.36, y1 - y0, 0.3), ALL)
+	# 2階の窓（1つだけ明かりが点いている。誰かが残業している）
+	var windows := [66.7, 69.3, 74.7, 77.3]
+	for i in windows.size():
+		var wx: float = windows[i]
+		b.boxp(trim, Vector3(wx, 3.85, z + 0.09), Vector3(1.7, 1.4, 0.06), ALL)
+		b.boxp(lit if i == 2 else glass, Vector3(wx, 3.85, z + 0.12), Vector3(1.5, 1.2, 0.03), ALL)
+		b.boxp(trim, Vector3(wx, 3.85, z + 0.14), Vector3(0.07, 1.2, 0.03), ALL)
+		b.boxp(trim, Vector3(wx, 4.0, z + 0.14), Vector3(1.5, 0.06, 0.03), ALL)
+		if i != 2:
+			b.boxp(curtain if i % 2 == 0 else curtain2, Vector3(wx - 0.42, 3.85, z + 0.105), Vector3(0.55, 1.15, 0.02), ALL)
+		b.boxp(sill, Vector3(wx, 3.13, z + 0.17), Vector3(1.85, 0.08, 0.3), ALL)
+	# 室外機と配管（2階の窓の下）
+	b.boxp(P(Color("c8ccce"), 0.6, 0.3), Vector3(77.3, 2.98, z + 0.36), Vector3(0.9, 0.5, 0.32), ALL)
+	b.cylp(P(Color("3a3f44")), Vector3(77.3, 2.98, z + 0.53), 0.17, 0.02, 10)
+	b.boxp(iron, Vector3(77.3, 2.7, z + 0.3), Vector3(0.95, 0.04, 0.4), ALL)
+	b.bar(P(Color("e8e2d2"), 0.7), Vector3(77.75, 3.1, z + 0.2), Vector3(78.6, 3.1, z + 0.12), 0.05)
+	b.bar(P(Color("e8e2d2"), 0.7), Vector3(78.6, 3.1, z + 0.12), Vector3(78.6, 2.5, z + 0.12), 0.05)
+	# 社名の看板（枠つき）と、照らすランプ3つ
+	b.boxp(trim, Vector3(72, 5.45, z + 0.1), Vector3(12.0, 1.2, 0.08), ALL)
+	b.boxp(Look.mat("paint", Color("8f3b2e")), Vector3(72, 5.45, z + 0.15), Vector3(11.7, 0.95, 0.04), ALL)
+	for lx: float in [68.0, 72.0, 76.0]:
+		b.bar(iron, Vector3(lx, 6.25, z + 0.1), Vector3(lx, 6.35, z + 0.7), 0.04)
+		b.boxp(iron, Vector3(lx, 6.3, z + 0.75), Vector3(0.28, 0.12, 0.2), ALL)
+		b.boxp(lit, Vector3(lx, 6.23, z + 0.75), Vector3(0.22, 0.03, 0.14), ALL)
+	# てっぺん：笠木と、真ん中のカチンコの飾り
+	b.boxp(trim, Vector3(72, y1 + 0.08, z + 0.05), Vector3(14.9, 0.18, 0.46), ALL)
+	b.boxp(P(Color("26272b"), 0.7), Vector3(72, y1 + 0.55, z), Vector3(2.4, 0.75, 0.14), ALL)
+	for k in 5:
+		b.box(P(Color("f4f1ea") if k % 2 == 0 else Color("26272b"), 0.7), Transform3D(Basis(Vector3.BACK, 0.5), Vector3(71.0 + k * 0.5, y1 + 1.06, z)), Vector3(0.42, 0.2, 0.14), ALL)
+	b.box(P(Color("26272b"), 0.7), Transform3D(Basis(Vector3.BACK, 0.12), Vector3(72, y1 + 1.04, z - 0.02)), Vector3(2.5, 0.28, 0.1), ALL)
+	# 裏：ベニヤ板と、斜めの支え・横の桟（事務所の中から見える。映画のセットと同じ）
+	b.boxp(ply, Vector3(72, mid, z - 0.1), Vector3(14.4, y1 - y0, 0.03), ALL)
+	for x: float in [66.0, 69.5, 74.5, 78.0]:
+		b.bar(lumber, Vector3(x, y1 - 0.4, z - 0.14), Vector3(x, y0 + 0.05, z - 1.6), 0.1)
+		b.bar(lumber, Vector3(x, y0 + 0.05, z - 1.6), Vector3(x, y0 + 0.05, z - 0.14), 0.09)
+	for yy: float in [3.3, 4.9]:
+		b.boxp(lumber, Vector3(72, yy, z - 0.15), Vector3(14.2, 0.09, 0.06), ALL)
+	var out := b.build(root, "OfficeFacade")
+	for node: Node in out.find_children("*", "VisualInstance3D", true, false):
+		(node as VisualInstance3D).layers = FACADE_LAYER
+	# 文字：表の社名、裏の書き込み
+	var sign := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 5.43, z + 0.18)), "格安アクション映画制作班", 0.011, 72, Color("f6e7c4"), font, false)
+	sign.layers = FACADE_LAYER
+	var tag := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 4.6, z + 0.16)), "撮影所・事務所", 0.006, 40, Color("3a5a5e"), font, false)
+	tag.layers = FACADE_LAYER
+	var back := Look.label(root, Transform3D(Basis(Vector3.UP, PI), Vector3(72, 5.6, z - 0.13)), "書割 No.1　社屋（表）\n裏は見ないこと", 0.008, 48, Color("6a4a2e"), font, false)
+	back.layers = FACADE_LAYER
 
 
 static func _desk_things(b: Look.Batch) -> void:
