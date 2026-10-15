@@ -23,7 +23,7 @@ static func apply(env: Environment, stage: Node, root: Node3D) -> void:
 		root.set_meta("look_applied", true)
 	# 空：上は少し濃い青、地平線はあたたかい白。霧の色を地平線に合わせて遠景をなじませる
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("4d8fd0")
+	sky_mat.sky_top_color = Color("3d86d8")
 	sky_mat.sky_horizon_color = Color("dce8e6")
 	sky_mat.sky_curve = 0.16
 	sky_mat.ground_horizon_color = Color("bdc4b8")
@@ -35,9 +35,9 @@ static func apply(env: Environment, stage: Node, root: Node3D) -> void:
 	env.sky = sky
 	env.background_mode = Environment.BG_SKY
 	env.fog_enabled = true
-	env.fog_light_color = Color("cfdcd8")
+	env.fog_light_color = Color("d8e2dc")
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.0021
+	env.fog_density = 0.0015
 	env.fog_sky_affect = 0.45
 	env.fog_aerial_perspective = 0.2
 	env.fog_sun_scatter = 0.05
@@ -53,9 +53,17 @@ static func apply(env: Environment, stage: Node, root: Node3D) -> void:
 	env.tonemap_exposure = 0.96
 	env.tonemap_white = 6.0
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.07
-	env.adjustment_saturation = 1.16
+	env.adjustment_contrast = 1.1
+	env.adjustment_saturation = 1.24
 	env.adjustment_brightness = 1.0
+	# 色調：明るい所は日なたの暖かい色、暗い所は少し青く（参考：Dear Passengers・PEAK の昼の光）
+	var grade := Gradient.new()
+	grade.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	grade.colors = PackedColorArray([Color(0.0, 0.015, 0.05), Color(0.525, 0.5, 0.455), Color(1.0, 0.975, 0.9)])
+	var lut := GradientTexture1D.new()
+	lut.gradient = grade
+	lut.width = 256
+	env.adjustment_color_correction = lut
 	env.glow_enabled = true
 	env.glow_intensity = 0.3
 	env.glow_hdr_threshold = 1.5
@@ -176,9 +184,133 @@ static func _tex(nm: String) -> Dictionary:
 		"stain": d = _gen_stain()
 		"tower": d = _gen_tower()
 		"rug": d = _gen_rug()
+		"leaf": d = _gen_leaf()
+		"grass": d = _gen_grass()
+		"puddle": d = _gen_puddle()
 		_: d = _gen_plaster()
 	_tex_cache[nm] = d
 	return d
+
+
+# 葉の房（白黒。頂点色で緑に染める）。中心から外へ向かう葉を重ねる。
+# 透明な所は明るい灰色にしておき、縮めた絵で葉の縁が黒ずまないようにする
+static func _gen_leaf() -> Dictionary:
+	var sz := 256
+	var im := _blank(sz, sz, Color(0.78, 0.8, 0.74, 0.0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var ctr := Vector2(sz, sz) * 0.5
+	for k in 44:
+		var ln := rng.randf_range(34.0, 52.0)
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * (sz * 0.5 - ln - 6.0)
+		var dir := Vector2.from_angle(a + rng.randf_range(-0.6, 0.6))
+		_leaf_shape(im, ctr + Vector2.from_angle(a) * r, dir, ln, ln * rng.randf_range(0.34, 0.44), rng.randf_range(0.7, 1.0))
+	return {"albedo": _to_tex_cover(im, 0.5), "normal": null, "rough": null}
+
+
+# 草の房（白黒。下の真ん中から上へ広がる細い葉）。根元ほど暗い
+static func _gen_grass() -> Dictionary:
+	var sz := 128
+	var im := _blank(sz, sz, Color(0.7, 0.74, 0.62, 0.0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91
+	for k in 16:
+		var bx := rng.randf_range(40.0, 88.0)
+		var tip := Vector2(bx + rng.randf_range(-34.0, 34.0), rng.randf_range(6.0, 58.0))
+		var bend := rng.randf_range(-10.0, 10.0)
+		var w := rng.randf_range(3.0, 5.5)
+		var val := rng.randf_range(0.75, 1.0)
+		for y in range(int(tip.y), sz):
+			var t := (float(sz - 1) - y) / (float(sz - 1) - tip.y)
+			var cx := lerpf(bx, tip.x, t) + bend * sin(PI * t)
+			var hw := w * (1.0 - t)
+			for x in range(maxi(int(cx - hw), 0), mini(int(cx + hw) + 1, sz)):
+				var c := val * lerpf(0.6, 1.0, t)
+				im.set_pixel(x, y, Color(c, c, c * 0.95, 1.0))
+	return {"albedo": _to_tex_cover(im, 0.5), "normal": null, "rough": null}
+
+
+# 水たまりの形（でこぼこの縁。真ん中ほど濃い）
+static func _gen_puddle() -> Dictionary:
+	var s := 128
+	var n := _noise_img(29, 0.04, 3, s, s)
+	var im := _blank(s, s, Color(1, 1, 1, 0))
+	for y in s:
+		for x in s:
+			var d := Vector2(x - s * 0.5, y - s * 0.5).length() / (s * 0.5)
+			var v := n.get_pixel(x, y).r
+			# 縁はくっきり（ふわふわさせると雲に見える）。縁ぎわは少し暗く、真ん中は空を映して明るい
+			var e := (1.0 - d) * 1.4 - (1.0 - v) * 0.5
+			var al := clampf(e * 12.0, 0.0, 1.0)
+			var c := lerpf(0.72, 1.0, clampf(e * 2.5, 0.0, 1.0))
+			im.set_pixel(x, y, Color(c, c, c, al * 0.85))
+	return {"albedo": _to_tex(im), "normal": null, "rough": null}
+
+
+# 1枚の葉（根元 base から dir へ長さ ln、幅 wd）。根元ほど少し暗く、真ん中に葉脈
+static func _leaf_shape(im: Image, base: Vector2, dir: Vector2, ln: float, wd: float, val: float) -> void:
+	var side := Vector2(-dir.y, dir.x)
+	var tip := base + dir * ln
+	var lo := base.min(tip) - Vector2(wd, wd) * 0.5
+	var hi := base.max(tip) + Vector2(wd, wd) * 0.5
+	for y in range(maxi(int(lo.y), 0), mini(int(hi.y) + 1, im.get_height())):
+		for x in range(maxi(int(lo.x), 0), mini(int(hi.x) + 1, im.get_width())):
+			var d := Vector2(x + 0.5, y + 0.5) - base
+			var t := d.dot(dir) / ln
+			if t <= 0.0 or t >= 1.0:
+				continue
+			var v := absf(d.dot(side))
+			if v > wd * 0.5 * pow(sin(PI * t), 0.75):
+				continue
+			var c := val * lerpf(0.8, 1.0, t)
+			if v < 0.9 and t < 0.85:
+				c *= 0.82
+			im.set_pixel(x, y, Color(c, c * 1.0, c * 0.96, 1.0))
+
+
+# 抜き（alpha scissor）の絵の縮小画像を自分で作る：段ごとに、しきい値を超える割合を元の絵と同じに保つ
+# （普通に縮めると、遠くの木の葉がすかすかに痩せる）
+static func _to_tex_cover(im: Image, thr: float) -> ImageTexture:
+	var target := _cover(im.get_data(), thr)
+	var data := im.get_data()
+	var raw := im
+	while raw.get_width() > 1 or raw.get_height() > 1:
+		raw = raw.duplicate() as Image
+		raw.resize(maxi(raw.get_width() / 2, 1), maxi(raw.get_height() / 2, 1), Image.INTERPOLATE_BILINEAR)
+		data.append_array(_keep_cover(raw.get_data(), thr, target))
+	return ImageTexture.create_from_image(Image.create_from_data(im.get_width(), im.get_height(), true, Image.FORMAT_RGBA8, data))
+
+
+static func _cover(px: PackedByteArray, thr: float) -> float:
+	var n := px.size() / 4
+	var hit := 0
+	var cut := int(thr * 255.0)
+	for i in n:
+		if px[i * 4 + 3] >= cut:
+			hit += 1
+	return float(hit) / maxf(n, 1)
+
+
+static func _keep_cover(px: PackedByteArray, thr: float, target: float) -> PackedByteArray:
+	var n := px.size() / 4
+	var hist := PackedInt32Array()
+	hist.resize(256)
+	for i in n:
+		hist[px[i * 4 + 3]] += 1
+	# 上から数えて target の割合に届く値 c を探し、c がしきい値に来るように不透明度を伸ばす
+	var need := int(target * n)
+	var acc := 0
+	var c := 255
+	while c > 1:
+		acc += hist[c]
+		if acc >= need:
+			break
+		c -= 1
+	var k := thr * 255.0 / float(c)
+	for i in n:
+		px[i * 4 + 3] = mini(int(px[i * 4 + 3] * k), 255)
+	return px
 
 
 static func _gen_asphalt() -> Dictionary:
@@ -524,9 +656,13 @@ static func _base(kind: String, tint: Color) -> StandardMaterial3D:
 			m.render_priority = -1
 			m.roughness = 0.6
 		"puddle":
-			m.albedo_color = Color(0.1, 0.14, 0.17)
-			m.roughness = 0.04
-			m.metallic_specular = 0.9
+			# 浅い水たまり：空の色を薄く映す。縁はでこぼこで、地面になじませる
+			_use(m, "puddle", 1.0, 1.0, 1.0)
+			m.albedo_color = Color(0.4, 0.47, 0.53)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.render_priority = -1
+			m.roughness = 0.06
+			m.metallic_specular = 0.7
 		"glass":
 			m.albedo_color = Color(0.1, 0.16, 0.21)
 			m.roughness = 0.12
@@ -545,6 +681,32 @@ static func _base(kind: String, tint: Color) -> StandardMaterial3D:
 			m.emission = tint
 			m.emission_energy_multiplier = 1.5
 			m.roughness = 0.4
+		"leaf":
+			# 葉の板：葉の形で抜き、光を少し透かす（逆光で明るく）。両面は Batch.card が2枚貼る
+			m.albedo_texture = _tex("leaf")["albedo"]
+			m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			m.alpha_scissor_threshold = 0.5
+			m.roughness = 1.0
+			m.metallic_specular = 0.25
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+			m.backlight_enabled = true
+			m.backlight = Color(0.3, 0.36, 0.16)
+		"grass":
+			m.albedo_texture = _tex("grass")["albedo"]
+			m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			m.alpha_scissor_threshold = 0.5
+			m.roughness = 1.0
+			m.metallic_specular = 0.2
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+			m.backlight_enabled = true
+			m.backlight = Color(0.3, 0.36, 0.16)
+		"foliage":
+			# 茂みの芯：葉のすき間から見える奥の暗がり。やわらかく照らす
+			m.roughness = 1.0
+			m.metallic_specular = 0.15
+			m.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
 		"cloth":
 			_use(m, "plaster", 1.0, 1.0, 0.2)
 			m.roughness = 1.0
@@ -818,6 +980,62 @@ class Batch extends RefCounted:
 			s.i.append(base)
 			s.i.append(base + 1 + (k + 1) % segs)
 			s.i.append(base + 1 + k)
+
+	# 葉の板：中心 c、右 r・上 u は半分の長さ。表裏の2枚を貼り、どちらも同じ法線 n で照らす
+	# （n を茂み全体の中心から外向きにすると、板の集まりがひとかたまりのふわっとした茂みに見える）
+	func card(m: Tint, c: Vector3, r: Vector3, u: Vector3, n: Vector3, col: Color) -> void:
+		var s := _surf(m)
+		var pts := [xf * (c - r - u), xf * (c + r - u), xf * (c + r + u), xf * (c - r + u)]
+		var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+		var nn := (xf.basis * n).normalized()
+		var tg := (xf.basis * r).normalized()
+		for side in 2:
+			var base := s.v.size()
+			for k in 4:
+				s.v.append(pts[k])
+				s.c.append(col)
+				s.n.append(nn)
+				s.u.append(uvs[k])
+				s.t.append(tg.x)
+				s.t.append(tg.y)
+				s.t.append(tg.z)
+				s.t.append(1.0)
+			if side == 0:
+				s.i.append_array([base, base + 2, base + 1, base, base + 3, base + 2])
+			else:
+				s.i.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+
+	# 丸い芯（中心 c、半径 rad）。少しこぶを付け、法線は from から外向き。下ほど暗く（dark：いちばん下の暗さ）
+	func lump(m: Tint, c: Vector3, rad: Vector3, from: Vector3, rng: RandomNumberGenerator, dark := 0.45, rings := 6, segs := 10, wob := 0.12) -> void:
+		var s := _surf(m)
+		var col := _col
+		var base := s.v.size()
+		var bumps: Array = []
+		for k in 5:
+			bumps.append([Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized(), rng.randf_range(-wob, wob)])
+		for i in rings + 1:
+			var th := PI * i / rings
+			for j in segs + 1:
+				var ph := TAU * j / segs
+				var d := Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph))
+				var f := 1.0
+				for bp: Array in bumps:
+					f += float(bp[1]) * maxf((bp[0] as Vector3).dot(d), 0.0) * 2.0
+				var p := c + Vector3(d.x * rad.x, d.y * rad.y, d.z * rad.z) * f
+				s.v.append(xf * p)
+				s.n.append((xf.basis * (p - from)).normalized())
+				s.c.append(col.darkened((1.0 - (d.y + 1.0) * 0.5) * dark))
+				s.u.append(Vector2(float(j) / segs, float(i) / rings))
+				var tg := Vector3(-sin(ph), 0.0, cos(ph))
+				s.t.append(tg.x)
+				s.t.append(tg.y)
+				s.t.append(tg.z)
+				s.t.append(1.0)
+		for i in rings:
+			for j in segs:
+				var a := base + i * (segs + 1) + j
+				var b2 := a + segs + 1
+				s.i.append_array([a, b2 + 1, a + 1, a, b2, b2 + 1])
 
 	func build(parent: Node, nm: String) -> Node3D:
 		var out := Node3D.new()

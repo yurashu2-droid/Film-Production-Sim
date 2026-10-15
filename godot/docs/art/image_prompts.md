@@ -47,3 +47,15 @@
 （道具・日付・指示の番号・ファイル名・利用条件を、ここに書き足す）
 
 - 2026-10-15　Codex CLI 0.157.0（画像生成）　構図 2（事務所の正面。看板は文字なし）→ `godot/assets/concept/office_front.png`（1672×941）
+- 2026-10-15　Codex CLI 0.157.0（画像生成）　構図 2 をゲームの絵柄で（参考：今のゲームの正面・キャラクター・上の画）→ `godot/assets/concept/office_front_ingame.png`
+- 2026-10-15　Codex CLI 0.157.0（gpt-6-sol・medium）　構図 1 を今の配置のまま（参考：今の敷地の俯瞰・ゲームの出来の良い所・Dear Passengers・PEAK の光と緑）→ `godot/assets/concept/lot_overview.png`（1672×941）
+
+参考のゲーム画像（Steam ストアの公式スクリーンショット：Dear Passengers・R.E.P.O.・PEAK・Gamble With Your Friends）は、
+生成の参考にだけ使い、リポジトリには入れない（`godot/tests/shots/codex_handoff/refs_games/`。公開しないフォルダ）。
+
+### 全体構図から取り入れたこと（2026-10-15）
+
+- 木・植え込み・つた・鉢植え：葉の形に抜いた板を丸い芯に重ねる（`scripts/foliage.gd`）。板の法線は茂みの中心から外向き
+- 敷地の目地（2.5m ごと）とフェンス際の雑草、2.5m 角の敷石の色むら
+- 水たまりは縁がくっきりした空色（暗い板だと穴に見える）
+- 色調：明るい所を暖かく、暗い所を少し青く（`production_look.gd` の色の補正。太陽は撮影現場と共有なので触らない）

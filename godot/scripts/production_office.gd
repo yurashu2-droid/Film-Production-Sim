@@ -4,6 +4,7 @@ extends RefCounted
 ##   ・事務所は屋根なしのまま（三人称カメラが入る）。入口の隙間 x 69.85..74.15（z=4）はそのまま
 ##   ・事務所から軽トラ、駐車場、道、ヤードの門まわりには当たり判定を足さない（小物は見た目だけ）
 const Look := preload("res://scripts/production_look.gd")
+const Foliage := preload("res://scripts/foliage.gd")
 const ALL := 63
 const GROUND := 55
 const FACADE := 23
@@ -60,7 +61,7 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	# 歩く床の当たり判定（見えない）。敷地と道の2枚は従来のまま
 	g.solidp(Vector3(62, -0.2, 11), Vector3(60, 0.4, 50))
 	g.solidp(Vector3(80, -0.21, 54), Vector3(13, 0.4, 42))
-	g.quad_up(Look.mat("concrete", Color("93928d")), 32.0, 92.0, -14.0, 36.0, 0.0)
+	g.quad_up(Look.mat("concrete", Color("9a958a")), 32.0, 92.0, -14.0, 36.0, 0.0)
 	var asp := Look.mat("asphalt", Color("45494c"))
 	g.quad_up(asp, 74.0, 86.0, 11.5, 24.0, 0.010)
 	g.quad_up(asp, 73.5, 86.5, 24.0, 82.0, 0.010)
@@ -159,9 +160,10 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 				wp = Vector3(91.9, 0.0, rng.randf_range(-13.0, 35.0))
 		if absf(wp.x - 80.0) < 8.0 and wp.z > 30.0:
 			continue
-		var gc := Color("5f8a3e").lerp(Color("a3a542"), rng.randf())
-		g.cylp(P(gc, 0.9), wp + Vector3(rng.randf_range(-0.1, 0.1), 0, 0), 0.07, rng.randf_range(0.18, 0.4), 4, 0.0)
-		g.cylp(P(gc, 0.9), wp + Vector3(0.1, 0, 0.05), 0.06, rng.randf_range(0.12, 0.3), 4, 0.0)
+		var dry := rng.randf() * 0.5
+		Foliage.tuft(g, wp + Vector3(rng.randf_range(-0.1, 0.1), 0, 0), rng.randf_range(0.25, 0.5), rng, dry)
+		if rng.randf() < 0.6:
+			Foliage.tuft(g, wp + Vector3(rng.randf_range(0.15, 0.35), 0, rng.randf_range(-0.1, 0.1)), rng.randf_range(0.15, 0.3), rng, dry)
 	# 門の前の黒黄の縞（積み込み口の目印）と文字
 	var hazard := Look.mat("paint", Color("e0b43a"))
 	g.strip(P(Color("26282a"), 0.9), Vector3(64.7, 0, 12.8), Vector3(64.7, 0, 19.2), 0.55, 0.0075)
@@ -173,8 +175,46 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	for k in 6:
 		var t := k / 5.0
 		g.blob(stain, Vector3(lerpf(72.6, 79.0, t), 0.006, lerpf(8.0, 16.0, t)), 1.5, 0.55, 0.9, rng, 12, 0.15)
+	_slab_shades(g)
+	_joint_weeds(g)
 	g.build(root, "BaseGround")
 	side.build(root, "RoadSidewalk")
+
+
+# 雑草も色むらも置かない場所：事務所の中、事務所の前の歩道、駐車場と道
+static func _bare(p: Vector3) -> bool:
+	for r: Rect2 in [Rect2(64.3, -8.6, 15.4, 13.0), Rect2(62.8, 4.2, 18.4, 5.2), Rect2(73.4, 11.3, 13.3, 25.0)]:
+		if r.grow(0.2).has_point(Vector2(p.x, p.z)):
+			return true
+	return false
+
+
+# 敷地のコンクリートの目地（2.5m ごと。テクスチャの継ぎ目と同じ位置）から生えた雑草
+static func _joint_weeds(g: Look.Batch) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 515
+	for n in 190:
+		var on_x := rng.randf() < 0.5
+		var p := Vector3(2.5 * rng.randi_range(13, 36), 0.0, rng.randf_range(-13.5, 35.5)) if on_x \
+				else Vector3(rng.randf_range(32.5, 91.5), 0.0, 2.5 * rng.randi_range(-5, 14))
+		if _bare(p):
+			continue
+		for i in rng.randi_range(1, 3):
+			var along := rng.randf_range(-0.3, 0.3)
+			Foliage.tuft(g, p + (Vector3(0, 0, along) if on_x else Vector3(along, 0, 0)), rng.randf_range(0.12, 0.26), rng, rng.randf() * 0.6)
+
+
+# 敷石の色むら：目地で区切られた 2.5m 角を、いくつか色違いにする（同じテクスチャなので継ぎ目はそろう）
+static func _slab_shades(g: Look.Batch) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 616
+	var shades := [Color("a8a397"), Color("8b877d"), Color("a19a8b"), Color("928f87")]
+	for n in 60:
+		var x := 2.5 * rng.randi_range(13, 35)
+		var z := 2.5 * rng.randi_range(-5, 13)
+		if _bare(Vector3(x + 1.25, 0, z + 1.25)) or _bare(Vector3(x, 0, z)) or _bare(Vector3(x + 2.5, 0, z + 2.5)):
+			continue
+		g.quad_up(Look.mat("concrete", shades[n % shades.size()]), x + 0.05, x + 2.45, z + 0.05, z + 2.45, 0.002)
 
 
 static func _crack(g: Look.Batch, m: Look.Tint, from: Vector3, length: float, rng: RandomNumberGenerator) -> void:
@@ -257,10 +297,13 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	b.boxp(wood_d, Vector3(69.7, 1.3, 4.22), Vector3(0.45, 0.22, 0.03), FACADE)
 	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(69.7, 1.3, 4.245)), "営業中", 0.0035, 48, Color("fff0c6"), font, false)
 	# 看板の3枚（ゆがんだ段ボール）と文字
+	# （書割の社屋の壁より手前に掛ける。ちゃんとした看板の下に、手書きの段ボールが残っているのが可笑しい）
 	for i in range(3):
-		var ang: float = [-0.045, 0.015, 0.045][i]
-		b.box(Look.mat("wood", Color("e8d69f")), Transform3D(Basis(Vector3.BACK, ang), Vector3(69.8 + i * 2.2, 3.05 - (0.18 if i == 1 else 0.0), 4.08)), Vector3(2.24, 0.65, 0.1), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 2.98, 4.17)), "激安映画制作会社", 0.009, 52, Color("553c31"), font, false)
+		var ang: float = [-0.05, 0.02, 0.06][i]
+		b.box(P([Color("c9a46c"), Color("d2ae74"), Color("bf9a62")][i], 0.95), Transform3D(Basis(Vector3.BACK, ang), Vector3(70.55 + i * 1.45, 2.98 - (0.1 if i == 1 else 0.0), 4.44)), Vector3(1.5, 0.62, 0.05), ALL)
+	for tx: float in [69.95, 74.05]:
+		b.boxp(P(Color("e9e4d2"), 0.9), Vector3(tx, 3.22, 4.47), Vector3(0.22, 0.07, 0.01), ALL)
+	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 2.92, 4.48)), "激安映画制作会社", 0.0085, 52, Color("3a2a20"), font, false)
 	# 窓口の机と大きな掲示板
 	b.boxp(wood, Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4), ALL)
 	b.solidp(Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4))
@@ -321,6 +364,8 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	_plant(b, Vector3(65.75, 0, 3.3), 1.0, Color("b8643f"))
 	_plant(b, Vector3(78.3, 0, 3.3), 0.9, Color("4e777c"))
 	_plant(b, Vector3(65.8, 0, -7.3), 1.2, Color("9a7a4a"))
+	_plant(b, Vector3(69.5, 0, 4.75), 0.85, Color("b8643f"))
+	_plant(b, Vector3(74.5, 0, 4.75), 0.75, Color("d9a441"))
 	# 外側：エアコンの室外機・ガスメーター・配管
 	b.boxp(P(Color("c8ccce"), 0.6, 0.3), Vector3(68.5, 0.45, -8.55), Vector3(0.95, 0.9, 0.45), GROUND)
 	b.cylp(P(Color("3a3f44")), Vector3(68.5, 0.9, -8.55), 0.3, 0.03, 10)
@@ -351,11 +396,8 @@ static func _facade(root: Node3D, font: Font) -> void:
 	var wall := Look.mat("plaster", Color("e6d9bb"))
 	var band := Look.mat("plaster", TEAL)
 	var trim := P(Color("f3ecd9"), 0.8)
-	var sill := Look.mat("concrete", Color("cfc8b6"))
-	var glass := P(Color("3e4c58"), 0.15, 0.4)       # 外から見た窓：暗く、少し映り込む
+	var glass := P(Color("2f4766"), 0.15, 0.4)       # 外から見た窓：紺色、少し映り込む
 	var lit := Look.mat("lit", Color("ffd58a"))
-	var curtain := P(Color("b9604a"), 0.9)
-	var curtain2 := P(Color("5f7f6a"), 0.9)
 	var iron := P(Color("33373a"), 0.6, 0.4)
 	var ply := Look.mat("wood", Color("caa877"))
 	var lumber := Look.mat("wood", Color("9c7a52"))
@@ -366,19 +408,24 @@ static func _facade(root: Node3D, font: Font) -> void:
 	# 壁と、1階と2階の境の帯、両端の付け柱
 	b.boxp(wall, Vector3(72, mid, z), Vector3(14.4, y1 - y0, 0.16), ALL)
 	b.boxp(band, Vector3(72, 2.62, z + 0.06), Vector3(14.6, 0.24, 0.3), ALL)
-	for x: float in [64.85, 79.15]:
-		b.boxp(trim, Vector3(x, mid, z + 0.05), Vector3(0.36, y1 - y0, 0.3), ALL)
+	# 両端の木の柱（2本の柱に桟を渡す。左にはつたが絡む）
+	var post := Look.mat("wood", Color("8a5a32"))
+	for x: float in [64.95, 79.05]:
+		for dx: float in [-0.2, 0.2]:
+			b.boxp(post, Vector3(x + dx, mid + 0.1, z + 0.12), Vector3(0.14, y1 - y0 + 0.2, 0.16), ALL)
+		for k in 8:
+			b.boxp(post, Vector3(x, y0 + 0.3 + k * 0.5, z + 0.12), Vector3(0.5, 0.07, 0.1), ALL)
 	# 2階の窓（1つだけ明かりが点いている。誰かが残業している）
 	var windows := [66.7, 69.3, 74.7, 77.3]
+	var frame := Look.mat("wood", Color("8a5a32"))
 	for i in windows.size():
 		var wx: float = windows[i]
-		b.boxp(trim, Vector3(wx, 3.85, z + 0.09), Vector3(1.7, 1.4, 0.06), ALL)
-		b.boxp(lit if i == 2 else glass, Vector3(wx, 3.85, z + 0.12), Vector3(1.5, 1.2, 0.03), ALL)
-		b.boxp(trim, Vector3(wx, 3.85, z + 0.14), Vector3(0.07, 1.2, 0.03), ALL)
-		b.boxp(trim, Vector3(wx, 4.0, z + 0.14), Vector3(1.5, 0.06, 0.03), ALL)
-		if i != 2:
-			b.boxp(curtain if i % 2 == 0 else curtain2, Vector3(wx - 0.42, 3.85, z + 0.105), Vector3(0.55, 1.15, 0.02), ALL)
-		b.boxp(sill, Vector3(wx, 3.13, z + 0.17), Vector3(1.85, 0.08, 0.3), ALL)
+		b.boxp(frame, Vector3(wx, 3.85, z + 0.1), Vector3(1.72, 1.42, 0.08), ALL)
+		b.boxp(lit if i == 2 else glass, Vector3(wx, 3.85, z + 0.14), Vector3(1.48, 1.18, 0.03), ALL)
+		b.boxp(frame, Vector3(wx, 3.85, z + 0.17), Vector3(0.08, 1.2, 0.04), ALL)
+		b.boxp(frame, Vector3(wx, 3.9, z + 0.17), Vector3(1.5, 0.07, 0.04), ALL)
+		b.boxp(frame, Vector3(wx, 3.1, z + 0.2), Vector3(1.95, 0.1, 0.3), ALL)
+		b.boxp(frame, Vector3(wx, 4.62, z + 0.14), Vector3(1.9, 0.12, 0.16), ALL)
 	# 室外機と配管（2階の窓の下）
 	b.boxp(P(Color("c8ccce"), 0.6, 0.3), Vector3(77.3, 2.98, z + 0.36), Vector3(0.9, 0.5, 0.32), ALL)
 	b.cylp(P(Color("3a3f44")), Vector3(77.3, 2.98, z + 0.53), 0.17, 0.02, 10)
@@ -387,11 +434,39 @@ static func _facade(root: Node3D, font: Font) -> void:
 	b.bar(P(Color("e8e2d2"), 0.7), Vector3(78.6, 3.1, z + 0.12), Vector3(78.6, 2.5, z + 0.12), 0.05)
 	# 社名の看板（枠つき）と、照らすランプ3つ
 	b.boxp(trim, Vector3(72, 5.45, z + 0.1), Vector3(12.0, 1.2, 0.08), ALL)
-	b.boxp(Look.mat("paint", Color("8f3b2e")), Vector3(72, 5.45, z + 0.15), Vector3(11.7, 0.95, 0.04), ALL)
+	b.boxp(Look.mat("plaster", Color("97392b")), Vector3(72, 5.45, z + 0.15), Vector3(11.7, 0.95, 0.04), ALL)
+	b.boxp(Look.mat("plaster", Color("7a2c22")), Vector3(72, 5.45, z + 0.13), Vector3(11.84, 1.06, 0.03), ALL)
 	for lx: float in [68.0, 72.0, 76.0]:
 		b.bar(iron, Vector3(lx, 6.25, z + 0.1), Vector3(lx, 6.35, z + 0.7), 0.04)
 		b.boxp(iron, Vector3(lx, 6.3, z + 0.75), Vector3(0.28, 0.12, 0.2), ALL)
 		b.boxp(lit, Vector3(lx, 6.23, z + 0.75), Vector3(0.22, 0.03, 0.14), ALL)
+	# 軒下の木の持ち送り（笠木の下に、小さな梁が並ぶ）
+	for k in 9:
+		var bx: float = 65.6 + k * 1.6
+		b.boxp(post, Vector3(bx, y1 - 0.12, z + 0.3), Vector3(0.14, 0.14, 0.5), ALL)
+		b.bar(post, Vector3(bx, y1 - 0.5, z + 0.1), Vector3(bx, y1 - 0.18, z + 0.46), 0.07)
+	# 壁のしみと、塗り直した跡（窓と看板を避けて）
+	var stain := P(Color("d4c6a4"), 0.95)
+	var patch := P(Color("efe6d0"), 0.95)
+	for spot: Array in [[65.9, 3.0, 0.7, 0.5, 0], [68.0, 5.0, 0.5, 0.35, 1], [71.9, 3.3, 1.1, 0.45, 0], [73.0, 4.25, 0.45, 0.3, 1],
+			[76.1, 3.0, 0.6, 0.6, 0], [78.2, 4.4, 0.4, 0.8, 1], [70.6, 4.35, 0.35, 0.25, 0], [67.9, 2.95, 0.4, 0.3, 1]]:
+		b.boxp(stain if int(spot[4]) == 0 else patch, Vector3(float(spot[0]), float(spot[1]), z + 0.085), Vector3(float(spot[2]), float(spot[3]), 0.01), ALL)
+	# 雨どい（右の柱の内側を、上から下まで）
+	var pipe := P(Color("9aa0a2"), 0.6, 0.3)
+	b.cylp(pipe, Vector3(78.45, y0, z + 0.16), 0.05, y1 - y0 - 0.1, 8)
+	b.boxp(pipe, Vector3(78.45, y1 - 0.12, z + 0.2), Vector3(0.3, 0.1, 0.18), ALL)
+	# つた：左の柱を登って、壁の上の端へ広がり、少し垂れる
+	var vz := z + 0.22
+	Foliage.ivy(b, [Vector3(64.9, y0, vz), Vector3(65.15, y0 + 1.4, vz), Vector3(64.95, y1 - 0.7, vz), Vector3(65.6, y1 - 0.15, vz),
+			Vector3(66.9, y1 - 0.2, vz), Vector3(67.8, y1 - 0.45, vz)], Vector3.BACK, 70, Vector3(64.9, 1, 4))
+	Foliage.ivy(b, [Vector3(66.2, y1 - 0.2, vz), Vector3(66.35, y1 - 1.0, vz), Vector3(66.2, y1 - 1.5, vz)], Vector3.BACK, 14, Vector3(66.2, 1, 4))
+	# 吊り看板（右の柱から腕木を出し、無地の木の板を2本の鎖で下げる）
+	b.boxp(iron, Vector3(79.75, 4.75, z + 0.25), Vector3(1.3, 0.07, 0.07), ALL)
+	b.bar(iron, Vector3(79.2, 4.35, z + 0.25), Vector3(79.95, 4.74, z + 0.25), 0.04)
+	for cx: float in [79.6, 80.2]:
+		b.bar(iron, Vector3(cx, 4.72, z + 0.25), Vector3(cx, 4.45, z + 0.25), 0.015)
+	b.boxp(Look.mat("wood", Color("c9a46c")), Vector3(79.9, 4.1, z + 0.25), Vector3(0.95, 0.7, 0.07), ALL)
+	b.boxp(Look.mat("wood", Color("8a5a32")), Vector3(79.9, 4.1, z + 0.25), Vector3(1.03, 0.78, 0.05), ALL)
 	# てっぺん：笠木と、真ん中のカチンコの飾り
 	b.boxp(trim, Vector3(72, y1 + 0.08, z + 0.05), Vector3(14.9, 0.18, 0.46), ALL)
 	b.boxp(P(Color("26272b"), 0.7), Vector3(72, y1 + 0.55, z), Vector3(2.4, 0.75, 0.14), ALL)
@@ -405,6 +480,11 @@ static func _facade(root: Node3D, font: Font) -> void:
 		b.bar(lumber, Vector3(x, y0 + 0.05, z - 1.6), Vector3(x, y0 + 0.05, z - 0.14), 0.09)
 	for yy: float in [3.3, 4.9]:
 		b.boxp(lumber, Vector3(72, yy, z - 0.15), Vector3(14.2, 0.09, 0.06), ALL)
+	var front := Look.Batch.new()
+	_bench(front, Vector3(67.6, 0, 6.05), 0.0)
+	_drum(front, Vector3(78.55, 0, 5.15), Color("a4532c"))
+	_bike(front, Vector3(79.9, 0, 5.4), 0.0, Color("7f8352"))
+	front.build(root, "OfficeFrontDressing")
 	var out := b.build(root, "OfficeFacade")
 	for node: Node in out.find_children("*", "VisualInstance3D", true, false):
 		(node as VisualInstance3D).layers = FACADE_LAYER
@@ -506,15 +586,7 @@ static func _chair(b: Look.Batch, pos: Vector3, color: Color, yaw: float) -> voi
 static func _plant(b: Look.Batch, pos: Vector3, s: float, pot: Color) -> void:
 	b.cylp(P(pot, 0.7), pos, 0.28 * s, 0.4 * s, 10, 0.22 * s)
 	b.cylp(P(Color("3a2a20"), 0.95), pos + Vector3(0, 0.4 * s, 0), 0.22 * s, 0.02, 10)
-	var leaf := Look.mat("cloth", Color("5f9a47"))
-	var leaf2 := Look.mat("cloth", Color("78b04e"))
-	for k in 7:
-		var a := TAU * k / 7.0
-		var base := pos + Vector3(cos(a) * 0.05 * s, 0.4 * s, sin(a) * 0.05 * s)
-		var tip := pos + Vector3(cos(a) * 0.42 * s, (0.95 + (k % 3) * 0.2) * s, sin(a) * 0.42 * s)
-		var mid := base.lerp(tip, 0.5)
-		var side := Vector3(-sin(a), 0.0, cos(a)) * 0.11 * s
-		b.poly(leaf if k % 2 == 0 else leaf2, [base, mid + side, tip, mid - side])
+	Foliage.bush(b, pos + Vector3(0, 0.72 * s, 0), 0.34 * s)
 
 
 static func _sign(b: Look.Batch, root: Node3D, font: Font, words: String, pos: Vector3, color: Color) -> Label3D:
@@ -566,8 +638,8 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	for k in 3:
 		_bike(b, Vector3(82.8, 0, 5.4 + k * 0.95), PI * 0.5 + (0.1 if k == 1 else 0.0), [Color("c4503a"), Color("3b6ea5"), Color("d9a441")][k])
 	_bike_rack(b, Vector3(83.5, 0, 5.4))
-	_planter(b, Vector3(67.6, 0, 5.15), 3.2)
-	_planter(b, Vector3(76.6, 0, 5.15), 3.2)
+	_planter(b, Vector3(67.6, 0, 5.15), 3.2, 9)
+	_planter(b, Vector3(76.6, 0, 5.15), 3.2, 9)
 	_tree(b, Vector3(89.6, 0, 3.6), 1.4)
 	_tree(b, Vector3(90.2, 0, -8.5), 1.2)
 	_tree(b, Vector3(63.2, 0, 7.5), 1.2)
@@ -850,24 +922,14 @@ static func _bike_rack(b: Look.Batch, pos: Vector3) -> void:
 	b.bar(iron, pos + Vector3(0, 0.0, -0.2), pos + Vector3(0, 0.0, 3.0), 0.05)
 
 
-static func _planter(b: Look.Batch, pos: Vector3, len: float) -> void:
+static func _planter(b: Look.Batch, pos: Vector3, len: float, flowers := 0) -> void:
 	b.boxp(Look.mat("concrete", Color("c4bfb0")), pos + Vector3(0, 0.25, 0), Vector3(len, 0.5, 0.6), GROUND)
 	b.boxp(P(Color("3a2a20"), 0.95), pos + Vector3(0, 0.51, 0), Vector3(len - 0.12, 0.02, 0.48), ALL)
-	var greens := [Color("4f8a45"), Color("6aa04c"), Color("3f7a4a")]
-	var n := int(len / 0.8)
-	for k in n:
-		var x := -len * 0.5 + 0.4 + k * (len - 0.8) / maxf(n - 1, 1)
-		b.cylp(P(greens[k % 3], 0.9), pos + Vector3(x, 0.5, 0), 0.34, 0.28, 8, 0.4)
-		b.cylp(P(greens[(k + 1) % 3], 0.9), pos + Vector3(x, 0.78, 0), 0.4, 0.26, 8, 0.2)
-		b.cylp(P(greens[(k + 2) % 3], 0.9), pos + Vector3(x, 1.04, 0), 0.2, 0.14, 8, 0.0)
+	Foliage.hedge(b, pos + Vector3(0, 0.5, 0), Vector3(len - 0.25, 0.62, 0.5), flowers)
 
 
 static func _tree(b: Look.Batch, pos: Vector3, s: float) -> void:
-	b.cylp(P(Color("6b5238"), 0.95), pos, 0.14 * s, 1.5 * s, 8, 0.1 * s)
-	b.cylp(P(Color("4f8a45"), 0.9), pos + Vector3(0, 1.2 * s, 0), 0.7 * s, 0.6 * s, 9, 1.0 * s)
-	b.cylp(P(Color("5e9a4a"), 0.9), pos + Vector3(0, 1.8 * s, 0), 1.0 * s, 0.7 * s, 9, 0.9 * s)
-	b.cylp(P(Color("6aa84f"), 0.9), pos + Vector3(0, 2.5 * s, 0), 0.9 * s, 0.6 * s, 9, 0.5 * s)
-	b.cylp(P(Color("78b455"), 0.9), pos + Vector3(0, 3.1 * s, 0), 0.5 * s, 0.4 * s, 9, 0.0)
+	Foliage.tree(b, pos, s)
 
 
 # 斜めに立てかけた書割（石壁・空・丘）
