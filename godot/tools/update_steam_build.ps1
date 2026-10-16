@@ -38,7 +38,11 @@ Set-Content -LiteralPath (Join-Path $out '版.txt') -Value $lines -Encoding utf8
 
 $zip = Join-Path $repo ("artifacts\FilmProductionCrew-Steam-Windows-{0}.zip" -f $made.ToString('yyyyMMdd-HHmm'))
 Write-Host '友達に渡す zip を作っています（1〜2分）…'
-Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -Force
+# Compress-Archive（PowerShell 5.1）は日本語のファイル名を壊すので、.NET で UTF-8 の名前のまま作る。
+# 展開すると FilmProductionCrew-steam のフォルダごと出てくる
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
+[System.IO.Compression.ZipFile]::CreateFromDirectory($out, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $true, [System.Text.Encoding]::UTF8)
 
 Write-Host ''
 Write-Host "できました：$out"
