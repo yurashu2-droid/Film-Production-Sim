@@ -66,7 +66,11 @@ func run() -> void:
 		groups[p.kind] = [p.kind]
 	# 爆弾の部品（導火線・火薬）は、物として単独では出てこない。爆弾をもう1つ作って、見せ方だけ変えて撮る
 	var samples: Array = []
-	if first.has("fx"):
+	# （爆弾の見せ方の切り替え preview が無い版では、撮らない。写真は前に撮った物を使う）
+	var has_preview := false
+	for m: Dictionary in (load("res://scripts/fx_box.gd") as GDScript).get_script_method_list():
+		has_preview = has_preview or str(m["name"]) == "preview"
+	if first.has("fx") and has_preview:
 		for part: String in ["bomb", "fuse", "powder"]:
 			var sample: Node3D = (load("res://scripts/fx_box.gd") as GDScript).new()
 			sample.build()
