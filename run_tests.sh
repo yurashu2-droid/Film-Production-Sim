@@ -220,6 +220,7 @@ script_case stand-ins 60 'STAND_INS_TEST_OK' stand_ins_test.gd --fixed-fps 60
 script_case hire 60 'HIRE_TEST_OK' hire_test.gd --fixed-fps 60
 script_case contraptions 90 'RIG_TEST_OK' contraptions_test.gd --fixed-fps 60
 script_case contraptions-play 120 'RIGPLAY_TEST_OK' contraptions_play_test.gd --fixed-fps 60
+script_case panel-dolly 120 'PANEL_DOLLY_TEST_OK' panel_dolly_test.gd --fixed-fps 60
 script_case trap-job 150 'TRAP_TEST_OK' trap_job_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
