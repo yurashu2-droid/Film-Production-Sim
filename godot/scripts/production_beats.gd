@@ -50,6 +50,21 @@ const NEED_CHASE := 0.6           # 大岩に追われる（chase）：逃げる
 const CHASE_SPEED := 0.9          # これより速く動いている物を「迫っている」とみる（m/秒）
 const CHASE_SPIN := 1.2           # これより速く回っていれば「転がっている」（滑っているだけではない。rad/秒）
 const CHASE_NEAR := 4.5           # 二人のうち近いほうから、この距離までに迫っていること（m）
+# 名場面のパロディ用（_rule_ring ほか）
+const RING_WINDOW := 0.6          # 鳴る（ring）：鳴ってから、この秒数のうちに映っていれば数える
+const NEED_CROSS := 0.25          # 月の前を横切る（cross）：月に重なって動いている秒数（横切るのは一瞬）
+const HIT_SPEED := 1.4            # 当たる（hit）：これより速く動いている物が当たったら
+const HIT_NEAR := 0.55            # 当たる：役者の胸から、物の真ん中まで（＋物の大きさの半分）
+const SCORCH_NEAR := 1.0          # 焦げる（scorch）：炎が、役者の腰からこの距離まで
+const NEED_SCORCH := 0.4
+const HIGH_M := 0.4               # 高い所（high）：足元が、床からこれだけ上
+const NEED_HIGH := 1.2
+const NEED_WIND := 1.2            # 風（wind）：二人が風を受けて映っている秒数
+const ORBIT_RAD := 1.05           # 回り込む（orbit）：カメラの向きが、二人のまわりでこれだけ（約60度）変わる
+const CLIMB_M := 0.8              # 駆け上がる（climb）：場面の始まりより、これだけ高い所に着く
+const PASS_SIZE := 0.45           # 走り抜ける（pass）：これより大きい物（いちばん長い向きの半分）
+const PASS_SPEED := 0.9
+const PASS_M := 2.0
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
@@ -68,6 +83,15 @@ const NO_REASON := {
 	"track": "カメラが動きながら、歩く二人を映す時間が足りなかった",
 	"drop": "二人のそばに、上から物が落ちてこなかった",
 	"chase": "逃げる二人と、後ろから転がって迫る物が、一緒に映る時間が足りなかった",
+	"ring": "時計（ボタン）が鳴るところが映らなかった",
+	"cross": "月の前を横切るところが映らなかった",
+	"hit": "役者に物が当たるところが映らなかった",
+	"scorch": "役者のそばの炎が映らなかった",
+	"high": "高い所に立つ二人が映る時間が足りなかった",
+	"wind": "風を受ける二人が映る時間が足りなかった",
+	"orbit": "二人のまわりを、カメラが回り込まなかった",
+	"climb": "上りきった二人が映らなかった",
+	"pass": "大きな物が、画面の中を走り抜けなかった",
 }
 
 var game: Node
@@ -115,6 +139,10 @@ var _topple_pid := 0
 var _track_m := 0.0               # 動くカメラ：数えた距離
 var _track_last := Vector3.INF    # 動くカメラ：前のコマのカメラの場所
 var _drop_top := {}               # 上から落ちる：場面の間の、物の一番高い所（物のID → 高さ）
+var _orbit_sum := 0.0             # 回り込む：カメラが二人のまわりを回った角度
+var _orbit_last := NAN
+var _climb_y0: Array = []         # 駆け上がる：場面の始まりの、二人の高さ
+var _pass_m := {}                 # 走り抜ける：画面の中を走った距離（物のID → m）
 # 画面
 var _playback := false
 var _before_replay := {}
@@ -671,6 +699,13 @@ func _restart_rule(i: int) -> void:
 			_track_last = Vector3.INF
 		"drop":
 			_drop_top = {}
+		"orbit":
+			_orbit_sum = 0.0
+			_orbit_last = NAN
+		"climb":
+			_climb_y0 = []
+		"pass":
+			_pass_m = {}
 
 
 func _reset_attack() -> void:
@@ -730,6 +765,24 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_drop(scene, f, dt, crew)
 		"chase":
 			_rule_chase(scene, f, dt, crew)
+		"ring":
+			_rule_ring(scene, f, dt, crew)
+		"cross":
+			_rule_cross(scene, f, dt, crew)
+		"hit":
+			_rule_hit(scene, f, dt, crew)
+		"scorch":
+			_rule_scorch(scene, f, dt, crew)
+		"high":
+			_rule_high(scene, f, dt, crew)
+		"wind":
+			_rule_wind(scene, f, dt, crew)
+		"orbit":
+			_rule_orbit(scene, f, dt, crew)
+		"climb":
+			_rule_climb(scene, f, dt, crew)
+		"pass":
+			_rule_pass(scene, f, dt, crew)
 
 
 func _stuck() -> bool:
@@ -1061,6 +1114,253 @@ func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if not chased:
 		r.append(miss)
 	_count(i, r, dt, NEED_CHASE)
+
+
+# ---- 名場面のパロディ用の決まり（ring・cross・hit・scorch・high・wind・orbit・climb・pass） ----
+
+func _view() -> Array:
+	var film: Node3D = game.program_camera()
+	return [film, film.view_cam, Vector2(film.view.size), film.get_world_3d().direct_space_state]
+
+
+# その点が、撮影カメラに映っているか（画面の中にあって、隠れていない）
+func _shows(point: Vector3, skip: Array) -> bool:
+	var v := _view()
+	var cam: Camera3D = v[1]
+	if not game.judge._in_frame(cam, v[2], point):
+		return false
+	var ex: Array = [(v[0] as Node3D).get_rid()]
+	ex.append_array(skip)
+	return not game.judge._blocked(v[3], cam.global_position, point, ex)
+
+
+func _rig() -> Node:
+	return game.hooks.feature("contraptions")
+
+
+# 鳴る：二人が映っている間に、目覚まし時計か押しボタンが、画面の中で鳴る（カップ麺の3分・合図のチン）
+func _rule_ring(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		return
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	var rig := _rig()
+	var heard := false
+	var off := false
+	if rig != null:
+		for pid: int in rig.rang:
+			var p: Node3D = game.props.get(pid)
+			if p == null or float(game.take_t) - float(rig.rang[pid]) > RING_WINDOW:
+				continue
+			if _shows(p.center_global(), [p.get_rid()]):
+				heard = true
+			else:
+				off = true
+	if not heard:
+		r.append("鳴った物が、映っていなかった" if off else "時計もボタンも、鳴らなかった")
+		_note(i, r, dt)
+		return
+	if r.is_empty():
+		_met(i)
+	else:
+		_note(i, r, dt)
+
+
+# 月の前を横切る：月役の物の前を、役者が横切る（画面の上で、月の丸に重なって動く）。シルエットなので、顔の明るさは問わない
+func _rule_cross(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var moving: Array = []
+	for a: Node in game.actors:
+		if a.beat_walking():
+			moving.append(a)
+	if moving.is_empty():
+		return
+	var r: Array = game.judge.problems(f, false)
+	if crew:
+		r.append("スタッフが映っていた")
+	var moon: Node3D = null
+	for p: Node3D in game.props.values():
+		if not p.absent and game.judge.role_of(p) == "moon":
+			moon = p
+	if moon == null:
+		r.append("月役の物が決まっていない（物を見て Y で月の役にする）")
+		_note(i, r, dt)
+		return
+	var v := _view()
+	var cam: Camera3D = v[1]
+	var c: Vector3 = moon.center_global()
+	if cam.is_position_behind(c) or not _shows(c, [moon.get_rid()]):
+		r.append("月が映っていなかった")
+		_note(i, r, dt)
+		return
+	var at := cam.unproject_position(c)
+	var rad := at.distance_to(cam.unproject_position(c + cam.global_basis.x * maxf(moon.half.x, moon.half.y))) * 1.15
+	var depth := (c - cam.global_position).dot(-cam.global_basis.z)
+	var over := false
+	for a: Node in moving:
+		var chest: Vector3 = a.chest_pos()
+		if cam.is_position_behind(chest) or (chest - cam.global_position).dot(-cam.global_basis.z) >= depth:
+			continue
+		if cam.unproject_position(chest).distance_to(at) <= rad or cam.unproject_position(a.head_pos()).distance_to(at) <= rad:
+			over = true
+	if not over:
+		r.append("月の前を、横切っていなかった（画面の上で、月に重ねる）")
+	_count(i, r, dt, NEED_CROSS)
+
+
+# 当たる：動いている物（振り子・投げた物・転がる物）が、役者に当たる。当たった役者は、のけぞる（雇った役者だけ）
+func _rule_hit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた（落とす人・投げる人は映さない）")
+	var hit: Node = null
+	var by: Node3D = null
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.kind in ["mark", "truck"] or p.linear_velocity.length() < HIT_SPEED:
+			continue
+		for a: Node in game.actors:
+			if p.center_global().distance_to(a.chest_pos()) <= HIT_NEAR + maxf(p.half.x, maxf(p.half.y, p.half.z)) * 0.5:
+				hit = a
+				by = p
+	if hit == null:
+		r.append("役者に、何も当たらなかった")
+		_note(i, r, dt)
+		return
+	if hit.get("stand_in") == null:
+		hit.knock(Vector3(by.linear_velocity.x, 0.0, by.linear_velocity.z).normalized() * 2.4 + Vector3(0, 1.4, 0))
+	if r.is_empty():
+		_met(i)
+	else:
+		_note(i, r, dt)
+
+
+# 焦げる：点火トーチの炎が、役者のすぐそばで燃えている（お尻に火）。火を付ける人・ボタンを押す人は映さない
+func _rule_scorch(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	var rig := _rig()
+	var near := false
+	var seen := false
+	if rig != null:
+		for pid: int in rig.flames:
+			var t: Node3D = game.props.get(pid)
+			if t == null:
+				continue
+			var head: Vector3 = t.global_transform * rig.TORCH_HEAD
+			for a: Node in game.actors:
+				if head.distance_to(a.global_position + Vector3(0, 0.6, 0)) <= SCORCH_NEAR:
+					near = true
+					seen = seen or _shows(head, [t.get_rid()])
+	if not near:
+		r.append("炎が、役者のそばで燃えていなかった")
+	elif not seen:
+		r.append("炎が映っていなかった")
+	_count(i, r, dt, NEED_SCORCH)
+
+
+# 高い所：二人とも、床より高い所（台・バルコニー・箱の上）に立っている（船の舳先・頂上）
+func _rule_high(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		return
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	for a: Node3D in game.actors:
+		if a.global_position.y < HIGH_M:
+			r.append("%sが、高い所に立っていなかった（台や箱の上に印を置く）" % str(a.label))
+	_count(i, r, dt, NEED_HIGH)
+
+
+# 風：回っている送風機の風を、二人が正面から受けている（両手を広げる・髪がなびく）
+func _rule_wind(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		return
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	var rig := _rig()
+	var windy := 0
+	var running := false
+	if rig != null:
+		for pid: int in rig.fans:
+			var fan: Node3D = game.props.get(pid)
+			if fan == null:
+				continue
+			running = true
+			var count := 0
+			for a: Node in game.actors:
+				if rig.in_wind(fan, a.chest_pos()):
+					count += 1
+			windy = maxi(windy, count)
+	if not running:
+		r.append("送風機が回っていなかった")
+	elif windy < 2:
+		r.append("二人が、送風機の風の正面にいなかった")
+	_count(i, r, dt, NEED_WIND)
+
+
+# 回り込む：止まった二人を映したまま、カメラが二人のまわりを回る（向きが ORBIT_RAD 変わる）
+func _rule_orbit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var a0: Node3D = game.actors[0]
+	var a1: Node3D = game.actors[1]
+	var mid: Vector3 = (a0.global_position + a1.global_position) * 0.5
+	var cam: Vector3 = game.program_camera().global_position
+	var ang := atan2(cam.x - mid.x, cam.z - mid.z)
+	var step := 0.0 if is_nan(_orbit_last) else absf(wrapf(ang - _orbit_last, -PI, PI))
+	_orbit_last = ang
+	if step > 0.3 or not (a0.beat_arrived() and a1.beat_arrived()):
+		return          # カメラの切り替え・まだ着いていない
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた（カメラを押す人は映さない）")
+	if not r.is_empty():
+		_note(i, r, dt)
+		return
+	if step < 0.002:
+		_note(i, ["カメラが、二人のまわりを回っていなかった"], dt)
+		return
+	_orbit_sum += step
+	if _orbit_sum >= ORBIT_RAD:
+		_met(i)
+
+
+# 駆け上がる：二人が、この場面の始まりより CLIMB_M 以上高い印に着く（階段・坂・箱を上る）
+func _rule_climb(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if _climb_y0.is_empty():
+		_climb_y0 = [game.actors[0].global_position.y, game.actors[1].global_position.y]
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		if _stuck():
+			_note(i, ["役者が段差にぶつかって、上れなかった（坂や低い段を並べる）"], dt)
+		return
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	for k in 2:
+		if game.actors[k].global_position.y < float(_climb_y0[k]) + CLIMB_M:
+			r.append("%sが、上っていなかった（上の印を、高い所に置く）" % game.actors[k].label)
+	_count(i, r, dt, NEED_HIGH)
+
+
+# 走り抜ける：大きな物（車・バスの書割・台車に載せた物）が、画面の中を PASS_M 以上走る（役者は問わない）
+func _rule_pass(i: int, _f: Dictionary, dt: float, crew: bool) -> void:
+	var r: Array = []
+	if crew:
+		r.append("スタッフが映っていた（押す人・引く人は映さない）")
+	var best := 0.0
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.kind in ["mark", "truck"] or maxf(p.half.x, maxf(p.half.y, p.half.z)) < PASS_SIZE:
+			continue
+		var v: Vector3 = p.linear_velocity
+		if Vector2(v.x, v.z).length() < PASS_SPEED or not _shows(p.center_global(), [p.get_rid()]):
+			continue
+		if r.is_empty():
+			_pass_m[p.pid] = float(_pass_m.get(p.pid, 0.0)) + Vector2(v.x, v.z).length() * dt
+		best = maxf(best, float(_pass_m.get(p.pid, 0.0)))
+	if best >= PASS_M:
+		_met(i)
+	elif best <= 0.0:
+		_note(i, r if not r.is_empty() else ["大きな物が、画面の中を走らなかった"], dt)
 
 
 func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:

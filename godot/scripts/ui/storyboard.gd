@@ -13,6 +13,16 @@ const RED := "#c8503c"
 const LIGHT := "#f3e6a8"
 
 static var _cache := {}
+# 名場面のパロディ：絵コンテの組 → 1枚ずつの絵（下の関数の名前）
+const PARODY := {
+	"home_alone": ["_pair", "_hit", "_scorch", "_close"],
+	"moon_bike": ["_travel_2", "_cross", "_close"],
+	"ship": ["_high", "_wind", "_close"],
+	"dodge": ["_pair", "_orbit", "_close"],
+	"stairs": ["_trap_1", "_climb", "_summit"],
+	"noodle": ["_pair", "_ring", "_close"],
+	"car_cm": ["_wind", "_pass", "_close"],
+}
 
 
 static func texture(story: String, index: int) -> Texture2D:
@@ -32,6 +42,10 @@ static func svg(story: String, index: int) -> String:
 	elif story == "travel":
 		# 旅する二人（場所が変わる4カット）：城の門 → 月夜の丘 → 爆発 → 寄りで決め
 		body = [_castle_1(), _travel_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
+	elif story in PARODY:
+		# 名場面のパロディ（production_briefs.gd の BOARDS の同じ名前）
+		var frames: Array = PARODY[story]
+		body = _parody(str(frames[clampi(index, 0, frames.size() - 1)]))
 	elif story == "trap":
 		# 転がる大岩・予告編：動くカメラ → 上から落ちる罠 → 大岩に追われる → 寄りで決め
 		body = [_trap_1(), _trap_2(), _trap_3(), _castle_3()][clampi(index, 0, 3)]
@@ -336,6 +350,158 @@ static func _trap_3() -> String:
 	out += _fig(Vector2(330, 242), 0.95, "run", false, -12.0)
 	out += _fig(Vector2(408, 244), 0.92, "run", false, -12.0)
 	out += _startle(Vector2(330, 140)) + _startle(Vector2(408, 142))
+	return out
+
+
+# ---- 名場面のパロディ（10〜16）の絵 ----
+
+static func _parody(name: String) -> String:
+	match name:
+		"_pair": return _pair()
+		"_close": return _close()
+		"_hit": return _hit()
+		"_scorch": return _scorch()
+		"_cross": return _cross()
+		"_high": return _high()
+		"_wind": return _wind()
+		"_orbit": return _orbit()
+		"_climb": return _climb()
+		"_summit": return _summit()
+		"_ring": return _ring()
+		"_pass": return _pass()
+		"_travel_2": return _travel_2()
+		"_trap_1": return _trap_1()
+	return _pair()
+
+
+# 二人が並んで立つ（どの場面にも使う、ふつうの画）
+static func _pair() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(206, 242), 0.95, "reach")
+	out += _fig(Vector2(286, 242), 0.95, "reach", true)
+	return out
+
+
+# 寄りで、近づいた二人（決めポーズ）
+static func _close() -> String:
+	var out := _ground(250)
+	out += _fig(Vector2(206, 262), 1.5, "cheer")
+	out += _fig(Vector2(290, 262), 1.5, "cheer", true)
+	out += _line([Vector2(20, 20), Vector2(60, 20), Vector2(60, 34)], SOFT, 2.5) + _line([Vector2(460, 250), Vector2(420, 250), Vector2(420, 236)], SOFT, 2.5)
+	return out
+
+
+# 吊るした何かが、振り子になって当たる
+static func _hit() -> String:
+	var out := _ground(238)
+	out += _line([Vector2(160, 8), Vector2(250, 112)], PENCIL, 2.5)
+	out += _ghost("M 230,100 L 274,100 L 274,140 L 230,140 Z")
+	out += _question(Vector2(252, 122), 0.8)
+	out += '<path d="M 110,70 Q 170,140 250,150" fill="none" stroke="%s" stroke-width="3" stroke-dasharray="7 6"/>' % RED
+	out += _fig(Vector2(300, 242), 0.95, "scared", true, 14.0)
+	out += _startle(Vector2(300, 140))
+	out += _fig(Vector2(380, 242), 0.9, "reach", true)
+	return out
+
+
+# 止まった二人のすぐそばで、炎（？）が上がる
+static func _scorch() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(200, 242), 0.95, "scared")
+	out += _fig(Vector2(300, 242), 0.95, "scared", true)
+	out += _ghost(_burst_path(Vector2(250, 214), 40, 22, 9))
+	out += _question(Vector2(250, 214), 0.8)
+	out += _startle(Vector2(200, 140)) + _startle(Vector2(300, 140))
+	return out
+
+
+# 満月の前を、シルエットが横切る
+static func _cross() -> String:
+	var out := _line([Vector2(6, 238), Vector2(474, 230)], PENCIL, 3.5)
+	out += '<circle cx="250" cy="110" r="80" fill="none" stroke="%s" stroke-width="3" stroke-dasharray="9 7"/>' % PENCIL
+	out += _fig(Vector2(236, 150), 0.7, "run", false, -10.0)
+	out += _fig(Vector2(272, 152), 0.7, "run", false, -10.0)
+	out += _arrow(Vector2(110, 120), Vector2(170, 118))
+	out += _arrow(Vector2(330, 116), Vector2(400, 110))
+	return out
+
+
+# 高い所（舳先）に立つ二人
+static func _high() -> String:
+	var out := _ground(238)
+	out += '<path d="M 120,238 L 160,150 L 360,150 L 380,238 Z" fill="%s" stroke="%s" stroke-width="3.5"/>' % [PAPER, PENCIL]
+	out += _fig(Vector2(236, 150), 0.82, "reach")
+	out += _fig(Vector2(286, 150), 0.82, "reach", true)
+	out += _arrow(Vector2(420, 230), Vector2(420, 150), true)
+	return out
+
+
+# 正面からの風を受けて、両手を広げる二人
+static func _wind() -> String:
+	var out := _ground(238)
+	out += _ghost("M 380,120 a 48,48 0 1,0 96,0 a 48,48 0 1,0 -96,0 Z")
+	out += _question(Vector2(428, 122), 1.0)
+	for k in 4:
+		out += _line([Vector2(372, 92 + k * 20), Vector2(300 - k * 10, 88 + k * 22)], SOFT, 2.5, "10 8")
+	out += _fig(Vector2(170, 242), 0.95, "cheer")
+	out += _fig(Vector2(236, 242), 0.95, "cheer")
+	return out
+
+
+# のけぞった二人のまわりを、カメラが回り込む
+static func _orbit() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(214, 242), 0.95, "scared", false, -24.0)
+	out += _fig(Vector2(280, 242), 0.95, "reach", true)
+	out += '<ellipse cx="248" cy="196" rx="190" ry="40" fill="none" stroke="%s" stroke-width="3" stroke-dasharray="9 7"/>' % RED
+	out += _arrow(Vector2(400, 222), Vector2(330, 236))
+	out += '<rect x="410" y="196" width="40" height="26" rx="3" fill="%s" stroke="%s" stroke-width="3"/>' % [PAPER, PENCIL]
+	return out
+
+
+# 階段を駆け上がる
+static func _climb() -> String:
+	var out := _ground(238)
+	var steps := "M 120,238"
+	for k in 5:
+		steps += " L %d,%d L %d,%d" % [120 + k * 50, 238 - k * 26, 170 + k * 50, 238 - k * 26]
+	out += '<path d="%s" fill="none" stroke="%s" stroke-width="3.5"/>' % [steps, PENCIL]
+	out += _fig(Vector2(222, 186), 0.75, "run", false, -14.0)
+	out += _fig(Vector2(286, 160), 0.75, "run", false, -14.0)
+	out += _arrow(Vector2(170, 150), Vector2(330, 80))
+	return out
+
+
+# 頂上で万歳する二人
+static func _summit() -> String:
+	var out := _line([Vector2(6, 238), Vector2(160, 238), Vector2(200, 150), Vector2(330, 150), Vector2(370, 238), Vector2(474, 238)], PENCIL, 3.5)
+	out += _fig(Vector2(240, 150), 0.9, "cheer")
+	out += _fig(Vector2(296, 150), 0.9, "cheer")
+	out += '<circle cx="400" cy="70" r="30" fill="none" stroke="%s" stroke-width="2.5" stroke-dasharray="7 6"/>' % SOFT
+	return out
+
+
+# 映っている所で、タイマー（？）が鳴る
+static func _ring() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(170, 242), 0.95, "scared")
+	out += _fig(Vector2(330, 242), 0.95, "scared", true)
+	out += _ghost("M 222,186 a 28,28 0 1,0 56,0 a 28,28 0 1,0 -56,0 Z")
+	out += _question(Vector2(250, 188), 0.7)
+	for a: float in [-0.9, -0.3, 0.3, 0.9]:
+		var d := Vector2(sin(a), -cos(a))
+		out += _line([Vector2(250, 186) + d * 40, Vector2(250, 186) + d * 58], RED, 3.0)
+	return out
+
+
+# 大きな物（車？）が、カメラの前を走り抜ける
+static func _pass() -> String:
+	var out := _ground(238)
+	out += _ghost("M 170,238 L 170,150 L 330,150 L 330,238 Z")
+	out += _question(Vector2(250, 194), 1.2)
+	for k in 3:
+		out += _line([Vector2(150, 170 + k * 24), Vector2(90, 170 + k * 24)], SOFT, 3.0)
+	out += _arrow(Vector2(350, 120), Vector2(440, 120))
 	return out
 
 

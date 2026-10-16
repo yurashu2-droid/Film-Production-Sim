@@ -12,6 +12,8 @@ extends Node
 ##     つなぐ：ボタンを持って装置を見て F（装置を持ってボタンを見ても同じ。もう一度で外す）。装置は、点火トーチと爆弾（すぐ爆発する）
 ##   ・点火トーチ：合図が来ると（手ぶらで F でも）、先から数秒、本物の炎が出る。炎の先にある、結んだロープ・導火線の先・
 ##     こぼれた火薬・爆弾の口に火が移る
+##   ・送風機（廃材置き場の大型送風機）：手ぶらで F で回す・止める。押しボタン・目覚まし時計とケーブルでつなぐと、鳴ったときに回る
+##     （FAN_SEC 秒）。正面（＋Z）へ風が出て、軽い物を押し、風の筋が見える。名場面の「風を受ける」場面で使う（production_beats.gd の wind）
 ##   ・目覚まし時計：手ぶらで F を押すたびに、ねじを巻く（巻くほど長く。文字盤の赤い針が、残りを指す）。針が上に戻ると鳴って、
 ##     ケーブルでつないだ装置が動く（押しボタンと同じ。つなぎ方も同じ）。役を演じている間に、仕掛けを動かせる
 ## 決めるのはホスト。ロープの張り（引く力）は、ホストだけが毎コマ計算する。
@@ -52,6 +54,11 @@ const PARTS := {
 	"timer": ["目覚まし時計", "P044_alarm_clock", 0.6, 2.2],
 }
 const TRIGGERS := ["buzzer", "timer"]               # 鳴ると、ケーブルでつないだ装置が動く物
+const FAN_KIND := "scrap_fan"                        # 送風機（production_scrap.gd の大型送風機）
+const FAN_SEC := 12.0                                # ケーブルの合図で回る秒数（手ぶらの F は、止めるまで回る）
+const WIND_REACH := 7.5                              # 風の届く距離
+const WIND_CONE := 0.5                               # 風の広がり（ラジアン。正面からこの角度の内側）
+const FAN_PUSH := 10.0                               # 風が軽い物（4kg まで）を押す力
 const WIND_STEP := 5.0                               # 目覚まし時計：F 1回で巻ける秒数
 const WIND_MAX := 60.0                               # 目覚まし時計：巻ける上限（針が1周）
 const DIAL_AT := Vector3(0, 0.107, 0.056)            # 目覚まし時計の文字盤の真ん中（素材から見た位置）
@@ -69,6 +76,9 @@ var mounts: Dictionary = {}                          # 留めた滑車：物のI
 var wires: Dictionary = {}                           # ケーブル：ボタンの物のID → [装置の物のID, ...]
 var flames: Dictionary = {}                          # 炎が出ているトーチ：物のID → 残り秒
 var timers: Dictionary = {}                          # 巻いてある目覚まし時計：物のID → 鳴るまでの残り秒
+var fans: Dictionary = {}                            # 回っている送風機：物のID → 残り秒（負＝止めるまで回る）
+var rang: Dictionary = {}                            # ホスト：鳴った押しボタン・時計（物のID → テイクの時刻）。採点が見る（production_beats.gd の ring）
+var _gusts: Dictionary = {}                          # 送風機の物のID → 風の筋（粒）
 var _next := 1
 var _pressed: Dictionary = {}                        # ホスト：ボタンが押されているか（物のID → 次に押せるまでの秒。負＝離れている）
 var _rolling: Dictionary = {}                        # ホスト：引かれて転がしている台車（物のID → [元の摩擦, 残り秒]）
@@ -421,6 +431,19 @@ func _aim_part(me: Node, kinds: Array) -> RigidBody3D:
 		if off < PART_AIM + 0.02 * along and off < best_off:
 			best = p
 			best_off = off
+	# 送風機（廃材置き場の物。部品の一覧には入っていない）
+	if "fan" in kinds:
+		for p: Node in game.props.values():
+			if p.kind != FAN_KIND or p.absent or p.pid == me.held:
+				continue
+			var c: Vector3 = p.center_global()
+			var along := (c - (view[0] as Vector3)).dot(view[1])
+			if along < 0.2 or not _reach_ok(me, c):
+				continue
+			var off := (c - (view[0] as Vector3) - (view[1] as Vector3) * along).length()
+			if off < PART_AIM + 0.25 + 0.02 * along and off < best_off:
+				best = p
+				best_off = off
 	# 爆弾も装置（ケーブルの行き先）
 	if "fx" in kinds and game.get("fx") != null and not game.fx.absent and game.fx.pid != me.held and me.target == game.fx:
 		return game.fx
@@ -488,9 +511,9 @@ func f_action(me: Node) -> Dictionary:
 		at["do"] = "mount"
 		return at
 	if held != null and held.kind in TRIGGERS:
-		var dev := _aim_part(me, ["igniter", "fx"])
+		var dev := _aim_part(me, ["igniter", "fx", "fan"])
 		return {"do": "wire", "bell": held.pid, "dev": dev.pid, "point": dev.center_global()} if dev != null else {}
-	if held != null and (held.kind == "igniter" or held == game.get("fx")):
+	if held != null and (held.kind == "igniter" or held.kind == FAN_KIND or held == game.get("fx")):
 		var bell := _aim_part(me, TRIGGERS)
 		return {"do": "wire", "bell": bell.pid, "dev": held.pid, "point": bell.center_global()} if bell != null else {}
 	if held != null and game.bomb_kit != null and held == game.bomb_kit.scissors:
@@ -504,8 +527,10 @@ func f_action(me: Node) -> Dictionary:
 	if not row.is_empty():
 		row["do"] = "fire"
 		return row
-	var part := _aim_part(me, ["pulley", "buzzer", "igniter", "timer"])
+	var part := _aim_part(me, ["pulley", "buzzer", "igniter", "timer", "fan"])
 	if part != null:
+		if part.kind == FAN_KIND:
+			return {"do": "fan", "pid": part.pid, "point": part.center_global()}
 		if part.kind == "timer":
 			return {"do": "wind", "pid": part.pid, "point": part.center_global()}
 		if part.kind == "pulley" and mounts.has(part.pid):
@@ -543,6 +568,8 @@ func hook_f(me: Node) -> bool:
 			h_press.rpc_id(1, int(act["pid"]))
 		"wind":
 			h_wind.rpc_id(1, int(act["pid"]))
+		"fan":
+			h_fan.rpc_id(1, int(act["pid"]))
 		"light":
 			h_flame.rpc_id(1, int(act["pid"]))
 		"hold_rope":
@@ -580,6 +607,8 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 			return {"keys_all": ("F ケーブルを抜く" if on else "F ケーブルでつなぐ") + put}
 		"press":
 			return {"label": "押しボタン", "keys_all": "F 押す\n左クリック 持つ"}
+		"fan":
+			return {"label": "送風機", "keys_all": ("F 止める" if fans.has(int(act["pid"])) else "F 回す") + "\n左クリック 持つ"}
 		"wind":
 			return {"label": "目覚まし時計", "keys_all": "F ねじを巻く（巻くほど長く）\n左クリック 持つ"}
 		"light":
@@ -832,7 +861,7 @@ func h_wire(bell: int, dev: int) -> void:
 	var who := Net.sender()
 	var b := _prop(bell)
 	var d := _prop(dev)
-	if not _host_ok() or b == null or d == null or not (b.kind in TRIGGERS) or not (d.kind == "igniter" or d == game.get("fx")):
+	if not _host_ok() or b == null or d == null or not (b.kind in TRIGGERS) or not (d.kind == "igniter" or d.kind == FAN_KIND or d == game.get("fx")):
 		return
 	if b.holder != who and d.holder != who:
 		return
@@ -855,6 +884,46 @@ func h_press(bell: int) -> void:
 	if not _host_ok() or b == null or b.kind != "buzzer" or not _near(who, b.center_global()):
 		return
 	host_ring(b)
+
+
+# 手ぶらで F：送風機を回す・止める（回したら、止めるまで回る）
+@rpc("any_peer", "call_local", "reliable")
+func h_fan(pid: int) -> void:
+	var who := Net.sender()
+	var f := _prop(pid)
+	if not _host_ok() or f == null or f.kind != FAN_KIND or not _near(who, f.center_global()):
+		return
+	if fans.has(pid):
+		fans.erase(pid)
+		game.host_ev("sfx", ["unfix", f.global_position])
+		_changed()
+	else:
+		host_fan(f, -1.0)
+
+
+# 送風機を回す（ホスト）。seconds が負なら、止めるまで回る
+func host_fan(f: RigidBody3D, seconds: float) -> void:
+	var was: bool = fans.has(f.pid)
+	fans[f.pid] = seconds
+	if not was:
+		game.host_ev("sfx", ["wind", f.global_position])
+	_changed()
+
+
+# 送風機の風の出る所（羽根の真ん中）と向き（正面＝＋Z）
+func fan_hub(f: Node3D) -> Vector3:
+	var hub: Node3D = f.visual.find_child("fan_blade_rotation", true, false) if f.visual != null else null
+	return hub.global_position if hub != null else f.center_global()
+
+
+# その点に、その送風機の風が当たっているか（正面の、広がりの内側で、届く距離まで）
+func in_wind(f: Node3D, point: Vector3) -> bool:
+	var dir: Vector3 = f.global_basis.z.normalized()
+	var rel: Vector3 = point - fan_hub(f)
+	var along := rel.dot(dir)
+	if along < 0.1 or along > WIND_REACH:
+		return false
+	return (rel - dir * along).length() <= 0.45 + along * tan(WIND_CONE)
 
 
 # 手ぶらで F：目覚まし時計のねじを巻く（巻くたびに WIND_STEP 秒。針が1周まで）
@@ -881,6 +950,7 @@ func h_flame(pid: int) -> void:
 # ボタンが鳴る（ホスト）：つないだ装置が動く
 func host_ring(b: RigidBody3D) -> void:
 	_pressed[b.pid] = PRESS_GAP
+	rang[b.pid] = float(game.take_t)
 	game.host_ev("rig_ring", [b.pid])
 	for dev: int in wires.get(b.pid, []):
 		var d := _prop(dev)
@@ -888,6 +958,8 @@ func host_ring(b: RigidBody3D) -> void:
 			continue
 		if d.kind == "igniter":
 			host_flame(d)
+		elif d.kind == FAN_KIND:
+			host_fan(d, FAN_SEC)
 		elif d == game.get("fx"):
 			_blow(d)
 
@@ -1001,6 +1073,23 @@ func _host_tick(delta: float) -> void:
 			_rolling.erase(pid)
 	_host_fire(delta)
 	_host_buttons(delta)
+	# 送風機：時間が来たら止まる。回っている間は、正面の軽い物を押す
+	for pid: int in fans.keys():
+		var f := _prop(pid)
+		if float(fans[pid]) >= 0.0:
+			fans[pid] = float(fans[pid]) - delta
+		if f == null or (float(fans[pid]) < 0.0 and float(fans[pid]) > -0.5):
+			fans.erase(pid)
+			_changed()
+			continue
+		var dir: Vector3 = f.global_basis.z.normalized()
+		for q: Node in game.props.values():
+			if q == f or q.absent or q.holder != 0 or q.fixed or q.mass > 4.0 or not (q is RigidBody3D):
+				continue
+			if in_wind(f, q.center_global()):
+				var reach: float = (q.center_global() - fan_hub(f)).dot(dir)
+				(q as RigidBody3D).apply_central_force(dir * FAN_PUSH * clampf(1.0 - reach / WIND_REACH, 0.15, 1.0))
+				q.sleeping = false
 	# 目覚まし時計：針が上に戻ったら鳴る
 	for pid: int in timers.keys():
 		var t := _prop(pid)
@@ -1185,7 +1274,7 @@ func snapshot() -> Dictionary:
 	var p := {}
 	for who: int in pending:
 		p[who] = (pending[who] as Dictionary).duplicate(true)
-	return {"rows": rows.duplicate(true), "pending": p, "mounts": mounts.duplicate(true), "wires": wires.duplicate(true), "flames": flames.duplicate(), "timers": timers.duplicate(), "next": _next}
+	return {"rows": rows.duplicate(true), "pending": p, "mounts": mounts.duplicate(true), "wires": wires.duplicate(true), "flames": flames.duplicate(), "timers": timers.duplicate(), "fans": fans.duplicate(), "next": _next}
 
 
 func _changed() -> void:
@@ -1222,6 +1311,7 @@ func _apply(data: Dictionary) -> void:
 	wires = (data.get("wires", {}) as Dictionary).duplicate(true)
 	flames = (data.get("flames", {}) as Dictionary).duplicate()
 	timers = (data.get("timers", {}) as Dictionary).duplicate()
+	fans = (data.get("fans", {}) as Dictionary).duplicate()
 	_next = int(data.get("next", _next))
 
 
@@ -1294,6 +1384,7 @@ func hook_return_office() -> void:
 	wires.clear()
 	flames.clear()
 	timers.clear()
+	fans.clear()
 	_broadcast()
 
 
@@ -1326,6 +1417,9 @@ func _tick_fire(delta: float) -> void:
 			flames.erase(pid)
 	for pid: int in timers.keys():
 		timers[pid] = maxf(0.0, float(timers[pid]) - delta)
+	for pid: int in fans.keys():
+		if float(fans[pid]) >= 0.0:
+			fans[pid] = maxf(0.0, float(fans[pid]) - delta)
 
 
 func _ring_seen(pid: int) -> void:
@@ -1352,7 +1446,8 @@ func _ring_seen(pid: int) -> void:
 		tw.tween_property(n, "position:y", y, 0.12)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_show_fans(delta)
 	if game == null or _ropes == null:
 		return
 	var tubes: Array[Transform3D] = []
@@ -1524,6 +1619,59 @@ func _spark() -> Node3D:
 	sparks.mesh = bit
 	root.add_child(sparks)
 	return root
+
+
+# 送風機：羽根が回り、正面へ風の筋が流れる（白い細い筋の粒）
+func _show_fans(delta: float) -> void:
+	if game == null:
+		return
+	for pid: int in _gusts.keys():
+		if not fans.has(pid) or _prop(pid) == null:
+			(_gusts[pid] as CPUParticles3D).emitting = false
+	for pid: int in fans:
+		var f := _prop(pid)
+		if f == null:
+			continue
+		var hub: Node3D = f.visual.find_child("fan_blade_rotation", true, false) if f.visual != null else null
+		if hub != null:
+			hub.rotate_object_local(Vector3.BACK, delta * 24.0)
+		if not _gusts.has(pid) or not is_instance_valid(_gusts[pid]):
+			_gusts[pid] = _gust()
+		var g: CPUParticles3D = _gusts[pid]
+		g.global_transform = Transform3D(f.global_basis.orthonormalized(), fan_hub(f))
+		g.emitting = true
+
+
+func _gust() -> CPUParticles3D:
+	var g := CPUParticles3D.new()
+	g.amount = 40
+	g.lifetime = 0.7
+	g.local_coords = false
+	g.direction = Vector3.BACK
+	g.spread = 16.0
+	g.initial_velocity_min = 7.0
+	g.initial_velocity_max = 10.0
+	g.gravity = Vector3.ZERO
+	g.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	g.emission_sphere_radius = 0.35
+	g.particle_flag_align_y = true
+	var streak := BoxMesh.new()
+	streak.size = Vector3(0.012, 0.42, 0.012)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1, 1, 1, 0.55)
+	streak.material = mat
+	g.mesh = streak
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.add_point(0.25, Color(1, 1, 1, 1.0))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	g.color_ramp = fade
+	mat.vertex_color_use_as_albedo = true
+	g.top_level = true
+	add_child(g)
+	return g
 
 
 # トーチの炎（vfx/vfx_fire.gd）

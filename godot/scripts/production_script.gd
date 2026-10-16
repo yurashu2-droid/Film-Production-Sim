@@ -171,6 +171,115 @@ const SCRIPTS := [
 			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["surprised", "shock"], "music": ""},
 			{"rule": "chase", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "", "face": ["shock", "shock"], "music": "music_tension"},
 			{"rule": "show", "close": true, "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 10 空き巣にご用心（クリスマスの留守番コメディのパロディ。防犯ビデオ）：振り子が当たる・炎がお尻に
+	{"cuts": true, "scenes": [
+		{"dir": "【玄関】泥棒の二人が、留守の家の前で手もみする。",
+			"lines": [["A", "この家、子どもが一人で留守番だってよ"], ["B", "楽勝ですね"], ["A", "フラグを立てるな"]],
+			"memo": "玄関の前の二人を、明るく映す"},
+		{"dir": "【場転】ドアを開けると、吊るしてあった物が、振り子になって顔に当たる。",
+			"lines": [["B", "開いてますよ"], ["（罠）", "ブォン"], ["A", "……知ってた"]],
+			"memo": "吊るした物（ロープで吊る・焼き切る・押す）を、歩く二人に当てる。当てる人は映さない"},
+		{"dir": "【場転】足元のボタンを踏むと、トーチの炎がお尻に。",
+			"lines": [["A", "いま、何か踏んだ"], ["（罠）", "ボッ"], ["B", "あっちっち！"]],
+			"memo": "止まった二人のすぐそばで、トーチの炎を出す（ボタン・時計・ケーブル）。点ける人は映さない"},
+		{"dir": "【場転】二人そろって、ぐったり。……防犯の大切さを訴える。",
+			"lines": [["二人", "戸締まりは、しっかりと"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "hit", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["neutral", "shock"], "music": ""},
+			{"rule": "scorch", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "", "face": ["shock", "shock"]},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "idle", "look": "camera", "face": ["sad", "sad"], "meet": true, "music": "music_reunion"}]},
+	# 11 月夜の自転車（宇宙から来た友だちの映画のパロディ）：満月の前を、シルエットが横切る
+	{"cuts": true, "scenes": [
+		{"dir": "【月夜の丘】大きな満月。二人は空を見上げる。",
+			"lines": [["A", "今夜は、満月だ"], ["B", "飛べる気がする"]],
+			"memo": "月役の物と二人を、一緒に映す（物を見て Y で月の役にする）"},
+		{"dir": "【場転】自転車がふわりと浮いて、満月の前を横切る。",
+			"lines": [["A", "飛んだ！"], ["B", "自転車は、ありませんけどね"]],
+			"memo": "満月の前を、役者が横切る（画面の上で、月に重ねる）。月を高く吊る・カメラを低く構える・パネルを引く。シルエットなので暗くてもいい"},
+		{"dir": "【場転】そっと着地して、決めポーズ。",
+			"lines": [["二人", "おうち、帰れました"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "role": "moon", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "", "face": ["surprised", "happy"], "music": "music_tension"},
+			{"rule": "cross", "from": 0, "to": 1, "gait": "run", "pose": "idle", "look": "", "face": ["happy", "surprised"], "music": ""},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 12 沈まない船の舳先で（豪華客船の恋愛映画のパロディ）：高い所で、風を受けて両手を広げる
+	{"cuts": true, "scenes": [
+		{"dir": "【夕日の舳先】船のいちばん前に、二人が立つ。",
+			"lines": [["A", "ここが、船のいちばん前"], ["B", "どう見ても、木箱ですけどね"]],
+			"memo": "二人を、床より高い所（台・箱・バルコニーの上）に立たせる。印を高い所に置く"},
+		{"dir": "【場転】両手を広げると、海風が吹きつける。",
+			"lines": [["A", "飛んでる……！"], ["B", "送風機の音、入ってます"]],
+			"memo": "送風機の風を、二人の正面から当てる（手ぶらで F・ボタン・時計で回す）。送風機は、廃材置き場に出してある"},
+		{"dir": "【場転】寄りで、見つめ合う二人。",
+			"lines": [["二人", "沈まない予算で、お送りしました"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "high", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "wind", "from": 1, "to": 1, "gait": "walk", "pose": "cheer", "look": "", "face": ["happy", "happy"], "music": ""},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 13 弾をよける男（仮想世界のアクション映画のパロディ）：のけぞる二人のまわりを、カメラが回り込む
+	{"cuts": true, "scenes": [
+		{"dir": "【屋上】黒いコートの二人が、向き合う。",
+			"lines": [["A", "この世界は、作り物だ"], ["B", "このセットも、作り物です"]],
+			"memo": "向き合う二人を、明るく映す"},
+		{"dir": "【場転】弾が飛んでくる。二人はのけぞる。時間が止まり、カメラだけが回り込む。",
+			"lines": [["（弾）", "ヒュン"], ["A", "……よけた"], ["B", "まだ動いちゃだめです"]],
+			"memo": "止まった二人を映したまま、カメラを二人のまわりで回す（60度くらい）。台車を、滑車とロープで弧に引く・手で押す。押す人は映さない"},
+		{"dir": "【場転】寄りで、決めのひとこと。",
+			"lines": [["二人", "選んだのは、格安のほうだ"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["neutral", "neutral"], "music": "music_tension"},
+			{"rule": "orbit", "from": 0, "to": 1, "gait": "walk", "pose": "freeze", "look": "", "face": ["shock", "neutral"], "music": ""},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "idle", "look": "camera", "face": ["neutral", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 14 階段を駆け上がれ（ボクサーの朝の映画のパロディ）：並んで走る → 駆け上がる → 頂上で万歳
+	{"cuts": true, "scenes": [
+		{"dir": "【夜明けの街】二人が走る。カメラも並んで走る。",
+			"lines": [["A", "まだ、終わっちゃいない"], ["B", "朝ごはん、まだです"]],
+			"memo": "走る二人を映したまま、カメラを動かす。押す人は映さない"},
+		{"dir": "【場転】長い階段を、一気に駆け上がる。",
+			"lines": [["A", "うおおお"], ["B", "息が……"]],
+			"memo": "上の印を、高い所（台・箱・バルコニー）に置き、二人に上らせる（坂や低い段を並べる）"},
+		{"dir": "【場転】頂上で、両手を突き上げる。",
+			"lines": [["二人", "エイドリ……いや、なんでもない！"]],
+			"memo": "高い所で万歳する二人を、明るく映す"}],
+		"beats": [
+			{"rule": "track", "from": 0, "to": 1, "gait": "run", "pose": "idle", "look": "", "face": ["neutral", "neutral"], "music": "music_tension"},
+			{"rule": "climb", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "", "face": ["neutral", "shock"], "music": ""},
+			{"rule": "high", "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "music": "music_reunion"}]},
+	# 15 カップ麺の3分（CM）：お湯を注ぐ → タイマーがチン → うまい！
+	{"cuts": true, "scenes": [
+		{"dir": "【台所】二人が、カップ麺にお湯を注いで、ふたをする。",
+			"lines": [["A", "あと3分"], ["B", "長い……"]],
+			"memo": "二人を、明るく映す"},
+		{"dir": "【場転】3分後。タイマーが、チン！",
+			"lines": [["（タイマー）", "チン"], ["二人", "きた！"]],
+			"memo": "目覚まし時計か押しボタンを、映っている所で鳴らす（ねじを巻いておく・ケーブル）"},
+		{"dir": "【場転】寄りで、うまい！",
+			"lines": [["二人", "うまい！ 3分、待ったかいがあった！"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "show", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["neutral", "neutral"], "music": "music_tension"},
+			{"rule": "ring", "from": 0, "to": 1, "gait": "walk", "pose": "freeze", "look": "", "face": ["surprised", "surprised"], "music": ""},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 16 髪がなびく車のCM：風を受ける二人 → 車が走り抜ける → 決め
+	{"cuts": true, "scenes": [
+		{"dir": "【海沿いの道】オープンカーの二人。髪が、風になびく。",
+			"lines": [["A", "風が、気持ちいい"], ["B", "送風機ですけどね"]],
+			"memo": "止まった二人に、送風機の風を正面から当てる。送風機と、車の代わりのバスの正面は、廃材置き場に出してある"},
+		{"dir": "【場転】車が、カメラの前を走り抜ける。",
+			"lines": [["（車）", "ブォーン"]],
+			"memo": "大きな物（バスの正面など）を、画面の中で2m以上走らせる（台車に載せて押す・引く）。押す人は映さない"},
+		{"dir": "【場転】寄りで、決めのひとこと。",
+			"lines": [["二人", "新しい走りを、あなたに"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "wind", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "pass", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": ""},
+			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 
 
