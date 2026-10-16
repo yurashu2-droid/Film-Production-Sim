@@ -45,8 +45,13 @@ func view() -> Dictionary:
 	var mounts: Array = r.mounts.keys()
 	mounts.sort()
 	var pulley := part("pulley")
+	var fans: Array = r.fans.keys()
+	fans.sort()
+	var nf: Node = game.hooks.feature("night_filter")
+	var night: Array = nf.night.keys() if nf != null else []
+	night.sort()
 	return {"rows": rows, "pending": r.pending.size(), "mounts": mounts, "pulley_fixed": pulley.fixed if pulley != null else false,
-		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05)}
+		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05), "fans": fans, "night": night}
 
 
 func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
@@ -64,6 +69,15 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 		"far":
 			crew_to(who, base + Vector3(-16.0, 0.1, 0.0))
 		"near":
+			crew_to(who, base + Vector3(0.2, 0.1, 0.0))
+		"fan_here":
+			# 廃材置き場の送風機と、夜用フィルターと、撮影カメラを、参加者のそばへ
+			for p: Node in game.props.values():
+				if p.kind == "scrap_fan" and not p.absent:
+					loose(p, base + Vector3(1.2, 0.06, 1.2))
+					break
+			loose(game.hooks.feature("night_filter").gel, base + Vector3(-0.8, 0.06, 0.8))
+			loose(game.film, base + Vector3(0.8, 0.06, -1.4))
 			crew_to(who, base + Vector3(0.2, 0.1, 0.0))
 		"burn":
 			# 火を付けたロープが、焼き切れるまで待つ
@@ -153,9 +167,32 @@ func client_run() -> void:
 	r.h_wind.rpc_id(1, clock.pid)
 	check(await until(func() -> bool: return r.timers.has(clock.pid)), "winding the clock shows on the participant")
 
-	# ---- 途中参加：焼き切れたロープ・留めた滑車・ケーブルが届く ----
+	# ---- 送風機：参加者が手ぶらで回す。両方の画面で回る ----
+	reply = await request("fan_here")
+	var fan: Node = null
+	for p: Node in game.props.values():
+		if p.kind == "scrap_fan" and not p.absent:
+			fan = p
+			break
+	check(fan != null, "the scrap-yard fan is out on the participant")
+	r.h_fan.rpc_id(1, fan.pid)
+	reply = await request("snapshot")
+	check(reply["view"]["fans"] == [fan.pid], "the participant switches the fan on at the host")
+	await sees(reply["view"], ["fans"], "and the fan runs on the participant's screen")
+	# ---- 夜用フィルター：参加者が撮影カメラに付ける。両方の画面で、そのカメラが夜になる ----
+	var nf: Node = game.hooks.feature("night_filter")
+	game.h_grab.rpc_id(1, nf.gel.pid)
+	check(await until(func() -> bool: return game.local_player().held == nf.gel.pid), "the participant picks up the night gel")
+	nf.h_toggle.rpc_id(1, game.film.pid)
+	reply = await request("snapshot")
+	check(reply["view"]["night"] == [game.film.pid], "the participant clips the gel onto the film camera at the host")
+	await sees(reply["view"], ["night"], "and the participant sees the same")
+	check(await until(func() -> bool: return game.film.view_cam.environment != null), "the participant's copy of that camera now films at night")
+	game.h_release.rpc_id(1)
+	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the gel down")
+	# ---- 途中参加：焼き切れたロープ・留めた滑車・ケーブル・回っている送風機・夜用フィルターが届く ----
 	reply = await request("snapshot")
 	var expected: Dictionary = reply["view"]
 	await rejoin()
 	reply = await request("hello")
-	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires"], "a late joiner receives the rope, the clamped pulley and the cable", LATE)
+	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires", "fans", "night"], "a late joiner receives the rope, the clamped pulley, the cable, the running fan and the night gel", LATE)
