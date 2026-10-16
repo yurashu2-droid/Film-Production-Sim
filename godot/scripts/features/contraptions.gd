@@ -66,6 +66,7 @@ var _live := {}
 var _playback := false
 var _send_t := 0.0
 var _dirty := false
+var _was_held := false                               # ホスト：前のコマで、場転でフィルムを止めていたか
 # 見た目
 var _ropes: MultiMeshInstance3D
 var _cables: MultiMeshInstance3D
@@ -848,7 +849,17 @@ func _physics_process(delta: float) -> void:
 		return
 	if Net.is_host() and not _playback and not game.replaying:
 		_host_tick(delta)
+		_note_resume()
 	_tick_fire(delta)
+
+
+# 場転のあと、フィルムを回し直した瞬間：止めている間に結んだ・留めた・つないだ物を、見返しの記録に残し直す
+# （止めている間の合図は記録されないので、そのままだと、見返しでは次の変化まで映らない）
+func _note_resume() -> void:
+	var held: bool = game.state == game.S.TAKE and game.take_held()
+	if _was_held and not held and game.state == game.S.TAKE:
+		game._rec_events.append([float(game.take_t), "rig", [snapshot()]])
+	_was_held = held
 
 
 func _host_tick(delta: float) -> void:

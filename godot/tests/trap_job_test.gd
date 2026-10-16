@@ -134,18 +134,41 @@ func run() -> void:
 	await frames(30)
 	await light(stand)
 	game.h_beat(1)
+	await frames(2)
+	var resumed: float = game.take_t
 	for i in 240:
 		if game.actors[0].beat_arrived() and game.actors[1].beat_arrived():
 			break
 		await physics_frame
 	await frames(20)
 	check(not beats.holding and beats.scene == 1 and not beats.lit[1], "場面2：二人が立ち止まる。まだ何も落ちていない")
+	var lit_at: float = game.take_t
 	rig.host_ignite(rope, 0.3)
 	for i in 200:
 		if beats.lit[1]:
 			break
 		await physics_frame
 	check(beats.lit[1], "ロープが焼き切れて、重りが二人のそばに落ちると、場面2が撮れる（理由：%s）" % beats._top_reason(1))
+	# ---- 見返し（試写会と同じ再生）：場転で結んだロープは、回し直した時から張っていて、火を付けた時刻のあとで焼き切れる ----
+	await frames(30)
+	game._cut()
+	await frames(5)
+	game.h_replay(0)
+	for i in 900:
+		if float(game.replay_t) >= resumed + 0.3:
+			break
+		await physics_frame
+	var row: Dictionary = rig.rows.get(rope, {})
+	check(not row.is_empty() and not bool(row["cut"]) and float(row["fire"]) < 0.0, "見返し：場面2が始まった時、罠のロープは張っている（%s）" % str(row.get("cut", "無い")))
+	for i in 900:
+		if float(game.replay_t) >= lit_at + rig.BURN_SEC + 0.4:
+			break
+		await physics_frame
+	row = rig.rows.get(rope, {})
+	check(not row.is_empty() and bool(row["cut"]), "見返し：火を付けた時刻のあとで、焼き切れる")
+	game.h_stop_replay()
+	await frames(5)
+	check(not rig._playback and rig.rows.has(rope) and bool(rig.rows[rope]["cut"]), "見返しが終わると、今の状態（焼き切れたまま）に戻る")
 	print("TRAP_TEST_FAIL" if failed else "TRAP_TEST_OK")
 	await frames(2)
 	quit(1 if failed else 0)
