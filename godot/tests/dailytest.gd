@@ -38,8 +38,8 @@ func run() -> void:
 	await frames(10)
 	var flow: Node = game.production
 	var yard: Node3D = flow._yard_root
-	# しまってあるのは、段ボール置き場の奥の箱だけ（箱は日替わりの廃材ではない。cargo_kit.gd が出す）
-	check(flow.stash.all(func(pid: int) -> bool: return game.props[pid].kind == "carton") and not shown().any(func(p: Node) -> bool: return p.kind == "carton"), "automatic checks start with every scrap item out")
+	# しまってあるのは、段ボール置き場の奥の箱と、ゴミ袋・包みの中の物だけ（どちらも日替わりの廃材ではない。cargo_kit.gd・features/junk_bags.gd が出す）
+	check(flow.stash.all(func(pid: int) -> bool: return game.props[pid].kind == "carton" or flow.in_bag(game.props[pid].kind)) and not shown().any(func(p: Node) -> bool: return p.kind == "carton"), "automatic checks start with every scrap item out")
 	check(flow.offered() == [flow.debut_job()] and flow.debut_job() >= 0, "first day offers only the company commercial")
 	check(not (yard.get_node("GateBlock").get_child(0) as CollisionShape3D).disabled, "gate is shut before a job is taken")
 

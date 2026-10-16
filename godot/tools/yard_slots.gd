@@ -37,7 +37,11 @@ const WANT := [
 	["scrap_phone", 1, 0.7], ["scrap_vending", 1, 0.7], ["scrap_cactus", 1, 0.7], ["scrap_fridge", 1, 0.6],
 	["scrap_campfire", 1, 0.6], ["scrap_idol", 1, 0.4], ["scrap_chicken", 1, 0.35], ["scrap_torch", 1, 0.35],
 	["scrap_plunger", 1, 0.3], ["scrap_poop", 1, 0.4], ["scrap_pie", 1, 0.35],
+	# 2026-10-16 追加：ブルーシートの包み（振ると大道具が出る）・ゴミ袋（振ると小道具が出る）。features/junk_bags.gd
+	["tarpbundle", 2, 0.6], ["trashbag", 4, 0.45],
 ]
+# 日替わりの廃材ではない物（いつも出ている）。SLOTS ではなく BAG_SPOTS に書き出す
+const ALWAYS := ["tarpbundle", "trashbag"]
 
 
 func _init() -> void:
@@ -164,12 +168,20 @@ func _init() -> void:
 				near_low.append("%s#%d" % [kind, n])
 	var text := "extends RefCounted\n# 廃材置き場の中の置き場所（ヤードのローカル座標 x,z）。tools/yard_slots.gd が書き出す。手で直さない。\nconst SLOTS := {\n"
 	for kind: String in out:
-		if kind in VACATED:
+		if kind in VACATED or kind in ALWAYS:
 			continue
 		var pts: Array = []
 		for p: Vector2 in out[kind]:
 			pts.append("Vector2(%.2f, %.2f)" % [p.x, p.y])
 		text += "\t\"%s\": [%s],\n" % [kind, ", ".join(pts)]
+	text += "}\n# いつも出ている物の置き場所（日替わりの廃材ではない。features/junk_bags.gd のゴミ袋・包み）\nconst BAG_SPOTS := {\n"
+	for kind: String in ALWAYS:
+		if not out.has(kind):
+			continue
+		var spots: Array = []
+		for p: Vector2 in out[kind]:
+			spots.append("Vector2(%.2f, %.2f)" % [p.x, p.y])
+		text += "\t\"%s\": [%s],\n" % [kind, ", ".join(spots)]
 	text += "}\n"
 	var f := FileAccess.open("res://scripts/production_yard_slots.gd", FileAccess.WRITE)
 	f.store_string(text)

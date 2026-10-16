@@ -182,7 +182,7 @@ var _original_walls: Array[StaticBody3D] = []
 var _warnings := [120.0, 60.0, 30.0]
 var _world_environment: Environment
 # 日替わりの廃材：廃材置き場に出るのは毎日この数だけ。残りは奥にしまってある
-const DAILY_COUNT := 18
+const DAILY_COUNT := 35
 var day := 1
 var stash: Array = []            # 今日は出ていない物（物のID）
 var daily := true                # false なら全部出す（自動確認用）
@@ -324,8 +324,9 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 					st[0] = at
 					st[1] = Quaternion(Vector3.UP, PI * 0.5 if at.z > Yard.CENTER.z else -PI * 0.5)
 					prop.restore(st)
-			if prop.kind == "carton":
-				# 段ボール箱は廃材置き場には並べない。段ボール置き場（cargo_kit.gd）が出すまで、待機場所に置いておく
+			if prop.kind == "carton" or in_bag(prop.kind):
+				# 段ボール箱は廃材置き場には並べない。段ボール置き場（cargo_kit.gd）が出すまで、待機場所に置いておく。
+				# ゴミ袋・包みの中の物も、振って出すまで待機場所に置いておく（features/junk_bags.gd）
 				var parked: Array = prop.get_state()
 				parked[0] = Vector3(float(pid) * 3.0, -60.0, 0.0)
 				parked[2] = true
@@ -909,6 +910,13 @@ func restock() -> void:
 	for pid: int in stash:
 		if pid not in hidden and game.props.has(pid) and game.props[pid].kind == "carton":
 			hidden.append(pid)
+	# ゴミ袋・包みの中の物（production_scrap.gd の "bag"）は、毎日しまった状態から始まる。振ると出てくる（features/junk_bags.gd）
+	var bagged: Array = []
+	for pid: int in game.props:
+		if in_bag(game.props[pid].kind):
+			bagged.append(pid)
+			if pid not in hidden:
+				hidden.append(pid)
 	game.host_ev("stash", [hidden])
 	for pid: int in free:
 		var prop: Node = game.props[pid]
@@ -916,6 +924,20 @@ func restock() -> void:
 			prop.global_position = Vector3(float(pid) * 3.0, -60.0, 0.0)
 		else:
 			prop.restore(_home_layout[pid])
+	for pid: int in bagged:
+		var parked: Array = game.props[pid].get_state()
+		parked[0] = Vector3(float(pid) * 3.0, -60.0, 0.0)
+		parked[2] = true
+		game.props[pid].restore(parked)
+
+
+# ゴミ袋・包みの中にしまってある種類か（production_scrap.gd の "bag"。"small"＝ゴミ袋 / "large"＝ブルーシートの包み）
+static func in_bag(kind: String) -> bool:
+	return bag_of(kind) != ""
+
+
+static func bag_of(kind: String) -> String:
+	return str(MovieProp.Scrap.find(kind).get("bag", "")) if kind.begins_with("scrap_") else ""
 
 
 # いま廃材置き場に出ている物。[[種類, 名前, 個数], ...]

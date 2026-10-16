@@ -54,3 +54,8 @@ const SLOTS := {
 	"scrap_poop": [Vector2(-8.38, 4.13)],
 	"scrap_pie": [Vector2(-9.63, 8.13)],
 }
+# いつも出ている物の置き場所（日替わりの廃材ではない。features/junk_bags.gd のゴミ袋・包み）
+const BAG_SPOTS := {
+	"tarpbundle": [Vector2(13.88, -0.88), Vector2(-13.13, -5.88)],
+	"trashbag": [Vector2(-7.13, 1.88), Vector2(9.63, 7.38), Vector2(9.63, 5.38), Vector2(-9.38, 4.13)],
+}
