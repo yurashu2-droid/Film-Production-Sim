@@ -146,6 +146,9 @@ run_pair standin-net 70 'STANDIN_NET_TEST_OK' 'STANDIN_NET_TEST_OK'
 PAIR_HOST=(res://tests/bomb_net_test.tscn -- --bomb-net-test-host)
 PAIR_CLIENT=(res://tests/bomb_net_test.tscn -- --bomb-net-test-client)
 run_pair bomb-net 80 'BOMB_NET_TEST_OK' 'BOMB_NET_TEST_OK'
+PAIR_HOST=(res://tests/contraptions_net_test.tscn -- --rig-net-test-host)
+PAIR_CLIENT=(res://tests/contraptions_net_test.tscn -- --rig-net-test-client)
+run_pair rig-net 100 'RIG_NET_TEST_OK' 'RIG_NET_TEST_OK'
 script_case camera-operation 35 'CAMERA_OPERATION_TEST_OK' camera_operation_test.gd
 script_case monitor-switcher 35 'MONITOR_SWITCHER_TEST_OK' monitor_switcher_test.gd
 PAIR_HOST=(res://tests/monitor_net_test.tscn -- --monitor-host)
