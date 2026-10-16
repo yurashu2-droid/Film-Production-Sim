@@ -1,0 +1,14 @@
+[
+  {"id":"glock","preset":"Toy Blue Glockenspiel","bank":"Prisma","tags":["bell","ui","pickup","magic"],"note":84},
+  {"id":"robot","preset":"Digital Motion Robot Slide","bank":"Prisma","tags":["robot","machine","electronic","fx"],"note":60},
+  {"id":"metal","preset":"Distant Metal","bank":"Prisma","tags":["metal","dark","impact","fx"],"note":60},
+  {"id":"orchestra_hit","preset":"Orchestra Hit","bank":"Prisma","tags":["orchestra","impact","success","fx"],"note":60},
+  {"id":"riser","preset":"Riser Classic","bank":"Prisma","tags":["riser","charge","transition","fx"],"note":60},
+  {"id":"sci_fi","preset":"Sci-Fi Center","bank":"Prisma","tags":["sci-fi","space","magic","fx"],"note":60},
+  {"id":"impact","preset":"Slam Piston","bank":"Prisma","tags":["impact","machine","hit","fx"],"note":60},
+  {"id":"whoosh","preset":"Whooshes","bank":"Prisma","tags":["whoosh","transition","swing","fx"],"note":60},
+  {"id":"drum_kit","preset":"Prisma Factory Kit","bank":"Prisma","tags":["drums","kick","snare","impact"],"note":36},
+  {"id":"sub_bass","preset":"Sub Lime","bank":"Prisma","tags":["bass","sub","low","impact"],"note":36},
+  {"id":"pluck","preset":"Cyber String","bank":"UVI Starter","tags":["pluck","string","electronic","ui"],"note":72},
+  {"id":"lead","preset":"Bite Them","bank":"UVI Starter","tags":["synth","lead","electronic","warning"],"note":72}
+]

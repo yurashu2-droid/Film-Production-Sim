@@ -18,6 +18,8 @@ Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディ�
 
 - **VFX（爆発・炎・煙・飛び道具・落雷・走りの演出）を作る・直す** → `.claude/skills/godot-vfx/SKILL.md`
   （先に `.claude/skills/godot-vfx/PLAYBOOK.md` の手順を読む）
+- **UVI Player・Prisma・UVI StarterでSEを作る／登録音色をコードから鳴らす** → `.claude/skills/uvi-se/SKILL.md`
+  （Claude・Codex共通。`tools/uvi_direct/uvi.cmd voices` で登録状況を確認できる）
 
 ## VFX の資料（Claude Code / Codex 共通）
 

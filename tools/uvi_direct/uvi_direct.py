@@ -7,6 +7,8 @@ from pathlib import Path
 import sys
 import time
 import wave
+from voice_registry import get_voice, list_voices, voice_state
+from voice_studio import live_session, request_capture, run_studio
 
 # Optional local dependency install, separate from the game's environment.
 LOCAL_DEPS = Path.home() / '.cache' / 'codex-audio' / 'python-deps'
@@ -98,24 +100,49 @@ def main(argv=None):
     parser.add_argument('--plugin', type=Path, default=DEFAULT_PLUGIN)
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('inspect', help='Check the plugin and list exposed automation controls.')
+    sub.add_parser('studio', help='Open the voice-registration editor; save with the capture command.')
+    sub.add_parser('capture', help='Save the current sound of the registration editor automatically.')
+    voices = sub.add_parser('voices', help='List shared voice IDs without loading UVI.')
+    voices.add_argument('--tag', help='Filter by a catalog tag such as impact, synth, or ui.')
+    register = sub.add_parser('register', help='Save several voice states with one plugin session.')
+    register.add_argument('--voices', nargs='+', required=True)
     edit = sub.add_parser('edit', help='Choose an instrument, close the editor to save its state.')
     edit.add_argument('--state', type=Path, required=True)
     output = sub.add_parser('render', help='Render notes directly to WAV with no editor or audio device.')
-    output.add_argument('--state', type=Path, required=True)
+    source = output.add_mutually_exclusive_group(required=True)
+    source.add_argument('--state', type=Path)
+    source.add_argument('--voice', help='Shared voice ID from the voices catalog.')
     output.add_argument('--score', type=Path, required=True)
     output.add_argument('--output', type=Path, required=True)
     output.add_argument('--tail', type=float, default=0.8, help='Release tail in seconds.')
     output.add_argument('--rate', type=int, choices=[44100, 48000, 96000], default=48000)
     output.add_argument('--peak-db', type=float, default=-3)
     batch = sub.add_parser('batch', help='Reuse one loaded instrument for several scores.')
-    batch.add_argument('--state', type=Path, required=True)
+    source = batch.add_mutually_exclusive_group(required=True)
+    source.add_argument('--state', type=Path)
+    source.add_argument('--voice')
     batch.add_argument('--scores', type=Path, nargs='+', required=True)
     batch.add_argument('--output-dir', type=Path, required=True)
     batch.add_argument('--tail', type=float, default=0.8)
     batch.add_argument('--rate', type=int, choices=[44100, 48000, 96000], default=48000)
     batch.add_argument('--peak-db', type=float, default=-3)
     args = parser.parse_args(argv)
+    if args.command == 'voices':
+        print(json.dumps(list_voices(args.tag), ensure_ascii=True, indent=2))
+        return
+    if args.command == 'capture':
+        print(json.dumps(request_capture(), ensure_ascii=True, indent=2))
+        return
+    if args.command == 'studio':
+        if live_session() is not None:
+            raise ValueError('A registration editor is already open. Use capture to save its current sound.')
+        print('Loading UVI Player for voice registration...', flush=True)
+    if args.command == 'register':
+        for voice_id in args.voices:
+            get_voice(voice_id)
     if args.command in ('render', 'batch'):
+        if args.voice:
+            args.state = voice_state(args.voice)
         scores = [args.score] if args.command == 'render' else args.scores
         if args.command == 'batch' and len({path.stem for path in scores}) != len(scores):
             raise ValueError('Batch scores must have distinct filenames to avoid output collisions.')
@@ -129,9 +156,24 @@ def main(argv=None):
     started = time.perf_counter()
     plugin = load_instrument(args.plugin)
     print(json.dumps(dict(plugin=plugin.name, loaded_seconds=time.perf_counter() - started)), flush=True)
-    if args.command == 'inspect':
+    if args.command == 'studio':
+        run_studio(plugin)
+    elif args.command == 'inspect':
         print(json.dumps(dict(instrument=plugin.is_instrument,
                               parameters=list(plugin.parameters)), indent=2))
+    elif args.command == 'register':
+        for voice_id in args.voices:
+            voice = get_voice(voice_id)
+            state = voice_state(voice_id, require=False)
+            if state.exists():
+                plugin.load_preset(str(state))
+            print(f'REGISTER {voice_id}: select {voice["bank"]} / {voice["preset"]}; close editor after loading.', flush=True)
+            plugin.show_editor()
+            state.parent.mkdir(parents=True, exist_ok=True)
+            temporary = state.with_suffix('.tmp')
+            temporary.write_bytes(plugin.preset_data)
+            temporary.replace(state)
+            print(json.dumps(dict(registered=voice_id, state=str(state), bytes=state.stat().st_size)), flush=True)
     elif args.command == 'edit':
         if args.state.exists():
             plugin.load_preset(str(args.state))
