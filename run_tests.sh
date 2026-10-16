@@ -223,6 +223,13 @@ script_case contraptions-play 120 'RIGPLAY_TEST_OK' contraptions_play_test.gd --
 script_case panel-dolly 120 'PANEL_DOLLY_TEST_OK' panel_dolly_test.gd --fixed-fps 60
 script_case trap-job 150 'TRAP_TEST_OK' trap_job_test.gd --fixed-fps 60
 script_case boulder 170 'BOULDER_TEST_OK' boulder_test.gd --fixed-fps 60
+script_case parody-home-alone-test 200 'HOMEALONE_TEST_OK' parody_home_alone_test.gd --fixed-fps 60
+script_case parody-moon-test 200 'MOONBIKE_TEST_OK' parody_moon_test.gd --fixed-fps 60
+script_case parody-ship-test 200 'SHIP_TEST_OK' parody_ship_test.gd --fixed-fps 60
+script_case parody-dodge-test 200 'DODGE_TEST_OK' parody_dodge_test.gd --fixed-fps 60
+script_case parody-stairs-test 200 'STAIRS_TEST_OK' parody_stairs_test.gd --fixed-fps 60
+script_case parody-noodle-test 200 'NOODLE_TEST_OK' parody_noodle_test.gd --fixed-fps 60
+script_case parody-car-test 200 'CARCM_TEST_OK' parody_car_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
