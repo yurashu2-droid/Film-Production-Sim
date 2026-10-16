@@ -10,7 +10,7 @@ var reply: Array = []
 
 func _ready() -> void:
 	host = "--monitor-host" in OS.get_cmdline_user_args()
-	get_tree().create_timer(35.0).timeout.connect(func(): get_tree().quit(2))
+	get_tree().create_timer(60.0).timeout.connect(func(): get_tree().quit(2))
 	run.call_deferred()
 
 func wait(seconds: float) -> void:
@@ -48,13 +48,15 @@ func request(action: String) -> void:
 
 func run() -> void:
 	if host: check(Net.host(PORT) == OK,"host socket")
-	else:
-		check(Net.join("127.0.0.1",PORT) == OK,"client socket")
-		await Net.joined_host
+	else: check(Net.join("127.0.0.1",PORT) == OK,"client socket")
+	# 先にゲームを読み込んでから、つながるのを待つ（pair_net_base.gd と同じ順）。つないでから読み込むと、
+	# 読み込みの間は通信が止まるので、参加者の接続が切れることがある。参加者の hello は、ゲーム自身が接続の合図で送る
 	game = load("res://production_game.tscn").instantiate()
 	game.name = "Game"
 	get_tree().root.add_child(game)
 	while not game.startup_complete: await get_tree().process_frame
+	if not host:
+		while multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED: await wait(0.05)
 	game.input_locked = true
 	if host:
 		game.h_accept_job(0)
@@ -68,7 +70,6 @@ func run() -> void:
 		while game.players.has(ready_peer): await wait(0.05)
 		check(game.camera_switcher.operator_peer == 0,"disconnect releases control")
 	else:
-		game.h_hello.rpc_id(1)
 		while game.local_player() == null or game.production.phase != 4: await wait(0.05)
 		await wait(0.3)
 		var switcher: Node = game.camera_switcher
