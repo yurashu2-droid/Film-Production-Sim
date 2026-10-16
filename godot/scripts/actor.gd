@@ -1,5 +1,7 @@
 extends CharacterBody3D
 # 合図で動く役者（NPC）。仕込み中は立ち位置の印の上で待つ。
+# 役に入った人（stand_in：班のプレイヤーか等身大パネル。features/stand_ins.gd）がいる間は、姿を消してその人に付いていく。
+# 判定・場面の進め方は、そのまま「役者」を見るので、役に入った人の位置と動きで数えることになる
 
 const CastVisual := preload("res://scripts/cast_visual.gd")
 
@@ -10,6 +12,7 @@ const CONFESS_SEC := 6.0
 const RUN_SPEED := 3.4
 const WALK_SPEED := 1.9
 const ARRIVE := 0.12          # 印に、ここまで近づいたら着いた
+const STAND_ARRIVE := 0.75    # 役に入った人は、印からこの距離にいれば着いた（人の足で、ぴたりとは止まれない）
 const STUCK_SEC := 0.45       # まっすぐ進めないまま、これだけ経ったら立ち止まる
 const STUCK_PACE := 0.3       # 進む速さが、歩く・走る速さのこの割合より遅ければ「進めていない」
 const GRAVITY := 16.0
@@ -38,6 +41,8 @@ var _spec_t := 0.0
 var beat: Dictionary = {}
 var _beat_leg := 1            # 0＝やり直しで、最初の印へ走って戻っている / 2＝戻って、相手が戻るのを待つ / 1＝その場面の動き
 var _beat_dir := Vector3.FORWARD
+var stand_in: Node3D = null   # 役に入っている人（プレイヤー）か等身大パネル
+var _stand_speed := 0.0
 
 
 func setup(cast_tag: String, specials: Array) -> void:
@@ -91,8 +96,8 @@ func chest_pos() -> Vector3:
 func set_state(s: St) -> void:
 	st = s
 	# 待機中は印に付いて回るだけの幽霊にする（瞬間移動でセットを弾き飛ばさないため）
-	collision_layer = 0 if s == St.STANDBY else 8
-	collision_mask = 0 if s == St.STANDBY else 7     # 役者どうしは重なれる（頭の上に乗らないように）
+	collision_layer = 0 if s == St.STANDBY or stand_in != null else 8
+	collision_mask = 0 if s == St.STANDBY or stand_in != null else 7     # 役者どうしは重なれる（頭の上に乗らないように）
 	st_t = 0.0
 	_stuck = 0.0
 	_spec_i = 0
@@ -111,7 +116,7 @@ func _face_for(s: St) -> String:
 
 
 func knock(impulse: Vector3) -> void:
-	if st == St.STANDBY:
+	if st == St.STANDBY or stand_in != null:
 		return
 	if st in [St.BEAT_GO, St.BEAT_HOLD, St.BEAT_STUCK] or (st == St.FLINCH and after_flinch == St.BEAT_GO):
 		# 場面の途中で吹き飛ばされた：起き上がったら、その場面の印へ向かい直す
@@ -133,6 +138,14 @@ func _face(target: Vector3, delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	if playback:
+		return
+	if stand_in != null and not is_instance_valid(stand_in):
+		set_stand_in(null)
+	if stand_in != null:
+		if multiplayer.is_server():
+			_follow_stand_in(delta)
+		else:
+			_follow_net(delta)
 		return
 	if not multiplayer.is_server():
 		_follow_net(delta)
@@ -252,6 +265,8 @@ func play_beat(spec: Dictionary) -> void:
 
 # その場面の動きで、歩いている（走っている）最中か。やり直しで印へ戻っている間は数えない
 func beat_walking() -> bool:
+	if stand_in != null:
+		return st == St.BEAT_GO and _beat_leg == 1 and _stand_speed > 0.5
 	return st == St.BEAT_GO and _beat_leg == 1 and Vector2(velocity.x, velocity.z).length() > 0.5
 
 
@@ -262,7 +277,51 @@ func beat_arrived() -> bool:
 
 # 物にぶつかって進めず、立ち止まっているか
 func beat_stuck() -> bool:
-	return st == St.BEAT_STUCK
+	return st == St.BEAT_STUCK and stand_in == null
+
+
+# ---- 役に入った人（班のプレイヤー・等身大パネル）に付いていく ----
+
+# 役に入った人を決める（全員の画面。features/stand_ins.gd）。null で、NPC の役者に戻る
+func set_stand_in(n: Node3D) -> void:
+	stand_in = n
+	vis.visible = n == null
+	_stand_speed = 0.0
+	if n != null:
+		collision_layer = 0
+		collision_mask = 0
+		velocity = Vector3.ZERO
+	else:
+		set_state(st)
+
+
+# 役に入った人の位置と向きに重なり、場面の印に着いたか・歩いているかを、その人の動きで決める（ホスト）
+func _follow_stand_in(delta: float) -> void:
+	var p: Vector3 = stand_in.global_position
+	var step := Vector2(p.x - global_position.x, p.z - global_position.z).length()
+	_stand_speed = lerpf(_stand_speed, step / maxf(delta, 0.0001), clampf(delta * 8.0, 0.0, 1.0))
+	global_position = p
+	velocity = Vector3.ZERO
+	var body: Variant = stand_in.get("vis")
+	rotation.y = (body as Node3D).global_rotation.y if body is Node3D else stand_in.global_rotation.y
+	st_t += delta
+	match st:
+		St.BEAT_GO:
+			var target: Vector3 = beat.get("back" if _beat_leg == 0 else "to", p)
+			if Vector2(target.x - p.x, target.z - p.z).length() < STAND_ARRIVE:
+				if _beat_leg == 0:
+					_beat_leg = 1          # やり直し：最初の印へ戻った。そのまま演じ直す
+				else:
+					set_state(St.BEAT_HOLD)
+		St.BEAT_HOLD:
+			var spot: Vector3 = beat.get("to", p)
+			if Vector2(spot.x - p.x, spot.z - p.z).length() > STAND_ARRIVE * 1.8:
+				set_state(St.BEAT_GO)      # 印から離れた
+		St.CONFESS:
+			if st_t >= CONFESS_SEC:
+				set_state(St.IDLE)
+		St.FLINCH, St.BEAT_STUCK, St.REUNION_MOVE, St.REUNION_HOLD:
+			set_state(St.BEAT_GO if not beat.is_empty() else St.IDLE)
 
 
 func _beat_go(delta: float) -> void:

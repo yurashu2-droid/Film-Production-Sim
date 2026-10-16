@@ -17,10 +17,19 @@ func reset() -> void:
 func crew_in_frame() -> Array:
 	var seen: Array = []
 	for player: Node in game.players.values():
+		if _acting(player):
+			continue        # 役に入っている人は、出演している（features/stand_ins.gd）
 		if _seen(player.vis.head_pos(), player.get_rid()) or _seen(player.vis.chest_pos(), player.get_rid()):
 			var index: int = game.PLAYER_CASTS.find(player.vis.tag)
 			seen.append(game.PLAYER_NAMES[index] if index >= 0 else "スタッフ")
 	return seen
+
+func _acting(player: Node) -> bool:
+	for a: Node in game.actors:
+		if a.get("stand_in") == player:
+			return true
+	return false
+
 
 func tick(delta: float) -> void:
 	var crew := crew_in_frame()
