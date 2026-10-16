@@ -1,6 +1,6 @@
 extends SceneTree
 # 遊んで確かめる用の起動（scripts/features/start_day.gd）：「-- --day2」を付けると 2日目から始まり、掲示板に新しい依頼が出る。
-#   godot --headless --path godot --fixed-fps 60 --script res://tests/start_day_test.gd -- --day2
+#   godot --headless --path godot --fixed-fps 60 --script res://tests/start_day_test.gd   （「-- --day2」を付けて起動したのと同じ扱いを、中で行う）
 var game: Node
 var failed := false
 
@@ -22,6 +22,10 @@ func run() -> void:
 	while not game.startup_complete:
 		await process_frame
 	var flow: Node = game.production
+	var sd: Node = game.hooks.feature("start_day")
+	sd.apply([])
+	check(int(flow.day) == 1, "付けなければ、1日目のまま")
+	sd.apply(["--day2"])
 	var titles: Array = flow.offered().map(func(i: int) -> String: return str(flow.JOBS[i]["title"]))
 	check(int(flow.day) == 2, "2日目から始まる")
 	check(not titles.has(str(flow.JOBS[flow.debut_job()]["title"])), "会社のCMは出ない")

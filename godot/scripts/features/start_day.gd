@@ -6,5 +6,9 @@ var game: Node
 
 
 func setup() -> void:
-	if "--day2" in OS.get_cmdline_user_args() and Net.mode != "client" and game.production != null and int(game.production.day) <= 1:
+	apply(OS.get_cmdline_user_args())
+
+
+func apply(args: Array) -> void:
+	if "--day2" in args and Net.mode != "client" and game.production != null and int(game.production.day) <= 1:
 		game.production.day = 2
