@@ -48,6 +48,7 @@ var _effects: OptionButton
 var _tabs: TabContainer
 var skill_panel: VBoxContainer
 var _restore_mouse_mode := Input.MOUSE_MODE_VISIBLE
+var _premiere_hint := false
 
 func _ready() -> void:
 	layer = 4
@@ -58,7 +59,13 @@ func _ready() -> void:
 	refresh_actions()
 
 func allowed() -> bool:
+	if in_premiere():
+		return true
 	return game.production != null and game.production.phase in [0,2,4] and game.state in [game.S.PREP,game.S.COUNTDOWN,game.S.TAKE] and not game.replaying and not game.production.expired
+
+# 試写会を見ている間（features/premiere.gd）：演技（拍手・のけぞる・表情など）で反応できる。効果（X）は出さない
+func in_premiere() -> bool:
+	return bool(game.get("audience")) and game.state == game.S.REPLAY
 
 func _build_ui() -> void:
 	_root = Control.new()
@@ -164,6 +171,9 @@ func refresh_actions() -> void:
 
 func _update_hint() -> void:
 	var act_name: String = FACES.get(selected_animation.trim_prefix("face:"), "") if selected_animation.begins_with("face:") else ACTION_NAMES.get(selected_animation,"")
+	if in_premiere():
+		_hint.text = "Z 反応する：%s\nH 選ぶ" % act_name
+		return
 	_hint.text = "Z 演技：%s\nX 効果：%s\nH 選ぶ ／ Ctrl しゃがむ" % [act_name,EFFECTS[selected_effect][0]]
 
 func set_open(on: bool) -> void:
@@ -194,7 +204,7 @@ func _input(event: InputEvent) -> void:
 			set_open(false)
 			if code == KEY_Z:
 				request_act()
-			else:
+			elif not in_premiere():
 				request_fx()
 		elif code in [KEY_C,KEY_TAB]:
 			set_open(false)
@@ -206,7 +216,7 @@ func _input(event: InputEvent) -> void:
 	if code == KEY_Z:
 		request_act()
 		get_viewport().set_input_as_handled()
-	elif code == KEY_X:
+	elif code == KEY_X and not in_premiere():
 		request_fx()
 		get_viewport().set_input_as_handled()
 
@@ -243,6 +253,8 @@ func accept_act(who: int, clip: String) -> void:
 	game.host_ev("perform",[who,clip])
 
 func accept_fx(who: int, id: String, ray_origin: Vector3, ray_direction: Vector3) -> void:
+	if in_premiere():
+		return
 	var player: Node = game.players.get(who)
 	if not allowed() or player == null or not EFFECTS.has(id) or (who == Net.my_id() and game.ui_blocking()):
 		return
@@ -323,4 +335,7 @@ func _process(_delta: float) -> void:
 		refresh_actions()
 	if opened and (not allowed() or game.character_open or game.help_open):
 		set_open(false)
+	if in_premiere() != _premiere_hint:
+		_premiere_hint = in_premiere()
+		_update_hint()
 	_hint.visible = allowed() and not game.ui_blocking() and (game.production == null or game.production.phase == 4)

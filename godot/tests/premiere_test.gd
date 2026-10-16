@@ -89,6 +89,16 @@ func run() -> void:
 	Input.action_release("move_forward")
 	game.input_locked = locked
 	check(me.global_position.distance_to(before) > 0.4 and game.state == S.REPLAY, "見ている間も、プレイヤーは歩ける（%.2f m）" % me.global_position.distance_to(before))
+	# 見ている間は、演技（Z）で反応できる（拍手・のけぞる・表情など）。効果（X）は出さない
+	var perf: Node = game.performance
+	check(perf.allowed() and perf.in_premiere() and perf._hint.text.begins_with("Z 反応する"), "試写会の間は、Z で反応できる（%s）" % perf._hint.text.replace("\n", " ／ "))
+	perf.request_act()
+	await frames(3)
+	check(str(me._performance) != "" or float(me._face_t) > 0.0, "Z で、反応の演技が始まる（%s）" % perf.selected_animation)
+	var fx_before: int = perf.fx_root.get_child_count()
+	perf.accept_fx(int(me.peer_id), "fireball", me.cam.global_position, -me.cam.global_basis.z)
+	await frames(2)
+	check(perf.fx_root.get_child_count() == fx_before, "試写会の間は、効果（火の弾など）は出ない")
 	game.request_deliver(0)
 	await frames(1)
 	check(game.state == S.REPLAY and flow.phase == 4, "流している間に、もう一度押しても納品しない")
