@@ -4,12 +4,15 @@ var game: Node
 var crew_seconds := 0.0
 var moon_seconds := 0.0
 var cameos := {}
+var cameo_at := {}       # 映り込んだ人が、はっきり映った時刻（名前 → テイクの時刻。映った秒数が CAMEO_CLEAR を越えたとき）
+const CAMEO_CLEAR := 0.25
 var role_seen := {}      # 役の付いた物が、撮影カメラに映った秒数（物のID → 秒）
 
 func reset() -> void:
 	crew_seconds = 0.0
 	moon_seconds = 0.0
 	cameos.clear()
+	cameo_at.clear()
 	role_seen.clear()
 
 # いま撮影カメラに映っている制作班（名前の一覧）。頭か胸が、画面の中にあって、物に隠れていなければ映っている。
@@ -34,7 +37,10 @@ func _acting(player: Node) -> bool:
 func tick(delta: float) -> void:
 	var crew := crew_in_frame()
 	for name: String in crew:
-		cameos[name] = float(cameos.get(name,0.0)) + delta
+		var was := float(cameos.get(name,0.0))
+		cameos[name] = was + delta
+		if was < CAMEO_CLEAR and was + delta >= CAMEO_CLEAR:
+			cameo_at[name] = float(game.take_t)        # 試写会で、このコマに「映り込み」の行を付ける（features/premiere.gd）
 	if not crew.is_empty():
 		crew_seconds += delta
 	var moon_shown := false
@@ -67,7 +73,7 @@ func finish(bonus_kind: Variant, take_index: int, passed: Array) -> Dictionary:
 		"first_take": extra_ok = take_index == 0
 		"no_crew": extra_ok = crew_seconds <= 0.5
 		"moon": extra_ok = moon_seconds >= 2.0
-	return {"bonus_ok":extra_ok and not passed.is_empty() and not false in passed,"crew_seconds":crew_seconds,"moon_seconds":moon_seconds,"cameos":cameos.duplicate(),"early_boom":game.judge.boom_early,
+	return {"bonus_ok":extra_ok and not passed.is_empty() and not false in passed,"crew_seconds":crew_seconds,"moon_seconds":moon_seconds,"cameos":cameos.duplicate(),"cameo_at":cameo_at.duplicate(),"early_boom":game.judge.boom_early,
 		"cast":game.production.cast_report(role_seen,game.judge.boom_src,passed)}
 
 func observations(data: Dictionary) -> Array[String]:

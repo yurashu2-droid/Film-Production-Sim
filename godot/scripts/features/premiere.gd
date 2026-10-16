@@ -22,6 +22,8 @@ const BUBBLE_SEC := 2.8      # 反応のふきだしを出しておく秒数
 const START := ["さあ、見せてもらおうか", "楽しみにしてたよ", "どれどれ……", "期待してるよ"]
 const HAPPY := ["おおっ、%s！", "いいねえ、%s！", "これこれ、%s！", "%s、きたきた！", "ほう……%s、やるね"]
 const WOW := ["うわっ！", "ひゃっ！", "おおお……！", "近い近い！"]
+# 班の誰かが映り込んだ時（%s＝その人の名前）
+const CAMEO_LINES := ["……いま、%sが映ってませんでした？", "あれ？ %s、そこで何してるの？", "ちょっと、%sが見切れてますよ"]
 
 var game: Node
 var screening := -1          # いま流しているテイク（全員の画面。-1＝流していない）
@@ -32,6 +34,7 @@ var _times := {}             # テイクの番号 → 場面ごとの撮れた�
 var _watch: Array = []       # 本番中に測っている時刻
 var _cue_watch: Array = []   # 本番中に出た合図 [時刻, 場面]（3場面の依頼）
 var _cue_times := {}         # テイクの番号 → _cue_watch
+var _cameo_times := {}       # テイクの番号 → 映り込んだ人と時刻 [[時刻, 名前], ...]（production_notes.gd の cameo_at。0.5秒以上映った人だけ）
 var _cues: Array = []        # 試写会で出す反応 [時刻, せりふ, 気分]（時刻順）
 var _cue_i := 0
 var _wow_i := 0
@@ -86,7 +89,7 @@ var _next_shot := 0.0
 var _want_shots: Array = []    # これから写すコマ [時刻, 印]（見せ場の少しあと）
 var _band: Control             # フィルムの帯（送り穴を描く）
 var _track: Control            # コマの列（左へ動かす）
-var _items: Array = []         # [コマの真ん中の x, 下の札, 行の一覧, 出したか]
+var _items: Array = []         # [コマの真ん中の x, 下の札, 行の一覧, 出したか, コマの印]
 var _offset := 0.0             # フィルムを送った量
 var _offset_end := 0.0
 var _pause := 0.0
@@ -309,11 +312,19 @@ func hook_take_cut() -> void:
 	if not (game.takes as Array).is_empty():
 		_times[game.takes.size() - 1] = _watch.duplicate()
 		_cue_times[game.takes.size() - 1] = _cue_watch.duplicate()
+		var notes: RefCounted = game.production.notes if game.production != null else null
+		var seen: Array = []
+		if notes != null:
+			for name: String in notes.cameo_at:
+				if float(notes.cameos.get(name, 0.0)) >= 0.5:
+					seen.append([float(notes.cameo_at[name]), name])
+		_cameo_times[game.takes.size() - 1] = seen
 
 
 func hook_new_job() -> void:
 	_times.clear()
 	_cue_times.clear()
+	_cameo_times.clear()
 
 
 func hook_return_office() -> void:
@@ -407,6 +418,9 @@ func _plan(index: int) -> Array:
 	# 3場面の依頼：合図を出した時刻に、場面の見出し
 	for cue: Array in _cue_times.get(index, []):
 		plan.append([maxf(float(cue[0]), 0.05), "", "chapter:%d" % int(cue[1])])
+	# 班の誰かが映り込んだ時刻：依頼主が気づく。そのコマを写して、フィルムの採点で「映り込み」の行を付ける
+	for seen: Array in _cameo_times.get(index, []):
+		plan.append([maxf(float(seen[0]), 0.3), CAMEO_LINES[(job + plan.size()) % CAMEO_LINES.size()] % str(seen[1]), "sad", "cameo:%s" % str(seen[1])])
 	# ほかの仕組みが足す反応（手描きの看板が映った など。各仕組みの hook_premiere_cues）
 	for target: Object in game.hooks.in_order("hook_premiere_cues"):
 		for cue: Array in target.hook_premiere_cues(index):
@@ -639,7 +653,9 @@ func build_tally() -> Array:
 		out.append(["全部の場面がそろった", int(flow.job().get("fee_all", 300)), false, "all"])
 	for line: String in flow.last_flubs:
 		var kind := "tail"
-		if line.contains("爆発") or line.contains("迫力"):
+		if line.contains("秒出演"):
+			kind = "cameo:%s" % line.get_slice("が", 0)       # 映り込んだ人：その人が映ったコマ（production_notes.gd の observations）
+		elif line.contains("爆発") or line.contains("迫力"):
 			kind = "burst"
 		elif line.contains("名前") or line.contains("看板"):
 			kind = "sign"
@@ -762,7 +778,7 @@ func _start_tally() -> void:
 						used[k] = true
 						break
 			_:
-				if kind.begins_with("scene:"):
+				if kind.begins_with("scene:") or kind.begins_with("cameo:"):
 					for k in range(1, frames.size() - 1):
 						if str(frames[k][1]) == kind:
 							at = k
@@ -781,7 +797,7 @@ func _start_tally() -> void:
 			note.position = Vector2(cx - 160.0, FRAME_SIZE.y * 0.5 + 44.0)
 			note.modulate.a = 0.0
 			note.reset_size.call_deferred()
-		_items.append([cx, note, f[2], false])
+		_items.append([cx, note, f[2], false, str(f[1])])
 		x += FRAME_SIZE.x + FRAME_GAP
 	_offset = -FRAME_SIZE.x * 1.6         # 頭のコマは、右の外から入ってくる
 	_offset_end = _items.back()[0] as float          # 最後は「終」のコマが窓に来て止まる

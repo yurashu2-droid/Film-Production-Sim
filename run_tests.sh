@@ -206,6 +206,7 @@ script_case standin 80 'STANDIN_TEST_OK' standin_test.gd --fixed-fps 60
 script_case bomb 180 'BOMB_TEST_OK' bomb_test.gd --fixed-fps 60
 script_case rope-grab 180 'ROPE_GRAB_TEST_OK' rope_grab_test.gd --fixed-fps 60
 script_case premiere 120 'PREMIERE_TEST_OK' premiere_test.gd --fixed-fps 60
+script_case cameo-frame 150 'CAMEO_TEST_OK' cameo_frame_test.gd --fixed-fps 60
 script_case cuts 150 'CUTS_TEST_OK' cuts_test.gd --fixed-fps 60
 script_case pr 420 'PR_TEST_OK' pr_test.gd --fixed-fps 60
 script_case spectacle 120 'SPECTACLE_TEST_OK' spectacle_test.gd --fixed-fps 60
