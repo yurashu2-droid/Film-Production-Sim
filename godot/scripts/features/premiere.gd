@@ -676,7 +676,8 @@ func build_tally() -> Array:
 func _shoot(at: float, mark: String) -> void:
 	var tex: ImageTexture = null
 	var camera: Node = game.program_camera()
-	if camera != null and camera.get("view") is SubViewport:
+	# 画面なしの実行（自動確認）では、絵は無い（コマの時刻と印だけを控える）
+	if camera != null and camera.get("view") is SubViewport and DisplayServer.get_name() != "headless":
 		var img: Image = (camera.view as SubViewport).get_texture().get_image()
 		if img != null and not img.is_empty():
 			img.resize(SHOT_SIZE.x, SHOT_SIZE.y, Image.INTERPOLATE_BILINEAR)
