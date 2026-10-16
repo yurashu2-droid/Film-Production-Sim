@@ -857,6 +857,10 @@ func _broadcast(full: bool) -> void:
 	_send_t = 0.18
 	_burn_send_t = 0.5
 	game.host_ev("bombkit" if full else "bombnum", [snapshot(full)])
+	# 場転でフィルムを止めている間の変化（つなぐ・切る・注ぐ）は、合図としては記録されない。
+	# 見返しで、回し直したときから今の線と火薬が見えるように、全部の様子を記録に残す（荷台のロープの cargo_kit.gd と同じ）
+	if game.state == game.S.TAKE and game.take_held() and not game.replaying:
+		game._rec_events.append([float(game.take_t), "bombkit", [snapshot(true)]])
 
 
 func sync_to(who: int) -> void:

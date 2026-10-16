@@ -121,6 +121,11 @@ func run() -> void:
 			break
 		await physics_frame
 	check(beats.holding and beats.next_scene == 1, "撮れたら、フィルムが止まる（場転）")
+	# 場転の間の導火線の変化も、見返しの記録に残る（bomb_kit.gd）
+	var rec_before: int = (game._rec_events as Array).size()
+	game.bomb_kit._broadcast(true)
+	var last: Array = (game._rec_events as Array).back() if (game._rec_events as Array).size() > rec_before else []
+	check(not last.is_empty() and str(last[1]) == "bombkit", "場転の間に変わった導火線と火薬も、見返しの記録に残る")
 	# ---- 場転：罠を仕掛ける。二人の立ち止まる印②の横、頭の上に重りを吊る ----
 	var spot: Vector3 = beats.mark(0, 1).global_position.lerp(beats.mark(1, 1).global_position, 0.5) + Vector3(0.9, 0, 0)
 	var bag: RigidBody3D = game.stage.spawn("sandbag", Vector3(spot.x, 1.6, spot.z), 0.0)
