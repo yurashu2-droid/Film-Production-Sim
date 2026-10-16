@@ -12,6 +12,8 @@ extends Node
 ##     つなぐ：ボタンを持って装置を見て F（装置を持ってボタンを見ても同じ。もう一度で外す）。装置は、点火トーチと爆弾（すぐ爆発する）
 ##   ・点火トーチ：合図が来ると（手ぶらで F でも）、先から数秒、本物の炎が出る。炎の先にある、結んだロープ・導火線の先・
 ##     こぼれた火薬・爆弾の口に火が移る
+##   ・目覚まし時計：手ぶらで F を押すたびに、ねじを巻く（巻くほど長く。文字盤の赤い針が、残りを指す）。針が上に戻ると鳴って、
+##     ケーブルでつないだ装置が動く（押しボタンと同じ。つなぎ方も同じ）。役を演じている間に、仕掛けを動かせる
 ## 決めるのはホスト。ロープの張り（引く力）は、ホストだけが毎コマ計算する。
 ## 結び目・長さ・燃えている所・留めた滑車・ケーブル・炎は、"rig" の合図で全員へ配る（本番中は記録にも残り、見返しでも焼き切れる・鳴る・燃える）
 const Prop := preload("res://scripts/prop.gd")
@@ -39,13 +41,19 @@ const HOME := [
 	["pulley", Vector3(70.15, 0.05, 18.45), 0.3], ["pulley", Vector3(70.15, 0.05, 18.95), 0.3],
 	["buzzer", Vector3(69.45, 0.05, 18.5), 0.0], ["buzzer", Vector3(69.45, 0.05, 19.0), 0.0],
 	["igniter", Vector3(68.85, 0.05, 18.55), 0.4], ["igniter", Vector3(68.85, 0.05, 19.05), 0.4],
+	["timer", Vector3(68.25, 0.05, 18.8), 0.3],
 ]
 # 部品の作り方 [ラベル, 素材, 重さ, 拡大]
 const PARTS := {
 	"pulley": ["滑車（クランプ付き）", "P081_c_clamp", 1.2, 2.0],
 	"buzzer": ["押しボタン（呼び鈴）", "P085_desk_bell", 1.5, 2.6],
 	"igniter": ["点火トーチ", "P030_fake_torch", 0.8, 1.4],
+	"timer": ["目覚まし時計", "P044_alarm_clock", 0.6, 2.2],
 }
+const TRIGGERS := ["buzzer", "timer"]               # 鳴ると、ケーブルでつないだ装置が動く物
+const WIND_STEP := 5.0                               # 目覚まし時計：F 1回で巻ける秒数
+const WIND_MAX := 60.0                               # 目覚まし時計：巻ける上限（針が1周）
+const DIAL_AT := Vector3(0, 0.107, 0.056)            # 目覚まし時計の文字盤の真ん中（素材から見た位置）
 const WHEEL_AT := Vector3(0, 0.095, 0)               # 滑車の車の中心（物から見た位置）。ロープはここを通る
 const WHEEL_R := 0.085
 const CLAMP_LIFT := 0.2                              # クランプは、車の上に載せる
@@ -58,6 +66,7 @@ var pending: Dictionary = {}                         # 結んでいる途中（�
 var mounts: Dictionary = {}                          # 留めた滑車：物のID → [留めた先の物のID（0＝壁など）, 留めた先から見た置き方]
 var wires: Dictionary = {}                           # ケーブル：ボタンの物のID → [装置の物のID, ...]
 var flames: Dictionary = {}                          # 炎が出ているトーチ：物のID → 残り秒
+var timers: Dictionary = {}                          # 巻いてある目覚まし時計：物のID → 鳴るまでの残り秒
 var _next := 1
 var _pressed: Dictionary = {}                        # ホスト：ボタンが押されているか（物のID → 次に押せるまでの秒。負＝離れている）
 var _rolling: Dictionary = {}                        # ホスト：引かれて転がしている台車（物のID → [元の摩擦, 残り秒]）
@@ -117,6 +126,8 @@ func _spawn(kind: String, pos: Vector3, yaw: float) -> RigidBody3D:
 	if kind == "pulley":
 		model.position.y = CLAMP_LIFT
 		_add_wheel(root)
+	if kind == "timer":
+		_add_dial_hand(model)
 	p.visual = root
 	p.add_child(root)
 	var box: AABB = game.stage.merged_aabb(root)
@@ -177,6 +188,24 @@ func _add_wheel(root: Node3D) -> void:
 	shank.material_override = steel
 	shank.position = Vector3(0, (CLAMP_LIFT + WHEEL_AT.y) * 0.5 + 0.03, 0)
 	root.add_child(shank)
+
+
+# 目覚まし時計の、残りを指す赤い針（文字盤の真ん中が軸。巻いていなければ真上）
+func _add_dial_hand(model: Node3D) -> void:
+	var pivot := Node3D.new()
+	pivot.name = "TimerHand"
+	pivot.position = DIAL_AT
+	model.add_child(pivot)
+	var bar := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = Vector3(0.006, 0.058, 0.004)
+	bar.mesh = b
+	var red := StandardMaterial3D.new()
+	red.albedo_color = Color(0.86, 0.16, 0.12)
+	red.roughness = 0.5
+	bar.material_override = red
+	bar.position = Vector3(0, 0.026, 0)
+	pivot.add_child(bar)
 
 
 func _tubes(color: Color, radius: float, glow: float) -> MultiMeshInstance3D:
@@ -413,11 +442,11 @@ func f_action(me: Node) -> Dictionary:
 			return {}
 		at["do"] = "mount"
 		return at
-	if held != null and held.kind == "buzzer":
+	if held != null and held.kind in TRIGGERS:
 		var dev := _aim_part(me, ["igniter", "fx"])
 		return {"do": "wire", "bell": held.pid, "dev": dev.pid, "point": dev.center_global()} if dev != null else {}
 	if held != null and (held.kind == "igniter" or held == game.get("fx")):
-		var bell := _aim_part(me, ["buzzer"])
+		var bell := _aim_part(me, TRIGGERS)
 		return {"do": "wire", "bell": bell.pid, "dev": held.pid, "point": bell.center_global()} if bell != null else {}
 	if held != null and game.bomb_kit != null and held == game.bomb_kit.scissors:
 		var snip := _aim_row(me)
@@ -430,8 +459,10 @@ func f_action(me: Node) -> Dictionary:
 	if not row.is_empty():
 		row["do"] = "fire"
 		return row
-	var part := _aim_part(me, ["pulley", "buzzer", "igniter"])
+	var part := _aim_part(me, ["pulley", "buzzer", "igniter", "timer"])
 	if part != null:
+		if part.kind == "timer":
+			return {"do": "wind", "pid": part.pid, "point": part.center_global()}
 		if part.kind == "pulley" and mounts.has(part.pid):
 			return {"do": "unmount", "pid": part.pid, "point": part.center_global()}
 		if part.kind == "buzzer":
@@ -465,6 +496,8 @@ func hook_f(me: Node) -> bool:
 			h_wire.rpc_id(1, int(act["bell"]), int(act["dev"]))
 		"press":
 			h_press.rpc_id(1, int(act["pid"]))
+		"wind":
+			h_wind.rpc_id(1, int(act["pid"]))
 		"light":
 			h_flame.rpc_id(1, int(act["pid"]))
 		"hold_rope":
@@ -502,6 +535,8 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 			return {"keys_all": ("F ケーブルを抜く" if on else "F ケーブルでつなぐ") + put}
 		"press":
 			return {"label": "押しボタン", "keys_all": "F 押す\n左クリック 持つ"}
+		"wind":
+			return {"label": "目覚まし時計", "keys_all": "F ねじを巻く（巻くほど長く）\n左クリック 持つ"}
 		"light":
 			return {"label": "点火トーチ", "keys_all": "F 炎を出す（ためし）\n左クリック 持つ"}
 	return {}
@@ -752,7 +787,7 @@ func h_wire(bell: int, dev: int) -> void:
 	var who := Net.sender()
 	var b := _prop(bell)
 	var d := _prop(dev)
-	if not _host_ok() or b == null or d == null or b.kind != "buzzer" or not (d.kind == "igniter" or d == game.get("fx")):
+	if not _host_ok() or b == null or d == null or not (b.kind in TRIGGERS) or not (d.kind == "igniter" or d == game.get("fx")):
 		return
 	if b.holder != who and d.holder != who:
 		return
@@ -762,7 +797,7 @@ func h_wire(bell: int, dev: int) -> void:
 		_say(who, "ケーブルを抜いた", false)
 	else:
 		list.append(dev)
-		_say(who, "ケーブルでつないだ。ボタンが押されると、%sが動く" % ("トーチの炎が出る" if d.kind == "igniter" else "爆弾"), false)
+		_say(who, "ケーブルでつないだ。%sと、%s" % ["ボタンが押される" if b.kind == "buzzer" else "時計が鳴る", "トーチの炎が出る" if d.kind == "igniter" else "爆弾が爆発する"], false)
 	wires[bell] = list
 	game.host_ev("sfx", ["fix", d.global_position])
 	_changed()
@@ -775,6 +810,18 @@ func h_press(bell: int) -> void:
 	if not _host_ok() or b == null or b.kind != "buzzer" or not _near(who, b.center_global()):
 		return
 	host_ring(b)
+
+
+# 手ぶらで F：目覚まし時計のねじを巻く（巻くたびに WIND_STEP 秒。針が1周まで）
+@rpc("any_peer", "call_local", "reliable")
+func h_wind(pid: int) -> void:
+	var who := Net.sender()
+	var t := _prop(pid)
+	if not _host_ok() or t == null or t.kind != "timer" or not _near(who, t.center_global()):
+		return
+	timers[pid] = minf(float(timers.get(pid, 0.0)) + WIND_STEP, WIND_MAX)
+	game.host_ev("sfx", ["fix", t.global_position])
+	_changed()
 
 
 @rpc("any_peer", "call_local", "reliable")
@@ -909,6 +956,15 @@ func _host_tick(delta: float) -> void:
 			_rolling.erase(pid)
 	_host_fire(delta)
 	_host_buttons(delta)
+	# 目覚まし時計：針が上に戻ったら鳴る
+	for pid: int in timers.keys():
+		var t := _prop(pid)
+		timers[pid] = float(timers[pid]) - delta
+		if t == null or float(timers[pid]) <= 0.0:
+			timers.erase(pid)
+			if t != null:
+				host_ring(t)
+			_changed()
 	_send_t -= delta
 	if _dirty and _send_t <= 0.0:
 		_broadcast()
@@ -1045,7 +1101,7 @@ func _torch_reach(head: Vector3) -> void:
 func _host_buttons(delta: float) -> void:
 	for p: RigidBody3D in parts:
 		if p.kind != "buzzer":
-			continue
+			continue          # 載る・踏むで鳴るのは、押しボタンだけ
 		var gap := float(_pressed.get(p.pid, -1.0))
 		if gap > 0.0:
 			_pressed[p.pid] = gap - delta
@@ -1084,7 +1140,7 @@ func snapshot() -> Dictionary:
 	var p := {}
 	for who: int in pending:
 		p[who] = (pending[who] as Dictionary).duplicate(true)
-	return {"rows": rows.duplicate(true), "pending": p, "mounts": mounts.duplicate(true), "wires": wires.duplicate(true), "flames": flames.duplicate(), "next": _next}
+	return {"rows": rows.duplicate(true), "pending": p, "mounts": mounts.duplicate(true), "wires": wires.duplicate(true), "flames": flames.duplicate(), "timers": timers.duplicate(), "next": _next}
 
 
 func _changed() -> void:
@@ -1120,6 +1176,7 @@ func _apply(data: Dictionary) -> void:
 	mounts = (data.get("mounts", {}) as Dictionary).duplicate(true)
 	wires = (data.get("wires", {}) as Dictionary).duplicate(true)
 	flames = (data.get("flames", {}) as Dictionary).duplicate()
+	timers = (data.get("timers", {}) as Dictionary).duplicate()
 	_next = int(data.get("next", _next))
 
 
@@ -1191,6 +1248,7 @@ func hook_return_office() -> void:
 	pending.clear()
 	wires.clear()
 	flames.clear()
+	timers.clear()
 	_broadcast()
 
 
@@ -1221,11 +1279,21 @@ func _tick_fire(delta: float) -> void:
 		flames[pid] = float(flames[pid]) - delta
 		if float(flames[pid]) <= 0.0:
 			flames.erase(pid)
+	for pid: int in timers.keys():
+		timers[pid] = maxf(0.0, float(timers[pid]) - delta)
 
 
 func _ring_seen(pid: int) -> void:
 	var b := _prop(pid)
 	if b == null:
+		return
+	if b.kind == "timer":
+		# 目覚まし時計：ジリリと鳴って、小刻みに震える
+		Sfx.play("phone_ring", b.global_position)
+		var tw: Tween = (b.visual as Node3D).create_tween()
+		for i in 8:
+			tw.tween_property(b.visual, "rotation:z", 0.06 if i % 2 == 0 else -0.06, 0.05)
+		tw.tween_property(b.visual, "rotation:z", 0.0, 0.05)
 		return
 	Sfx.play("cue", b.global_position)
 	var knob: Node3D = b.visual.find_child("P085_button_004", true, false)
@@ -1279,6 +1347,7 @@ func _process(_delta: float) -> void:
 			var z: Vector3 = d.global_position + Vector3(0, 0.03, 0)
 			_sag(PackedVector3Array([a, z]), a.distance_to(z) * 1.08, cables, minf(a.y, z.y) + 0.012)
 	_fill(_cables, cables)
+	_show_dials()
 	_show_sparks()
 	_show_flames()
 
@@ -1343,6 +1412,16 @@ func _fill(mmi: MultiMeshInstance3D, list: Array[Transform3D]) -> void:
 	for i in n:
 		mm.set_instance_transform(i, list[i])
 	mm.visible_instance_count = n
+
+
+# 目覚まし時計の赤い針：残りの秒数だけ、真上から時計回りに傾ける（1周＝WIND_MAX 秒）
+func _show_dials() -> void:
+	for p: RigidBody3D in parts:
+		if p.kind != "timer":
+			continue
+		var hand: Node3D = p.visual.find_child("TimerHand", true, false)
+		if hand != null:
+			hand.rotation.z = -TAU * float(timers.get(p.pid, 0.0)) / WIND_MAX
 
 
 # 燃えている所の火花（導火線と同じ形）

@@ -44,7 +44,7 @@ func run() -> void:
 	var kinds := {}
 	for p: RigidBody3D in rig.parts:
 		kinds[p.kind] = int(kinds.get(p.kind, 0)) + 1
-	check(kinds == {"pulley": 2, "buzzer": 2, "igniter": 2}, "会社の備品：滑車2・押しボタン2・点火トーチ2（%s）" % str(kinds))
+	check(kinds == {"pulley": 2, "buzzer": 2, "igniter": 2, "timer": 1}, "会社の備品：滑車2・押しボタン2・点火トーチ2・目覚まし時計1（%s）" % str(kinds))
 	var me: Node3D = game.local_player()
 	game.h_accept_job(int(flow.debut_job()))
 	await frames(20)
@@ -97,7 +97,6 @@ func run() -> void:
 	var pull_id: int = rig.host_add_row([dolly.pid, dolly.to_local(front)], [bag2.pid, bag2.to_local(top_of(bag2))], [pulley.pid])
 	check(hold_id != 0 and pull_id != 0, "支えのロープと、台車から滑車を通して重りへ掛けたロープが張れた")
 	await frames(90)
-	print("RIG_INFO pull row alive %s, dolly absent %s freeze %s fixed %s pos %s, bag2 y %.2f, over %.3f" % [rig.rows.has(pull_id), dolly.absent, dolly.freeze, dolly.fixed, dolly.global_position, bag2.global_position.y, rig._length(rig._path(rig.rows[pull_id])) - float(rig.rows[pull_id]["len"]) if rig.rows.has(pull_id) else -1.0])
 	var x0: float = dolly.global_position.x
 	check(bag2.global_position.y > P.y + 0.6, "重りは、支えのロープでぶら下がっている")
 	rig.host_ignite(hold_id, 0.1)
@@ -143,6 +142,25 @@ func run() -> void:
 	await frames(int(rig.BURN_SEC * 60.0) + 40)
 	check(bool(rig.rows[line_id]["cut"]), "炎のそばのロープに火が移って、焼き切れた")
 	check(bag3 != null, "（重り）")
+	# ---- C2：目覚まし時計 → トーチ（ねじを巻いた秒数のあとで鳴る） ----
+	var clock: RigidBody3D = null
+	var torch2: RigidBody3D = null
+	for p: RigidBody3D in rig.parts:
+		if p.kind == "timer":
+			clock = p
+		if p.kind == "igniter" and p != torch:
+			torch2 = p
+	clock.restore([spot + Vector3(-1.2, 0.05, 0), Quaternion.IDENTITY, false])
+	torch2.restore([spot + Vector3(-2.4, 0.05, 0), Quaternion.IDENTITY, false])
+	await frames(20)
+	rig.wires[clock.pid] = [torch2.pid]
+	rig.h_wind.rpc_id(1, clock.pid)
+	rig.h_wind.rpc_id(1, clock.pid)
+	check(absf(float(rig.timers.get(clock.pid, 0.0)) - 2.0 * rig.WIND_STEP) < 0.05, "目覚まし時計：F 2回で、%.0f 秒巻いた" % (2.0 * rig.WIND_STEP))
+	await frames(int((2.0 * rig.WIND_STEP - 1.0) * 60.0))
+	check(not rig.flames.has(torch2.pid), "巻いた秒数になるまでは、鳴らない")
+	await frames(90)
+	check(not rig.timers.has(clock.pid) and rig.flames.has(torch2.pid), "針が戻ると鳴って、つないだトーチから炎が出る")
 	# ---- D：撮り直し・帰社 ----
 	rig._restore(before)
 	await frames(2)

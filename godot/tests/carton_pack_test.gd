@@ -209,7 +209,7 @@ func run() -> void:
 	var slim: Array = []
 	var big: Array = []
 	for prop: Node in game.props.values():
-		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope", "pulley", "buzzer", "igniter"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
+		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope", "pulley", "buzzer", "igniter", "timer"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
 			continue
 		if longest(prop) <= 0.5:
 			small.append(prop)

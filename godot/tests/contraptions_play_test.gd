@@ -140,6 +140,18 @@ func run() -> void:
 	press_f()
 	await frames(3)
 	check(rig.flames.has(torch.pid), "F でボタンを押すと、つないだトーチから炎が出る")
+	# ---- 手ぶらで目覚まし時計を見て F：ねじを巻く ----
+	var clock: RigidBody3D = null
+	for p: RigidBody3D in rig.parts:
+		if p.kind == "timer":
+			clock = p
+	clock.restore([stand + Vector3(0.9, 0.05, -1.0), Quaternion.IDENTITY, false])
+	await frames(20)
+	await look_at_point(clock.center_global())
+	check(str(rig.f_action(me).get("do", "")) == "wind" and hud_keys().contains("ねじを巻く"), "手ぶらで目覚まし時計を見ると、ねじを巻ける（%s）" % hud_keys())
+	press_f()
+	await frames(2)
+	check(float(rig.timers.get(clock.pid, 0.0)) > 0.0, "F で、ねじを巻いた（針が回る）")
 	print("RIGPLAY_TEST_FAIL" if failed else "RIGPLAY_TEST_OK")
 	await frames(2)
 	quit(1 if failed else 0)
