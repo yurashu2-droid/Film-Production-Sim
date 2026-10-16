@@ -380,6 +380,11 @@ const ITEMS := [
 		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(240, 236), "yaw": PI, "bag": "large"},
 	{"kind": "scrap_ticket_turnstile", "file": "S099_ticket_turnstile", "label": "改札の回転バー", "size": 1.3, "mass": 8.0,
 		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(244, 236), "yaw": PI, "bag": "large"},
+	# 素材に無い物は、tools/make_set_models.gd がコードで作った模型（張りぼての山・段ボールの自転車）
+	{"kind": "scrap_paper_mountain", "file": "X001_paper_mountain", "label": "張りぼての山", "size": 2.0, "mass": 9.0,
+		"tags": [], "shape": "box", "com": 0.3, "pos": Vector2(200, 244), "yaw": PI, "bag": "large"},
+	{"kind": "scrap_cardboard_bicycle", "file": "X002_cardboard_bicycle", "label": "段ボールの自転車", "size": 1.3, "mass": 3.0,
+		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(204, 244), "yaw": PI, "bag": "large"},
 ]
 
 

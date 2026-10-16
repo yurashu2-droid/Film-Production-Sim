@@ -1,5 +1,6 @@
 extends "res://tests/parody_base.gd"
-# 髪がなびく車のCM（会社の前）：依頼主が送風機とバスの正面を出しておく・場面1「風を受ける」（wind）・場面2「走り抜ける」（pass）
+# 髪がなびく車のCM（会社の前）：依頼主が送風機と車の正面の書割を出しておく・場面1「風を受ける」（wind）・場面2「走り抜ける」（pass）
+#   車の正面は、ふだんは包みの中にしまってある（features/junk_bags.gd）。依頼を受けると、廃材置き場の空いた所に出てくる
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/parody_car_test.gd
 var fan: RigidBody3D
 var bus: RigidBody3D
@@ -26,8 +27,11 @@ func accept(job: int) -> void:
 	await frames(20)
 	flow.daily = false
 	fan = of_kind("scrap_fan")
-	bus = of_kind("scrap_bus")
-	check(fan != null and bus != null, "依頼主の頼みで、送風機とバスの正面が出してある")
+	bus = of_kind("scrap_car_front_shell")
+	check(fan != null and bus != null, "依頼主の頼みで、送風機と車の正面が出してある")
+	if bus != null:
+		await frames(30)
+		check(bus.global_position.y > -0.5, "車の正面は、地面の下ではなく、廃材置き場に出ている（%s）" % str(bus.global_position))
 
 
 func prepare() -> void:

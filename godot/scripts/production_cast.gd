@@ -37,15 +37,42 @@ const ROLES := {
 	"monster": {"name": "怪獣", "likes": ["生き物", "こわい"]},
 	"city": {"name": "街", "likes": ["建物", "街角", "乗り物", "四角い"]},
 	"boom": {"name": "爆発", "likes": ["火", "はで"]},
+	# 名場面のパロディの役（2026-10-16）
+	"ruins": {"name": "遺跡", "likes": ["石", "建物", "自然"]},
+	"relic": {"name": "秘宝", "likes": ["お宝", "光る"]},
+	"bigrock": {"name": "大岩", "likes": ["丸い", "石"]},
+	"door": {"name": "玄関", "likes": ["建物", "四角い", "街角"]},
+	"xmas": {"name": "ツリー", "likes": ["自然", "光る", "背が高い"]},
+	"bike": {"name": "自転車", "likes": ["乗り物", "丸い"]},
+	"woods": {"name": "森", "likes": ["自然", "背が高い"]},
+	"ship": {"name": "船", "likes": ["乗り物", "水まわり", "背が高い"]},
+	"sea": {"name": "海", "likes": ["水まわり", "自然", "風"]},
+	"roof": {"name": "屋上", "likes": ["建物", "街角", "背が高い"]},
+	"agent": {"name": "追っ手", "likes": ["こわい", "機械"]},
+	"steps": {"name": "階段", "likes": ["建物", "背が高い", "石"]},
+	"summit": {"name": "頂上", "likes": ["自然", "背が高い", "石"]},
+	"noodle": {"name": "カップ麺", "likes": ["食べ物", "丸い"]},
+	"kettle": {"name": "やかん", "likes": ["水まわり", "火", "機械"]},
+	"car": {"name": "車", "likes": ["乗り物", "機械"]},
+	"street": {"name": "街並み", "likes": ["街角", "光る", "建物"]},
 }
 # 台本ごとの役。怪獣映画の爆発は「怪獣の技」として撃ち出される
 const SCRIPT_ROLES := {
 	"castle": ["castle", "moon", "boom"],
 	"kaiju": ["monster", "city", "boom"],
+	# 名場面のパロディ（production_flow.gd の JOBS の "script"）。最初の役が、その場面の主役の物
+	"trap": ["bigrock", "relic", "ruins"],
+	"home_alone": ["door", "xmas"],
+	"moon_bike": ["moon", "bike", "woods"],
+	"ship": ["ship", "sea"],
+	"dodge": ["roof", "agent"],
+	"stairs": ["steps", "summit"],
+	"noodle": ["noodle", "kettle"],
+	"car_cm": ["car", "street"],
 }
 const SCRIPT_NAMES := {"kaiju": {"boom": "怪獣の技"}}
 # 無くても撮れる役（配役表で「まだ」と急かさない）
-const OPTIONAL := ["moon"]
+const OPTIONAL := ["moon", "ruins", "woods", "sea", "agent", "summit", "kettle", "street"]
 
 # コンボになる属性。形や大きさ（丸い・四角い・背が高い）は入れない
 const THEMES := ["水まわり", "ばっちい", "食べ物", "火", "機械", "自然", "宇宙", "おとぎ話", "お宝", "石", "街角", "乗り物", "光る", "風"]
@@ -280,6 +307,8 @@ const PROPS := {
 	"scrap_treasure_pedestal": {"attrs": ["お宝", "石", "おとぎ話"]},
 	"scrap_waterwheel": {"attrs": ["水まわり", "自然", "丸い"]},
 	"scrap_ticket_turnstile": {"attrs": ["街角", "機械", "乗り物"]},
+	"scrap_paper_mountain": {"attrs": ["自然", "石", "背が高い"]},
+	"scrap_cardboard_bicycle": {"attrs": ["乗り物", "丸い", "紙"]},
 }
 
 

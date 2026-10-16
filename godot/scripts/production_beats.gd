@@ -16,6 +16,7 @@ extends Node
 ##   役者の動きと印の場所は、今までどおり、世界の同期で届く。フィルムの残りは、テイクの時計（main.gd の take_t）から出す。
 const Scripts := preload("res://scripts/production_script.gd")
 const Marks := preload("res://scripts/ui/monitor_marks.gd")
+const Cast := preload("res://scripts/production_cast.gd")
 
 const CREW_LAYER := 1 << 11       # 制作班にだけ見える表示（film_camera.gd と同じ番号）
 const FILM_SEC := 90.0            # フィルム1本ぶんの秒数（この依頼のテイクの長さ）
@@ -1378,6 +1379,11 @@ func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		"moon":
 			if not f.get("moon", false):
 				r.append("月役の物が映っていなかった（物を見て Y で月の役にする）")
+		var want:
+			# 名場面のパロディの役（船・玄関・カップ麺 など。production_cast.gd の SCRIPT_ROLES）
+			if want != "" and not (f.get("roles_in", {}) as Dictionary).has(want):
+				var title: String = Cast.role_title(want, game.production.story() if game.production != null else "")
+				r.append("%sの物が映っていなかった（物を見て Y で%sにする）" % [title, title])
 	# 場所が変わった場面：前の場面の物が映っていたら、同じ場所に見える（場転で、片づける・隠す）
 	match str(b.get("hide", "")):
 		"castle":

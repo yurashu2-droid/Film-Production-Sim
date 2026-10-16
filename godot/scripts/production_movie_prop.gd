@@ -121,8 +121,10 @@ func _build_scrap(d: Dictionary) -> void:
 		center_of_mass = Vector3(0, size.y * float(d["com"]), 0)
 	if mass >= 20.0:
 		angular_damp = 2.0
-	# となりの粗大ごみ置き場から拾ってきた物なので、処理券が貼ったまま（dump_dressing.gd）
-	Dump.sticker_on(self, visual)
+	# となりの粗大ごみ置き場から拾ってきた物なので、処理券が貼ったまま（dump_dressing.gd）。
+	# ゴミ袋・包みから出てくる物（"bag"）は、袋に入っていたので貼っていない
+	if not d.has("bag"):
+		Dump.sticker_on(self, visual)
 
 func _add_collider(shape: Shape3D, at: Vector3) -> void:
 	var collider := CollisionShape3D.new()

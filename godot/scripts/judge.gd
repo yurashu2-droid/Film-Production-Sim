@@ -111,7 +111,7 @@ func look() -> Dictionary:
 	var out := {"actors": [], "castle": false, "castle_back": false, "castle_any": false, "height": false, "close": false,
 		"fx_in": false, "fx_behind": false, "moon": false, "city_pids": [], "monster_peek": false,
 		"monster": {"exists": false, "in": false, "seen": false, "up": false, "size": 0.0, "pid": 0},
-		"monster_down": false, "city_n": 0, "city_max": 0.0}
+		"monster_down": false, "city_n": 0, "city_max": 0.0, "roles_in": {}}
 
 	for a: CharacterBody3D in game.actors:
 		var head: Vector3 = a.head_pos()
@@ -148,6 +148,13 @@ func look() -> Dictionary:
 			continue
 		if story == "kaiju":
 			_look_kaiju(out, p, role, cam, vs, space, cam_pos)
+		# どの役の物が映っているか（場面の列の「show」の role で見る。真ん中か上のほうが画面に入り、さえぎられていない）
+		var mid: Vector3 = p.center_global()
+		var high: Vector3 = p.global_transform * (p.center + Vector3(0, p.half.y * 0.7, 0))
+		for look: Vector3 in [mid, high]:
+			if _in_frame(cam, vs, look) and not _blocked(space, cam_pos, look, [film.get_rid(), p.get_rid()]):
+				out["roles_in"][role] = true
+				break
 		if role == "castle":
 			out["castle_any"] = true
 			var c: Vector3 = p.center_global()
