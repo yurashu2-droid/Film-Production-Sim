@@ -32,6 +32,9 @@ static func svg(story: String, index: int) -> String:
 	elif story == "travel":
 		# 旅する二人（場所が変わる4カット）：城の門 → 月夜の丘 → 爆発 → 寄りで決め
 		body = [_castle_1(), _travel_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
+	elif story == "trap":
+		# 秘宝の遺跡・予告編：動くカメラ → 上から落ちる罠 → 爆発 → 寄りで決め
+		body = [_trap_1(), _trap_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
 	elif story == "kaiju":
 		body = [_kaiju_1(), _kaiju_2(), _kaiju_3()][clampi(index, 0, 2)]
 	else:
@@ -289,6 +292,36 @@ static func _travel_2() -> String:
 	# 前の場面の城（映さない）
 	out += _ghost(_castle_wall(28, 120, 200))
 	out += _ban(Vector2(66, 160), 34)
+	return out
+
+
+# 遺跡に踏み込む二人と、二人と一緒に進むカメラ（何に載せるか・どう動かすかは描かない）
+static func _trap_1() -> String:
+	var out := _ground(238)
+	out += _ghost("M 340,238 L 340,96 Q 405,40 470,96 L 470,238 Z")
+	out += _question(Vector2(405, 160), 1.5)
+	out += _fig(Vector2(236, 242), 0.9, "walk")
+	out += _fig(Vector2(290, 244), 0.9, "walk")
+	# カメラ（三脚）と、進む向き
+	out += _line([Vector2(92, 238), Vector2(100, 176), Vector2(108, 238)], PENCIL, 3.0)
+	out += _line([Vector2(100, 238), Vector2(100, 176)], PENCIL, 3.0)
+	out += '<rect x="78" y="146" width="46" height="30" rx="4" fill="%s" stroke="%s" stroke-width="3.5"/>' % [PAPER, PENCIL]
+	out += '<rect x="124" y="152" width="16" height="18" fill="%s" stroke="%s" stroke-width="3"/>' % [PAPER, PENCIL]
+	out += _arrow(Vector2(70, 118), Vector2(176, 118))
+	out += _arrow(Vector2(222, 132), Vector2(318, 132))
+	return out
+
+
+# 足元でカチリ。立ち止まった二人のそばに、頭の上から何かが落ちてくる
+static func _trap_2() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(190, 242), 0.92, "scared")
+	out += _fig(Vector2(340, 242), 0.92, "scared", true)
+	out += _startle(Vector2(190, 140)) + _startle(Vector2(340, 140))
+	out += _line([Vector2(265, 8), Vector2(265, 28)], SOFT, 2.5, "6 5") + _line([Vector2(265, 38), Vector2(265, 54)], SOFT, 2.5, "6 5")
+	out += _ghost("M 236,56 L 294,56 L 294,104 L 236,104 Z")
+	out += _question(Vector2(265, 84), 0.95)
+	out += _arrow(Vector2(265, 114), Vector2(265, 182))
 	return out
 
 

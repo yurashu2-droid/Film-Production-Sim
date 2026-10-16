@@ -42,6 +42,10 @@ const NEED_CHEER := 1.5           # 勝利：万歳する二人と倒れた怪�
 const CLOSE_MIN := 0.30           # 寄り：画面の高さに対する、二人の大きさの下限（ふつうの場面は judge.MIN_SIZE＝0.10）
 const CLOSE_TIMES := 1.3          # 寄り：「怪獣あらわる」で映っていた大きさの、この倍より大きく
 const NEED_SHOW := 1.5            # 見せる（show）：着いた二人（と、決めた役の物）が映っている秒数
+const NEED_TRACK := 0.8           # 動くカメラ（track）：歩く二人を映したまま、カメラが動いた距離（m）
+const TRACK_SPEED := 0.2          # これより遅いカメラは、動いていないとみる（m/秒）
+const TRACK_JUMP := 0.12          # 1コマにこれより大きく動いたら、カメラの切り替え（数えない）
+const DROP_M := 1.0               # 上から落ちる（drop）：場面の間に、物がこれだけ下がったら「落ちた」
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
@@ -57,6 +61,8 @@ const NO_REASON := {
 	"cheer": "万歳する二人が映る時間が足りなかった",
 	"show": "二人が映る時間が足りなかった",
 	"blast": "爆発が起きなかった",
+	"track": "カメラが動きながら、歩く二人を映す時間が足りなかった",
+	"drop": "二人のそばに、上から物が落ちてこなかった",
 }
 
 var game: Node
@@ -101,6 +107,9 @@ var _fell_t := -1.0
 var _down_acc := 0.0
 var _taint := false
 var _topple_pid := 0
+var _track_m := 0.0               # 動くカメラ：数えた距離
+var _track_last := Vector3.INF    # 動くカメラ：前のコマのカメラの場所
+var _drop_top := {}               # 上から落ちる：場面の間の、物の一番高い所（物のID → 高さ）
 # 画面
 var _playback := false
 var _before_replay := {}
@@ -652,6 +661,11 @@ func _restart_rule(i: int) -> void:
 			_reset_topple()
 		"appear":
 			_wide_sum = 0.0
+		"track":
+			_track_m = 0.0
+			_track_last = Vector3.INF
+		"drop":
+			_drop_top = {}
 
 
 func _reset_attack() -> void:
@@ -705,6 +719,10 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_show(scene, f, dt, crew)
 		"blast":
 			_rule_blast(scene, f, dt, crew, t)
+		"track":
+			_rule_track(scene, f, dt, crew)
+		"drop":
+			_rule_drop(scene, f, dt, crew)
 
 
 func _stuck() -> bool:
@@ -933,6 +951,60 @@ func _rule_cheer(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 # 見せる（どの台本でも使える）：着いた二人が、明るく映っている。
 #   role＝その役の物も一緒に映る（"castle"：城役が、倒れず・裏を見せずに映る / "moon"：月役が画面に入る）
 #   hide＝その役の物が映っていてはいけない（場所が変わった場面。"castle"）/ close＝寄りで大きく、二人が近づいている
+# 動くカメラ：歩いている二人を映したまま、撮影カメラが動く（台車に載せる・押す・引かせる）。押す人が映ってはいけない
+func _rule_track(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var cam: Vector3 = game.program_camera().global_position
+	var step := 0.0 if _track_last == Vector3.INF else Vector2(cam.x - _track_last.x, cam.z - _track_last.z).length()
+	_track_last = cam
+	if step > TRACK_JUMP:
+		return          # カメラを切り替えた
+	if _stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
+		return
+	if not (game.actors[0].beat_walking() and game.actors[1].beat_walking()):
+		return          # 歩いていない間は、数えない
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた")
+	if r.is_empty() and step < TRACK_SPEED * dt:
+		r.append("カメラが止まっていた（歩く二人と一緒に、カメラを動かす）")
+	if not r.is_empty():
+		_note(i, r, dt)
+		return
+	_track_m += step
+	if _track_m >= NEED_TRACK:
+		_met(i)
+
+
+# 上から落ちる：立ち止まった二人を映している間に、そばで物が1m以上落ちる（画面の中で）。落とす人が映ってはいけない
+func _rule_drop(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var film: Node3D = game.program_camera()
+	var cam: Camera3D = film.view_cam
+	var vs := Vector2(film.view.size)
+	var fell := false
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.immovable or p.fixed or p.stored_in != 0 or p.kind in ["mark", "truck"]:
+			continue
+		var c: Vector3 = p.center_global()
+		var top := maxf(float(_drop_top.get(p.pid, c.y)), c.y)
+		_drop_top[p.pid] = top
+		if top - c.y >= DROP_M and game.judge._in_frame(cam, vs, c):
+			fell = true
+			_drop_top[p.pid] = c.y          # 同じ物は、もう一度持ち上がるまで数えない
+	if not fell:
+		return
+	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		_note(i, ["二人が立ち止まる前に落ちた"], dt)
+		return
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた（落とす人は映さない）")
+	if not r.is_empty():
+		_note(i, r, dt)
+		return
+	_met(i)
+
+
 func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)

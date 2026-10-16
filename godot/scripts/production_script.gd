@@ -151,6 +151,25 @@ const SCRIPTS := [
 			{"rule": "show", "role": "moon", "hide": "castle", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "happy"], "music": ""},
 			{"rule": "blast", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["shock", "shock"], "boom": true},
 			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+	# 9 秘宝の遺跡・予告編（ベレー帽先生の新作。仕掛けの見せ場の4カット。カメラを動かす・上から落とす・背後で爆発・寄り）
+	{"cuts": true, "scenes": [
+		{"dir": "【遺跡の入口】探検家の二人が、奥へ踏み込む。カメラは二人と一緒に進む。",
+			"lines": [["A", "この奥に、秘宝が眠っている"], ["B", "予告編って、だいたい嘘ですよね"], ["A", "本編は、まだ無い"]],
+			"memo": "歩く二人を映したまま、カメラを動かす（台車に載せる・手で押す・引かせる）。押す人は映さない"},
+		{"dir": "【場転】足元で、カチリ。頭の上から、何かが落ちてくる。",
+			"lines": [["B", "いま、何か踏みました？"], ["（罠）", "ドスン"], ["A", "……予告編で死ぬところだった"]],
+			"memo": "立ち止まった二人のそばに、上から物を落とす（1m以上）。落とす人は映さない。二人は自分たちで演じてもいい"},
+		{"dir": "【場転】遺跡が崩れる。二人は走って逃げる。背後で大爆発。",
+			"lines": [["A", "走れ！"], ["（爆発）", ""], ["B", "予算が爆発してます！"]],
+			"memo": "カットの間に、爆炎の書割（または爆弾）を二人の奥へ。1 で回すと、書割が爆ぜる"},
+		{"dir": "【場転】秘宝を手に、二人が寄ってきて、決めポーズ。",
+			"lines": [["二人", "今冬、公開未定！"]],
+			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		"beats": [
+			{"rule": "track", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["neutral", "happy"], "music": "music_tension"},
+			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "", "face": ["surprised", "shock"], "music": ""},
+			{"rule": "blast", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "boom": true},
+			{"rule": "show", "close": true, "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 
 
