@@ -17,6 +17,7 @@
 !/tools/
 /tools/*
 !/tools/build_vfx_knowledge.py
+!/tools/uvi_direct/
 !/.claude/
 /.claude/*
 !/.claude/skills/
