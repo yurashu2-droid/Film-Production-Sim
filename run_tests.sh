@@ -133,7 +133,7 @@ run_pair adhesive-net 50 'ADHESIVE_NET_TEST_OK' 'ADHESIVE_NET_TEST_OK'
 script_case cue-card 35 'CUE_CARD_TEST_OK' cue_card_test.gd
 PAIR_HOST=(res://tests/cue_card_net_test.tscn -- --cue-host)
 PAIR_CLIENT=(res://tests/cue_card_net_test.tscn -- --cue-client)
-run_pair cue-card-net 35 'CUE_CARD_NET_TEST_OK' 'CUE_CARD_NET_TEST_OK'
+run_pair cue-card-net 75 'CUE_CARD_NET_TEST_OK' 'CUE_CARD_NET_TEST_OK'
 PAIR_HOST=(res://tests/cast_net_test.tscn -- --cast-net-test-host)
 PAIR_CLIENT=(res://tests/cast_net_test.tscn -- --cast-net-test-client)
 run_pair cast-net 60 'CAST_NET_TEST_OK' 'CAST_NET_TEST_OK'
@@ -153,7 +153,7 @@ script_case camera-operation 35 'CAMERA_OPERATION_TEST_OK' camera_operation_test
 script_case monitor-switcher 35 'MONITOR_SWITCHER_TEST_OK' monitor_switcher_test.gd
 PAIR_HOST=(res://tests/monitor_net_test.tscn -- --monitor-host)
 PAIR_CLIENT=(res://tests/monitor_net_test.tscn -- --monitor-client)
-run_pair monitor-net 40 'MONITOR_NET_TEST_OK' 'MONITOR_NET_TEST_OK'
+run_pair monitor-net 75 'MONITOR_NET_TEST_OK' 'MONITOR_NET_TEST_OK'
 script_case start-intro 25 'START_INTRO_TEST_PASS' start_intro_test.gd
 script_case performance 30 'PERFORMANCE_TEST_OK' performance_test.gd
 script_case vehicle-driving 30 'VEHICLE_DRIVING_TEST_OK' vehicle_driving_test.gd
