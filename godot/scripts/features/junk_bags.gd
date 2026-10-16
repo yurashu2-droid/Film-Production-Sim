@@ -30,10 +30,12 @@ var _sign := 0
 var _turns: Array = []
 var _gap := 0.0
 var _wobble: Dictionary = {}         # 袋の物のID → 揺れの残り（秒）
+var _noise := FastNoiseLite.new()    # 袋の見た目のふくらみ・色むら
 
 
 func setup() -> void:
 	_rng.randomize()
+	_noise.frequency = 1.4
 	for kind: String in ["tarpbundle", "trashbag"]:
 		for spot: Vector2 in (Slots.BAG_SPOTS.get(kind, []) as Array):
 			bags.append(_spawn(kind, Yard.to_world(spot, 0.06)))
@@ -49,45 +51,17 @@ func _spawn(kind: String, at: Vector3) -> RigidBody3D:
 	p.label = LABELS[kind]
 	var root := Node3D.new()
 	var size: Vector3
+	# 袋ごとに、ふくらみ方を少し変える
+	_noise.seed = 11 + bags.size() * 7
 	if kind == "trashbag":
 		p.mass = 2.0
-		size = Vector3(0.5, 0.62, 0.46)
-		root.add_child(_blob(Vector3(0.25, 0.3, 0.23), Color("2a2e35"), Color("3d434c"), 0.35, 11))
-		var knot := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radius = 0.07
-		ball.height = 0.12
-		knot.mesh = ball
-		knot.position = Vector3(0, 0.64, 0)
-		knot.material_override = _plain(Color("2a2e35"), 0.35)
-		root.add_child(knot)
-		for side: float in [-1.0, 1.0]:
-			var ear := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
-			cone.top_radius = 0.005
-			cone.bottom_radius = 0.045
-			cone.height = 0.13
-			ear.mesh = cone
-			ear.position = Vector3(side * 0.06, 0.7, 0)
-			ear.rotation = Vector3(0, 0, -side * 0.7)
-			ear.material_override = _plain(Color("2a2e35"), 0.35)
-			root.add_child(ear)
+		size = Vector3(0.54, 0.62, 0.54)
+		root.add_child(_trash_mesh())
 	else:
 		p.mass = 6.0
 		size = Vector3(1.1, 0.62, 0.78)
-		root.add_child(_blob(Vector3(0.55, 0.31, 0.39), Color("2b63c9"), Color("1d4796"), 0.6, 29))
-		# 縛ってある黄色いロープ（2本）
-		for x: float in [-0.25, 0.25]:
-			var band := MeshInstance3D.new()
-			var torus := TorusMesh.new()
-			torus.inner_radius = 0.96
-			torus.outer_radius = 1.04
-			band.mesh = torus
-			band.rotation = Vector3(0, 0, PI * 0.5)
-			band.position = Vector3(x, 0.31, 0)
-			band.scale = Vector3(0.33, 0.6, 0.41)
-			band.material_override = _plain(Color("d8b04a"), 0.8)
-			root.add_child(band)
+		for part: MeshInstance3D in _tarp_meshes():
+			root.add_child(part)
 	p.visual = root
 	p.add_child(root)
 	p.center = Vector3(0, size.y * 0.5, 0)
@@ -97,55 +71,153 @@ func _spawn(kind: String, at: Vector3) -> RigidBody3D:
 	return game.stage._register(p, at, 0.0)
 
 
-# 丸くふくらんだ袋：球をノイズで少しへこませ、下を平らにする。面ごとに色を少し変える
-func _blob(radii: Vector3, light: Color, dark: Color, rough: float, seed_value: int) -> MeshInstance3D:
+# ---- 見た目（ローポリ。面ごとに色を少し変え、角ばった面のまま） ----
+
+# ゴミ袋：ひとつながりの胴（底は平ら、上はすぼまって口になり、しわが寄る）と、口に食い込む結び目と、結んだ端（耳）2つ。
+# 結び目と耳も胴と同じ面・同じ色の、ひとつの形にする（浮いて見えないように）
+func _trash_mesh() -> MeshInstance3D:
+	var light := Color("2b3038")
+	var dark := Color("1c2026")
+	var profile := [[0.0, 0.17], [0.03, 0.22], [0.12, 0.26], [0.24, 0.27], [0.35, 0.235], [0.43, 0.16], [0.49, 0.085], [0.53, 0.045], [0.56, 0.035]]
+	var seg := 14
+	var rings: Array = []
+	for row: Array in profile:
+		var y: float = row[0]
+		var r: float = row[1]
+		var ring: Array = []
+		for k in seg:
+			var ang := TAU * float(k) / float(seg)
+			var dir := Vector3(cos(ang), 0, sin(ang))
+			var bump := 1.0 + 0.09 * _noise.get_noise_3d(dir.x * 2.0, y * 4.0, dir.z * 2.0)
+			# 口のまわりは、絞ったしわ（角度で太い・細いをくり返す）
+			var pinch := clampf((y - 0.4) / 0.13, 0.0, 1.0)
+			bump *= 1.0 + 0.22 * pinch * (1.0 if k % 2 == 0 else -1.0)
+			ring.append(dir * r * bump + Vector3(0, y, 0))
+		rings.append(ring)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in rings.size() - 1:
+		for k in seg:
+			var k2 := (k + 1) % seg
+			_tri(st, rings[i][k], rings[i][k2], rings[i + 1][k], light, dark)
+			_tri(st, rings[i][k2], rings[i + 1][k2], rings[i + 1][k], light, dark)
+	for k in seg:
+		_tri(st, rings[0][(k + 1) % seg], rings[0][k], Vector3.ZERO, light, dark)
+	var knot_at := Vector3(0, 0.57, 0)
+	var ball := SphereMesh.new()
+	ball.radius = 0.055
+	ball.height = 0.11
+	ball.radial_segments = 7
+	ball.rings = 4
+	_add_prim(st, ball, Transform3D(Basis.from_scale(Vector3(1.1, 0.8, 1.0)), knot_at), light, dark)
+	for side: float in [-1.0, 1.0]:
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.012
+		cone.bottom_radius = 0.045
+		cone.height = 0.13
+		cone.radial_segments = 5
+		cone.rings = 1
+		# 根元（円柱の下の端）が結び目の真ん中に来るように置き、外へ倒す。平たいビニールの端
+		var tilt := side * 0.7
+		var basis := Basis(Vector3.BACK, -tilt) * Basis.from_scale(Vector3(1.0, 1.0, 0.45))
+		_add_prim(st, cone, Transform3D(basis, knot_at + Vector3(sin(tilt), cos(tilt), 0) * 0.055), light, dark)
+	return _mesh(st, 0.45)
+
+
+# ブルーシートの包み：ふくらんだ包みと、表面に沿って巻いたロープ2本
+func _tarp_meshes() -> Array:
+	var radii := Vector3(0.55, 0.31, 0.39)
 	var base := SphereMesh.new()
 	base.radius = 1.0
 	base.height = 2.0
 	base.radial_segments = 16
 	base.rings = 10
-	var noise := FastNoiseLite.new()
-	noise.seed = seed_value
-	noise.frequency = 1.4
 	var arrays: Array = base.get_mesh_arrays()
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var moved := PackedVector3Array()
-	moved.resize(verts.size())
-	for i in verts.size():
-		var dir: Vector3 = verts[i].normalized() if verts[i].length() > 0.0001 else Vector3.UP
-		var bump := 1.0 + 0.12 * noise.get_noise_3dv(dir * 1.5)
-		var v := dir * bump * radii
-		v.y = maxf(v.y, -radii.y * 0.82)          # 置いた袋の底は、つぶれて平ら
-		moved[i] = v + Vector3(0, radii.y * 0.82, 0)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for t in range(0, index.size(), 3):
-		var a := moved[index[t]]
-		var b := moved[index[t + 1]]
-		var c := moved[index[t + 2]]
-		var mid := (a + b + c) / 3.0
-		var col := light.lerp(dark, clampf(0.5 + noise.get_noise_3dv(mid * 4.0), 0.0, 1.0))
-		var n := (c - a).cross(b - a).normalized()      # Godot の面は時計回り。外向きの法線にする
-		for v: Vector3 in [a, b, c]:
-			st.set_color(col)
-			st.set_normal(n)
-			st.add_vertex(v)
+		_tri(st, _tarp_point(verts[index[t]], radii), _tarp_point(verts[index[t + 1]], radii), _tarp_point(verts[index[t + 2]], radii),
+			Color("2f68d0"), Color("1d4796"))
+	var out: Array = [_mesh(st, 0.6)]
+	# ロープ：包みの表面の点を輪にたどり、少し外へ浮かせた管にする（表面から離れない）
+	for x: float in [-0.26, 0.24]:
+		var ring: Array = []
+		var a := clampf(x / radii.x, -0.95, 0.95)
+		for k in 20:
+			var ang := TAU * float(k) / 20.0
+			var pt := _tarp_point(Vector3(a, sqrt(1.0 - a * a) * cos(ang), sqrt(1.0 - a * a) * sin(ang)), radii)
+			var away := (pt - Vector3(pt.x, radii.y * 0.82, 0)).normalized()
+			ring.append(pt + away * 0.012)
+		out.append(_tube(ring, 0.04, Color("d9a441")))
+	return out
+
+
+# 包みの表面の点（球の向き → ノイズでふくらませ、底をつぶして平らにする）
+func _tarp_point(v: Vector3, radii: Vector3) -> Vector3:
+	var dir := v.normalized() if v.length() > 0.0001 else Vector3.UP
+	var bump := 1.0 + 0.12 * _noise.get_noise_3dv(dir * 1.5)
+	var pt := dir * bump * radii
+	pt.y = maxf(pt.y, -radii.y * 0.82)
+	return pt + Vector3(0, radii.y * 0.82, 0)
+
+
+# 輪になった点の列を、四角い断面の管にする（ローポリのロープ）
+func _tube(points: Array, width: float, color: Color) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := points.size()
+	var sections: Array = []
+	for i in n:
+		var pt: Vector3 = points[i]
+		var fwd: Vector3 = (points[(i + 1) % n] - points[(i - 1 + n) % n]).normalized()
+		var side := fwd.cross(Vector3.RIGHT).normalized()
+		if side.length() < 0.1:
+			side = Vector3.UP
+		var up := side.cross(fwd).normalized()
+		var h := width * 0.5
+		sections.append([pt + side * h + up * h, pt - side * h + up * h, pt - side * h - up * h, pt + side * h - up * h])
+	for i in n:
+		var s0: Array = sections[i]
+		var s1: Array = sections[(i + 1) % n]
+		for k in 4:
+			var k2 := (k + 1) % 4
+			_tri(st, s0[k], s0[k2], s1[k], color, color.darkened(0.15))
+			_tri(st, s0[k2], s1[k2], s1[k], color, color.darkened(0.15))
+	var mi := _mesh(st, 0.95)
+	(mi.material_override as StandardMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mi
+
+
+# 球・円柱などを、角ばった面にして同じ形に足す
+func _add_prim(st: SurfaceTool, mesh: PrimitiveMesh, xf: Transform3D, light: Color, dark: Color) -> void:
+	var arrays: Array = mesh.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	for t in range(0, index.size(), 3):
+		_tri(st, xf * verts[index[t]], xf * verts[index[t + 1]], xf * verts[index[t + 2]], light, dark)
+
+
+func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, light: Color, dark: Color) -> void:
+	var mid := (a + b + c) / 3.0
+	var col := light.lerp(dark, clampf(0.5 + _noise.get_noise_3dv(mid * 5.0), 0.0, 1.0))
+	var n := (c - a).cross(b - a).normalized()      # Godot の面は時計回り。外向きの法線にする
+	for v: Vector3 in [a, b, c]:
+		st.set_color(col)
+		st.set_normal(n)
+		st.add_vertex(v)
+
+
+func _mesh(st: SurfaceTool, rough: float) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
+	mat.vertex_color_is_srgb = true          # 上の色は見たままの色（sRGB）で書いてある
 	mat.roughness = rough
 	mi.material_override = mat
 	return mi
-
-
-func _plain(color: Color, rough: float) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = rough
-	return mat
 
 
 func _bag(p: Node) -> bool:
