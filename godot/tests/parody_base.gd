@@ -39,7 +39,7 @@ func label() -> String:
 
 
 func _initialize() -> void:
-	create_timer(170).timeout.connect(func(): quit(2))
+	create_timer(400).timeout.connect(func(): quit(2))
 	run.call_deferred()
 
 
@@ -164,6 +164,11 @@ func run() -> void:
 				break
 			await physics_frame
 		check(beats.lit[i], "場面%d（%s）が撮れる（理由：%s）" % [i + 1, str(list[i]["rule"]), beats._top_reason(i)])
+		if OS.get_environment("PARODY_SHOTS") != "" and DisplayServer.get_name() != "headless":
+			# 撮れた瞬間の、撮影カメラの画（画面ありで流したときだけ）
+			await RenderingServer.frame_post_draw
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/shots/parody/"))
+			game.film.view.get_texture().get_image().save_png("res://tests/shots/parody/%s_%d.png" % [label().to_lower(), i + 1])
 		if i == list.size() - 1 or not beats.lit[i]:
 			break
 		await until_holding()

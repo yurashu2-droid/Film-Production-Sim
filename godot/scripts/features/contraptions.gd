@@ -1644,7 +1644,7 @@ func _show_fans(delta: float) -> void:
 
 func _gust() -> CPUParticles3D:
 	var g := CPUParticles3D.new()
-	g.amount = 40
+	g.amount = 60
 	g.lifetime = 0.7
 	g.local_coords = false
 	g.direction = Vector3.BACK
@@ -1656,11 +1656,11 @@ func _gust() -> CPUParticles3D:
 	g.emission_sphere_radius = 0.35
 	g.particle_flag_align_y = true
 	var streak := BoxMesh.new()
-	streak.size = Vector3(0.012, 0.42, 0.012)
+	streak.size = Vector3(0.03, 0.6, 0.03)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 1, 1, 0.55)
+	mat.albedo_color = Color(1, 1, 1, 0.85)
 	streak.material = mat
 	g.mesh = streak
 	var fade := Gradient.new()
