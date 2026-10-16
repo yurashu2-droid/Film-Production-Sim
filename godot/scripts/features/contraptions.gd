@@ -333,7 +333,7 @@ func _aim_part(me: Node, kinds: Array) -> RigidBody3D:
 	if view.is_empty():
 		return null
 	var best: RigidBody3D = null
-	var best_off := PART_AIM
+	var best_off := INF
 	for p: RigidBody3D in parts:
 		if p.absent or not (p.kind in kinds) or p.pid == me.held:
 			continue
@@ -341,8 +341,9 @@ func _aim_part(me: Node, kinds: Array) -> RigidBody3D:
 		var along := (c - (view[0] as Vector3)).dot(view[1])
 		if along < 0.2 or not _reach_ok(me, c):
 			continue
+		# 遠くから見るほど、狙いの幅を広くする（三人称の視点は、体より後ろの高い所にある）
 		var off := (c - (view[0] as Vector3) - (view[1] as Vector3) * along).length()
-		if off < best_off:
+		if off < PART_AIM + 0.02 * along and off < best_off:
 			best = p
 			best_off = off
 	# 爆弾も装置（ケーブルの行き先）

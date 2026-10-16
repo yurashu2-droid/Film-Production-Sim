@@ -167,7 +167,7 @@ const SCRIPTS := [
 			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
 		"beats": [
 			{"rule": "track", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["neutral", "happy"], "music": "music_tension"},
-			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "", "face": ["surprised", "shock"], "music": ""},
+			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["surprised", "shock"], "music": ""},
 			{"rule": "blast", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "boom": true},
 			{"rule": "show", "close": true, "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
