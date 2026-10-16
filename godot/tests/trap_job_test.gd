@@ -1,5 +1,5 @@
 extends SceneTree
-# 秘宝の遺跡・予告編（production_script.gd の 9。production_beats.gd の track・drop）を確かめる。
+# 転がる大岩・予告編（production_script.gd の 9。production_beats.gd の track・drop）を確かめる。
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/trap_job_test.gd
 # 場面1：歩く二人を映したまま、カメラが動くと撮れる（止まったカメラでは撮れない）。
 # 場面2：立ち止まった二人のそばで、上から物が1m以上落ちると撮れる。落とす仕掛け（ロープを焼き切る）で落とす。
@@ -60,9 +60,9 @@ func run() -> void:
 	var rig: Node = game.hooks.feature("contraptions")
 	var job := -1
 	for i in flow.JOBS.size():
-		if str(flow.JOBS[i]["title"]) == "秘宝の遺跡・予告編":
+		if str(flow.JOBS[i]["title"]) == "転がる大岩・予告編":
 			job = i
-	check(job >= 0, "秘宝の遺跡・予告編の依頼がある")
+	check(job >= 0, "転がる大岩・予告編の依頼がある")
 	if job < 0:
 		quit(1)
 		return

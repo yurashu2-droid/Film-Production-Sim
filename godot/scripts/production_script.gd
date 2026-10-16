@@ -151,24 +151,25 @@ const SCRIPTS := [
 			{"rule": "show", "role": "moon", "hide": "castle", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["happy", "happy"], "music": ""},
 			{"rule": "blast", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["shock", "shock"], "boom": true},
 			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
-	# 9 秘宝の遺跡・予告編（ベレー帽先生の新作。仕掛けの見せ場の4カット。カメラを動かす・上から落とす・背後で爆発・寄り）
+	# 9 転がる大岩・予告編（ベレー帽先生の新作。冒険映画の有名な冒頭のパロディ。4カット：
+	#   忍び足で奥へ（カメラも動く）→ 秘宝をすり替えると罠が作動（上から落ちる）→ 大岩に追われて逃げる → 間一髪で決め）
 	{"cuts": true, "scenes": [
-		{"dir": "【遺跡の入口】探検家の二人が、奥へ踏み込む。カメラは二人と一緒に進む。",
-			"lines": [["A", "この奥に、秘宝が眠っている"], ["B", "予告編って、だいたい嘘ですよね"], ["A", "本編は、まだ無い"]],
+		{"dir": "【遺跡の奥】探検家の二人が、忍び足で奥へ。カメラは二人と一緒に進む。",
+			"lines": [["A", "この奥に、黄金の像がある"], ["B", "どこかで見た話ですね"], ["A", "気のせいだ"]],
 			"memo": "歩く二人を映したまま、カメラを動かす（台車に載せる・手で押す・引かせる）。押す人は映さない"},
-		{"dir": "【場転】足元で、カチリ。頭の上から、何かが落ちてくる。",
-			"lines": [["B", "いま、何か踏みました？"], ["（罠）", "ドスン"], ["A", "……予告編で死ぬところだった"]],
-			"memo": "立ち止まった二人のそばに、上から物を落とす（1m以上）。落とす人は映さない。二人は自分たちで演じてもいい"},
-		{"dir": "【場転】遺跡が崩れる。二人は走って逃げる。背後で大爆発。",
-			"lines": [["A", "走れ！"], ["（爆発）", ""], ["B", "予算が爆発してます！"]],
-			"memo": "カットの間に、爆炎の書割（または爆弾）を二人の奥へ。1 で回すと、書割が爆ぜる"},
-		{"dir": "【場転】秘宝を手に、二人が寄ってきて、決めポーズ。",
+		{"dir": "【場転】黄金の像を、重さの同じ袋とすり替える。……頭の上から、何かが落ちてくる。",
+			"lines": [["B", "重さは、同じはず"], ["（罠）", "ゴゴゴゴ……"], ["A", "同じじゃなかった！"]],
+			"memo": "立ち止まった二人のそばに、上から物を落とす（1m以上）。落とす人は映さない"},
+		{"dir": "【場転】奥から、大岩が転がってくる。二人は走って逃げる。",
+			"lines": [["A", "走れ！"], ["（大岩）", "ゴロゴロゴロ"], ["B", "予算のわりに、大きい！"]],
+			"memo": "逃げる二人の後ろから、転がる物を迫らせる（押す・坂を下らせる・ロープで引く）。押す人は映さない。張りぼての大岩は、電話で借りられる"},
+		{"dir": "【場転】間一髪、外へ飛び出して、決めポーズ。",
 			"lines": [["二人", "今冬、公開未定！"]],
 			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
 		"beats": [
 			{"rule": "track", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["neutral", "happy"], "music": "music_tension"},
 			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["surprised", "shock"], "music": ""},
-			{"rule": "blast", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "boom": true},
+			{"rule": "chase", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "", "face": ["shock", "shock"], "music": "music_tension"},
 			{"rule": "show", "close": true, "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 ]
 

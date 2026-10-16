@@ -33,8 +33,8 @@ static func svg(story: String, index: int) -> String:
 		# 旅する二人（場所が変わる4カット）：城の門 → 月夜の丘 → 爆発 → 寄りで決め
 		body = [_castle_1(), _travel_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
 	elif story == "trap":
-		# 秘宝の遺跡・予告編：動くカメラ → 上から落ちる罠 → 爆発 → 寄りで決め
-		body = [_trap_1(), _trap_2(), _castle_2(), _castle_3()][clampi(index, 0, 3)]
+		# 転がる大岩・予告編：動くカメラ → 上から落ちる罠 → 大岩に追われる → 寄りで決め
+		body = [_trap_1(), _trap_2(), _trap_3(), _castle_3()][clampi(index, 0, 3)]
 	elif story == "kaiju":
 		body = [_kaiju_1(), _kaiju_2(), _kaiju_3()][clampi(index, 0, 2)]
 	else:
@@ -322,6 +322,20 @@ static func _trap_2() -> String:
 	out += _ghost("M 236,56 L 294,56 L 294,104 L 236,104 Z")
 	out += _question(Vector2(265, 84), 0.95)
 	out += _arrow(Vector2(265, 114), Vector2(265, 182))
+	return out
+
+
+# 逃げる二人の後ろから、大きな丸い何かが転がって迫る（何を転がすか・どう転がすかは描かない）
+static func _trap_3() -> String:
+	var out := _ground(238)
+	out += _ghost("M 70,160 a 78,78 0 1,0 156,0 a 78,78 0 1,0 -156,0 Z")
+	out += _question(Vector2(148, 162), 1.8)
+	for k in 3:
+		out += _line([Vector2(40 - k * 6, 128 + k * 34), Vector2(14 - k * 6, 128 + k * 34)], SOFT, 3.0)
+	out += _arrow(Vector2(236, 118), Vector2(312, 118))
+	out += _fig(Vector2(330, 242), 0.95, "run", false, -12.0)
+	out += _fig(Vector2(408, 244), 0.92, "run", false, -12.0)
+	out += _startle(Vector2(330, 140)) + _startle(Vector2(408, 142))
 	return out
 
 

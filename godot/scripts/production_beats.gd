@@ -46,6 +46,10 @@ const NEED_TRACK := 0.8           # 動くカメラ（track）：歩く二人を
 const TRACK_SPEED := 0.2          # これより遅いカメラは、動いていないとみる（m/秒）
 const TRACK_JUMP := 0.12          # 1コマにこれより大きく動いたら、カメラの切り替え（数えない）
 const DROP_M := 1.0               # 上から落ちる（drop）：場面の間に、物がこれだけ下がったら「落ちた」
+const NEED_CHASE := 0.6           # 大岩に追われる（chase）：逃げる二人と、後ろから転がって迫る物が映っている秒数（印の間が短いと、走るのは1秒ほど）
+const CHASE_SPEED := 0.9          # これより速く動いている物を「迫っている」とみる（m/秒）
+const CHASE_SPIN := 1.2           # これより速く回っていれば「転がっている」（滑っているだけではない。rad/秒）
+const CHASE_NEAR := 4.5           # 二人のうち近いほうから、この距離までに迫っていること（m）
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
@@ -63,6 +67,7 @@ const NO_REASON := {
 	"blast": "爆発が起きなかった",
 	"track": "カメラが動きながら、歩く二人を映す時間が足りなかった",
 	"drop": "二人のそばに、上から物が落ちてこなかった",
+	"chase": "逃げる二人と、後ろから転がって迫る物が、一緒に映る時間が足りなかった",
 }
 
 var game: Node
@@ -723,6 +728,8 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_track(scene, f, dt, crew)
 		"drop":
 			_rule_drop(scene, f, dt, crew)
+		"chase":
+			_rule_chase(scene, f, dt, crew)
 
 
 func _stuck() -> bool:
@@ -1003,6 +1010,57 @@ func _rule_drop(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		_note(i, r, dt)
 		return
 	_met(i)
+
+
+# 大岩に追われる：走って逃げる二人の後ろから、転がる物（回りながら進む物）が迫ってくる。押す人・引く人が映ってはいけない。
+# 「後ろ」は二人の逃げる向きで決める（カメラの向きは問わない。正面から撮っても、横から撮ってもいい）
+func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if _stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
+		return
+	var a0: Node3D = game.actors[0]
+	var a1: Node3D = game.actors[1]
+	if not (a0.beat_walking() and a1.beat_walking()):
+		return          # 走っていない間は、数えない
+	var r: Array = game.judge.problems(f)
+	if crew:
+		r.append("スタッフが映っていた（押す人・引く人は映さない）")
+	var mid: Vector3 = (a0.global_position + a1.global_position) * 0.5
+	var goal: Vector3 = (a0.beat as Dictionary).get("to", mid)
+	var run := Vector3(goal.x - mid.x, 0.0, goal.z - mid.z)
+	if run.length() < 0.05:
+		return
+	run = run.normalized()
+	var film: Node3D = game.program_camera()
+	var cam: Camera3D = film.view_cam
+	var vs := Vector2(film.view.size)
+	var space := film.get_world_3d().direct_space_state
+	var miss := "二人の後ろから、転がって迫る物が無かった"
+	var chased := false
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.kind in ["mark", "truck"]:
+			continue
+		var v: Vector3 = p.linear_velocity
+		var flat := Vector3(v.x, 0.0, v.z)
+		if flat.length() < CHASE_SPEED or p.angular_velocity.length() < CHASE_SPIN or flat.dot(run) <= 0.0:
+			continue
+		var c: Vector3 = p.center_global()
+		var rel := Vector3(c.x - mid.x, 0.0, c.z - mid.z)
+		if rel.dot(run) > 0.3:
+			miss = "転がる物が、二人の前にあった（後ろから迫って見えない）"
+			continue
+		var near := minf(Vector2(c.x - a0.global_position.x, c.z - a0.global_position.z).length(), Vector2(c.x - a1.global_position.x, c.z - a1.global_position.z).length())
+		if near > CHASE_NEAR:
+			miss = "転がる物が、二人から遠かった"
+			continue
+		if not game.judge._in_frame(cam, vs, c) or game.judge._blocked(space, cam.global_position, c, [film.get_rid(), p.get_rid()]):
+			miss = "転がって迫る物が、映っていなかった"
+			continue
+		chased = true
+		break
+	if not chased:
+		r.append(miss)
+	_count(i, r, dt, NEED_CHASE)
 
 
 func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:

@@ -1,5 +1,5 @@
 extends SceneTree
-# 秘宝の遺跡・予告編を、撮影カメラの画で撮る（仕掛けで、カメラを動かし、罠を落とす）。
+# 転がる大岩・予告編を、撮影カメラの画で撮る（仕掛けで、カメラを動かし、罠を落とす）。
 #   場面1：重りが滑車越しに台車を引き、カメラが歩く二人と一緒に動く（支えのロープに火を付けておく）
 #   場面2：場転の間に、罠の重りを吊ったロープに火を付けてから、1 で回す → 立ち止まった二人のそばに重りが落ちる
 #   godot --path godot --position -32000,-32000 --audio-driver Dummy --fixed-fps 60 --script res://tests/trap_job_shot.gd
@@ -87,7 +87,7 @@ func run() -> void:
 	me = game.local_player()
 	var job := -1
 	for i in flow.JOBS.size():
-		if str(flow.JOBS[i]["title"]) == "秘宝の遺跡・予告編":
+		if str(flow.JOBS[i]["title"]) == "転がる大岩・予告編":
 			job = i
 	flow.day = 2
 	game.h_accept_job(job)

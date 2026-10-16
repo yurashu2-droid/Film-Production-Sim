@@ -83,6 +83,7 @@ const PROPS := {
 	"witch_cauldron": {"attrs": ["火", "おとぎ話", "丸い"]},
 	"riser": {"attrs": ["四角い"]},
 	"rock": {"attrs": ["石", "丸い", "自然"]},
+	"boulder": {"attrs": ["石", "丸い", "自然"]},
 	"partition": {"attrs": ["四角い", "背が高い"]},
 	"greenscreen": {"attrs": ["四角い"]},
 	"sandbag": {"attrs": []},

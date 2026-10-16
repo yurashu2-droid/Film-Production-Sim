@@ -50,6 +50,8 @@ const OPTIONS := [
 	{"id": "dolly", "name": "台車", "desc": "荷物運びと、カメラを載せての移動撮影", "cost": 80, "max": 1, "kinds": ["dolly"], "rent": true, "buy": true},
 	{"id": "fix", "name": "重り（サンドバッグ）", "desc": "12kgの重り3個。風に飛ばされにくい。載せたり接着して支える", "cost": 60, "max": 1, "kinds": ["sandbag"], "rent": true, "buy": true},
 	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"], "rent": true, "buy": true},
+	# 張りぼての大岩（features/boulder.gd）：冒険映画の「大岩に追われる」名場面用。押す・坂・ロープで転がる
+	{"id": "boulder", "name": "張りぼての大岩", "desc": "新聞紙の張りぼて。直径1.7m・7kg。押せば・坂を下れば・ロープで引けば転がる", "cost": 120, "max": 1, "kinds": ["boulder"], "rent": true, "buy": true},
 	# 役者（制作モード。features/stand_ins.gd）：役者 A・B のうち、班が演じない役を演じる。2人まで。物は届かない
 	{"id": "actor_pro", "name": "ベテラン役者", "desc": "印でぴたりと止まり、合図をはずさない。役者A・Bのうち、班が演じない役に入る（自分たちで演じれば、タダ）", "cost": 150, "max": 2, "kinds": [], "rent": true, "buy": false, "unit": "雇う"},
 	{"id": "actor_new", "name": "劇団の新人", "desc": "安い。ただし、出遅れる・印を通り過ぎる・転ぶ・せりふで固まる。役者A・Bのうち、班が演じない役に入る", "cost": 50, "max": 2, "kinds": [], "rent": true, "buy": false, "unit": "雇う"},
