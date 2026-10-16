@@ -50,8 +50,14 @@ func view() -> Dictionary:
 	var nf: Node = game.hooks.feature("night_filter")
 	var night: Array = nf.night.keys() if nf != null else []
 	night.sort()
+	var bd: Node = game.hooks.feature("backdrop")
+	var backdrop: Array = []
+	if bd != null:
+		for pid: int in bd.backdrop:
+			backdrop.append("%d:%s" % [pid, bd.backdrop[pid]])
+		backdrop.sort()
 	return {"rows": rows, "pending": r.pending.size(), "mounts": mounts, "pulley_fixed": pulley.fixed if pulley != null else false,
-		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05), "fans": fans, "night": night}
+		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05), "fans": fans, "night": night, "backdrop": backdrop}
 
 
 func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
@@ -77,6 +83,7 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 					loose(p, base + Vector3(1.2, 0.06, 1.2))
 					break
 			loose(game.hooks.feature("night_filter").gel, base + Vector3(-0.8, 0.06, 0.8))
+			loose(game.hooks.feature("backdrop").cans[1], base + Vector3(-0.4, 0.06, -0.9))
 			loose(game.film, base + Vector3(0.8, 0.06, -1.4))
 			crew_to(who, base + Vector3(0.2, 0.1, 0.0))
 		"burn":
@@ -190,9 +197,21 @@ func client_run() -> void:
 	check(await until(func() -> bool: return game.film.view_cam.environment != null), "the participant's copy of that camera now films at night")
 	game.h_release.rpc_id(1)
 	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the gel down")
+	# ---- 背景フィルム：参加者が宇宙の缶を撮影カメラに入れる。両方の画面で、そのカメラに合成の板が付く ----
+	var bd: Node = game.hooks.feature("backdrop")
+	var space: Node = bd.cans[1]
+	game.h_grab.rpc_id(1, space.pid)
+	check(await until(func() -> bool: return game.local_player().held == space.pid), "the participant picks up the space backdrop can")
+	bd.h_set.rpc_id(1, game.film.pid, "space")
+	reply = await request("snapshot")
+	check(reply["view"]["backdrop"] == ["%d:space" % game.film.pid], "the participant loads the space backdrop into the film camera at the host")
+	await sees(reply["view"], ["backdrop"], "and the participant sees the same")
+	check(await until(func() -> bool: return game.film.view_cam.get_node_or_null("BackdropKey") != null), "the participant's copy of that camera now keys out green")
+	game.h_release.rpc_id(1)
+	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the can down")
 	# ---- 途中参加：焼き切れたロープ・留めた滑車・ケーブル・回っている送風機・夜用フィルターが届く ----
 	reply = await request("snapshot")
 	var expected: Dictionary = reply["view"]
 	await rejoin()
 	reply = await request("hello")
-	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires", "fans", "night"], "a late joiner receives the rope, the clamped pulley, the cable, the running fan and the night gel", LATE)
+	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires", "fans", "night", "backdrop"], "a late joiner receives the rope, the clamped pulley, the cable, the running fan, the night gel and the backdrop", LATE)
