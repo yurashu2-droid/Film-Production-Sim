@@ -1,6 +1,7 @@
 extends SceneTree
 # グリーンバックの合成（scripts/features/backdrop.gd）：背景フィルム缶を持って撮影カメラを見て F で入れると、
-# そのカメラにだけ合成の板が付き、缶の背景が渡る。別の缶で入れ替え、同じ缶でもう一度 F で外す。本番の記録にも残る。
+# そのカメラにだけ合成の板が付き、缶の背景が渡る。別の缶で入れ替え、同じ缶でもう一度 F で外す。
+# 本番の記録に残り、撮ったあとで外しても、見返しでは撮った時の背景で映る。
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/backdrop_test.gd
 var game: Node
 var failed := false
@@ -84,11 +85,39 @@ func run() -> void:
 	q = quad_of(film)
 	check(str(bd.backdrop.get(film.pid, "")) == "sea" and q != null and (q.material_override as ShaderMaterial).get_shader_parameter("backdrop") == bd._texture("sea"),
 		"別の缶で F すると、背景が海に入れ替わる")
-	# 本番：始まりの記録に入る
-	game._rec_events.clear()
-	bd.hook_take_start()
+	# 本番：海のまま撮る → 撮ったあとで外す → 見返しでは海に映り、終わると外した今に戻る
+	game.h_take()
+	for i in 400:
+		if game.state == game.S.TAKE:
+			break
+		await physics_frame
+	check(game.state == game.S.TAKE, "本番が始まる")
 	var rec: Array = game._rec_events.filter(func(e: Array) -> bool: return e[1] == "backdrop")
-	check(rec.size() == 1 and str((rec[0][2][0] as Dictionary).get(film.pid, "")) == "sea", "本番の始まりの記録に、どのカメラにどの背景かが残る")
+	check(rec.size() >= 1 and str((rec[0][2][0] as Dictionary).get(film.pid, "")) == "sea", "本番の始まりの記録に、どのカメラにどの背景かが残る")
+	await frames(40)
+	game._cut()
+	await frames(5)
+	game.host_ev("backdrop", [{}])
+	await frames(3)
+	check(quad_of(film) == null, "撮ったあとで外すと、板は消える")
+	game.h_replay(0)
+	for i in 120:
+		if quad_of(film) != null:
+			break
+		await physics_frame
+	check(str(bd.backdrop.get(film.pid, "")) == "sea" and quad_of(film) != null, "見返しでは、撮った時の海の背景で映る")
+	game.h_stop_replay()
+	await frames(5)
+	check(not bd.backdrop.has(film.pid) and quad_of(film) == null, "見返しが終わると、外した今に戻る")
+	# もう一度入れてから、同じ缶で外す
+	sea.restore([me.global_position + Vector3(0.4, 0.1, 0.0), Quaternion.IDENTITY, false])
+	await frames(5)
+	game.h_grab.rpc_id(1, sea.pid)
+	await frames(3)
+	me.target = film
+	game.hooks.first("hook_f", [me])
+	await frames(3)
+	check(str(bd.backdrop.get(film.pid, "")) == "sea", "もう一度 F で、海を入れ直す")
 	# 同じ缶で F：外れる
 	me.target = film
 	game.hooks.first("hook_f", [me])
