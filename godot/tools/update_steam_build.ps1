@@ -1,7 +1,7 @@
 ﻿# Steam 版（持ち運び版）を、このフォルダの今の中身で作り直し、友達に渡す zip も作る。
 #   リポジトリ直下の update_steam_build.bat から動かす（ダブルクリック）。
 # 出力：artifacts\FilmProductionCrew-steam（自分で遊ぶ版。前の版に上書き）
-#       artifacts\FilmProductionCrew-Steam-Windows-<日時>.zip（友達に渡す。前の zip は消さない）
+#       artifacts\FilmProductionCrew-Steam-Windows-<日時>.zip（友達に渡す。前に作った zip は、ごみ箱へ移す）
 # 作る中身は build_portable.ps1 と同じ。コミットしていない変更も入る（このフォルダの今のファイルから作るため）
 $ErrorActionPreference = 'Stop'
 $repo = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
@@ -43,6 +43,14 @@ Write-Host '友達に渡す zip を作っています（1〜2分）…'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
 [System.IO.Compression.ZipFile]::CreateFromDirectory($out, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $true, [System.Text.Encoding]::UTF8)
+
+# 前に作った Steam 版の zip は、いらないのでごみ箱へ移す（いちばん新しい1つだけ残す。ごみ箱から戻せる）
+Add-Type -AssemblyName Microsoft.VisualBasic
+Get-ChildItem -LiteralPath (Join-Path $repo 'artifacts') -Filter 'FilmProductionCrew-Steam-Windows-*.zip' -File |
+    Where-Object { $_.FullName -ne $zip } | ForEach-Object {
+        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($_.FullName, 'OnlyErrorDialogs', 'SendToRecycleBin')
+        Write-Host "前の zip をごみ箱へ移しました：$($_.Name)"
+    }
 
 Write-Host ''
 Write-Host "できました：$out"
