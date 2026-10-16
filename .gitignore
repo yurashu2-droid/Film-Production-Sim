@@ -12,6 +12,7 @@
 !/run_tests.sh
 !/play_vfx.bat
 !/play_new_jobs.bat
+!/update_steam_build.bat
 !/AGENTS.md
 !/CLAUDE.md
 !/VFX_KNOWLEDGE.md

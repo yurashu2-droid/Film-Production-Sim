@@ -1,4 +1,4 @@
-param([string]$OutputDirectory = "", [string]$EngineDirectory = "")
+﻿param([string]$OutputDirectory = "", [string]$EngineDirectory = "")
 $ErrorActionPreference = 'Stop'
 $projectDirectory = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repositoryDirectory = [System.IO.Path]::GetFullPath((Join-Path $projectDirectory '..'))

@@ -7,6 +7,9 @@ signal shutting_down
 
 const GAME_ID := "FilmProductionCrew"
 const PROTOCOL := "1"
+# 持ち運び版の版の印。update_steam_build.ps1 が、作り直すたびに exe の隣へ書く。
+# 印が違う版どうしは同じ会社に入れない（物の数や並びが変わると、入れても動きがずれる）
+const STAMP_FILE := "build_stamp.txt"
 const TIMEOUT := 25.0
 var lobby_id := 0
 var error_message := ""
@@ -23,6 +26,12 @@ var _host_entries: Array[int] = []
 func _init(api: Object = null) -> void:
 	_api = api
 	process_mode = Node.PROCESS_MODE_ALWAYS
+
+# 会社に書く版：通信の決まりの番号と、持ち運び版の版の印（無ければ番号だけ。開発中の起動は印が無い）
+static func protocol() -> String:
+	var path := OS.get_executable_path().get_base_dir().path_join(STAMP_FILE)
+	var stamp := FileAccess.get_file_as_string(path).strip_edges() if FileAccess.file_exists(path) else ""
+	return PROTOCOL if stamp.is_empty() else "%s-%s" % [PROTOCOL, stamp]
 
 func parse_room(text: String) -> int:
 	var value := text.strip_edges()
@@ -94,7 +103,7 @@ func _created(result: int, id: int) -> void:
 	lobby_id = id
 	_request = ""
 	_leave_host_entries(id)
-	if not _api.setLobbyData(id, "film_game", GAME_ID) or not _api.setLobbyData(id, "film_protocol", PROTOCOL):
+	if not _api.setLobbyData(id, "film_game", GAME_ID) or not _api.setLobbyData(id, "film_protocol", protocol()):
 		_fail("会社情報をSteamに登録できませんでした。")
 		return
 	_api.setLobbyJoinable(id, true)
@@ -118,7 +127,7 @@ func _joined(id: int, _permissions: int, _locked: bool, response: int) -> void:
 		return
 	lobby_id = id
 	_request = ""
-	if _api.getLobbyData(id, "film_game") != GAME_ID or _api.getLobbyData(id, "film_protocol") != PROTOCOL:
+	if _api.getLobbyData(id, "film_game") != GAME_ID or _api.getLobbyData(id, "film_protocol") != protocol():
 		_fail("この会社には参加できません。相手と同じゲームの版を使ってください。")
 		return
 	var host_id: int = _api.getLobbyOwner(id)
