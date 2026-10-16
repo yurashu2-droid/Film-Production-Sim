@@ -230,6 +230,7 @@ script_case parody-dodge-test 200 'DODGE_TEST_OK' parody_dodge_test.gd --fixed-f
 script_case parody-stairs-test 200 'STAIRS_TEST_OK' parody_stairs_test.gd --fixed-fps 60
 script_case parody-noodle-test 200 'NOODLE_TEST_OK' parody_noodle_test.gd --fixed-fps 60
 script_case parody-car-test 200 'CARCM_TEST_OK' parody_car_test.gd --fixed-fps 60
+script_case night-filter 90 'NIGHT_TEST_OK' night_filter_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
