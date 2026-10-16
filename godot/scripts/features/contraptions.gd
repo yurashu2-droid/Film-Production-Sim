@@ -18,6 +18,7 @@ extends Node
 ## 結び目・長さ・燃えている所・留めた滑車・ケーブル・炎は、"rig" の合図で全員へ配る（本番中は記録にも残り、見返しでも焼き切れる・鳴る・燃える）
 const Prop := preload("res://scripts/prop.gd")
 const VfxFire := preload("res://vfx/vfx_fire.gd")
+const Look := preload("res://scripts/production_look.gd")
 
 const CREW_LAYER := 1 << 11
 const ROPE_COLOR := Color(0.80, 0.66, 0.40)          # 会社のロープの色（cargo_coils.gd と同じ）
@@ -58,6 +59,7 @@ const WHEEL_AT := Vector3(0, 0.095, 0)               # 滑車の車の中心（�
 const WHEEL_R := 0.085
 const CLAMP_LIFT := 0.2                              # クランプは、車の上に載せる
 const TORCH_HEAD := Vector3(0, 0.62, 0)              # トーチの炎が出る所
+const KIT_SIGN := Vector3(69.3, 0.0, 18.05)          # 部品の後ろの、黒板の立て札（南を向く）
 
 var game: Node
 var parts: Array = []                                # 備品（物）
@@ -88,6 +90,7 @@ var _mark: MeshInstance3D
 func setup() -> void:
 	for row: Array in HOME:
 		parts.append(_spawn(str(row[0]), row[1], float(row[2])))
+	_kit_sign()
 	_ropes = _tubes(ROPE_COLOR, THICK, 0.15)
 	_cables = _tubes(CABLE_COLOR, 0.012, 0.0)
 	_knots = _tubes(ROPE_COLOR.darkened(0.15), THICK * 2.2, 0.1)
@@ -110,6 +113,48 @@ func setup() -> void:
 	if Net.is_host() and game.production != null:
 		for p: RigidBody3D in parts:
 			game.production._home_layout[p.pid] = p.get_state()
+
+
+# 部品の置き場所の立て札（黒板の小さなイーゼル。当たり判定は無い）。何をどうつなぐかは書かない
+func _kit_sign() -> void:
+	var root := Node3D.new()
+	root.name = "KitSign"
+	add_child(root)
+	root.position = KIT_SIGN
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color("8a6a48")
+	wood.roughness = 0.85
+	var slate := StandardMaterial3D.new()
+	slate.albedo_color = Color("2f3b34")
+	slate.roughness = 0.95
+	for side: float in [-1.0, 1.0]:
+		var leg := MeshInstance3D.new()
+		var lb := BoxMesh.new()
+		lb.size = Vector3(0.05, 1.05, 0.05)
+		leg.mesh = lb
+		leg.material_override = wood
+		leg.position = Vector3(side * 0.44, 0.5, 0.0)
+		leg.rotation.x = -0.12
+		root.add_child(leg)
+	var board := MeshInstance3D.new()
+	var bb := BoxMesh.new()
+	bb.size = Vector3(1.0, 0.56, 0.035)
+	board.mesh = bb
+	board.material_override = slate
+	board.position = Vector3(0, 0.78, 0.03)
+	board.rotation.x = -0.12
+	root.add_child(board)
+	var frame := MeshInstance3D.new()
+	var fb := BoxMesh.new()
+	fb.size = Vector3(1.06, 0.62, 0.025)
+	frame.mesh = fb
+	frame.material_override = wood
+	frame.position = Vector3(0, 0.78, 0.012)
+	frame.rotation.x = -0.12
+	root.add_child(frame)
+	# チョークの字（事務所のほかの札と同じ作り。光に当たって見える）
+	for row: Array in [["仕掛けの道具", 0.84, 0.0021], ["滑車・呼び鈴・トーチ・時計", 0.66, 0.0011]]:
+		Look.label(root, Transform3D(Basis(Vector3.RIGHT, -0.12), Vector3(0, float(row[1]), 0.08)), str(row[0]), float(row[2]), 64, Color("ecebe2"), game.get("font"), false)
 
 
 # 備品を1つ作る（全員の画面で、同じ順に。物のIDがそろう）
