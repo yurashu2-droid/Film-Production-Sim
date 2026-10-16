@@ -203,12 +203,13 @@ func run() -> void:
 	# 今日ある物を、大きさで分ける
 	# 小さい物＝いちばん長い辺が 50cm まで / 中くらいの物＝82cm までで、かさのある物（竜の頭・アヒル・お宝の箱・フクロウ像）/
 	# 細長い物（スッポン・たいまつ・はさみ）は、すき間に入るので、どちらにも数えない
+	# 会社の備品（接着剤・ロープ・仕掛けの部品）は、今日の小道具ではないので数えない
 	var small: Array = []
 	var medium: Array = []
 	var slim: Array = []
 	var big: Array = []
 	for prop: Node in game.props.values():
-		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
+		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope", "pulley", "buzzer", "igniter"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
 			continue
 		if longest(prop) <= 0.5:
 			small.append(prop)
