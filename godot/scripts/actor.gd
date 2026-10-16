@@ -14,6 +14,7 @@ const WALK_SPEED := 1.9
 const ARRIVE := 0.12          # 印に、ここまで近づいたら着いた
 const STAND_ARRIVE := 0.75    # 役に入った人は、印からこの距離にいれば着いた（人の足で、ぴたりとは止まれない）
 const STUCK_SEC := 0.45       # まっすぐ進めないまま、これだけ経ったら立ち止まる
+const STEP_UP := 0.65         # 上の印へ向かう途中なら、この高さまでの段（箱・台・階段）には跳び乗る
 const STUCK_PACE := 0.3       # 進む速さが、歩く・走る速さのこの割合より遅ければ「進めていない」
 const GRAVITY := 16.0
 const FACE_BY_STATE := {St.STANDBY: "neutral", St.IDLE: "neutral", St.CONFESS: "happy", St.FLINCH: "shock",
@@ -425,8 +426,12 @@ func _beat_go(delta: float) -> void:
 	move_and_slide()
 	_face(global_position + dir, delta)
 	vis.play(gait if is_on_floor() or st_t < 0.2 else "jump")
-	# まっすぐ進めない（物や壁に当たった）：その場で立ち止まる。よけない・跳び越えない・すり抜けない
+	# まっすぐ進めない（物や壁に当たった）：その場で立ち止まる。よけない・跳び越えない・すり抜けない。
+	# ただし、印が今より高い所にあって、前が低い段（STEP_UP まで）なら、跳び乗る（階段・台・箱を上る。名場面の舳先・頂上）
 	var progress := (global_position - before).dot(dir) / maxf(delta, 0.0001)
+	if is_on_floor() and progress < pace * STUCK_PACE and target.y > global_position.y + 0.2 and _hop_up(dir):
+		_stuck = 0.0
+		return
 	if is_on_floor() and progress < pace * STUCK_PACE:
 		_stuck += delta
 		if _stuck > STUCK_SEC:
@@ -435,6 +440,25 @@ func _beat_go(delta: float) -> void:
 			vis.play("brake", 0.08, true)
 	else:
 		_stuck = 0.0
+
+
+# 前の段の上に、跳び乗る。段の上が STEP_UP より高い・段が無いなら、何もしない（false）
+func _hop_up(dir: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var ahead := global_position + dir * 0.45
+	var q := PhysicsRayQueryParameters3D.create(ahead + Vector3(0, STEP_UP + 0.1, 0), ahead + Vector3(0, 0.05, 0), 1 | 2)
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return false
+	var rise: float = (hit["position"] as Vector3).y - global_position.y
+	if rise < 0.12 or rise > STEP_UP:
+		return false
+	velocity.y = sqrt(2.0 * GRAVITY * (rise + 0.2))
+	velocity.x = dir.x * WALK_SPEED
+	velocity.z = dir.z * WALK_SPEED
+	move_and_slide()
+	return true
 
 
 func _beat_hold(delta: float) -> void:
