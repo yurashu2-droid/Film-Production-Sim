@@ -50,7 +50,11 @@ const OPTIONS := [
 	{"id": "dolly", "name": "台車", "desc": "荷物運びと、カメラを載せての移動撮影", "cost": 80, "max": 1, "kinds": ["dolly"], "rent": true, "buy": true},
 	{"id": "fix", "name": "重り（サンドバッグ）", "desc": "12kgの重り3個。風に飛ばされにくい。載せたり接着して支える", "cost": 60, "max": 1, "kinds": ["sandbag"], "rent": true, "buy": true},
 	{"id": "rose", "name": "造花（約束のバラ）", "desc": "告白の小道具。無くても撮れる", "cost": 20, "max": 1, "kinds": ["rose"], "rent": true, "buy": true},
+	# 役者（制作モード。features/stand_ins.gd）：役者 A・B のうち、班が演じない役を演じる。2人まで。物は届かない
+	{"id": "actor_pro", "name": "ベテラン役者", "desc": "印でぴたりと止まり、合図をはずさない。役者A・Bのうち、班が演じない役に入る（自分たちで演じれば、タダ）", "cost": 150, "max": 2, "kinds": [], "rent": true, "buy": false, "unit": "雇う"},
+	{"id": "actor_new", "name": "劇団の新人", "desc": "安い。ただし、出遅れる・印を通り過ぎる・転ぶ・せりふで固まる。役者A・Bのうち、班が演じない役に入る", "cost": 50, "max": 2, "kinds": [], "rent": true, "buy": false, "unit": "雇う"},
 ]
+const ACTOR_HIRES := ["actor_pro", "actor_new"]   # 雇える役者（合わせて2人まで）
 
 var dash_dust_style := str(ProjectSettings.get_setting("vfx/dash_dust_style", "sculpted"))
 var font: Font
@@ -1151,6 +1155,14 @@ func order_savings() -> int:
 
 # その品を、いくつまで注文できるか
 func order_max(opt: Dictionary, _o: Dictionary = order, _b: Dictionary = buying) -> int:
+	if str(opt["id"]) in ACTOR_HIRES:
+		# 役は A・B の2つ。ベテランと新人を合わせて2人まで。もう一方の数は、いま決まっている注文で数える
+		# （頼み直した品のほうだけが削られる。_order_change は全部の品の上限をかけ直すので、_o で数えると先の品が消える）
+		var others := 0
+		for id: String in ACTOR_HIRES:
+			if id != str(opt["id"]):
+				others += int(order.get(id, 0))
+		return clampi(2 - others, 0, int(opt["max"]))
 	return int(opt["max"])
 
 

@@ -493,7 +493,7 @@ func sync(prod: Node) -> void:
 		elif short:
 			state.text = "制作費が足りない"
 		elif many:
-			state.text = "買う　×%d" % n
+			state.text = "%s　×%d" % [str(o.get("unit", "買う")), n]      # unit：数え方（役者は「雇う」）
 		else:
 			state.text = "注文に入れた" if n > 0 else "クリックで入れる"
 		if own:

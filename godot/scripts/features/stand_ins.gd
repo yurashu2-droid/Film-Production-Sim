@@ -5,7 +5,9 @@ extends Node
 ##   ・役に入った人には、役の色のたすきが掛かる（映画にも映る衣装）。頭の上には、班にだけ見える「役者A」の札
 ##   ・役に入っている間、NPC の役者は姿を消して、その人に付いていく（actor.gd の stand_in）。
 ##     判定・場面の進め方・試写会は、その人の位置と動きで数える。役に入った人は「映り込み」に数えない（production_notes.gd）
-##   ・誰も入っていない役は、今まで通り NPC の役者が演じる（雇う形にするのは、次の段階）
+##   ・誰も入っていない役は、発注（電話）で雇った役者が演じる。ベテラン（高い・確実）か、劇団の新人（安い・出遅れる・通り過ぎる・
+##     転ぶ・せりふで固まる。actor.gd）。雇わなければ、その役は誰も演じない（NPC の役者は姿を消す）。
+##     自動確認の中だけは、ベテランが無料で付く（今までの確認が、NPC の役者の動きを前提にしているため。flow.daily が false のとき）
 ## 決めるのはホスト（h_cast_actor）。誰が何の役かは、"stand_in" の合図で全員へ配る
 const CREW_LAYER := 1 << 11
 const ROLE_NAMES := ["A", "B"]
@@ -15,6 +17,7 @@ const REACH := 3.8 + 2.0                            # 等身大パネルに役�
 var game: Node
 var holders: Array = [["", 0], ["", 0]]     # 役ごとに [種類（"player"・"prop"・""）, 番号（プレイヤーの番号・物のID）]
 var _marks := {}                            # 役に入っている人・物 → [たすき, 札]
+var plan: Array = ["pro", "pro"]            # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
 
 
 # ---- 役を決める（ホスト） ----
@@ -53,17 +56,52 @@ func role_of(kind: String, ref: int) -> int:
 # ---- 全員の画面：役に入った人に、役者を付ける ----
 
 func hook_events() -> Array:
-	return ["stand_in"]
+	return ["stand_in", "actor_plan"]
 
 
 func hook_event(n: String, a: Array) -> void:
 	if n == "stand_in":
 		_apply(a[0])
+	elif n == "actor_plan":
+		plan = (a[0] as Array).duplicate()
+		for i in mini(plan.size(), (game.actors as Array).size()):
+			game.actors[i].set_grade(str(plan[i]))
 
 
 func hook_sync(who: int) -> void:
 	if multiplayer.is_server() and who != multiplayer.get_unique_id():
 		game.ev.rpc_id(who, "stand_in", [holders])
+		game.ev.rpc_id(who, "actor_plan", [plan])
+
+
+# 誰が演じるかを、役に入った人と、決めた発注（雇った役者）から決める（ホスト）
+func _physics_process(_delta: float) -> void:
+	if not Net.is_host() or game.production == null or (game.actors as Array).size() < 2:
+		return
+	var want := plan_now()
+	if want != plan:
+		game.host_ev("actor_plan", [want])
+
+
+func plan_now() -> Array:
+	var flow: Node = game.production
+	var pros := int(flow.ordered.get("actor_pro", 0))
+	var rookies := int(flow.ordered.get("actor_new", 0))
+	if not bool(flow.daily):
+		pros = 2                        # 自動確認の中：ベテランが無料で付く
+	var out: Array = []
+	for i in holders.size():
+		if str(holders[i][0]) != "":
+			out.append("stand")
+		elif pros > 0:
+			out.append("pro")
+			pros -= 1
+		elif rookies > 0:
+			out.append("rookie")
+			rookies -= 1
+		else:
+			out.append("none")
+	return out
 
 
 # 帰社したら、みんな役から抜ける（次の依頼で、また決める）

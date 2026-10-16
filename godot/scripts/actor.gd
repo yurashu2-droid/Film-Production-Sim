@@ -43,10 +43,19 @@ var _beat_leg := 1            # 0＝やり直しで、最初の印へ走って�
 var _beat_dir := Vector3.FORWARD
 var stand_in: Node3D = null   # 役に入っている人（プレイヤー）か等身大パネル
 var _stand_speed := 0.0
+# 誰がこの役を演じるか（features/stand_ins.gd が決める）："pro"＝雇ったベテラン / "rookie"＝劇団の新人 /
+# "stand"＝班のプレイヤーか等身大パネル / "none"＝誰も演じない（姿も無い）
+var grade := "pro"
+var _rng := RandomNumberGenerator.new()
+var _late := 0.0              # 新人：合図から動き出すまでの出遅れ
+var _over := 0.0              # 新人：印を通り過ぎる距離
+var _trip_at := -1.0          # 新人：残りがこの距離になったら、転ぶ
+var _blank := 0.0             # 新人：せりふで固まっている残り
 
 
 func setup(cast_tag: String, specials: Array) -> void:
 	special = specials
+	_rng.randomize()
 	collision_layer = 8
 	collision_mask = 1 | 2 | 4 | 8
 	floor_snap_length = 0.2
@@ -94,6 +103,8 @@ func chest_pos() -> Vector3:
 
 
 func set_state(s: St) -> void:
+	if s == St.CONFESS and st != St.CONFESS and grade == "rookie" and _rng.randf() < 0.35:
+		_blank = _rng.randf_range(1.5, 2.6)
 	st = s
 	# 待機中は印に付いて回るだけの幽霊にする（瞬間移動でセットを弾き飛ばさないため）
 	collision_layer = 0 if s == St.STANDBY or stand_in != null else 8
@@ -141,6 +152,12 @@ func _physics_process(delta: float) -> void:
 		return
 	if stand_in != null and not is_instance_valid(stand_in):
 		set_stand_in(null)
+	if grade == "none" and stand_in == null:
+		# 誰も演じない役：舞台の外（地面の下）で待つ。判定には映らない
+		if multiplayer.is_server():
+			velocity = Vector3.ZERO
+			global_position = Vector3(float(aid) * 3.0, -40.0, -40.0)
+		return
 	if stand_in != null:
 		if multiplayer.is_server():
 			_follow_stand_in(delta)
@@ -161,6 +178,12 @@ func _physics_process(delta: float) -> void:
 			_fall(delta, 10.0)
 			_face(partner.global_position, delta)
 			vis.play("idle")
+		St.CONFESS when _blank > 0.0:
+			# 新人：せりふで固まる（しばらく、ぽかんと立っているだけ）
+			_blank -= delta
+			_fall(delta, 10.0)
+			vis.play("idle")
+			vis.set_face("surprised")
 		St.CONFESS:
 			# 怪獣映画では同じ合図で「怪獣を見上げて驚く」芝居になる
 			var acts: Array = ["flinch", "jump"] if _kaiju() else special
@@ -257,6 +280,7 @@ func _reunion_move(delta: float) -> void:
 func play_beat(spec: Dictionary) -> void:
 	beat = spec
 	_beat_leg = 0 if spec.has("back") else 1
+	_rookie_beat()
 	if st == St.FLINCH:
 		after_flinch = St.BEAT_GO
 		return
@@ -282,10 +306,36 @@ func beat_stuck() -> bool:
 
 # ---- 役に入った人（班のプレイヤー・等身大パネル）に付いていく ----
 
+# 誰がこの役を演じるかを決める（全員の画面。features/stand_ins.gd）
+func set_grade(g: String) -> void:
+	grade = g
+	vis.visible = stand_in == null and g != "none"
+	if g == "none":
+		collision_layer = 0
+		collision_mask = 0
+	elif stand_in == null:
+		set_state(st)
+
+
+# 新人のハプニングを、その場面の動きごとに決める（ホスト）。ベテランは何も起きない
+func _rookie_beat() -> void:
+	_late = 0.0
+	_over = 0.0
+	_trip_at = -1.0
+	if grade != "rookie" or beat.has("back"):
+		return
+	if _rng.randf() < 0.45:
+		_late = _rng.randf_range(0.5, 1.4)
+	if _rng.randf() < 0.4:
+		_over = _rng.randf_range(0.7, 1.4)
+	if _rng.randf() < 0.2:
+		_trip_at = _rng.randf_range(0.8, 1.6)
+
+
 # 役に入った人を決める（全員の画面。features/stand_ins.gd）。null で、NPC の役者に戻る
 func set_stand_in(n: Node3D) -> void:
 	stand_in = n
-	vis.visible = n == null
+	vis.visible = n == null and grade != "none"
 	_stand_speed = 0.0
 	if n != null:
 		collision_layer = 0
@@ -332,10 +382,27 @@ func _beat_go(delta: float) -> void:
 		if partner.st != St.BEAT_GO or partner._beat_leg != 0:
 			_beat_leg = 1
 		return
+	if _late > 0.0 and _beat_leg == 1:
+		# 新人：合図に出遅れる
+		_late -= delta
+		_fall(delta, 12.0)
+		vis.play("idle")
+		return
 	var target: Vector3 = beat.get("back" if _beat_leg == 0 else "to", global_position)
+	if _over > 0.0 and _beat_leg == 1:
+		# 新人：印を通り過ぎて止まる
+		var run_dir := target - global_position
+		run_dir.y = 0.0
+		if run_dir.length() > 0.05:
+			target += run_dir.normalized() * _over
 	var d := target - global_position
 	d.y = 0.0
 	var dist := d.length()
+	if _trip_at > 0.0 and _beat_leg == 1 and dist < _trip_at:
+		# 新人：途中で転ぶ（起き上がってから、また向かう）
+		_trip_at = -1.0
+		knock(Vector3(d.x, 0.0, d.z).normalized() * 2.2 + Vector3(0, 1.5, 0))
+		return
 	if dist < ARRIVE:
 		velocity.x = 0.0
 		velocity.z = 0.0
