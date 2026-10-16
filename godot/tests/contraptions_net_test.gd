@@ -56,8 +56,20 @@ func view() -> Dictionary:
 		for pid: int in bd.backdrop:
 			backdrop.append("%d:%s" % [pid, bd.backdrop[pid]])
 		backdrop.sort()
+	# ゴミ袋：袋の残りと、袋から出ている物
+	var jb: Node = game.hooks.feature("junk_bags")
+	var left: Array = []
+	var popped: Array = []
+	if jb != null:
+		for pid: int in jb.left:
+			left.append("%d:%d" % [pid, int(jb.left[pid])])
+		left.sort()
+		for p: Node in game.props.values():
+			if game.production.in_bag(str(p.kind)) and not p.absent:
+				popped.append(int(p.pid))
+		popped.sort()
 	return {"rows": rows, "pending": r.pending.size(), "mounts": mounts, "pulley_fixed": pulley.fixed if pulley != null else false,
-		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05), "fans": fans, "night": night, "backdrop": backdrop}
+		"wires": r.wires.duplicate(true), "stock": snappedf(float(game.bomb_kit.stock), 0.05), "fans": fans, "night": night, "backdrop": backdrop, "junk_left": left, "popped": popped}
 
 
 func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
@@ -84,6 +96,7 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 					break
 			loose(game.hooks.feature("night_filter").gel, base + Vector3(-0.8, 0.06, 0.8))
 			loose(game.hooks.feature("backdrop").cans[1], base + Vector3(-0.4, 0.06, -0.9))
+			loose(game.hooks.feature("junk_bags").bags[2], base + Vector3(0.9, 0.06, 0.5))
 			loose(game.film, base + Vector3(0.8, 0.06, -1.4))
 			crew_to(who, base + Vector3(0.2, 0.1, 0.0))
 		"burn":
@@ -209,9 +222,20 @@ func client_run() -> void:
 	check(await until(func() -> bool: return game.film.view_cam.get_node_or_null("BackdropKey") != null), "the participant's copy of that camera now keys out green")
 	game.h_release.rpc_id(1)
 	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the can down")
+	# ---- ゴミ袋：参加者が持って振ると、小道具が出てくる。両方の画面で同じ物が出て、袋の残りも同じ ----
+	var jb: Node = game.hooks.feature("junk_bags")
+	var trash: Node = jb.bags[2]
+	game.h_grab.rpc_id(1, trash.pid)
+	check(await until(func() -> bool: return game.local_player().held == trash.pid), "the participant picks up a trash bag")
+	jb.h_shake.rpc_id(1, trash.pid)
+	reply = await request("snapshot")
+	check((reply["view"]["popped"] as Array).size() == 1, "shaking the bag drops one prop out at the host")
+	await sees(reply["view"], ["popped", "junk_left"], "the participant sees the same prop out and the same count left")
+	game.h_release.rpc_id(1)
+	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the bag down")
 	# ---- 途中参加：焼き切れたロープ・留めた滑車・ケーブル・回っている送風機・夜用フィルターが届く ----
 	reply = await request("snapshot")
 	var expected: Dictionary = reply["view"]
 	await rejoin()
 	reply = await request("hello")
-	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires", "fans", "night", "backdrop"], "a late joiner receives the rope, the clamped pulley, the cable, the running fan, the night gel and the backdrop", LATE)
+	await sees(expected, ["rows", "mounts", "pulley_fixed", "wires", "fans", "night", "backdrop", "junk_left", "popped"], "a late joiner receives the rope, the clamped pulley, the cable, the running fan, the night gel, the backdrop and the bag contents", LATE)
