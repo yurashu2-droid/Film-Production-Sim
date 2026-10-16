@@ -22,6 +22,9 @@ const SPACING := 40.0
 
 # 形を付けていない飾り・張り出しのぶん、面ごとの許しを広げる（m）。面は "x-" "x+" "y-" "y+" "z-" "z+"。理由も書く
 const LOOSE := {
+	"scrap_straight_stair": {"y+": 0.65, "why": "手すりには形を付けない（段の上の斜めの板で歩いて上る）"},
+	"scrap_turning_stair": {"y+": 0.60, "why": "手すりには形を付けない"},
+	"scrap_access_ramp": {"y+": 0.55, "why": "手すりには形を付けない"},
 	"dolly": {"y+": 1.60, "why": "後ろへ張り出した押し手には形を付けない（荷台に積むときのかさを広げないため）"},
 	"camera": {"z-": 0.15, "why": "三脚は三角に開くので、丸い形で囲むと後ろ側が少し余る"},
 	"spot": {"x-": 0.21, "why": "脚は +X へ長いが、どちら向きに置いても同じ幅になるよう、柱を中心にした円で囲む"},
@@ -122,7 +125,8 @@ func run() -> void:
 	var fixture := Audit.Fixture.new()
 	root.add_child(fixture)
 	var stage := Audit.new_stage(fixture)
-	Audit.add_floor(fixture)
+	# 物が増えても全部が床に載るよう、並べる升目に合わせて床を広げる（10列 × 行数）
+	Audit.add_floor(fixture, maxf(600.0, (ceilf(Audit.kinds().size() / 10.0) + 2.0) * SPACING * 1.3))
 	var kinds: Array[String] = Audit.kinds()
 	var bodies := {}
 	var order: Array = []
