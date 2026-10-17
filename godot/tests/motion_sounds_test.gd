@@ -170,6 +170,11 @@ func run() -> void:
 	check(count("ui_hover") == 1 and count("ui_press") == 1, "ボタンに乗せると ui_hover、押すと ui_press が1回ずつ鳴る")
 	button.queue_free()
 	quiet.queue_free()
+	# メニュー（Escape の一時メニューなど）：開くとページをめくる音、閉じると本を閉じる音
+	heard.clear()
+	game.open_menu("pause")
+	game.close_menu()
+	check(count("menu_open") == 1 and count("menu_close") == 1, "メニューを開くと menu_open、閉じると menu_close")
 	print("MOTION_SOUNDS_MEASURE 鳴らした数：足音 %d・着地 %d・風切り %d" % [sounds.steps, sounds.lands, sounds.swishes])
 	print("MOTION_SOUNDS_TEST_FAIL" if failed else "MOTION_SOUNDS_TEST_OK")
 	sfx.silence_all()

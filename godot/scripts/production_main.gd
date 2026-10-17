@@ -257,7 +257,7 @@ func world_click() -> bool:
 
 func open_menu(which: String) -> void:
 	menu_open = which
-	Sfx.play("ui_open", null, -4.0)
+	Sfx.play("menu_open", null, -8.0)
 
 
 # 依頼主との打ち合わせを開く（受けるかどうかは、その画面で決める）
@@ -270,7 +270,7 @@ func open_brief(index: int) -> void:
 
 func close_menu() -> void:
 	if menu_open != "":
-		Sfx.play("ui_back", null, -4.0)
+		Sfx.play("menu_close", null, -8.0)
 	menu_open = ""
 
 
@@ -420,7 +420,7 @@ func _escape() -> bool:
 	if ordering():
 		# 発注の画面を、決めずに閉じる（選びかけの注文は、前に決めた注文へ戻る）
 		h_order_close.rpc_id(1)
-		Sfx.play("ui_back", null, -4.0)
+		Sfx.play("menu_close", null, -8.0)
 		return true
 	if performance != null and performance.opened:
 		return false
@@ -444,7 +444,7 @@ func _input(event: InputEvent) -> void:
 			return
 		if ordering() and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 			h_order_close.rpc_id(1)
-			Sfx.play("ui_back", null, -4.0)
+			Sfx.play("menu_close", null, -8.0)
 			get_viewport().set_input_as_handled()
 			return
 		if menu_open != "":
@@ -513,7 +513,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		elif holding_script():
 			script_open = not script_open
-			Sfx.play("ui_open", null, -4.0)
+			Sfx.play("menu_open" if script_open else "menu_close", null, -8.0)
 			get_viewport().set_input_as_handled()
 		elif me.held != 0 and is_action_prop(props[me.held]):
 			h_prop_action.rpc_id(1,me.held)

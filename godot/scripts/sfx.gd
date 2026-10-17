@@ -8,10 +8,10 @@ const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"
 const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
 	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
 	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring", "step", "land", "whoosh", "whoosh_soft",
-	"ui_hover", "ui_press", "robot_tire", "robot_motor"]
+	"ui_hover", "ui_press", "robot_tire", "robot_motor", "menu_open", "menu_close"]
 const MAX_TAKES := 6
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
-const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back", "ui_hover", "ui_press"]
+const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back", "ui_hover", "ui_press", "menu_open", "menu_close"]
 const PITCH_SPREAD := 0.06       # 鳴らすたびに高さを少しだけ変える（同じ音の繰り返しに聞こえないように）
 # 画面のボタン：全部のボタンで、マウスを乗せると「カチ」（ui_hover）、押すと「カシャッ」（ui_press）。
 # 自分で別の音を鳴らすボタンは、set_meta("own_sfx", true) を付けると鳴らさない

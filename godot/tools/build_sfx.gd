@@ -176,6 +176,13 @@ func _interface() -> void:
 	b0 = trim_head(src(INTERFACE + "toggle_001.ogg"))
 	fade_out(b0, 0.05, 0.04)
 	save("ui_press", 0, b0, 0.45)
+	# メニューを開く・閉じる（効果音ラボの紙の音が無い環境の代わり）
+	b0 = src(INTERFACE + "select_005.ogg")
+	fade_out(b0, 0.1, 0.12)
+	save("menu_open", 0, b0, 0.34)
+	b0 = pitch(src(INTERFACE + "back_003.ogg"), 0.9)
+	fade_out(b0, 0.05, 0.05)
+	save("menu_close", 0, b0, 0.3)
 	# 選ぶ：ごく短い中くらいの高さの音（2種）
 	for i in 2:
 		var b := lowpass(src(INTERFACE + ["select_002.ogg", "select_007.ogg"][i]), 7000.0)
@@ -399,6 +406,18 @@ func _lab_buttons() -> void:
 	b = trim_head(lowpass(src(LAB + "camera-shutter2.mp3"), 9000.0))
 	fade_out(b, 0.08, 0.06)
 	save("ui_press", 0, b, 0.45)
+	# メニュー（Escape の一時メニュー・各メニュー・台本）を開く＝ページをめくる、閉じる＝本を閉じる。
+	# 前のスイッチ・決定音は浮いて聞こえた（2026-10-17、4通りの聞き比べで決定）
+	var page := src(LAB + "page1.mp3")
+	var peak := peak_time(page)
+	b = lowpass(cut(page, peak - 0.18, peak + 0.2), 8000.0)
+	for i in mini(int(0.03 * RATE), b.size()):
+		b[i] *= float(i) / (0.03 * RATE)
+	fade_out(b, 0.3, 0.08)
+	save("menu_open", 0, b, 0.6)
+	b = trim_head(lowpass(src(LAB + "book-close1.mp3"), 6000.0))
+	fade_out(b, 0.09, 0.08)
+	save("menu_close", 0, b, 0.6)
 
 
 # 車輪のロボット（M02）が走る音：小さな車輪の転がる音＋モーターの「ウイーン」。2つを同じ大きさで重ねて鳴らす
