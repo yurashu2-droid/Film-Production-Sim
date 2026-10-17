@@ -111,6 +111,7 @@ script_case cargo-packing 40 'CARGO_PACKING_TEST_OK' cargo_packing_test.gd
 script_case cargo-adhesive 40 'CARGO_ADHESIVE_TEST_OK' cargo_adhesive_test.gd
 script_case handling-physics 120 'HANDLING_PHYSICS_TEST_OK' handling_physics_test.gd
 script_case held-contact 40 'HELD_CONTACT_TEST_OK' held_contact_test.gd
+script_case stack-carry 60 'STACK_CARRY_TEST_OK' stack_carry_test.gd --fixed-fps 60
 script_case held-jump 20 'HELD_JUMP_TEST_OK' held_jump_test.gd
 script_case hold-jump-game 60 'HOLDJUMP_GAME_TEST_OK' holdjump_game_test.gd --fixed-fps 60
 script_case grab-feel 100 'GRABFEEL_TEST_OK' grabfeel_test.gd

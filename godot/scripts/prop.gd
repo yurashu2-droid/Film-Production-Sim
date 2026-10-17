@@ -45,6 +45,8 @@ var _hold_inverse_inertia := Basis.IDENTITY
 var _hold_gravity := Vector3(0, -9.8, 0)
 var _hold_set_valid := false          # 前のコマで手が決めた速さを覚えているか（1つだけ持って動かしている間）
 var _hold_set_velocity := Vector3.ZERO
+var _hold_set_spin := Vector3.ZERO
+var _riders: Array = []              # 持っている間、上に載っている物（いっしょに運ぶ）
 var _hold_brace := 0.0                # ぶら下がりを支えるために上げてある回りにくさ（0＝元のまま）
 var _layers: Array = []
 var _restore_pending := false
@@ -150,6 +152,11 @@ func set_holder(id: int, local_grip: Variant = null) -> void:
 			hold_forward = player.aim_forward()
 			hold_view_transform = game.hold_view_anchor(player) if game.has_method("hold_view_anchor") else Transform3D(Basis.IDENTITY, player.global_position)
 	holder = id
+	_riders = []
+	if id != 0:
+		# 上に載っている物を知るため、ふれている物を数える（_carry_riders）
+		contact_monitor = true
+		max_contacts_reported = maxi(max_contacts_reported, 16)
 	if id != 0 and rolls and physics_material_override != null and _held_roll_friction < 0.0:
 		# 箱型の接触形状にも、手で運搬中のキャスターの転がり抵抗を与える。
 		# 重量と保持の加速度は維持する。解放後は元の接触抵抗へ戻す。
@@ -201,6 +208,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_hold_com_local = state.center_of_mass_local
 	_hold_inverse_inertia = state.inverse_inertia_tensor
 	_hold_gravity = state.total_gravity
+	if holder != 0 and is_host():
+		_riders = _find_riders(state)
 	if not _restore_pending:
 		return
 	state.transform = _restore_transform
@@ -331,10 +340,73 @@ func _drive_hold(delta: float) -> void:
 	# 制限するのは手が加える速度変化だけ。衝突・爆発の速度を切り詰めない。
 	var acceleration := clampf(48.0 / (1.0 + mass * 0.012), 22.0, 46.0)
 	acceleration = minf(96.0, acceleration + (angular_accel + spin.length_squared()) * grip_radius.length())
+	# 上に載った物へ渡すのは、前のコマに手が決めた速さからの変化（減衰や摩擦で落ちた分を補う分は渡さない）
+	var was_v := _hold_set_velocity if steady else linear_velocity
+	var was_w := _hold_set_spin if steady else angular_velocity
 	linear_velocity = from_velocity.move_toward(v, acceleration * delta)
 	angular_velocity = next_spin
 	_hold_set_velocity = linear_velocity
+	_hold_set_spin = angular_velocity
 	_hold_set_valid = true
+	_carry_riders(was_v, was_w, group)
+
+
+# 持っている物の上に載っている物（さらにその上に載っている物も、3段まで）。
+# 手で持っている物・固定した物・接着で一体になった仲間は除く
+func _find_riders(state: PhysicsDirectBodyState3D) -> Array:
+	var found: Array = []
+	for i in state.get_contact_count():
+		# ふれた所より上に中心があり、ふれた面がほぼ水平な物（台車の荷台のように、下の物の中心より低くてもよい）
+		var other: Object = state.get_contact_collider_object(i)
+		var touch_y: float = state.get_contact_local_position(i).y      # 世界の座標
+		if _can_ride(other, touch_y) and absf(state.get_contact_local_normal(i).y) > 0.6 and not found.has(other):
+			found.append(other)
+	var level := 0
+	var from := 0
+	while level < 2 and from < found.size():
+		var upto := found.size()
+		for j in range(from, upto):
+			var below: RigidBody3D = found[j]
+			below.contact_monitor = true
+			below.max_contacts_reported = maxi(below.max_contacts_reported, 8)
+			for other: Node in below.get_colliding_bodies():
+				if _can_ride(other, below.center_global().y) and not found.has(other):
+					found.append(other)
+		from = upto
+		level += 1
+	return found
+
+
+func _can_ride(other: Object, below_y: float) -> bool:
+	if not (other is RigidBody3D) or other == self or not ("holder" in other):
+		return false
+	var body: RigidBody3D = other
+	if body.freeze or body.holder != 0 or body.fixed or body.immovable or body.absent:
+		return false
+	return body.center_global().y > below_y + 0.03
+
+
+# 上に載っている物を、いっしょに運ぶ（トレーの上の物のように）。手が下の物に加えた速さの変化を、そのまま上の物にも渡す。
+# 摩擦だけに任せると、動き出し・止まりの勢いに負けて滑り落ちる（台車は、持っている間は転がりやすく摩擦を下げてあるので、特に）。
+# 衝突や重力で起きる動きには手を出さない（渡すのは、手が加えた分だけ）。下の物が大きく傾いたら、載っている物は滑り落ちてよい
+func _carry_riders(was_v: Vector3, was_w: Vector3, group: Array[Node]) -> void:
+	if _riders.is_empty():
+		return
+	if global_basis.orthonormalized().y.dot(Vector3.UP) < cos(deg_to_rad(35.0)):
+		return
+	var com: Vector3 = global_transform * _hold_com_local
+	var turn := angular_velocity - was_w
+	for rider: Variant in _riders:
+		if not is_instance_valid(rider) or group.has(rider):
+			continue
+		var body: RigidBody3D = rider
+		if body.freeze or body.holder != 0:
+			continue
+		var r: Vector3 = body.global_transform * body._hold_com_local - com
+		var push: Vector3 = (linear_velocity + angular_velocity.cross(r)) - (was_v + was_w.cross(r))
+		body.linear_velocity += push.limit_length(4.0)
+		body.angular_velocity += Vector3(0.0, turn.y, 0.0).limit_length(6.0)
+		body.sleeping = false
 
 
 func _hold_surface_lever(axis: Vector3) -> float:
