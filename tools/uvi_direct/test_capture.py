@@ -127,6 +127,40 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(instrument.count, 2)
         self.assertTrue(voice_state('example_synth').is_file())
 
+    def test_capturing_the_unchanged_sound_twice_explains_instead_of_saving(self):
+        ready = threading.Event()
+        results = []
+
+        @contextmanager
+        def preview(plugin):
+            yield
+
+        class Instrument:
+            count = 0
+            preset_data = preset()
+
+            def show_editor(self, close_event):
+                self.count += 1
+                if self.count <= 2:
+                    ready.set()
+                    close_event.wait(3)
+
+        def client():
+            ready.wait(3)
+            results.append(request_capture(timeout=3))
+            try:
+                request_capture(timeout=3)
+            except ValueError as error:
+                results.append(str(error))
+
+        thread = threading.Thread(target=client)
+        thread.start()
+        with patch('voice_studio.preview_audio', side_effect=preview):
+            run_studio(Instrument())
+        thread.join(4)
+        self.assertEqual(results[0]['voice']['id'], 'example_synth')
+        self.assertIn('音色が変わっていません', results[1])
+
 
 if __name__ == '__main__':
     unittest.main()

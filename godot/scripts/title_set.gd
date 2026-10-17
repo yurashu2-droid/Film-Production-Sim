@@ -23,6 +23,12 @@ var _mouse := Vector2.ZERO
 var _stack_base: Node3D
 var _case_note := ""
 var _case_note_label: Label3D
+var extras: Array = []             # [音響卓（設定）, 非常口の看板（ゲームを閉じる）]。meta: home, mat, glow, box, hover
+var _extra_hover := [0.0, 0.0]
+var _faders: Array = []            # [つまみ, 一番下の高さ, 動く幅]
+var _levels: Array = [1.0, 1.0, 1.0]
+var _meter_leds: Array = []        # [材質, 段]
+var _meter_level := 0.0
 
 # 制作班
 var _director: Node3D
@@ -660,3 +666,291 @@ func _process(delta: float) -> void:
 	for l: Array in _lamps:
 		(l[0] as SpotLight3D).light_energy = float(l[1]) * (1.0 + 0.03 * sin(_t * 1.7 + float(l[2])))
 	_animate_crew(delta)
+	_animate_extras(delta)
+
+
+# ---- 設定と、ゲームを閉じる：床に置いた音響卓と、非常口の看板 ----
+# 音響卓のつまみ3本は、いまの音量（全体・BGM・効果音）の位置に立つ。右の目盛りの光は、流れている曲に合わせて跳ねる。
+# 非常口の看板は緑に光り、押すとゲームを閉じる。どちらも画面上の四角から逆算して置き、2Dの見えないボタンを重ねる。
+
+# rects: [音響卓の四角, 看板の四角]（ビューポートの座標）。音響卓は床に置き、看板は柱で床から立てる
+func layout_extras(rects: Array) -> void:
+	for n: Node3D in extras:
+		n.queue_free()
+	extras.clear()
+	_extra_hover = [0.0, 0.0]
+	_meter_leds.clear()
+	_faders.clear()
+	cam.position = CAM_POS
+	cam.rotation = Vector3.ZERO
+	for i in rects.size():
+		var r: Rect2 = rects[i]
+		var tl: Vector3 = cam.project_position(r.position, CASE_DEPTH)
+		var br: Vector3 = cam.project_position(r.end, CASE_DEPTH)
+		var size := Vector3(absf(br.x - tl.x), absf(tl.y - br.y), 0.0)
+		var px: float = size.y / r.size.y
+		var node := _make_mixer(size, px, br.y) if i == 0 else _make_exit_sign(size, px, br.y)
+		var center := Vector3((tl.x + br.x) * 0.5, (tl.y + br.y) * 0.5, tl.z)
+		node.position = center
+		node.set_meta("home", center)
+		add_child(node)
+		extras.append(node)
+	set_mixer_levels(_levels)
+
+
+func _make_mixer(size: Vector3, px: float, bottom: float) -> Node3D:
+	var root := Node3D.new()
+	var depth := size.y * 0.9
+	var body := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(size.x, size.y, depth)
+	body.mesh = bm
+	body.position.z = -depth * 0.5
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.13, 0.135, 0.15)
+	m.roughness = 0.55
+	m.metallic = 0.2
+	m.emission_enabled = true
+	m.emission = Color(0.5, 0.55, 0.7)
+	m.emission_energy_multiplier = 0.0
+	body.material_override = m
+	root.add_child(body)
+	root.set_meta("mat", m)
+	root.set_meta("box", bm.size)
+	# 載せている木の箱（リンゴ箱）。床まで
+	if bottom > 0.02:
+		var wood := StandardMaterial3D.new()
+		wood.albedo_color = Color(0.42, 0.29, 0.17)
+		wood.roughness = 0.75
+		var box_w := size.x + px * 16.0
+		_bar(root, Vector3(0, -size.y * 0.5 - bottom * 0.5, -depth * 0.5), Vector3(box_w, bottom, depth + px * 10.0), wood)
+		var hole := StandardMaterial3D.new()
+		hole.albedo_color = Color(0.06, 0.04, 0.03)
+		_bar(root, Vector3(0, -size.y * 0.5 - px * 22.0, px * 5.2), Vector3(box_w * 0.4, px * 12.0, px * 0.5), hole)
+	var black := StandardMaterial3D.new()
+	black.albedo_color = Color(0.02, 0.02, 0.025)
+	black.roughness = 0.8
+	var knob := StandardMaterial3D.new()
+	knob.albedo_color = Color(0.85, 0.86, 0.88)
+	knob.roughness = 0.35
+	knob.metallic = 0.4
+	var front := px * 2.0
+	# 目盛りの光（右に2列、下から緑・黄・赤）
+	var led_bottom := -size.y * 0.5 + px * 12.0
+	var led_step := (size.y - px * 52.0) / 6.0
+	for row in 6:
+		var col := Color(0.25, 1.0, 0.35) if row < 4 else (Color(1.0, 0.8, 0.1) if row < 5 else Color(1.0, 0.25, 0.15))
+		for side: float in [-1.0, 1.0]:
+			var led := MeshInstance3D.new()
+			var lb := BoxMesh.new()
+			lb.size = Vector3(px * 10.0, led_step * 0.6, px * 2.0)
+			led.mesh = lb
+			var lm := StandardMaterial3D.new()
+			lm.albedo_color = col * 0.25
+			lm.emission_enabled = true
+			lm.emission = col
+			lm.emission_energy_multiplier = 0.0
+			led.material_override = lm
+			led.position = Vector3(size.x * 0.5 - px * 22.0 + side * px * 7.0, led_bottom + (row + 0.5) * led_step, front)
+			root.add_child(led)
+			_meter_leds.append([lm, row])
+	# つまみの溝3本と、つまみ
+	var slot_h := size.y - px * 52.0
+	var slot_y := -size.y * 0.5 + px * 12.0 + slot_h * 0.5
+	var x_room := size.x - px * 56.0
+	for k in 3:
+		var x := -size.x * 0.5 + px * 18.0 + x_room * (k + 0.5) / 3.0
+		_bar(root, Vector3(x, slot_y, front * 0.5), Vector3(px * 3.0, slot_h, px * 2.0), black)
+		var cap := MeshInstance3D.new()
+		var cb := BoxMesh.new()
+		cb.size = Vector3(px * 18.0, px * 9.0, px * 8.0)
+		cap.mesh = cb
+		cap.material_override = knob
+		cap.position = Vector3(x, slot_y, front + px * 3.0)
+		root.add_child(cap)
+		_faders.append([cap, slot_y - slot_h * 0.5 + px * 4.0, slot_h - px * 8.0])
+	# 上の縁に貼った養生テープ：「設定」
+	var tape := MeshInstance3D.new()
+	var tb := BoxMesh.new()
+	tb.size = Vector3(px * 64.0, px * 22.0, px * 1.5)
+	tape.mesh = tb
+	var tm := StandardMaterial3D.new()
+	tm.albedo_color = UI.TAPE
+	tm.roughness = 0.8
+	tm.emission_enabled = true
+	tm.emission = UI.TAPE
+	tm.emission_energy_multiplier = 0.0
+	tape.material_override = tm
+	tape.position = Vector3(-px * 10.0, size.y * 0.5 - px * 12.0, front + px * 1.0)
+	tape.rotation.z = 0.04
+	root.add_child(tape)
+	root.set_meta("glow", tm)
+	var label := Label3D.new()
+	label.text = "設定"
+	label.font = UI.fnt("bold")
+	label.font_size = 96
+	label.pixel_size = px * 16.0 / 96.0
+	label.modulate = UI.INK
+	label.shaded = false
+	label.position = Vector3(0, 0, px * 1.0)
+	tape.add_child(label)
+	return root
+
+
+func _make_exit_sign(size: Vector3, px: float, plate_bottom: float) -> Node3D:
+	var root := Node3D.new()
+	var plate := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(size.x, size.y, px * 12.0)
+	plate.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.0, 0.42, 0.2)
+	m.roughness = 0.4
+	m.emission_enabled = true
+	m.emission = Color(0.1, 0.95, 0.45)
+	m.emission_energy_multiplier = 0.55
+	plate.material_override = m
+	root.add_child(plate)
+	root.set_meta("mat", m)
+	root.set_meta("box", bm.size)
+	# 白い縁
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.95, 0.97, 0.95)
+	white.emission_enabled = true
+	white.emission = Color(0.9, 1.0, 0.92)
+	white.emission_energy_multiplier = 0.4
+	var edge := px * 3.0
+	for sy: float in [-1.0, 1.0]:
+		_bar(root, Vector3(0, sy * (size.y * 0.5 - edge * 0.5), px * 6.5), Vector3(size.x, edge, px), white)
+	for sx: float in [-1.0, 1.0]:
+		_bar(root, Vector3(sx * (size.x * 0.5 - edge * 0.5), 0, px * 6.5), Vector3(edge, size.y, px), white)
+	# 左に走る人（ピクトさん）、右に EXIT。字の「非常口」は書かない
+	var fig := Node3D.new()
+	fig.position = Vector3(-size.x * 0.5 + px * 34.0, 0, px * 7.0)
+	root.add_child(fig)
+	_pictogram(fig, px * size.y / (px * 74.0), white)
+	root.set_meta("figure", fig)
+	var label := Label3D.new()
+	label.text = "EXIT"
+	label.font = UI.fnt("display")
+	label.font_size = 96
+	label.pixel_size = px * 30.0 / 96.0
+	label.modulate = Color(1, 1, 1)
+	label.shaded = false
+	label.position = Vector3(px * 22.0, -px * 1.0, px * 7.5)
+	root.add_child(label)
+	root.set_meta("glow", m)
+	# 看板を立てる細い柱と、床の重り
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.08, 0.08, 0.09)
+	dark.metallic = 0.6
+	dark.roughness = 0.4
+	var pole_h := plate_bottom
+	if pole_h > 0.02:
+		_bar(root, Vector3(0, -size.y * 0.5 - pole_h * 0.5, -px * 4.0), Vector3(px * 5.0, pole_h, px * 5.0), dark)
+		_bar(root, Vector3(0, -size.y * 0.5 - pole_h + px * 3.0, -px * 4.0), Vector3(px * 46.0, px * 6.0, px * 26.0), dark)
+	# 足もとを緑に照らす
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.2, 1.0, 0.5)
+	glow.light_energy = 0.35
+	glow.omni_range = size.x * 1.6
+	glow.position = Vector3(0, 0, px * 30.0)
+	root.add_child(glow)
+	return root
+
+
+# 走る人の形（白）。u は1単位（看板の高さ74のとき1px）。右へ向かって前のめりに走る
+func _pictogram(parent: Node3D, u: float, mat: Material) -> void:
+	var w := 7.0
+	var hip := Vector2(-2, -5)
+	var neck := Vector2(5, 12)
+	var head := MeshInstance3D.new()
+	var hs := SphereMesh.new()
+	hs.radius = u * 6.5
+	hs.height = u * 13.0
+	head.mesh = hs
+	head.material_override = mat
+	head.position = Vector3(9, 22, 0) * u
+	parent.add_child(head)
+	_limb(parent, hip, neck, w + 3.0, u, mat)                                  # 胴
+	_limb(parent, neck, Vector2(14, 6), w, u, mat)                             # 前の腕
+	_limb(parent, Vector2(14, 6), Vector2(20, 13), w, u, mat)
+	_limb(parent, neck, Vector2(-5, 7), w, u, mat)                             # 後ろの腕
+	_limb(parent, Vector2(-5, 7), Vector2(-11, -1), w, u, mat)
+	_limb(parent, hip, Vector2(9, -13), w, u, mat)                             # 前の脚
+	_limb(parent, Vector2(9, -13), Vector2(8, -26), w, u, mat)
+	_limb(parent, hip, Vector2(-8, -15), w, u, mat)                            # 後ろの脚
+	_limb(parent, Vector2(-8, -15), Vector2(-20, -18), w, u, mat)
+
+
+# 2点（u 単位）を結ぶ太さ w の棒。端は丸める
+func _limb(parent: Node3D, a: Vector2, b: Vector2, w: float, u: float, mat: Material) -> void:
+	var d := b - a
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(d.length() * u, w * u, u * 2.0)
+	mi.mesh = bm
+	mi.material_override = mat
+	var mid := (a + b) * 0.5
+	mi.position = Vector3(mid.x, mid.y, 0) * u
+	mi.rotation.z = d.angle()
+	parent.add_child(mi)
+	for end: Vector2 in [a, b]:
+		var cap := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = w * u * 0.5
+		cm.bottom_radius = w * u * 0.5
+		cm.height = u * 2.0
+		cm.radial_segments = 16
+		cap.mesh = cm
+		cap.material_override = mat
+		cap.position = Vector3(end.x, end.y, 0) * u
+		cap.rotation.x = PI * 0.5
+		parent.add_child(cap)
+
+
+# 音響卓のつまみを、いまの音量（0〜1）の高さに立てる
+func set_mixer_levels(levels: Array) -> void:
+	_levels = levels
+	for k in mini(_faders.size(), levels.size()):
+		var f: Array = _faders[k]
+		(f[0] as Node3D).position.y = float(f[1]) + float(f[2]) * clampf(float(levels[k]), 0.0, 1.0)
+
+
+func extra_rect(i: int) -> Rect2:
+	var node: Node3D = extras[i]
+	var half: Vector3 = (node.get_meta("box") as Vector3) * 0.5
+	var front := node.global_position
+	var a := cam.unproject_position(front + Vector3(-half.x, half.y, 0))
+	var b := cam.unproject_position(front + Vector3(half.x, -half.y, 0))
+	return Rect2(a, b - a)
+
+
+func set_extra_hover(i: int, on: bool) -> void:
+	if i >= 0 and i < extras.size():
+		extras[i].set_meta("hover", on)
+
+
+func _animate_extras(delta: float) -> void:
+	for i in extras.size():
+		var node: Node3D = extras[i]
+		var want := 1.0 if (enabled and node.get_meta("hover", false)) else 0.0
+		_extra_hover[i] = lerpf(_extra_hover[i], want, clampf(delta * 14.0, 0.0, 1.0))
+		node.position = (node.get_meta("home") as Vector3) + Vector3(0, 0, 0.07 * _extra_hover[i])
+		var glow: StandardMaterial3D = node.get_meta("glow")
+		if i == 0:
+			(node.get_meta("mat") as StandardMaterial3D).emission_energy_multiplier = _extra_hover[i] * 0.16
+			glow.emission_energy_multiplier = _extra_hover[i] * 0.3
+		else:
+			glow.emission_energy_multiplier = 0.55 + _extra_hover[i] * 0.9 + 0.05 * sin(_t * 2.3)
+	# 目盛りの光：BGM の流れの音の大きさ（左右の大きい方）
+	if _meter_leds.is_empty():
+		return
+	var bus := AudioServer.get_bus_index("Music")
+	var db := -80.0
+	if bus != -1:
+		db = maxf(AudioServer.get_bus_peak_volume_left_db(bus, 0), AudioServer.get_bus_peak_volume_right_db(bus, 0))
+	var level := clampf((db + 36.0) / 33.0, 0.0, 1.0) * 6.0
+	_meter_level = maxf(level, _meter_level - delta * 9.0)       # 落ちるときはゆっくり
+	for e: Array in _meter_leds:
+		(e[0] as StandardMaterial3D).emission_energy_multiplier = 2.2 if float(e[1]) < _meter_level else 0.0

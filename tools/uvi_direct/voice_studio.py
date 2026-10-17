@@ -6,7 +6,7 @@ import threading
 import time
 import uuid
 
-from voice_registry import atomic_json, save_current_voice, voice_directory
+from voice_registry import atomic_json, preset_metadata, save_current_voice, voice_directory
 from voice_preview import preview_audio
 
 
@@ -55,6 +55,7 @@ def run_studio(plugin):
     stop = threading.Event()
     busy = threading.Event()
     requests = queue.Queue()
+    last_saved = None   # この画面で最後に保存した音色（選び直したつもりで読み込まれていない時に気づくため）
 
     def watch():
         next_heartbeat = 0
@@ -89,7 +90,17 @@ def run_studio(plugin):
             except queue.Empty:
                 break  # Closing the editor by hand ends this registration session.
             try:
-                voice = save_current_voice(plugin.preset_data)
+                data = plugin.preset_data
+                current = preset_metadata(data)['program_path']
+                if current == last_saved:
+                    name = preset_metadata(data)['preset']
+                    raise ValueError(
+                        f'音色が変わっていません（いま読み込まれているのは「{name}」）。'
+                        'UVIの画面で音色をダブルクリックして読み込み、画面上の名前が変わって'
+                        'Loading Program が消えてから、もう一度実行してください。'
+                        f' / The loaded sound is still "{name}"; load another sound first.')
+                voice = save_current_voice(data)
+                last_saved = current
                 answer = dict(ok=True, voice=voice)
                 print(f'SAVED {voice["id"]}: {voice["preset"]}', flush=True)
             except (ValueError, OSError) as error:

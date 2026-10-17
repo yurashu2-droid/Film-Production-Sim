@@ -30,6 +30,8 @@ godot/tests/shots/
 
 # 再配布できない素材から作ったSE（公開しない。無いときは公開できる音か合成音で鳴る）
 godot/assets/audio/sfx_local/
+# UVI の音色で書き出したBGM（UVI の利用条件で、音そのものの再配布は不可。無いときは合成音で鳴る）
+godot/assets/audio/music_local/
 
 # 別に配る予定の VFX パックと、その確認用（公開リポジトリに載せるかは作者が決める。決まるまで載せない）
 godot/addons/origami_vfx/

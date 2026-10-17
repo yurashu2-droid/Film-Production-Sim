@@ -34,7 +34,22 @@
 
 ## まだ合成音のままの音
 
-BGM。それ以外も、下の効果音ラボの音が無い環境では合成音で鳴る（爆発、怪獣の鳴き声、カウントダウンなど）。
+本番中の BGM（confession・reunion・tension）。それ以外も、下の効果音ラボの音が無い環境では合成音で鳴る（爆発、怪獣の鳴き声、カウントダウンなど）。
+
+## UVI の音色で作った BGM（公開リポジトリには入れない）
+
+- タイトル画面の曲「ぐうたらラッパ隊」（`music_title`）。楽譜は `tools/bgm/songs/lazy_brass.py`、作り方は `godot/docs/BGM_NOTES.md`。
+- 作り方：`tools/bgm/bgm.py lazy_brass`（UVI Player を Python から鳴らし、楽器ごとに書き出して混ぜる。`tools/bgm/out/game/title.wav` と `.json`）→
+  `godot/tools/build_music.gd`（ループの位置を付け、QOA で圧縮して `assets/audio/music_local/title.res`）。
+- UVI の利用条件は「商用の作品での使用は可、音そのものの単体での再配布は禁止」。そのため `music_local/` は `.gitignore` で外している。
+  無い環境では、タイトル画面は曲を鳴らさない（`scripts/sfx.gd` の `LOCAL_MUSIC`、`scripts/start_menu.gd` の `_intro`）。確認は `tests/music_title_test.gd`。
+- 音量：UVI の曲は大きめ（RMS −18dB）に書き出してあるので、`scripts/sfx.gd` の `MUSIC_TRIM` で曲ごとに下げる（タイトルは −8dB）。
+
+## 音の流れと音量の設定
+
+- 音は Master（全体）← Music（BGM）／SFX（効果音・環境音・動きの音）に分けて流す。流れは起動時に `scripts/game_settings.gd` が作る。
+- タイトル画面の床の音響卓（「設定」のテープ）を押すと、全体・BGM・効果音の音量、全画面、マウスの感度を変えられる。`user://settings.cfg` に保存し、次の起動で戻す。
+- 新しく音を鳴らす物を作るときは、`bus = "SFX"`（曲なら `"Music"`）を付ける。付けないと効果音のつまみが効かない。
 
 ## 効果音ラボの素材から作った音（公開リポジトリには入れない）
 

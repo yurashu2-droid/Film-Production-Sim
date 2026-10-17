@@ -131,7 +131,10 @@ def main(argv=None):
         print(json.dumps(list_voices(args.tag), ensure_ascii=True, indent=2))
         return
     if args.command == 'capture':
-        print(json.dumps(request_capture(), ensure_ascii=True, indent=2))
+        answer = request_capture()
+        voice = answer['voice']
+        print(f'保存しました：「{voice["preset"]}」（ID: {voice["id"]}）', flush=True)
+        print(json.dumps(answer, ensure_ascii=True, indent=2))
         return
     if args.command == 'studio':
         if live_session() is not None:
