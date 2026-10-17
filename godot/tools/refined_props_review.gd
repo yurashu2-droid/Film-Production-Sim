@@ -2,10 +2,12 @@ extends Node3D
 ## Matched legacy/refined prop views. Used with the hidden render dev session.
 const MovieProp := preload("res://scripts/production_movie_prop.gd")
 const Scrap := preload("res://scripts/production_scrap.gd")
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 const LEGACY_FILES := {
  "scrap_chest":"P029_treasure_chest", "scrap_fridge":"S044_retro_refrigerator",
  "scrap_lamp":"S051_street_lamp", "scrap_clock":"S096_giant_clock",
  "scrap_vending":"S059_vending_machine",
+ "scrap_fan":"S079_large_wind_fan", "scrap_tub":"S040_clawfoot_tub", "scrap_phone":"S058_phone_booth",
  "scrap_teapot":"P035_teapot", "scrap_travel_suitcase":"P048_travel_suitcase",
 }
 var camera: Camera3D
@@ -151,7 +153,11 @@ func audit_props(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Dictionary:
 			errors.append(kind+": size or mass changed")
 		var collider := body.get_child(body.get_child_count()-1) as CollisionShape3D
 		# The ticket lives under visual; the body retains its existing box collider.
-		if kind != "scrap_lamp" and (collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97))):
+		if PropShapes.has(kind):
+			var colliders := body.find_children("*","CollisionShape3D",false,false)
+			if colliders.size() != PropShapes.TABLE[kind].shapes.size():
+				errors.append(kind+": compound collider count changed")
+		elif collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97)):
 			errors.append(kind+": collider no longer matches the measured prop")
 		var anchor := body.visual.find_child("DisposalTicketAnchor",true,false) as Node3D
 		var ticket := body.visual.find_child("Ticket",true,false) as Node3D
@@ -206,4 +212,22 @@ func show_fresh_lineup(rear: bool = false) -> void:
 	var center := Vector3(0,0.24,0)
 	camera.size = 1.15
 	camera.position = center + Vector3(-1.1,0.75,-4 if rear else 4)
+	camera.look_at(center)
+
+func show_photo_prop(kind: String, rear: bool = false) -> void:
+	clear_models()
+	var body := make_prop(kind,true)
+	var center: Vector3 = body.center
+	camera.size = float(Scrap.find(kind).size) * 1.32
+	camera.position = center + Vector3(1.4,1.1,-4 if rear else 4)
+	camera.look_at(center)
+
+func show_photo_lineup() -> void:
+	clear_models()
+	make_prop("scrap_fan",true).position.x = -1.22
+	make_prop("scrap_tub",true).position.x = 0.0
+	make_prop("scrap_phone",true).position.x = 1.22
+	var center := Vector3(0,0.72,0)
+	camera.size = 2.55
+	camera.position = center + Vector3(1.2,1.25,6)
 	camera.look_at(center)
