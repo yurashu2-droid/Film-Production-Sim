@@ -460,7 +460,7 @@ func spawn_moon(pos: Vector3, yaw: float) -> RigidBody3D:
 func spawn_mark(index: int, pos: Vector3) -> RigidBody3D:
 	var p: RigidBody3D = Prop.new()
 	p.kind = "mark"
-	p.label = "立ち位置の印 %s" % ["A", "B"][index]
+	p.label = "立ち位置の印 %s" % ["A", "B", "C", "D"][index]
 	p.mass = 1.5
 	p.center = Vector3(0, 0.03, 0)
 	p.half = Vector3(0.3, 0.05, 0.3)
@@ -470,7 +470,7 @@ func spawn_mark(index: int, pos: Vector3) -> RigidBody3D:
 	p.axis_lock_angular_z = true
 	p.visual = Node3D.new()
 	p.add_child(p.visual)
-	var col: Color = [Color(1.0, 0.45, 0.6), Color(0.4, 0.7, 1.0)][index]
+	var col: Color = [Color(1.0, 0.45, 0.6), Color(0.4, 0.7, 1.0), Color(0.45, 0.85, 0.5), Color(1.0, 0.7, 0.3)][index]
 	var m := StandardMaterial3D.new()
 	m.albedo_color = col
 	m.emission_enabled = true

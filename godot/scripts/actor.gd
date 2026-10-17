@@ -300,6 +300,11 @@ func beat_arrived() -> bool:
 	return st == St.BEAT_HOLD
 
 
+# この役を、いま誰かが演じているか（雇った役者・班の人・等身大パネル）。誰も演じない役は、舞台の外で待っている
+func present() -> bool:
+	return grade != "none" or stand_in != null
+
+
 # 物にぶつかって進めず、立ち止まっているか
 func beat_stuck() -> bool:
 	return st == St.BEAT_STUCK and stand_in == null
@@ -380,7 +385,7 @@ func _beat_go(delta: float) -> void:
 		# 最初の印で、相手が戻るのを待つ。そろったら、二人で演じ直す
 		_fall(delta, 12.0)
 		vis.play("idle")
-		if partner.st != St.BEAT_GO or partner._beat_leg != 0:
+		if not partner.present() or partner.st != St.BEAT_GO or partner._beat_leg != 0:
 			_beat_leg = 1
 		return
 	if _late > 0.0 and _beat_leg == 1:

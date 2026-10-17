@@ -731,7 +731,7 @@ func _attack_monster(b: Node3D) -> Node3D:
 
 # 怪獣の技が落ちる場所：カメラから見て、二人の少し向こう
 func _attack_target() -> Vector3:
-	var mid: Vector3 = (actors[0].global_position + actors[1].global_position) * 0.5
+	var mid: Vector3 = actors_mid()
 	var away: Vector3 = mid - program_camera().view_cam.global_position
 	away.y = 0.0
 	away = away.normalized() if away.length() > 0.05 else Vector3.FORWARD

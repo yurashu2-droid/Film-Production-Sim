@@ -294,6 +294,20 @@ static func fill(text: String, names: Dictionary) -> String:
 	return text
 
 
+# 役者の役の名前（台本の "cast"。無ければ A・B の二人）。役者は台本ごとに最大4人（A・B・C・D の順）
+static func cast(index: int) -> Array:
+	return of(index).get("cast", ["A", "B"])
+
+
+static func cast_size(index: int) -> int:
+	return clampi(cast(index).size(), 1, 4)
+
+
+# 必ず誰かが演じる役の数（前から数える。"cast_need"。無ければ全員）。残りは、誰も演じなくても撮れる
+static func cast_need(index: int) -> int:
+	return clampi(int(of(index).get("cast_need", cast_size(index))), 1, cast_size(index))
+
+
 static func of(index: int) -> Dictionary:
 	return SCRIPTS[clampi(index, 0, SCRIPTS.size() - 1)]
 

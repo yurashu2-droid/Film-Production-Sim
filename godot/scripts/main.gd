@@ -1319,9 +1319,20 @@ func boom_point() -> Variant:
 	return null if fx.absent else fx.burst_point()
 
 
+# 出ている役者（誰かが演じている役）の真ん中。誰もいなければ、役者Aの場所
+func actors_mid() -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for a: CharacterBody3D in actors:
+		if a.present():
+			sum += a.global_position
+			n += 1
+	return sum / float(n) if n > 0 else actors[0].global_position
+
+
 # 爆弾のほかに爆発を出せる物：爆炎の書割と、爆発役にした物。二人にいちばん近い物を選ぶ
 func _pick_boom() -> RigidBody3D:
-	var mid: Vector3 = (actors[0].global_position + actors[1].global_position) * 0.5
+	var mid: Vector3 = actors_mid()
 	var best: RigidBody3D = null
 	for b: RigidBody3D in props.values():
 		if b == fx or b.absent or b.holder != 0 or judge.role_of(b) != "boom":

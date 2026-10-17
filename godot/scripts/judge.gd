@@ -111,7 +111,7 @@ func look() -> Dictionary:
 	var out := {"actors": [], "castle": false, "castle_back": false, "castle_any": false, "height": false, "close": false,
 		"fx_in": false, "fx_behind": false, "moon": false, "city_pids": [], "monster_peek": false,
 		"monster": {"exists": false, "in": false, "seen": false, "up": false, "size": 0.0, "pid": 0},
-		"monster_down": false, "city_n": 0, "city_max": 0.0, "roles_in": {}}
+		"monster_down": false, "city_n": 0, "city_max": 0.0, "roles_in": {}, "present": []}
 
 	for a: CharacterBody3D in game.actors:
 		var head: Vector3 = a.head_pos()
@@ -139,6 +139,9 @@ func look() -> Dictionary:
 		d["shown"] = d["in"] and d["seen"] and d["size"]          # 明るさを問わず映っている
 		d["vis"] = d["shown"] and d["lit"]
 		(out["actors"] as Array).append(d)
+		# 出ている役者：この台本の人数の中で、誰かが演じている役（数えるのは、この役者たちだけ）
+		if int(a.aid) < cast_count() and a.present():
+			(out["present"] as Array).append(int(a.aid))
 
 	for p: Node3D in game.props.values():
 		if p.absent:
@@ -173,11 +176,18 @@ func look() -> Dictionary:
 			if _in_frame(cam, vs, p.center_global()):
 				out["moon"] = true
 
-	var a0: CharacterBody3D = game.actors[0]
-	var a1: CharacterBody3D = game.actors[1]
-	var dv := a0.global_position - a1.global_position
-	out["height"] = absf(dv.y) >= MIN_HEIGHT_DIFF
-	out["close"] = Vector2(dv.x, dv.z).length() < 1.45 and absf(dv.y) < 0.6
+	# 高低差：出ている役者のいちばん高い人と低い人。寄り集まる：どの役者も、いちばん近い相手が 1.45m より近く、高さもそろう
+	var here: Array = (out["present"] as Array).map(func(k: int) -> Node3D: return game.actors[k])
+	var ys: Array = here.map(func(a: Node3D) -> float: return a.global_position.y)
+	out["height"] = ys.size() >= 2 and float(ys.max()) - float(ys.min()) >= MIN_HEIGHT_DIFF
+	var close := here.size() >= 2
+	for a: Node3D in here:
+		var near := INF
+		for b: Node3D in here:
+			if b != a:
+				near = minf(near, Vector2(a.global_position.x - b.global_position.x, a.global_position.z - b.global_position.z).length())
+		close = close and near < 1.45
+	out["close"] = close and (ys.is_empty() or float(ys.max()) - float(ys.min()) < 0.6)
 
 	var recent: bool = boom_t0 >= 0.0 and t - boom_t0 <= BOOM_WINDOW
 	var bp: Variant = boom_pos if recent else game.boom_point()
@@ -187,7 +197,10 @@ func look() -> Dictionary:
 		out["fx_in"] = _in_frame(cam, vs, fx_pos)
 		var fx_depth := (fx_pos - cam_pos).dot(fwd)
 		var acts: Array = out["actors"]
-		out["fx_behind"] = fx_depth > maxf(acts[0]["depth"], acts[1]["depth"]) + 0.2
+		var deepest := -INF
+		for k: int in out["present"]:
+			deepest = maxf(deepest, float(acts[k]["depth"]))
+		out["fx_behind"] = fx_depth > deepest + 0.2
 	return out
 
 
@@ -272,7 +285,7 @@ func brightness(space: PhysicsDirectSpaceState3D, p: Vector3) -> float:
 func problems(f: Dictionary, need_light: bool = true) -> Array:
 	var out: Array = []
 	var acts: Array = f["actors"]
-	for i in 2:
+	for i: int in f.get("present", [0, 1]):
 		var d: Dictionary = acts[i]
 		var n: String = game.actors[i].label
 		if not d["in"]:
@@ -284,6 +297,20 @@ func problems(f: Dictionary, need_light: bool = true) -> Array:
 		elif need_light and not d["lit"]:
 			out.append("%sの顔が暗い（ライトを当てる）" % n)
 	return out
+
+
+# この台本の役者の人数（場面の列のある依頼は台本の "cast"。無ければ二人）
+func cast_count() -> int:
+	return int(beats.cast_count()) if beats != null else 2
+
+
+# 出ている役者のうち、画面の中でいちばん小さく映っている人の大きさ（寄りの見分けに使う）
+func min_h(f: Dictionary) -> float:
+	var acts: Array = f["actors"]
+	var out := INF
+	for k: int in f.get("present", [0, 1]):
+		out = minf(out, float(acts[k]["h"]))
+	return out if out < INF else 0.0
 
 
 # 怪獣映画：最初の場面に足りないこと

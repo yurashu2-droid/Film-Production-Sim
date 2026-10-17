@@ -69,8 +69,13 @@ const PASS_M := 2.0
 # 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
-	[Vector3(-3.4, 0.05, -0.3), Vector3(-0.6, 0.05, -0.3), Vector3(2.6, 0.05, -0.3)]]
-const ACTORS := ["A", "B"]
+	[Vector3(-3.4, 0.05, -0.3), Vector3(-0.6, 0.05, -0.3), Vector3(2.6, 0.05, -0.3)],
+	[Vector3(-3.4, 0.05, 0.9), Vector3(-0.6, 0.05, 0.9), Vector3(2.6, 0.05, 0.9)],
+	[Vector3(-3.4, 0.05, 2.1), Vector3(-0.6, 0.05, 2.1), Vector3(2.6, 0.05, 2.1)]]
+const ACTORS := ["A", "B", "C", "D"]
+const MAX_CAST := 4               # 役者は台本ごとに最大4人（A・B は舞台がはじめから持っている。C・D はここで作る）
+const Actor := preload("res://scripts/actor.gd")
+const EXTRA_CAST := [["03", "役者C"], ["06", "役者D"]]
 const STEPS := ["①", "②", "③"]
 # 場面ごとの、理由が1つも控えられなかったときの文
 const NO_REASON := {
@@ -97,7 +102,7 @@ const NO_REASON := {
 
 var game: Node
 var flow: Node
-var marks: Array = [[], []]       # 役者ごとの印 [①, ②, ③]
+var marks: Array = [[], [], [], []]       # 役者ごとの印 [①, ②, ③]（A〜D）
 var _mark_start: Array = []       # 印の最初の置き場所（setup のとき）
 var scene := -1                   # いまの場面（-1＝まだ始めていない）。全員の画面で同じ
 var lit: Array = []               # 場面ごとに、撮れたか（確認用モニターのランプ）
@@ -153,17 +158,34 @@ var _rattle := 0.0
 # 印②③ を作る。全員の画面で同じ順に呼ぶ（物のIDがそろう）。ふだんは片づけてあり、この依頼のときだけ出る
 func setup() -> void:
 	flow = game.production
-	for aid in 2:
+	# 役者C・D と、その最初の印（ふだんは誰も演じない＝舞台の外で待つ。台本の人数が3人以上の依頼のときだけ出る）
+	for k in EXTRA_CAST.size():
+		var aid: int = 2 + k
+		var first: RigidBody3D = game.stage.spawn_mark(aid, Vector3(float(game.props.size() + 1) * 3.0, -60.0, 40.0))
+		var a: CharacterBody3D = Actor.new()
+		a.game = game
+		a.aid = aid
+		a.label = str(EXTRA_CAST[k][1])
+		a.name = "Actor%d" % aid
+		a.setup(str(EXTRA_CAST[k][0]), [])
+		a.mark = first
+		a.position = Vector3(float(aid) * 3.0, -40.0, -40.0)
+		game.stage.add_child(a)
+		game.actors.append(a)
+		a.set_grade("none")
+	for k in EXTRA_CAST.size():
+		game.actors[2 + k].partner = game.actors[3 - k]
+	for aid in MAX_CAST:
 		marks[aid] = [game.actors[aid].mark]
-	for aid in 2:
+	for aid in MAX_CAST:
 		for _more in 2:
 			var disc: RigidBody3D = game.stage.spawn_mark(aid, Vector3(float(game.props.size() + 1) * 3.0, -60.0, 40.0))
 			(marks[aid] as Array).append(disc)
-	for aid in 2:
+	for aid in MAX_CAST:
 		for step in 3:
 			_dress(marks[aid][step], aid, step)
 	# 最初の置き場所（会社の前で撮ったあと、ここへ戻す）
-	for aid in 2:
+	for aid in MAX_CAST:
 		_mark_start.append([])
 		for step in 3:
 			(_mark_start[aid] as Array).append((marks[aid][step] as RigidBody3D).get_state())
@@ -209,7 +231,7 @@ func mark(aid: int, step: int) -> RigidBody3D:
 
 # 印を、その場に留める・戻す（ホスト。爆風を計算する間だけ留める。production_main.gd の host_burst）
 func pin_marks(on: bool) -> void:
-	for aid in 2:
+	for aid in MAX_CAST:
 		for step in 3:
 			(marks[aid][step] as RigidBody3D).immovable = on
 
@@ -222,6 +244,38 @@ func list() -> Array:
 # いまの依頼が、場面の列で進む依頼か（依頼を受けてから、事務所へ戻るまで）
 func active() -> bool:
 	return flow != null and flow.phase >= 1 and not list().is_empty()
+
+
+# この台本の役者の人数（台本の "cast"。場面の列が無い依頼は二人）
+func cast_count() -> int:
+	return int(Scripts.cast_size(flow.chosen_job)) if active() else 2
+
+
+# 出ている役者：この台本の人数の中で、いま誰かが演じている役者（数えるのは、この役者たちだけ）
+func present() -> Array:
+	var out: Array = []
+	for a: CharacterBody3D in game.actors:
+		if int(a.aid) < cast_count() and a.present():
+			out.append(a)
+	return out
+
+
+# 出ている役者が全員、そうなっているか（例：_all("beat_arrived")）。誰も出ていなければ false
+func _all(method: String) -> bool:
+	var here := present()
+	return not here.is_empty() and here.all(func(a: Node) -> bool: return bool(a.call(method)))
+
+
+# 必ず誰かが演じる役のうち、誰も演じていない役の名前
+func missing_cast() -> Array:
+	var out: Array = []
+	if not active():
+		return out
+	var names: Array = Scripts.cast(flow.chosen_job)
+	for aid in mini(Scripts.cast_need(flow.chosen_job), (game.actors as Array).size()):
+		if not game.actors[aid].present():
+			out.append(str(names[aid]) if str(names[aid]).length() > 1 else "役者%s" % ACTORS[aid])
+	return out
 
 
 # いまの依頼が、場面ごとにカットを割って撮る依頼か（そうでなければ長回し）
@@ -242,11 +296,12 @@ func refresh() -> void:
 		return
 	var on := active()
 	game.judge.beats = self if on else null
-	for aid in 2:
+	var cast := cast_count()
+	for aid in MAX_CAST:
 		for step in 3:
 			var item: RigidBody3D = marks[aid][step]
-			if step > 0:
-				item.set_absent(not on)
+			if step > 0 or aid >= 2:
+				item.set_absent(not on or aid >= cast)
 			item.label = "立ち位置の印 %s%s" % [ACTORS[aid], STEPS[step] if on else ""]
 			(item.get_node("Numeral") as Node3D).visible = on
 			(item.get_node("Tag") as Node3D).visible = on
@@ -266,7 +321,8 @@ func host_new_job() -> void:
 	_boom_in = -1.0
 	lit = _falses(list().size() if active() else 0)
 	if active():
-		for aid in 2:
+		refresh()
+		for aid in MAX_CAST:
 			for step in 3:
 				(marks[aid][step] as RigidBody3D).restore([MARK_HOME[aid][step] + flow.site_center(), Quaternion.IDENTITY, false])
 		for a: CharacterBody3D in game.actors:
@@ -278,7 +334,7 @@ func host_new_job() -> void:
 func hook_return_office() -> void:
 	if not multiplayer.is_server() or not flow.shoots_home():
 		return
-	for aid in 2:
+	for aid in MAX_CAST:
 		for step in 3:
 			(marks[aid][step] as RigidBody3D).restore(_mark_start[aid][step])
 	for a: CharacterBody3D in game.actors:
@@ -451,16 +507,26 @@ func _tell(who: int, text: String, bad: bool) -> void:
 # 役者の行き先（その場面の最後の印）。二人が近づく場面では、二人の印のあいだで向かい合う
 func _targets(b: Dictionary) -> Array:
 	var to := int(b.get("to", 0))
-	var a: Vector3 = mark(0, to).global_position
-	var c: Vector3 = mark(1, to).global_position
+	var out: Array = []
+	for aid in MAX_CAST:
+		out.append(mark(aid, to).global_position)
 	if b.get("meet", false):
-		var apart := Vector3(a.x - c.x, 0.0, a.z - c.z)
-		if apart.length() > MEET_GAP:
-			var mid := (a + c) * 0.5
-			var half := apart.normalized() * MEET_GAP * 0.5
-			a = Vector3(mid.x + half.x, a.y, mid.z + half.z)
-			c = Vector3(mid.x - half.x, c.y, mid.z - half.z)
-	return [a, c]
+		var here: Array = present().map(func(a: Node) -> int: return int(a.aid))
+		if here.size() >= 2:
+			var first: Vector3 = out[here[0]]
+			var last: Vector3 = out[here[here.size() - 1]]
+			var apart := Vector3(first.x - last.x, 0.0, first.z - last.z)
+			if apart.length() > MEET_GAP * float(here.size() - 1):
+				var mid := Vector3.ZERO
+				for k: int in here:
+					mid += out[k]
+				mid /= float(here.size())
+				var dir := apart.normalized()
+				for n in here.size():
+					var k: int = here[n]
+					var off := dir * MEET_GAP * (float(here.size() - 1) * 0.5 - float(n))
+					out[k] = Vector3(mid.x + off.x, (out[k] as Vector3).y, mid.z + off.z)
+	return out
 
 
 # その場面を始める（again＝やり直し。役者は、その場面の最初の印まで走って戻ってから、もう一度演じる）
@@ -745,6 +811,10 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 	var beats := list()
 	if scene < 0 or scene >= beats.size() or scene >= lit.size() or lit[scene]:
 		return
+	var missing := missing_cast()
+	if not missing.is_empty():
+		_note(scene, ["%sを、誰も演じていない（Y で役に入る・電話で雇う・等身大パネル）" % "・".join(PackedStringArray(missing))], dt)
+		return
 	match str(beats[scene].get("rule", "")):
 		"stroll":
 			_rule_stroll(scene, f, dt, crew)
@@ -787,7 +857,7 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 
 
 func _stuck() -> bool:
-	return game.actors[0].beat_stuck() or game.actors[1].beat_stuck()
+	return present().any(func(a: Node) -> bool: return a.beat_stuck())
 
 
 # 数える・理由を控える、の共通の終わり方
@@ -805,7 +875,7 @@ func _rule_stroll(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	if not (game.actors[0].beat_walking() and game.actors[1].beat_walking()):
+	if not _all("beat_walking"):
 		return          # 歩いていない間（戻っている・着いたあと）は、数えない
 	var r: Array = game.judge.problems(f)
 	if int(f["city_n"]) < game.judge.MIN_CITY:
@@ -822,7 +892,7 @@ func _rule_appear(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var r: Array = game.judge.problems(f)
 	r.append_array(game.judge.kaiju_problems(f))
@@ -830,7 +900,7 @@ func _rule_appear(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		r.append("スタッフが映っていた")
 	if r.is_empty():
 		var acts: Array = f["actors"]
-		_wide_sum += minf(float(acts[0]["h"]), float(acts[1]["h"])) * dt
+		_wide_sum += game.judge.min_h(f) * dt
 		_lead = int(f["monster"]["pid"])
 	_count(i, r, dt, NEED_APPEAR)
 	if lit[i]:
@@ -994,7 +1064,7 @@ func _rule_cheer(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var r: Array = game.judge.problems(f)
 	var acts: Array = f["actors"]
@@ -1002,7 +1072,7 @@ func _rule_cheer(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		r.append("二人が近づいていなかった")
 	if not f["monster_down"]:
 		r.append("倒れた怪獣が映っていなかった")
-	if r.is_empty() and minf(float(acts[0]["h"]), float(acts[1]["h"])) < close_need():
+	if r.is_empty() and game.judge.min_h(f) < close_need():
 		r.append("寄りが足りない（二人を、今までより大きく映す）")
 	if crew:
 		r.append("スタッフが映っていた")
@@ -1022,7 +1092,7 @@ func _rule_track(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	if not (game.actors[0].beat_walking() and game.actors[1].beat_walking()):
+	if not _all("beat_walking"):
 		return          # 歩いていない間は、数えない
 	var r: Array = game.judge.problems(f)
 	if crew:
@@ -1054,7 +1124,7 @@ func _rule_drop(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 			_drop_top[p.pid] = c.y          # 同じ物は、もう一度持ち上がるまで数えない
 	if not fell:
 		return
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		_note(i, ["二人が立ち止まる前に落ちた"], dt)
 		return
 	var r: Array = game.judge.problems(f)
@@ -1072,14 +1142,13 @@ func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	var a0: Node3D = game.actors[0]
-	var a1: Node3D = game.actors[1]
-	if not (a0.beat_walking() and a1.beat_walking()):
+	if not _all("beat_walking"):
 		return          # 走っていない間は、数えない
+	var a0: Node3D = present()[0]
 	var r: Array = game.judge.problems(f)
 	if crew:
 		r.append("スタッフが映っていた（押す人・引く人は映さない）")
-	var mid: Vector3 = (a0.global_position + a1.global_position) * 0.5
+	var mid: Vector3 = game.actors_mid()
 	var goal: Vector3 = (a0.beat as Dictionary).get("to", mid)
 	var run := Vector3(goal.x - mid.x, 0.0, goal.z - mid.z)
 	if run.length() < 0.05:
@@ -1103,7 +1172,9 @@ func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		if rel.dot(run) > 0.3:
 			miss = "転がる物が、二人の前にあった（後ろから迫って見えない）"
 			continue
-		var near := minf(Vector2(c.x - a0.global_position.x, c.z - a0.global_position.z).length(), Vector2(c.x - a1.global_position.x, c.z - a1.global_position.z).length())
+		var near := INF
+		for a: Node3D in present():
+			near = minf(near, Vector2(c.x - a.global_position.x, c.z - a.global_position.z).length())
 		if near > CHASE_NEAR:
 			miss = "転がる物が、二人から遠かった"
 			continue
@@ -1141,7 +1212,7 @@ func _rig() -> Node:
 
 # 鳴る：二人が映っている間に、目覚まし時計か押しボタンが、画面の中で鳴る（カップ麺の3分・合図のチン）
 func _rule_ring(i: int, f: Dictionary, dt: float, crew: bool) -> void:
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var r: Array = game.judge.problems(f)
 	if crew:
@@ -1171,7 +1242,7 @@ func _rule_ring(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 # 月の前を横切る：月役の物の前を、役者が横切る（画面の上で、月の丸に重なって動く）。シルエットなので、顔の明るさは問わない
 func _rule_cross(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	var moving: Array = []
-	for a: Node in game.actors:
+	for a: Node in present():
 		if a.beat_walking():
 			moving.append(a)
 	if moving.is_empty():
@@ -1219,7 +1290,7 @@ func _rule_hit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	for p: Node3D in game.props.values():
 		if p.absent or p.holder != 0 or p.kind in ["mark", "truck"] or p.linear_velocity.length() < HIT_SPEED:
 			continue
-		for a: Node in game.actors:
+		for a: Node in present():
 			if p.center_global().distance_to(a.chest_pos()) <= HIT_NEAR + maxf(p.half.x, maxf(p.half.y, p.half.z)) * 0.5:
 				hit = a
 				by = p
@@ -1249,7 +1320,7 @@ func _rule_scorch(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 			if t == null:
 				continue
 			var head: Vector3 = t.global_transform * rig.TORCH_HEAD
-			for a: Node in game.actors:
+			for a: Node in present():
 				if head.distance_to(a.global_position + Vector3(0, 0.6, 0)) <= SCORCH_NEAR:
 					near = true
 					seen = seen or _shows(head, [t.get_rid()])
@@ -1262,12 +1333,12 @@ func _rule_scorch(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 
 # 高い所：二人とも、床より高い所（台・バルコニー・箱の上）に立っている（船の舳先・頂上）
 func _rule_high(i: int, f: Dictionary, dt: float, crew: bool) -> void:
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var r: Array = game.judge.problems(f)
 	if crew:
 		r.append("スタッフが映っていた")
-	for a: Node3D in game.actors:
+	for a: Node3D in present():
 		if a.global_position.y < HIGH_M:
 			r.append("%sが、高い所に立っていなかった（台や箱の上に印を置く）" % str(a.label))
 	_count(i, r, dt, NEED_HIGH)
@@ -1275,7 +1346,7 @@ func _rule_high(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 
 # 風：回っている送風機の風を、二人が正面から受けている（両手を広げる・髪がなびく）
 func _rule_wind(i: int, f: Dictionary, dt: float, crew: bool) -> void:
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var r: Array = game.judge.problems(f)
 	if crew:
@@ -1290,27 +1361,25 @@ func _rule_wind(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 				continue
 			running = true
 			var count := 0
-			for a: Node in game.actors:
+			for a: Node in present():
 				if rig.in_wind(fan, a.chest_pos()):
 					count += 1
 			windy = maxi(windy, count)
 	if not running:
 		r.append("送風機が回っていなかった")
-	elif windy < 2:
-		r.append("二人が、送風機の風の正面にいなかった")
+	elif windy < present().size():
+		r.append("出ている役者が全員、送風機の風の正面にいなかった")
 	_count(i, r, dt, NEED_WIND)
 
 
 # 回り込む：止まった二人を映したまま、カメラが二人のまわりを回る（向きが ORBIT_RAD 変わる）
 func _rule_orbit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
-	var a0: Node3D = game.actors[0]
-	var a1: Node3D = game.actors[1]
-	var mid: Vector3 = (a0.global_position + a1.global_position) * 0.5
+	var mid: Vector3 = game.actors_mid()
 	var cam: Vector3 = game.program_camera().global_position
 	var ang := atan2(cam.x - mid.x, cam.z - mid.z)
 	var step := 0.0 if is_nan(_orbit_last) else absf(wrapf(ang - _orbit_last, -PI, PI))
 	_orbit_last = ang
-	if step > 0.3 or not (a0.beat_arrived() and a1.beat_arrived()):
+	if step > 0.3 or not _all("beat_arrived"):
 		return          # カメラの切り替え・まだ着いていない
 	var r: Array = game.judge.problems(f)
 	if crew:
@@ -1329,17 +1398,18 @@ func _rule_orbit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 # 駆け上がる：二人が、この場面の始まりより CLIMB_M 以上高い印に着く（階段・坂・箱を上る）
 func _rule_climb(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _climb_y0.is_empty():
-		_climb_y0 = [game.actors[0].global_position.y, game.actors[1].global_position.y]
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+		for a: Node3D in game.actors:
+			_climb_y0.append(a.global_position.y)
+	if not _all("beat_arrived"):
 		if _stuck():
 			_note(i, ["役者が段差にぶつかって、上れなかった（坂や低い段を並べる）"], dt)
 		return
 	var r: Array = game.judge.problems(f)
 	if crew:
 		r.append("スタッフが映っていた")
-	for k in 2:
-		if game.actors[k].global_position.y < float(_climb_y0[k]) + CLIMB_M:
-			r.append("%sが、上っていなかった（上の印を、高い所に置く）" % game.actors[k].label)
+	for a: Node3D in present():
+		if a.global_position.y < float(_climb_y0[int(a.aid)]) + CLIMB_M:
+			r.append("%sが、上っていなかった（上の印を、高い所に置く）" % a.label)
 	_count(i, r, dt, NEED_HIGH)
 
 
@@ -1368,7 +1438,7 @@ func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
-	if not (game.actors[0].beat_arrived() and game.actors[1].beat_arrived()):
+	if not _all("beat_arrived"):
 		return
 	var b: Dictionary = list()[i]
 	var r: Array = game.judge.problems(f)
@@ -1393,7 +1463,7 @@ func _rule_show(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		var acts: Array = f["actors"]
 		if not f["close"]:
 			r.append("二人が近づいていなかった")
-		elif r.is_empty() and minf(float(acts[0]["h"]), float(acts[1]["h"])) < CLOSE_MIN:
+		elif r.is_empty() and game.judge.min_h(f) < CLOSE_MIN:
 			r.append("寄りが足りない（カメラを二人へ寄せる）")
 	if crew:
 		r.append("スタッフが映っていた")

@@ -10,14 +10,19 @@ extends Node
 ##     自動確認の中だけは、ベテランが無料で付く（今までの確認が、NPC の役者の動きを前提にしているため。flow.daily が false のとき）
 ## 決めるのはホスト（h_cast_actor）。誰が何の役かは、"stand_in" の合図で全員へ配る
 const CREW_LAYER := 1 << 11
-const ROLE_NAMES := ["A", "B"]
-const SASH := [Color("e8768f"), Color("4f8fd1")]     # 役の印の色（A＝桃・B＝青）とそろえる
+const ROLE_NAMES := ["A", "B", "C", "D"]          # 役者は台本ごとに最大4人。何人かは台本の "cast"（production_beats.gd の cast_count）
+const SASH := [Color("e8768f"), Color("4f8fd1"), Color("6fca7f"), Color("f2a64a")]     # 役の印の色（A＝桃・B＝青・C＝緑・D＝橙）とそろえる
 const REACH := 3.8 + 2.0                            # 等身大パネルに役を付けられる距離（見立てと同じ。player.gd の REACH ＋ 2m）
 
 var game: Node
-var holders: Array = [["", 0], ["", 0]]     # 役ごとに [種類（"player"・"prop"・""）, 番号（プレイヤーの番号・物のID）]
+var holders: Array = [["", 0], ["", 0], ["", 0], ["", 0]]     # 役ごとに [種類（"player"・"prop"・""）, 番号（プレイヤーの番号・物のID）]
 var _marks := {}                            # 役に入っている人・物 → [たすき, 札]
-var plan: Array = ["pro", "pro"]            # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
+var plan: Array = ["pro", "pro", "none", "none"]     # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
+
+
+# この台本の役者の人数（役は A から順に、この数まで）
+func _cast_n() -> int:
+	return int(game.beats.cast_count()) if game.get("beats") != null else 2
 
 
 # ---- 役を決める（ホスト） ----
@@ -40,7 +45,7 @@ func h_cast_actor(kind: String, ref: int, role: int) -> void:
 	for i in table.size():
 		if str(table[i][0]) == kind and int(table[i][1]) == ref:
 			table[i] = ["", 0]        # 前の役から抜ける
-	if role >= 0 and role < table.size():
+	if role >= 0 and role < mini(table.size(), _cast_n()):
 		table[role] = [kind, ref]     # その役にいた人は、役から外れる
 	game.host_ev("stand_in", [table])
 
@@ -88,10 +93,12 @@ func plan_now() -> Array:
 	var pros := int(flow.ordered.get("actor_pro", 0))
 	var rookies := int(flow.ordered.get("actor_new", 0))
 	if not bool(flow.daily):
-		pros = 2                        # 自動確認の中：ベテランが無料で付く
+		pros = _cast_n()                # 自動確認の中：ベテランが無料で付く
 	var out: Array = []
 	for i in holders.size():
-		if str(holders[i][0]) != "":
+		if i >= _cast_n():
+			out.append("none")          # この台本に無い役
+		elif str(holders[i][0]) != "":
 			out.append("stand")
 		elif pros > 0:
 			out.append("pro")
@@ -107,7 +114,7 @@ func plan_now() -> Array:
 # 帰社したら、みんな役から抜ける（次の依頼で、また決める）
 func hook_return_office() -> void:
 	if Net.is_host():
-		game.host_ev("stand_in", [[["", 0], ["", 0]]])
+		game.host_ev("stand_in", [[["", 0], ["", 0], ["", 0], ["", 0]]])
 
 
 func _apply(table: Array) -> void:
@@ -200,11 +207,11 @@ func hook_key(event: InputEvent, me: Node) -> bool:
 	if subject == null:
 		# 自分：入っていない → A → B → やめる
 		var now: int = role_of("player", int(me.peer_id))
-		h_cast_actor.rpc_id(1, "player", int(me.peer_id), now + 1 if now < ROLE_NAMES.size() - 1 else -1)
+		h_cast_actor.rpc_id(1, "player", int(me.peer_id), now + 1 if now < _cast_n() - 1 else -1)
 		return true
 	if subject.kind == "standin":
 		var now: int = role_of("prop", int(subject.pid))
-		if now == ROLE_NAMES.size() - 1:
+		if now == _cast_n() - 1:
 			# B のあとは、役者の役をやめて、物の役の見立て（城・怪獣など）へ。この Y は見立てにも回す
 			h_cast_actor.rpc_id(1, "prop", int(subject.pid), -1)
 			return false
@@ -219,7 +226,7 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 		return {}
 	if me.held == 0 and me.target == null:
 		var now: int = role_of("player", int(me.peer_id))
-		return {"keys": "Y %s" % ("役者Aになる" if now < 0 else ("役者Bになる" if now == 0 else "役をやめる"))}
+		return {"keys": "Y %s" % ("役をやめる" if now >= _cast_n() - 1 else "役者%sになる" % ROLE_NAMES[now + 1])}
 	var subject: Node = game.props.get(me.held) if me.held != 0 else me.target
 	if subject != null and subject.kind == "standin":
 		var now: int = role_of("prop", int(subject.pid))
