@@ -154,6 +154,17 @@ func noise_whoosh(length: float, peak: float, lo: float, hi: float, seed_n: int)
 	return b
 
 
+
+# いちばん大きい所が1になるようにする（重ねる部品の大きさをそろえる）
+func normalized(b: PackedFloat32Array) -> PackedFloat32Array:
+	var top := 0.0001
+	for v in b:
+		top = maxf(top, absf(v))
+	var out := b.duplicate()
+	for i in out.size():
+		out[i] /= top
+	return out
+
 # 頭の、鳴っていない所を詰める（いちばん大きい所の level 倍に届くまで）
 func trim_head(b: PackedFloat32Array, level: float = 0.04) -> PackedFloat32Array:
 	var top := 0.0001
@@ -431,16 +442,20 @@ func _robot_roll() -> void:
 	var motor := cut(src(UVI_ROBOT), 0.3, 1.3)
 	motor = lowpass(highpass(motor, 300.0), 5000.0)
 	save_loop("robot_motor", motor, 0.1, 0.3)
-	# 着地：「ガタッ」。鉄板の当たり（ガ）に、工具箱のがちゃつき（タッ）と、人の着地の柔らかい当たりを重ねる（3種）。
+	# 着地：重めの「ガサッ」。重い当たり（ドッ）に、土を踏む「ザッ」と、工具箱のがちゃつきを少し重ねる（3種）。
+	# 部品ごとに大きさをそろえてから混ぜる。前の「ガタッ」は軽すぎた（2026-10-17、4通りの聞き比べで決定）。
 	# 鳴らす時は、モーターの音が一瞬止まる（features/motion_sounds.gd）
 	var tools := src(LAB + "tool-box1.mp3")
+	var soil := src(LAB + "walk-soil1.mp3")
+	var thud := normalized(lowpass(pitch(trim_head(src(IMPACT + "impactPunch_heavy_000.ogg")), 0.85), 1500.0))
+	var scuff_at := [0.61, 1.21, 2.4]
 	var rattle_at := [0.15, 0.55, 2.2]
 	for i in 3:
-		var b := buf(0.4)
-		mix(b, lowpass(pitch(trim_head(src(IMPACT + "impactPlate_medium_%03d.ogg" % i)), 1.1), 3000.0), 0.0, 1.0)
-		mix(b, lowpass(highpass(trim_head(cut(tools, rattle_at[i], rattle_at[i] + 0.25), 0.1), 300.0), 4000.0), 0.012, 0.8)
-		mix(b, _step_hit(src(LAB + "dash-tatami1.mp3"), [2.159, 3.945, 1.968][i], 3000.0), 0.0, 0.5)
-		fade_out(b, 0.18, 0.14)
+		var b := buf(0.45)
+		mix(b, thud, 0.0, 1.0)
+		mix(b, normalized(lowpass(trim_head(cut(soil, scuff_at[i] - 0.03, scuff_at[i] + 0.25), 0.1), 5000.0)), 0.008, 1.0)
+		mix(b, normalized(lowpass(highpass(trim_head(cut(tools, rattle_at[i], rattle_at[i] + 0.25), 0.1), 300.0), 2500.0)), 0.02, 0.12)
+		fade_out(b, 0.25, 0.15)
 		save("robot_land", i, b, 0.62)
 
 

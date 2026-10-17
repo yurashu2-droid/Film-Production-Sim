@@ -117,7 +117,7 @@ whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯
 | ui_hover 乗せる | 効果音ラボ click1（マウスのクリック） | 6kHz以上を削り、0.08秒で切る | sfx_local |
 | ui_press 押す | 効果音ラボ camera-shutter2（カメラのシャッター） | 9kHz以上を削り、0.14秒で切る | sfx_local |
 | ui_hover・ui_press（代わり） | Kenney Interface Sounds（CC0）tick_002・toggle_001 | 余韻を整える | sfx |
-| robot_land ロボットの着地「ガタッ」（3種） | Kenney impactPlate_medium（鉄板）＋効果音ラボ tool-box1（工具箱のがちゃつき）＋ dash-tatami1（人の着地の柔らかい当たり） | 鉄板を1.1倍・3kHz以上を削る。工具箱は0.25秒切り出し、300Hz〜4kHzに絞って0.012秒遅らせる。畳を0.5倍で重ねる。鳴らす時、モーターの音を0.12秒止めて、0.3秒で低い所から戻す | sfx_local |
+| robot_land ロボットの着地「ガサッ」（3種） | Kenney impactPunch_heavy_000（重い当たり）＋効果音ラボ walk-soil1（土の上を歩く）＋ tool-box1（工具箱のがちゃつき） | 部品ごとに大きさをそろえて混ぜる。当たりは0.85倍・1.5kHz以上を削る。土の1歩（0.28秒）を5kHz以上を削って0.008秒遅らせる。工具箱は300Hz〜2.5kHzに絞って0.12倍。0.4秒で消す。鳴らす時、モーターの音を0.12秒止めて、0.3秒で低い所から戻す。前の軽い「ガタッ」から、聞き比べで替えた | sfx_local |
 | menu_open メニューを開く（Escape・各メニュー・台本） | 効果音ラボ page1（ページをめくる） | いちばん大きい所の前0.18秒〜後0.2秒を切り出し、0.03秒で立ち上げ、8kHz以上を削る。−8dBで鳴らす | sfx_local |
 | menu_close メニューを閉じる | 効果音ラボ book-close1（本を閉じる） | 6kHz以上を削り、0.17秒で切る。−8dBで鳴らす | sfx_local |
 | menu_open・menu_close（代わり） | Kenney Interface Sounds（CC0）select_005・back_003 | 前の ui_open・ui_back と同じ | sfx |
