@@ -975,8 +975,8 @@ func apply_stash(hidden: Array) -> void:
 
 
 func _process(delta: float) -> void:
-	# 依頼を受けている間だけ、廃材置き場の門が開く
-	var want := 1.0 if phase >= 1 else 0.0
+	# 依頼を受けている間だけ、廃材置き場の門が開く。1日目（会社の紹介動画）は開けない（使う物は事務所の前に出してある。features/tutorial_day.gd）
+	var want := 1.0 if phase >= 1 and not bool(job().get("debut", false)) else 0.0
 	if _yard_root and not is_equal_approx(_gate, want):
 		if _gate == 0.0 or _gate == 1.0:
 			Sfx.play("gate", Yard.gate_point(), -2.0)

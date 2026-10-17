@@ -236,6 +236,7 @@ script_case backdrop 90 'BACKDROP_TEST_OK' backdrop_test.gd --fixed-fps 60
 script_case start-day 60 'START_DAY_TEST_OK' start_day_test.gd --fixed-fps 60
 script_case junk-bags 120 'JUNK_TEST_OK' junk_bags_test.gd --fixed-fps 60
 script_case camera-kit 90 'CAMKIT_TEST_OK' camera_kit_test.gd --fixed-fps 60
+script_case tutorial-day 90 'TUTDAY_TEST_OK' tutorial_day_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
