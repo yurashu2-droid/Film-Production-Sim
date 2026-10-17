@@ -91,7 +91,7 @@ func show_detail(kind: String, rear: bool = false) -> void:
 	clear_models()
 	make_prop(kind,true)
 	var center := Vector3(0,0.27 if kind == "scrap_chest" else 0.7,0)
-	camera.size = 0.92 if kind == "scrap_chest" else 1.72
+	camera.size = 0.92 if kind == "scrap_chest" else (1.95 if kind == "scrap_vending" else 1.72)
 	camera.position = center + Vector3(2,1.0,-3.4 if rear else 3.4)
 	camera.look_at(center)
 

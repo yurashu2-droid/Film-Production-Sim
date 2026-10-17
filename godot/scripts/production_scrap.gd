@@ -70,7 +70,7 @@ const ITEMS := [
 		"tags": ["gag"], "shape": "box", "com": 0.3, "pos": Vector2(60.5, 35.5), "yaw": PI},
 	{"kind": "scrap_fridge", "file": "S044_retro_refrigerator_refined", "label": "レトロ冷蔵庫（中は空）", "size": 1.4, "mass": 9.0,
 		"tags": ["city"], "shape": "box", "com": 0.3, "pos": Vector2(44.5, 39.0), "yaw": PI},
-	{"kind": "scrap_vending", "file": "S059_vending_machine_simple", "label": "自動販売機（張りぼて）", "size": 1.5, "mass": 9.0,
+	{"kind": "scrap_vending", "file": "S059_vending_machine_jp", "label": "自動販売機（張りぼて）", "size": 1.5, "mass": 9.0,
 		"tags": ["city"], "shape": "box", "com": 0.3, "pos": Vector2(47.5, 39.0), "yaw": PI},
 	{"kind": "scrap_phone", "file": "S058_phone_booth", "label": "電話ボックス", "size": 1.6, "mass": 8.0,
 		"tags": ["city"], "shape": "box", "com": 0.25, "pos": Vector2(50.5, 39.0), "yaw": PI},
