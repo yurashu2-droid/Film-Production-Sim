@@ -55,8 +55,15 @@
 
 ## まだ決めていないこと
 
-- 講師の名前・見た目。
+- 講師の名前・見た目（仮：講師「バズ山」。キャラ素材 06 を青いホログラムにした物。`features/delivery_box.gd`）。
 - 再生数が何で増えるか（見ごたえ・看板が映った・事故 など）。コメントの中身。
+
+## 作った物（2026-10-18）
+
+- 1〜4 は作った。箱：`features/delivery_box.gd`（事務所の机の手前。開けずに依頼を受けたり買い物をしたりしても、そこで箱が開いて払う）。
+  青いガイド：`features/holo_guides.gd`（準備中と撮影中。映画には映らない層）。1日目の配置：`features/tutorial_day.gd`。
+  確認：`tests/tutorial_box_test.gd`・`tests/tutorial_day_test.gd`・`tests/camera_kit_test.gd`・`tests/pr_test.gd`。
+- お金が減る音（coin_drain）は、コードで作った仮の音。無料素材の音へ置き換える。
 
 ## 作る順番（案）
 

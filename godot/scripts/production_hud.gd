@@ -67,6 +67,7 @@ var _wallet_unit: Label
 var _people: Label
 var _clock_div: Control
 var _last_wallet := -1
+var wallet_shown := -1            # 0 以上なら、貯金の数字をこの値で見せる（数字がくるくる動く演出。features/delivery_box.gd）
 var _clock_urgent := false
 var _lobby_sub: Label
 var _backdrop: ColorRect
@@ -669,10 +670,21 @@ func _process(_delta: float) -> void:
 	_refresh()
 
 
+# コインの額を、3桁ごとのカンマで区切って書く（1000600 → 1,000,600）
+static func coins(n: int) -> String:
+	var digits := str(absi(n))
+	var out := ""
+	for i in digits.length():
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			out += ","
+		out += digits[i]
+	return ("-" if n < 0 else "") + out
+
+
 # 財布の増減：数字の隣に小さく浮いて消える（面は敷かない）
 func _wallet_popup(change: int) -> void:
 	var gain := change > 0
-	var l := UI.label(("+%d" if gain else "−%d") % absi(change), 17, UI.GREEN_LIGHT if gain else UI.STAMP_RED.lightened(0.25), "bold", true)
+	var l := UI.label(("+%s" if gain else "−%s") % coins(absi(change)), 17, UI.GREEN_LIGHT if gain else UI.STAMP_RED.lightened(0.25), "bold", true)
 	root.add_child(l)
 	# 財布の数字の真下から、帯のほうへ浮かんで消える
 	var from := Vector2(_wallet_num.global_position.x + _wallet_num.size.x - l.get_combined_minimum_size().x, _strip.global_position.y + _strip.size.y + 12.0)
@@ -741,7 +753,7 @@ func _refresh() -> void:
 		elif here == "order":
 			line = "F 発注する" if production.orderer == 0 else "発注は、いま別の人が使用中"
 		else:
-			line = "左クリック 持つ ／ 廃材置き場で使える物を探して、軽トラへ運ぼう"
+			line = "左クリック 持つ ／ 事務所の前の物を、青い影に合わせて置こう" if bool(production.job().get("debut", false)) and production.shoots_home() else "左クリック 持つ ／ 廃材置き場で使える物を探して、軽トラへ運ぼう"
 		# 机の上の物（のぞき箱・発注の電話）を見ている：名前と、できることを出す
 		var desk: String = game.director.aimed() if game.director != null else ""
 		if desk != "":
@@ -839,13 +851,14 @@ func _refresh() -> void:
 		_growth_text.text = game.crew_skills.growth_text()
 	_strip.offset_top = 18
 	_strip.offset_bottom = _strip.offset_top
-	_wallet_num.text = str(production.wallet)
+	_wallet_num.text = coins(int(production.wallet) if wallet_shown < 0 else wallet_shown)
 	_rent.visible = production.hazards and phase == 0
 	_rent_div.visible = _rent.visible
 	if _rent.visible:
 		_rent.text = "家賃 %d・あと%d本" % [production.rent_amount(), production.rent_in()]
 	_people.text = "%d人" % game.players.size()
-	_status.text = PHASE_NAMES[clampi(phase, 0, 5)]
+	# 会社の前で撮る依頼は、軽トラに積まない（準備の段階の名前を替える）
+	_status.text = "撮影の準備" if phase == 2 and production.shoots_home() else PHASE_NAMES[clampi(phase, 0, 5)]
 	if production.wallet != _last_wallet:
 		if _last_wallet >= 0:
 			_wallet_popup(production.wallet - _last_wallet)
