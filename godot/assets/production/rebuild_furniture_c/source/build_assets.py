@@ -41,9 +41,10 @@ def lamp():
     B('Lantern lower tray',(0,0,.995),(.21,.21,.045),green,.005)
     B('Frosted lantern panes',(0,0,1.115),(.16,.16,.21),cream,.002)
     for x in (-.086,.086):
-        for y in (-.086,.086):beam('Lantern corner iron',(x,y,1.01),(x*.82,y*.82,1.235),.013,green)
-    L('Lantern pyramidal roof',[(0,1.245),(.16,1.245),(.14,1.27),(.04,1.345),(0,1.36)],green,4)
-    C('Lantern finial',(0,0,1.38),.012,.045,brass,vertices=12)
+        for y in (-.086,.086):beam('Lantern corner iron',(x,y,1.01),(x*.82,y*.82,1.225),.013,green)
+    # The roof rests directly on the panes (pane top z=1.22) instead of floating above them.
+    L('Lantern pyramidal roof',[(0,1.215),(.16,1.215),(.14,1.24),(.04,1.315),(0,1.33)],green,4)
+    C('Lantern finial',(0,0,1.35),.012,.045,brass,vertices=12)
     # A broad pole collar gives the runtime 13x8.5cm ticket a genuinely flat backing.
     B('Streetlamp flat ticket collar',(0,-.036,.30),(.18,.015,.12),green,.003)
     main_marker((0,-.046,.30))

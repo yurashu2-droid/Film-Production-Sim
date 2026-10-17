@@ -1,50 +1,5 @@
 [
   {
-    "file": "S020_crooked_chimney_rebuilt.glb",
-    "mesh_batches": 5,
-    "triangles": 2080,
-    "blender_bounds_min": [
-      -0.4749999940395355,
-      -0.42500001192092896,
-      0.0
-    ],
-    "blender_bounds_max": [
-      0.47499996423721313,
-      0.42500001192092896,
-      2.0899999141693115
-    ],
-    "textures_embedded": false,
-    "kind": "scrap_chimney",
-    "original_file": "S020_crooked_chimney",
-    "normalization_size": 1.1,
-    "mass_kg": 3.0,
-    "original_transformed_envelope": {
-      "min": [
-        -0.4749999940395355,
-        -0.42500001192092896,
-        0.0
-      ],
-      "max": [
-        0.4750000238418579,
-        0.42500001192092896,
-        2.0899999141693115
-      ]
-    },
-    "authoring_axis_fit": [
-      0.8962264060974121,
-      1.0493826866149902,
-      1.0502512454986572
-    ],
-    "validation": {
-      "finite_vertices": true,
-      "closed_authored_shells": true,
-      "nondegenerate_faces": true,
-      "baked_transforms": true,
-      "original_vertex_envelope_error_max": 1e-05,
-      "godot_runtime": "parent integration pending"
-    }
-  },
-  {
     "file": "S011_foam_column_rebuilt.glb",
     "mesh_batches": 2,
     "triangles": 612,
@@ -1024,6 +979,51 @@
       1.0360360145568848,
       1.0,
       1.0005574226379395
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S020_crooked_chimney_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 2164,
+    "blender_bounds_min": [
+      -0.4749999940395355,
+      -0.42500001192092896,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.47499996423721313,
+      0.42500001192092896,
+      2.0899999141693115
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_chimney",
+    "original_file": "S020_crooked_chimney",
+    "normalization_size": 1.1,
+    "mass_kg": 3.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.4749999940395355,
+        -0.42500001192092896,
+        0.0
+      ],
+      "max": [
+        0.4750000238418579,
+        0.42500001192092896,
+        2.0899999141693115
+      ]
+    },
+    "authoring_axis_fit": [
+      0.8962264060974121,
+      1.0493826866149902,
+      1.123655915260315
     ],
     "validation": {
       "finite_vertices": true,

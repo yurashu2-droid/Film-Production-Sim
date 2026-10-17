@@ -1,10 +1,5 @@
 [
   {
-    "kind": "scrap_chimney",
-    "original_file": "S020_crooked_chimney",
-    "file": "S020_crooked_chimney_rebuilt"
-  },
-  {
     "kind": "scrap_column",
     "original_file": "S011_foam_column",
     "file": "S011_foam_column_rebuilt"
@@ -113,5 +108,10 @@
     "kind": "scrap_sewer_entry",
     "original_file": "S025_sewer_entry",
     "file": "S025_sewer_entry_rebuilt"
+  },
+  {
+    "kind": "scrap_chimney",
+    "original_file": "S020_crooked_chimney",
+    "file": "S020_crooked_chimney_rebuilt"
   }
 ]

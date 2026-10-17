@@ -95,11 +95,12 @@ def ring_box():
     outline=roundrect(.112,.10,.023)
     slab('Rounded covered base',outline,0,.012,velvet,.002)
     wall('Open velvet case walls',outline,.87,.009,.043,velvet)
-    for x in (-.024,.024):
-        h.ellipsoid('Plush ring cushion',(x,0,.034),(.024,.039,.018),lining,24,12)
-    box('Ring insertion slot',(0,0,.039),(.004,.062,.003),dark,.001)
+    # Two cushion rolls lie front and back with a left-right slot, so the ring faces the open front.
+    for y in (-.024,.024):
+        h.ellipsoid('Plush ring cushion',(0,y,.034),(.039,.024,.018),lining,24,12)
+    box('Ring insertion slot',(0,0,.039),(.062,.004,.003),dark,.001)
     # The band goes into the actual cushion slot, and supports the prong basket.
-    h.tube('Continuous gold ring band',[(0,.023*math.cos(i*TAU/48),.052+.023*math.sin(i*TAU/48)) for i in range(48)],.0027,gold,True,8)
+    h.tube('Continuous gold ring band',[(.023*math.cos(i*TAU/48),0,.052+.023*math.sin(i*TAU/48)) for i in range(48)],.0027,gold,True,8)
     cylinder('Gem basket seat',(0,0,.076),.009,.004,gold,vertices=16)
     for a in [TAU*i/4+math.pi/4 for i in range(4)]:
         h.tube('Gem setting prong',[(.006*math.cos(a),.006*math.sin(a),.076),

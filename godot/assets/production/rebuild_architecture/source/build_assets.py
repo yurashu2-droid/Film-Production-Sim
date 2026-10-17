@@ -158,8 +158,11 @@ def chimney():
     x=cx+(j-.5)*.275+( .065 if row%2 else 0)
     box('Staggered chimney brick',(x,y,z),(.263,.10,.197),m['brick2' if (row+j)%3==0 else 'brick'],.007)
   for s in (-1,1):box('Chimney return brick',(cx+s*.29,0,z),(.10,.41,.197),m['brick'],.007)
+  # Mortar core fills each course and the bed joint above it, so the courses read as one built stack.
+  box('Chimney mortar core',(cx,0,z+.009),(.50,.44,.215),m['mortar'],0)
  # A crooked upper throat bends the masonry; open mouth has a thick stone cap rim.
- cx=.115;z=1.90
+ # The coping sits directly on the top course (top course ends at z=1.68).
+ cx=.115;z=1.77
  for y in (-.33,.33):box('Chimney open coping front back',(cx,y,z),(.93,.15,.18),m['stone'],.012)
  for x in (cx-.39,cx+.39):box('Chimney open coping sides',(x,0,z),(.15,.51,.18),m['stone'],.012)
  box('Deep soot in open chimney',(cx,0,1.61),(.45,.40,.025),m['black'],0)
