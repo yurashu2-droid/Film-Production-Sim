@@ -9,10 +9,14 @@ extends "res://tests/pair_net_base.gd"
 const CAM_AT := Vector3(0.0, 0.0, 5.0)
 const AIM_WIDE := Vector3(0.0, 1.0, -1.6)
 const AIM_CLOSE := Vector3(0.0, 0.8, 1.8)
-const MARKS := [[Vector3(-0.7, 0.05, -1.6), Vector3(-1.0, 0.05, -0.5), Vector3(-0.6, 0.05, 1.8)],
-	[Vector3(0.7, 0.05, -1.6), Vector3(1.0, 0.05, -0.5), Vector3(0.6, 0.05, 1.8)]]
-const CASTLE_AT := Vector3(0.0, 0.0, -2.8)
-const FLAT_AT := Vector3(1.9, 0.0, -3.0)
+# 会社の紹介動画（4カット・役者4人）の置き方は tests/pr_test.gd と同じ。城と書割は、事務所の壁より手前
+const MARKS := [[Vector3(-0.6, 0.05, -1.2), Vector3(-1.0, 0.05, -0.6), Vector3(-0.5, 0.05, 1.8)],
+	[Vector3(0.6, 0.05, -1.2), Vector3(-1.9, 0.05, -0.3), Vector3(0.5, 0.05, 1.8)],
+	[Vector3(-1.8, 0.05, -1.2), Vector3(1.3, 0.05, -0.3), Vector3(-1.5, 0.05, 1.8)],
+	[Vector3(1.8, 0.05, -1.2), Vector3(2.2, 0.05, -0.1), Vector3(1.5, 0.05, 1.8)]]
+const CASTLE_AT := Vector3(0.0, 0.0, -2.2)
+const FLAT_AT := Vector3(1.9, 0.0, -2.3)
+const CARD_AT := Vector3(0.0, 2.05, 0.8)
 const SPOT_AT := [Vector3(-2.6, 0.0, 2.6), Vector3(2.6, 0.0, 2.6)]
 const HOST_AT := Vector3(3.0, 0.1, 6.0)        # 監督（ホスト）：カメラの後ろ、台本のそば
 const CLIENT_AT := Vector3(-3.0, 0.1, 6.5)     # 参加者：カメラの後ろ（画面の外）
@@ -59,9 +63,14 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 			place(game.film, O + CAM_AT)
 			place(first("scrap_arch"), O + CASTLE_AT, PI)
 			place(first("boomflat"), O + FLAT_AT)
-			for aid in 2:
+			for aid in 4:
 				for step in 3:
 					(beats.mark(aid, step) as Node).restore([O + MARKS[aid][step], Quaternion.IDENTITY, false])
+			# 看板：カンペに会社の名前を描いて、片づけておく（最後のカットの場転で出す）
+			var card: RigidBody3D = game.cue_cards.card
+			for i in 12:
+				card.draw_line(Vector2(80, 80 + i * 50), Vector2(940, 100 + i * 50), Color.BLACK, 22.0)
+			place(card, O + Vector3(4.0, 0.0, -6.0))
 			for i in 2:
 				place(game.spots[i], O + SPOT_AT[i], PI)
 			crew_to(1, O + HOST_AT)
@@ -89,12 +98,19 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 			game.h_beat(1)
 			await wait(0.2)
 			await roll_until_hold(1)
-		"close":
-			# 場転：カメラを寄せて、ライトを手前へ → 1 で回して、3カット目が撮れてテイクが終わるまで
-			game._aim_camera(O + AIM_CLOSE, 40.0)
-			for i in 2:
-				game._aim_spot(game.spots[i], O + Vector3(0.0, 1.2, 1.8))
+		"boom":
+			# 監督が 1 で回し直す（3カット目：社長の背後で爆発）→ 撮れて、止まるまで
 			await wait(1.5)
+			game.h_beat(1)
+			await wait(0.2)
+			await roll_until_hold(2)
+		"close":
+			# 場転：看板を出し、カメラを寄せて、ライトを手前へ → 1 で回して、4カット目が撮れてテイクが終わるまで
+			place(game.cue_cards.card, O + CARD_AT)
+			game._aim_camera(O + AIM_CLOSE + Vector3(0, 0.2, 0), 46.0)
+			for i in 2:
+				game._aim_spot(game.spots[i], O + Vector3(0.0, 1.0, 1.8))
+			await wait(2.5)
 			game.h_beat(1)
 			await until(func() -> bool: return game.state == game.S.RESULT, 15.0)
 		"skip":
@@ -123,8 +139,11 @@ func client_run() -> void:
 	reply = await request("action")
 	check(bool(reply["view"]["hold"]) and int(reply["view"]["next"]) == 2 and bool((reply["view"]["lit"] as Array)[1]), "the host rolls again, and the second cut is captured")
 	await sees(reply["view"], ["hold", "next", "lit"], "the participant follows the second cut")
+	reply = await request("boom")
+	check(bool(reply["view"]["hold"]) and int(reply["view"]["next"]) == 3 and bool((reply["view"]["lit"] as Array)[2]), "the host rolls again, and the third cut (the explosion) is captured")
+	await sees(reply["view"], ["hold", "next", "lit"], "the participant follows the third cut")
 	reply = await request("close")
-	check(int(reply["view"]["state"]) == game.S.RESULT and not false in (reply["view"]["lit"] as Array), "the third cut ends the take with every cut captured")
+	check(int(reply["view"]["state"]) == game.S.RESULT and not false in (reply["view"]["lit"] as Array), "the fourth cut (the sign) ends the take with every cut captured")
 	check(await until(func() -> bool: return game.state == game.S.RESULT, WAIT), "the participant sees the result")
 	# ---- 試写会：参加者が納品を頼む ----
 	game.request_deliver(game.selected)

@@ -121,21 +121,26 @@ const SCRIPTS := [
 			{"rule": "attack", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "monster", "face": ["shock", "shock"], "boom": true},
 			{"rule": "topple", "from": 2, "to": 2, "gait": "walk", "pose": "idle", "look": "monster", "face": ["surprised", "surprised"], "music": ""},
 			{"rule": "cheer", "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
-	# 7 わが社のCM（最初の一本。地方テレビ局の深夜枠に流す、会社の宣伝。3カットのカット割り）
-	{"cuts": true, "scenes": [
-		{"dir": "【わが社の腕前】どう見ても城。その前に、二人が立つ。",
-			"lines": [["A", "格安アクション映画制作班です"], ["B", "城だって、このとおり"], ["A", "{城}ですけどね"]],
-			"memo": "城役の物と二人を、一緒に明るく映す（城役は、物を見て Y で決める）"},
-		{"dir": "【場転】二人の背後で、爆発。",
-			"lines": [["B", "爆発だって、お手のもの"], ["（爆発）", ""], ["A", "近い近い！"]],
-			"memo": "カットの間に、爆炎の書割（廃材置き場にある）を二人の奥に立てる。1 で回すと、書割が爆ぜる（借りた爆弾に火を付けてもいい）"},
-		{"dir": "【場転】二人が寄ってきて、決めポーズ。",
-			"lines": [["二人", "ご依頼、お待ちしています！"]],
-			"memo": "カットの間に、カメラを二人へ寄せて、ライトも手前の二人へ向け直す。二人を、寄りで大きく映す"}],
+	# 7 わが社の紹介動画（最初の一本。怪しい情報商材の「バズる黄金の4カット」。docs/production/tutorial-cm.md）
+	#   役者：社長（必ず要る）と社員3人（いなくても撮れる。足りない分は、等身大パネルや物で代用）
+	{"cuts": true, "cast": ["社長", "社員", "社員", "社員"], "cast_need": 1, "scenes": [
+		{"dir": "【わが社の前】社長と社員が並んで、カメラにあいさつ。社員が足りない所は、等身大パネル。",
+			"lines": [["社長", "はい、せーの"], ["全員", "格安アクション映画制作班です！"], ["社員", "（小声）一人、パネルです"]],
+			"memo": "出ている役者を全員、印①に立たせて、明るく映す（カメラは段ボールに載せて置く）"},
+		{"dir": "【場転】わが社の腕前。城を背に、社長がドヤ顔。",
+			"lines": [["社長", "お城も、建てます"], ["社員", "（画面の外から）{城}です"]],
+			"memo": "社長だけを印②へ。城役の物を後ろに置いて、一緒に明るく映す（城役は、物を見て Y で決める）"},
+		{"dir": "【場転】社長の背後で、爆発。社長は動じない。社員は、びくっとする。",
+			"lines": [["社長", "爆発も、します"], ["（爆発）", ""], ["社長", "……ご近所の許可は、取っています"]],
+			"memo": "爆炎の書割を、役者の奥に立てる。1 で回すと、書割が爆ぜる"},
+		{"dir": "【場転】手描きの看板（会社の名前と電話番号）の前で、全員でお辞儀。",
+			"lines": [["全員", "ぜんぶ、格安で！"], ["社長", "お電話、お待ちしております"], ["社員", "番号は、看板のとおりです"]],
+			"memo": "板やパネルに会社の名前を描いて（F）、表をカメラへ向けて置く。その前に役者を集める"}],
 		"beats": [
-			{"rule": "show", "role": "castle", "from": 0, "to": 0, "gait": "walk", "pose": "idle", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
-			{"rule": "blast", "from": 0, "to": 1, "gait": "run", "pose": "idle", "look": "camera", "face": ["shock", "shock"], "music": "", "boom": true},
-			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+			{"rule": "show", "from": 0, "to": 0, "gait": "walk", "pose": "greet", "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
+			{"rule": "show", "role": "castle", "who": [0], "from": 0, "to": 1, "gait": "walk", "pose": "hips", "look": "camera", "face": ["happy", "happy"]},
+			{"rule": "blast", "from": 1, "to": 1, "gait": "walk", "pose": "hips", "pose_by": {"1": "freeze", "2": "freeze", "3": "freeze"}, "look": "camera", "face": ["neutral", "neutral"], "music": "", "boom": true},
+			{"rule": "sign", "from": 1, "to": 2, "gait": "walk", "pose": "bow", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 	# 8 旅する二人（天文同好会の会報の付録・第2弾。場所が変わる4カット。場転で、片づける・出す・寄せる・照らし直す）
 	{"cuts": true, "scenes": [
 		{"dir": "【城の門】旅の二人が、城の前で出発を誓う。",

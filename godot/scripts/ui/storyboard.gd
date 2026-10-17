@@ -36,7 +36,10 @@ static func texture(story: String, index: int) -> Texture2D:
 
 static func svg(story: String, index: int) -> String:
 	var body := ""
-	if story == "kaiju5":
+	if story == "pr":
+		# 最初の一本：わが社の紹介動画（バズる黄金の4カット）
+		body = [_pr_1(), _pr_2(), _pr_3(), _pr_4()][clampi(index, 0, 3)]
+	elif story == "kaiju5":
 		# 5場面の完全版（production_flow.gd の JOBS の board）
 		body = [_kaiju5_1(), _kaiju_1(), _kaiju5_3(), _kaiju5_4(), _kaiju5_5()][clampi(index, 0, 4)]
 	elif story == "travel":
@@ -109,9 +112,20 @@ static func _fig(at: Vector2, s: float, pose: String, flip: bool = false, lean: 
 		"walk":
 			arms = [[Vector2(0, -58), Vector2(-10, -47), Vector2(-17, -37)], [Vector2(0, -58), Vector2(9, -47), Vector2(16, -38)]]
 			legs = [[Vector2(0, -28), Vector2(-9, -14), Vector2(-16, 0)], [Vector2(0, -28), Vector2(9, -14), Vector2(15, -1)]]
+		"wave":
+			arms = [[Vector2(0, -58), Vector2(-9, -46), Vector2(-13, -34)], [Vector2(0, -58), Vector2(14, -70), Vector2(18, -90)]]
+		"hips":
+			arms = [[Vector2(0, -58), Vector2(-16, -46), Vector2(-4, -34)], [Vector2(0, -58), Vector2(16, -46), Vector2(4, -34)]]
 	var parts := '<ellipse cx="0" cy="1" rx="19" ry="4.5" fill="%s"/>' % SHADE
-	var body := '<circle cx="0" cy="-78" r="11" fill="%s" stroke="%s" stroke-width="4"/>' % [PAPER, PENCIL]
-	body += _line([Vector2(0, -67), Vector2(0, -28)], PENCIL, 4.5)
+	var body := ""
+	if pose == "bow":
+		# お辞儀：上体を前へ倒す
+		body += '<circle cx="24" cy="-58" r="11" fill="%s" stroke="%s" stroke-width="4"/>' % [PAPER, PENCIL]
+		body += _line([Vector2(16, -52), Vector2(0, -28)], PENCIL, 4.5)
+		arms = [[Vector2(10, -44), Vector2(8, -30), Vector2(6, -18)]]
+	else:
+		body += '<circle cx="0" cy="-78" r="11" fill="%s" stroke="%s" stroke-width="4"/>' % [PAPER, PENCIL]
+		body += _line([Vector2(0, -67), Vector2(0, -28)], PENCIL, 4.5)
 	for limb: Array in arms + legs:
 		body += _line(limb, PENCIL, 4.5)
 	return '<g transform="translate(%.1f %.1f) scale(%.2f %.2f)">%s<g transform="rotate(%.1f)">%s</g></g>' % [at.x, at.y, -s if flip else s, s, parts, lean, body]
@@ -130,6 +144,73 @@ static func _burst_path(c: Vector2, outer: float, inner: float, spikes: int = 11
 		var a := float(i) / (spikes * 2) * TAU - PI * 0.5
 		d += ("M" if i == 0 else "L") + " %.1f,%.1f " % [c.x + cos(a) * r, c.y + sin(a) * r * 0.86]
 	return d + "Z"
+
+
+# ---- 最初の一本：わが社の紹介動画 ----
+
+# 社員の代わりの等身大パネル（人の形の板と、後ろの支え）
+static func _panel(at: Vector2, s: float) -> String:
+	var out := '<g transform="translate(%.1f %.1f) scale(%.2f)">' % [at.x, at.y, s]
+	out += '<path d="M -16,0 L -14,-54 L -22,-60 L -12,-66 C -16,-90 16,-90 12,-66 L 22,-60 L 14,-54 L 16,0 Z" fill="%s" stroke="%s" stroke-width="3" stroke-dasharray="7 5"/>' % [SHADE, SOFT]
+	out += _line([Vector2(10, -30), Vector2(26, 0)], SOFT, 3.0)
+	out += '</g>'
+	return out + _question(at + Vector2(0, -60) * s, 0.5 * s, SOFT)
+
+
+# 手描きの看板（会社の名前と電話番号。文字は線で）
+static func _signboard(c: Vector2, w: float, h: float) -> String:
+	var out := _line([Vector2(c.x - w * 0.35, c.y + h * 0.5), Vector2(c.x - w * 0.35, c.y + h * 0.5 + 60)], PENCIL, 4.0)
+	out += _line([Vector2(c.x + w * 0.35, c.y + h * 0.5), Vector2(c.x + w * 0.35, c.y + h * 0.5 + 60)], PENCIL, 4.0)
+	out += '<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="%s" stroke="%s" stroke-width="3.5"/>' % [c.x - w * 0.5, c.y - h * 0.5, w, h, PAPER, PENCIL]
+	var d := "M %.1f,%.1f " % [c.x - w * 0.4, c.y - h * 0.12]
+	for k in 10:
+		d += "q %.1f,%.1f %.1f,0 " % [w * 0.04, -10.0 if k % 2 == 0 else 10.0, w * 0.08]
+	out += '<path d="%s" fill="none" stroke="%s" stroke-width="5" stroke-linecap="round"/>' % [d, RED]
+	for k in 7:
+		var x := c.x - w * 0.3 + k * w * 0.09
+		out += _line([Vector2(x, c.y + h * 0.22), Vector2(x + w * 0.05, c.y + h * 0.22)], PENCIL, 4.0)
+	return out
+
+
+# 1 社員一同ごあいさつ：社長と社員が並んで手を振る。足りない社員は、等身大パネル
+static func _pr_1() -> String:
+	var out := _ground(238)
+	out += _fig(Vector2(110, 240), 0.95, "wave")
+	out += _fig(Vector2(196, 240), 1.05, "hips")
+	out += _fig(Vector2(282, 240), 0.95, "wave", true)
+	out += _panel(Vector2(366, 240), 1.15)
+	return out
+
+
+# 2 お城も建てます：城役の物を背に、社長がドヤ顔
+static func _pr_2() -> String:
+	var out := _ground(238)
+	out += _ghost("M 60,238 L 60,98 L 78,98 L 78,82 L 96,82 L 96,98 L 120,98 L 120,82 L 138,82 L 138,98 L 160,98 L 160,82 L 178,82 L 178,98 L 196,98 L 196,238 Z")
+	out += _question(Vector2(128, 166), 1.0)
+	out += _fig(Vector2(300, 242), 1.15, "hips")
+	return out
+
+
+# 3 爆発も、します：社長の背後で爆発。社長は動じない（社員は、こわがる）
+static func _pr_3() -> String:
+	var out := _ground(238)
+	out += '<path d="%s" fill="%s" stroke="%s" stroke-width="3" stroke-dasharray="9 7"/>' % [_burst_path(Vector2(250, 120), 96, 50, 11), SHADE, SOFT]
+	out += _question(Vector2(250, 112), 1.0)
+	out += _fig(Vector2(250, 244), 1.05, "hips")
+	out += _fig(Vector2(400, 242), 0.8, "scared", true)
+	out += _startle(Vector2(400, 166), 0.7)
+	return out
+
+
+# 4 ぜんぶ、格安で！：手描きの看板の前で、全員でお辞儀
+static func _pr_4() -> String:
+	var out := _ground(238)
+	out += _signboard(Vector2(240, 92), 300, 110)
+	out += _fig(Vector2(110, 240), 0.9, "bow")
+	out += _fig(Vector2(196, 240), 0.95, "bow")
+	out += _fig(Vector2(282, 240), 0.9, "bow")
+	out += _panel(Vector2(366, 240), 1.05)
+	return out
 
 
 # ---- 怪獣映画 ----

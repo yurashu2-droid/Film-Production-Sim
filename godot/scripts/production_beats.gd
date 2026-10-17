@@ -79,6 +79,7 @@ const EXTRA_CAST := [["03", "役者C"], ["06", "役者D"]]
 const STEPS := ["①", "②", "③"]
 # 場面ごとの、理由が1つも控えられなかったときの文
 const NO_REASON := {
+	"sign": "看板と役者が一緒に映る時間が足りなかった",
 	"stroll": "歩いている二人が映る時間が足りなかった",
 	"appear": "怪獣と二人が一緒に映る時間が足りなかった",
 	"attack": "爆発が起きなかった",
@@ -251,13 +252,21 @@ func cast_count() -> int:
 	return int(Scripts.cast_size(flow.chosen_job)) if active() else 2
 
 
-# 出ている役者：この台本の人数の中で、いま誰かが演じている役者（数えるのは、この役者たちだけ）
+# 出ている役者：この台本の人数の中で、いま誰かが演じている役者（数えるのは、この役者たちだけ）。
+# 場面に "who"（出る役の番号の並び）があれば、その役者だけ（社長だけの場面 など）
 func present() -> Array:
+	var who := _who(scene)
 	var out: Array = []
 	for a: CharacterBody3D in game.actors:
-		if int(a.aid) < cast_count() and a.present():
+		if int(a.aid) < cast_count() and a.present() and (who.is_empty() or int(a.aid) in who):
 			out.append(a)
 	return out
+
+
+# その場面に出る役の番号（"who"。無ければ全員）
+func _who(i: int) -> Array:
+	var l := list()
+	return (l[i] as Dictionary).get("who", []) if i >= 0 and i < l.size() else []
 
 
 # 出ている役者が全員、そうなっているか（例：_all("beat_arrived")）。誰も出ていなければ false
@@ -536,8 +545,12 @@ func _enter(i: int, again: bool) -> void:
 	rehearsal = game.state == game.S.PREP
 	var targets := _targets(b)
 	var faces: Array = b.get("face", ["neutral", "neutral"])
+	var who := _who(i)
 	for a: CharacterBody3D in game.actors:
-		var spec := {"to": targets[a.aid], "gait": str(b.get("gait", "walk")), "pose": str(b.get("pose", "idle")),
+		if not who.is_empty() and int(a.aid) not in who:
+			continue          # この場面に出ない役者は、その場で待つ
+		var pose := str((b.get("pose_by", {}) as Dictionary).get(str(a.aid), b.get("pose", "idle")))
+		var spec := {"to": targets[a.aid], "gait": str(b.get("gait", "walk")), "pose": pose,
 			"look": str(b.get("look", "")), "face_go": str(faces[0]), "face_hold": str(faces[1])}
 		if again:
 			spec["back"] = mark(a.aid, int(b.get("from", 0))).global_position
@@ -562,7 +575,10 @@ func _start_hold(next: int) -> void:
 	_boom_in = -1.0
 	next_scene = clampi(next, 0, list().size() - 1)
 	var b: Dictionary = list()[next_scene]
+	var who := _who(next_scene)
 	for a: CharacterBody3D in game.actors:
+		if not who.is_empty() and int(a.aid) not in who:
+			continue
 		a.play_beat({"to": mark(a.aid, int(b.get("from", 0))).global_position, "gait": "walk", "pose": "idle",
 			"look": "", "face_go": "neutral", "face_hold": "neutral"})
 	game.host_ev("music", [""])
@@ -854,6 +870,8 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_climb(scene, f, dt, crew)
 		"pass":
 			_rule_pass(scene, f, dt, crew)
+		"sign":
+			_rule_sign(scene, f, dt, crew)
 
 
 func _stuck() -> bool:
@@ -1411,6 +1429,22 @@ func _rule_climb(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		if a.global_position.y < float(_climb_y0[int(a.aid)]) + CLIMB_M:
 			r.append("%sが、上っていなかった（上の印を、高い所に置く）" % a.label)
 	_count(i, r, dt, NEED_HIGH)
+
+
+# 看板の前で：手描きの看板（会社の名前など。features/signboard.gd）と、着いた役者が一緒に映る
+func _rule_sign(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if _stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
+		return
+	if not _all("beat_arrived"):
+		return
+	var r: Array = game.judge.problems(f)
+	var board: Node = game.hooks.feature("signboard")
+	if board == null or not board.showing():
+		r.append("手描きの看板が映っていなかった（板やパネルに会社の名前を描いて、表をカメラへ向ける）")
+	if crew:
+		r.append("スタッフが映っていた")
+	_count(i, r, dt, NEED_SHOW)
 
 
 # 走り抜ける：大きな物（車・バスの書割・台車に載せた物）が、画面の中を PASS_M 以上走る（役者は問わない）

@@ -30,6 +30,11 @@ var st := St.STANDBY
 var st_t := 0.0
 var after_flinch := St.IDLE
 var special: Array = []       # 告白で使う固有モーション
+# 骨格に重ねるポーズ（peep_pose.gd の "bow"・"hips"・"wave"。"" ＝無し）。全員の画面へ、記録へも載る
+var body_pose := ""
+const BodyPose := preload("res://scripts/peep_pose.gd")
+# キャラごとのあいさつの動き（台本のポーズ "greet"）。無いキャラは、手を振る
+const GREET := {"01": "GREETING", "02": "ON_DUTY", "03": "NOTES", "06": "ORDER"}
 var playback := false
 
 var _stuck := 0.0
@@ -104,6 +109,8 @@ func chest_pos() -> Vector3:
 
 
 func set_state(s: St) -> void:
+	if s != St.BEAT_HOLD and body_pose != "":
+		set_body_pose("")
 	if s == St.CONFESS and st != St.CONFESS and grade == "rookie" and _rng.randf() < 0.35:
 		_blank = _rng.randf_range(1.5, 2.6)
 	st = s
@@ -475,7 +482,18 @@ func _beat_hold(delta: float) -> void:
 			_face((game.program_camera() as Node3D).global_position, delta)
 		"partner":
 			_face(partner.global_position, delta)
-	match str(beat.get("pose", "idle")):
+	var pose := str(beat.get("pose", "idle"))
+	set_body_pose(pose if pose in ["bow", "hips", "wave"] else ("wave" if pose == "greet" and not GREET.has(vis.tag) else ""))
+	match pose:
+		"greet":
+			# あいさつ：キャラの決めの動きを、くり返す
+			if GREET.has(vis.tag):
+				_spec_t -= delta
+				if _spec_t <= 0.0:
+					_spec_t = vis.length(str(GREET[vis.tag])) + 0.4
+					vis.play(str(GREET[vis.tag]), 0.15, true)
+			else:
+				vis.play("idle")
 		"freeze":
 			# 見上げて、びくっとして固まる（1回だけ）
 			if st_t < vis.length("flinch"):
@@ -495,7 +513,7 @@ func _beat_hold(delta: float) -> void:
 # ---- 同期と記録 ----
 
 func get_state() -> Array:
-	return [global_position, rotation.y, vis.current, vis.face]
+	return [global_position, rotation.y, vis.current, vis.face, body_pose]
 
 
 func apply_state(s: Array, immediate: bool = false) -> void:
@@ -504,8 +522,31 @@ func apply_state(s: Array, immediate: bool = false) -> void:
 		rotation.y = s[1]
 		vis.play(s[2] as String, 0.12)
 		vis.set_face(s[3] as String)
+		set_body_pose(str(s[4]) if s.size() > 4 else "")
 	else:
 		_net = s
+
+
+# 骨格に重ねるポーズを付ける・外す（"" で外す）
+func set_body_pose(mode: String) -> void:
+	if mode == body_pose:
+		return
+	body_pose = mode
+	var skel: Skeleton3D = vis.skel if vis != null else null
+	if skel == null:
+		return
+	var node: Node = skel.get_node_or_null("BeatPose")
+	if mode == "":
+		if node != null:
+			skel.remove_child(node)
+			node.queue_free()
+		return
+	if node == null:
+		node = BodyPose.new()
+		node.name = "BeatPose"
+		skel.add_child(node)
+	node.mode = mode
+	node.lean = 0.7 if mode == "bow" else 0.0
 
 
 func _follow_net(delta: float) -> void:

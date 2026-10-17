@@ -140,7 +140,7 @@ func look() -> Dictionary:
 		d["vis"] = d["shown"] and d["lit"]
 		(out["actors"] as Array).append(d)
 		# 出ている役者：この台本の人数の中で、誰かが演じている役（数えるのは、この役者たちだけ）
-		if int(a.aid) < cast_count() and a.present():
+		if (a in beats.present()) if beats != null else (int(a.aid) < 2 and a.present()):
 			(out["present"] as Array).append(int(a.aid))
 
 	for p: Node3D in game.props.values():

@@ -44,7 +44,7 @@ func run() -> void:
 	flow.daily = true          # 普段の遊びと同じにする（自動確認の中だけ付く、無料のベテランを外す）
 	game.h_accept_job(int(flow.debut_job()))
 	await frames(5)
-	check(roles.plan == ["none", "none"] and not a.vis.visible and not b.vis.visible and a.global_position.y < -10.0, "雇わなければ、役者は出ない（%s）" % str(roles.plan))
+	check(roles.plan.slice(0, 2) == ["none", "none"] and not a.vis.visible and not b.vis.visible and a.global_position.y < -10.0, "雇わなければ、役者は出ない（%s）" % str(roles.plan))
 	check(not option("actor_pro").is_empty() and int(option("actor_pro")["cost"]) > int(option("actor_new")["cost"]) and not option("actor_pro")["buy"], "発注に、ベテラン役者（高い）と劇団の新人（安い）がある。買えない（借りるだけ）")
 	game.h_open_order()
 	game.h_order_set("actor_pro", 1)
@@ -54,11 +54,11 @@ func run() -> void:
 	check(game.order_cost() == int(option("actor_pro")["cost"]) + int(option("actor_new")["cost"]), "役者代は、制作費から払う（%d）" % game.order_cost())
 	game.h_order_confirm()
 	await frames(8)
-	check(roles.plan == ["pro", "rookie"] and a.vis.visible and b.vis.visible and a.grade == "pro" and b.grade == "rookie", "雇うと、A にベテラン・B に新人が入る（%s）" % str(roles.plan))
+	check(roles.plan.slice(0, 2) == ["pro", "rookie"] and a.vis.visible and b.vis.visible and a.grade == "pro" and b.grade == "rookie", "雇うと、A にベテラン・B に新人が入る（%s）" % str(roles.plan))
 	# 班が A に入ると、雇ったベテランは B へまわる（新人は余る）
 	roles.h_cast_actor.rpc_id(1, "player", int(me.peer_id), 0)
 	await frames(4)
-	check(roles.plan == ["stand", "pro"] and a.stand_in == me and b.grade == "pro", "班が A に入ると、雇ったベテランは空いている B へ（%s）" % str(roles.plan))
+	check(roles.plan.slice(0, 2) == ["stand", "pro"] and a.stand_in == me and b.grade == "pro", "班が A に入ると、雇ったベテランは空いている B へ（%s）" % str(roles.plan))
 	roles.h_cast_actor.rpc_id(1, "player", int(me.peer_id), -1)
 	await frames(4)
 	# 新人のハプニング：場面の動きごとに、出遅れ・通り過ぎ・転ぶ、が起きる。ベテランには起きない

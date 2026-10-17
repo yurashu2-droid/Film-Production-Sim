@@ -101,7 +101,7 @@ func run() -> void:
 		await frames(6)
 		var gap: float = Vector2(b.global_position.x - panel.global_position.x, b.global_position.z - panel.global_position.z).length()
 		check(gap < 0.3 and b.global_position.distance_to(b_before) > 0.7, "役者 B は、パネルに付いていく（パネルを動かすと、役者も動いたことになる。ずれ %.2f m）" % gap)
-	# 自分の Y：A → B → やめる（狙いは毎コマ照準から決め直されるので、押す直前に外す）
+	# 自分の Y：A → B → C → D → やめる（狙いは毎コマ照準から決め直されるので、押す直前に外す）
 	me.target = null
 	roles.hook_key(press_y(), me)
 	await frames(3)
@@ -110,6 +110,12 @@ func run() -> void:
 	roles.hook_key(press_y(), me)
 	await frames(3)
 	check(roles.role_of("player", int(me.peer_id)) == 1 and b.stand_in == me, "もう一度 Y で B（パネルは B から外れる）")
+	# 会社の紹介動画は、役者が4人（社長と社員3人）。B のあとは C → D → やめる
+	for want: int in [2, 3]:
+		me.target = null
+		roles.hook_key(press_y(), me)
+		await frames(3)
+		check(roles.role_of("player", int(me.peer_id)) == want, "もう一度 Y で %s（4人の台本）" % ["A", "B", "C", "D"][want])
 	me.target = null
 	roles.hook_key(press_y(), me)
 	await frames(3)

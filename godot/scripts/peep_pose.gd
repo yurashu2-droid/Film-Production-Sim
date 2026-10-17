@@ -2,6 +2,9 @@ extends SkeletonModifier3D
 ## 机の上の物を使っている人の姿勢。再生中の動き（立ち姿）の上から、毎コマ重ねる。元の動きは書き換えない。
 ##   "peep" ：のぞき箱に顔を寄せる（上体を前へ倒し、両手を箱に添える。脚は立ったまま）
 ##   "phone"：受話器を耳に当てる（右手を顔の横へ上げる）
+##   "bow"  ：お辞儀（上体を前へ倒し、両手は体の横へ下ろす）。台本の役者のポーズ（actor.gd）
+##   "hips" ：両手を腰に当てて、胸を張る（ドヤ顔）
+##   "wave" ：右手を上げて、左右に振る
 ## ほかの人の画面にも同じ姿勢を出す（誰がのぞいているか＝誰が監督かが、見て分かる）。
 ## 向きは骨格のローカル空間で書く：+Z が正面、+Y が上、キャラの右手側が -X。
 
@@ -13,10 +16,51 @@ func _process_modification() -> void:
 	var s := get_skeleton()
 	if s == null:
 		return
-	if mode == "peep":
-		_peep(s)
-	elif mode == "phone":
-		_phone(s)
+	match mode:
+		"peep":
+			_peep(s)
+		"phone":
+			_phone(s)
+		"bow":
+			_bow(s)
+		"hips":
+			_hips(s)
+		"wave":
+			_wave(s)
+
+
+func _bow(s: Skeleton3D) -> void:
+	var body := s.find_bone("BODY")
+	if body < 0:
+		return
+	var legs := {}
+	for leg: String in ["THIGH.L", "THIGH.R"]:
+		var bone := s.find_bone(leg)
+		if bone >= 0:
+			legs[bone] = s.get_bone_global_pose(bone).basis.orthonormalized()
+	_turn(s, body, Vector3.RIGHT, lean)
+	for bone: int in legs:
+		_face(s, bone, legs[bone])
+	for side: String in ["L", "R"]:
+		var out := 1.0 if side == "L" else -1.0
+		_aim(s, "UPPER_ARM." + side, "FOREARM." + side, Vector3(out * 0.2, -1.0, 0.25))
+		_aim(s, "FOREARM." + side, "HAND." + side, Vector3(out * 0.1, -1.0, 0.15))
+
+
+func _hips(s: Skeleton3D) -> void:
+	for side: String in ["L", "R"]:
+		var out := 1.0 if side == "L" else -1.0
+		_aim(s, "UPPER_ARM." + side, "FOREARM." + side, Vector3(out * 0.9, -0.55, -0.15))
+		_aim(s, "FOREARM." + side, "HAND." + side, Vector3(-out * 0.8, -0.35, 0.2))
+	var body := s.find_bone("BODY")
+	if body >= 0:
+		_turn(s, body, Vector3.RIGHT, -0.12)        # 胸を張る
+
+
+func _wave(s: Skeleton3D) -> void:
+	var swing := sin(Time.get_ticks_msec() / 1000.0 * 7.0) * 0.45
+	_aim(s, "UPPER_ARM.R", "FOREARM.R", Vector3(-0.75, 0.65, 0.2))
+	_aim(s, "FOREARM.R", "HAND.R", Vector3(-0.15 + swing, 1.0, 0.1))
 
 
 func _peep(s: Skeleton3D) -> void:
