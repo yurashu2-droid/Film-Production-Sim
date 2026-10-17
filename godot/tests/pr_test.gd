@@ -64,6 +64,15 @@ func dump(tag: String) -> void:
 		" fx_in=", f.get("fx_in"), " behind=", f.get("fx_behind"), " close=", f.get("close"), " crew=", flow.notes.crew_in_frame(), " why=", beats.why)
 
 
+# PR_SHOTS を付けて画面ありで流すと、画面全体を tests/shots/tutorial/ に保存する（ネットに上げたところ）
+func screen_shot(file: String) -> void:
+	if OS.get_environment("PR_SHOTS") == "" or DisplayServer.get_name() == "headless":
+		return
+	await RenderingServer.frame_post_draw
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/shots/tutorial/"))
+	root.get_texture().get_image().save_png("res://tests/shots/tutorial/%s.png" % file)
+
+
 # 場面が撮れるまで待つ（最大 sec 秒）。PR_SHOTS を付けて画面ありで流すと、撮れた瞬間の撮影カメラの絵を保存する
 func wait_lit(i: int, sec: float) -> bool:
 	for k in int(sec * 60.0):
@@ -204,15 +213,22 @@ func shoot(debut: int, site: String) -> void:
 		await physics_frame
 	check(game.state == S.RESULT and not false in game.takes[0]["passed"], "%s：4カットそろって、テイクが終わる" % site)
 	print("PR_MEASURE %s：テイクの長さ（回していた分だけ）%.1f 秒" % [site, float(game.takes[0]["dur"]) if not game.takes.is_empty() else -1.0])
-	# ---- 試写会（放送）→ 電話 ----
+	# ---- ネットに上げる（試写会のかわり）→ 電話 ----
 	if game.state == S.RESULT:
 		game.request_deliver(0)
 		await frames(140)
 		var premiere: Node = game.hooks.feature("premiere")
-		check(game.state == S.REPLAY and premiere.screening == 0, "%s：納品を頼むと、試写会（放送）が始まる" % site)
+		check(game.state == S.REPLAY and premiere.screening == 0, "%s：納品を頼むと、動画をネットに上げて、みんなで見る" % site)
+		check(premiere._views.visible and not premiere._face.visible and str(premiere._title.text).contains("動画サイト"), "%s：依頼主の顔の代わりに、再生数が出る" % site)
+		await frames(120)
+		check(premiere.views_now > 0.0, "%s：見ている間、再生数が伸びる（%d回）" % [site, int(premiere.views_now)])
+		await screen_shot("net_1_watch")
 		game.h_stop_replay()
-		await frames(20)
-		check(flow.phase == 5 and flow.last_flubs.any(func(l: String) -> bool: return "電話" in l), "%s：放送のあと、依頼の電話の話が出る" % site)
+		await frames(140)
+		check(int(premiere.views_now) == premiere.views_for(0) and premiere.views_for(0) == premiere.NET_VIEWS[4], "%s：見終わると、再生数が出る（4場面そろって %d回）" % [site, int(premiere.views_now)])
+		check(str(premiere.last_line).contains("再生") and str(premiere.last_line).begins_with("バズった"), "%s：締めは、再生数とコメント（%s）" % [site, premiere.last_line])
+		await screen_shot("net_2_end")
+		check(flow.phase == 5 and flow.last_flubs.any(func(l: String) -> bool: return "電話" in l and "ランプ" in l), "%s：テレビ局のランプ部長が、コメント欄に電話の予告を書いていく" % site)
 		premiere.finish_tally()
 		premiere.finish_tally()
 	else:

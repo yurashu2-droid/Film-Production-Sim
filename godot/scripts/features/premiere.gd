@@ -11,6 +11,7 @@ extends Node
 ##     コインが出る。場面の行はその場面が撮れたコマ、爆発の行は爆発のコマ、ほかは最後の「終」のコマ。
 ##     最後に合計が出て、そのあと、いつもの精算の画面（production_hud.gd）が見える
 ##   ・見返し（R）と、8コマ保存（P）は、今までどおり。試写会にはならない
+##   ・最初の一本（会社の紹介動画）は、試写会ではなく「ネットに上げる」：依頼主の顔の代わりに再生数が伸び、反応はコメントとして出る
 ## 決めるのはホスト（流す・反応・納品）。読み上げは、届いた精算の中身から、各自の画面で組む。
 ## 自動確認などが直接呼ぶ納品（game.h_deliver）は、今までどおり、すぐ納品になる（試写会は、画面から頼んだときだけ）
 const UI := preload("res://scripts/ui/ui_theme.gd")
@@ -24,6 +25,11 @@ const HAPPY := ["おおっ、%s！", "いいねえ、%s！", "これこれ、%s�
 const WOW := ["うわっ！", "ひゃっ！", "おおお……！", "近い近い！"]
 # 班の誰かが映り込んだ時（%s＝その人の名前）
 const CAMEO_LINES := ["……いま、%sが映ってませんでした？", "あれ？ %s、そこで何してるの？", "ちょっと、%sが見切れてますよ"]
+# ネットに上げたとき（最初の一本）の、見始めのコメントと、場面が撮れた時刻のコメント
+const NET_START := ["新着動画だ", "サムネで来ました", "なんの会社？"]
+const NET_HAPPY := ["%s、草", "%s、じわる", "%sで笑った", "%s、好き", "%s、ガチじゃん"]
+# 撮れた場面の数 → 再生数（ネットに上げたとき。全員の画面で同じ計算）
+const NET_VIEWS := [37, 480, 1520, 4890, 12800]
 
 var game: Node
 var screening := -1          # いま流しているテイク（全員の画面。-1＝流していない）
@@ -68,6 +74,10 @@ var _card_t := 0.0             # 札を出しておく残り（秒）
 var _end_t := 0.0              # 「終」を見せ終わるまで、読み上げを待つ
 var _scene_seen := -2          # 見出しを出した場面
 var _closing_line: Array = []  # 「終」のあとに言う、締めのひとこと [文, 気分]
+var _sheet_head: Label         # 読み上げの見出し（ネットに上げたときは、コメントと広告収入）
+var _views: Label              # ネットに上げたときの再生数（依頼主の顔の代わり）
+var views_now := 0.0           # いま見せている再生数（確認用）
+var _views_goal := 0
 const CARD_SEC := 1.8          # 始まりの題名を出しておく秒数
 const AUDIENCE_LAYER := 1 << 15                # 試写会を見ている人の見た目（撮影カメラには映さない。film_camera.gd）
 const SCREEN_W := 5.2                           # 試写用スクリーン（16:9）
@@ -273,6 +283,13 @@ func setup() -> void:
 	_face.pivot_offset = Vector2(76, 152)
 	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_face)
+	_views = UI.label("", 30, UI.PAPER, "display", true)
+	_views.position = Vector2(8, 40)
+	_views.size = Vector2(164, 100)
+	_views.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_views.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_views.visible = false
+	_card.add_child(_views)
 	_name = UI.label("", 18, UI.PAPER, "bold", true)
 	_name.position = Vector2(0, 172)
 	_name.size = Vector2(180, 26)
@@ -392,7 +409,7 @@ func _roll(index: int) -> void:
 		return
 	game.h_replay(index)
 	if game.state != game.S.REPLAY:
-		game.host_ev("premiere_off", [_closing(index)])
+		game.host_ev("premiere_off", [_closing(index), index])
 		_finish.call_deferred(index)
 		return
 	# 撮影中の班の動きは、人形に再現する（プレイヤーの体は、試写会で歩き回る）
@@ -408,12 +425,14 @@ func _roll(index: int) -> void:
 # 依頼主の反応の予定：始まりのひとこと、場面が撮れた時刻ごとのひとこと
 func _plan(index: int) -> Array:
 	var job: int = int(game.production.chosen_job)
-	var plan: Array = [[0.0, START[job % START.size()], "neutral"]]      # 札が明けたら、すぐ
+	var net := _online()
+	var plan: Array = [[0.0, (NET_START if net else START)[job % (NET_START if net else START).size()], "neutral"]]      # 札が明けたら、すぐ
 	var titles: Array = game.scene_titles()
 	var times: Array = _times.get(index, [])
 	for i in times.size():
 		if float(times[i]) >= 0.0:
-			var line: String = HAPPY[(i + job) % HAPPY.size()] % _short(str(titles[i]) if i < titles.size() else "")
+			var says: Array = NET_HAPPY if net else HAPPY
+			var line: String = says[(i + job) % says.size()] % _short(str(titles[i]) if i < titles.size() else "")
 			plan.append([maxf(float(times[i]), 0.8), line, "happy", "scene:%d" % i])
 	# 3場面の依頼：合図を出した時刻に、場面の見出し
 	for cue: Array in _cue_times.get(index, []):
@@ -434,7 +453,7 @@ func hook_playback(on: bool) -> void:
 	if on or screening < 0:
 		return
 	var index := screening
-	game.host_ev("premiere_off", [_closing(index)])
+	game.host_ev("premiere_off", [_closing(index), index])
 	_finish.call_deferred(index)
 
 
@@ -446,12 +465,38 @@ func _finish(index: int) -> void:
 func _closing(index: int) -> String:
 	var passed: Array = game.takes[index]["passed"] if index < (game.takes as Array).size() else []
 	var titles: Array = game.scene_titles()
+	if _online():
+		# ネットに上げたとき：再生数と、コメントひとつ（失敗しても、笑える形で終わる）
+		var views := _coins(views_for(index))
+		if passed.is_empty() or not true in passed:
+			return "えーと……再生 %s回。「これ、何の会社？」「逆にじわる」" % views
+		for i in passed.size():
+			if not bool(passed[i]):
+				return "……再生 %s回。「%sは？」「でも嫌いじゃない」" % [views, _short(str(titles[i]) if i < titles.size() else "")]
+		return "バズった！ 再生 %s回。「爆発の前で動じない社長、何者」" % views
 	if passed.is_empty() or not true in passed:
 		return "えーと……これは、何の映画？"
 	for i in passed.size():
 		if not bool(passed[i]):
 			return "……あれ、%sは？" % _short(str(titles[i]) if i < titles.size() else "")
 	return "ブラボー！ 頼んでよかった！"
+
+
+# ネットに上げたときの再生数（撮れた場面の数で決まる。全員の画面で同じ）
+func views_for(index: int) -> int:
+	var passed: Array = game.takes[index]["passed"] if index >= 0 and index < (game.takes as Array).size() else []
+	var count := passed.count(true)
+	return int(NET_VIEWS[clampi(count, 0, NET_VIEWS.size() - 1)])
+
+
+static func _coins(n: int) -> String:
+	var digits := str(n)
+	var out := ""
+	for i in digits.length():
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			out += ","
+		out += digits[i]
+	return out
 
 
 static func _short(title: String) -> String:
@@ -487,9 +532,10 @@ func hook_event(n: String, a: Array) -> void:
 			_drop_doubles()
 			screening = -1
 			_closing_line = [str(a[0]), "sad" if str(a[0]).begins_with("…") or str(a[0]).begins_with("えーと") else "happy"]
-			# 会社のCMは、テレビの終わり方（提供の札）。ほかは映画の「終」
-			if _on_air():
-				_show_card("提供", "格安アクション映画制作班", END_SEC)
+			# 会社の紹介動画は、ネットの動画の終わり方。ほかは映画の「終」
+			if _online():
+				_show_card("ご視聴ありがとうございました", "チャンネル登録、よろしく！", END_SEC)
+				_views_goal = views_for(int(a[1]) if a.size() >= 2 else 0)
 			else:
 				_show_card("", "終", END_SEC)
 			_end_t = END_SEC
@@ -516,7 +562,7 @@ func hook_core_event(n: String, a: Array) -> void:
 
 
 # 会社のCM（最初の一本）は、試写会ではなく、テレビの深夜枠での放送として見せる
-func _on_air() -> bool:
+func _online() -> bool:
 	return game.production != null and bool(game.production.job().get("debut", false))
 
 
@@ -526,7 +572,16 @@ func _open() -> void:
 	var path := "res://assets/ui/clients/%s.png" % str(brief.get("cast", ""))
 	_face.texture = load(path) if ResourceLoader.exists(path) else null
 	_name.text = str(brief.get("name", "依頼主"))
-	_title.text = ("深夜枠で放送中　『%s』" if _on_air() else "試写会　『%s』") % str(game.film_title())
+	# ネットに上げるとき：顔の代わりに再生数。ひとことは、見た人のコメント
+	_face.visible = not _online()
+	_views.visible = _online()
+	views_now = 0.0
+	_views_goal = 0
+	_views.text = "0\n回 再生"
+	_sheet_head.text = "コメントと広告収入" if _online() else "依頼主の感想とギャラ"
+	if _online():
+		_name.text = "コメント欄"
+	_title.text = ("動画サイトに投稿　『%s』" if _online() else "試写会　『%s』") % str(game.film_title())
 	_hint.text = "Enter・Esc：とばして結果へ"
 	_shade.color = Color(0, 0, 0, 0)
 	_sheet.visible = false
@@ -547,7 +602,7 @@ func _open() -> void:
 	_end_t = 0.0
 	_closing_line = []
 	_chapter.modulate.a = 0.0
-	_show_card("このあとは　コマーシャル" if _on_air() else "格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
+	_show_card("アップロード完了" if _online() else "格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
 
 
 # 依頼主のひとこと。気分で、顔の動きと音を変える（happy はねる / wow びくっ / sad かしげる / neutral うなずく）
@@ -612,7 +667,10 @@ func _process(delta: float) -> void:
 		_end_t -= delta
 		if _end_t <= 0.0 and not _closing_line.is_empty():
 			_say(str(_closing_line[0]), str(_closing_line[1]))
-			if str(_closing_line[0]).begins_with("ブラボー"):
+			if _online():
+				views_now = float(_views_goal)
+				_views.text = "%s\n回 再生" % _coins(_views_goal)
+			if str(_closing_line[0]).begins_with("ブラボー") or str(_closing_line[0]).begins_with("バズった"):
 				Sfx.play("applause")          # 全部の場面が撮れた：拍手
 			_closing_line = []
 	if _bubble_t > 0.0:
@@ -622,6 +680,11 @@ func _process(delta: float) -> void:
 	if _await_tally and _end_t <= 0.0 and game.state == game.S.DELIVERED and int(game.production.phase) == 5:
 		_await_tally = false
 		_start_tally()
+	if screening >= 0 and game.state == game.S.REPLAY and _online():
+		# 見ている間、再生数がじわじわ伸びる（最後の数は、見終わったときに出る）
+		var goal := float(views_for(screening))
+		views_now = minf(views_now + delta * maxf(goal / 16.0, 1.5), goal * 0.8)
+		_views.text = "%s\n回 再生" % _coins(int(views_now))
 	if screening >= 0 and game.state == game.S.REPLAY:
 		var now: float = float(game.replay_t)
 		if now >= _next_shot:
@@ -693,6 +756,7 @@ func _build_strip(root: Control) -> void:
 	_sheet.visible = false
 	root.add_child(_sheet)
 	var head := UI.label("依頼主の感想とギャラ", 26, UI.TAPE, "display", true)
+	_sheet_head = head
 	head.set_anchors_preset(Control.PRESET_CENTER)
 	head.offset_left = -400
 	head.offset_right = 400

@@ -66,8 +66,8 @@ const JOBS := [
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
-	# 最初の一本（debut）：会社のCM。1日目は、これだけが来る。試写会（放送）のあと、2日目から依頼の電話が来る
-	{"title":"わが社のCM（深夜枠・30秒）", "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
+	# 最初の一本（debut）：会社の紹介動画。1日目は、これだけが来る。ネットに上げたあと、2日目から依頼の電話が来る
+	{"title":"わが社の紹介動画（ネット用・30秒）", "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300,
 		"scenes":["社員一同ごあいさつ", "お城も建てます", "爆発も、します", "ぜんぶ、格安で！（看板）"],
 		"description":"会社の紹介動画を、会社の前（事務所の正面）で撮る。情報商材の「バズる黄金の4カット」：社員一同ごあいさつ → お城も建てます → 爆発も、します → 看板の前でお辞儀。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
@@ -1635,9 +1635,9 @@ func settle(index: int) -> void:
 	for result: Dictionary in game.takes[index]["results"]:
 		if not result["ok"]:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
-	# 最初の一本（会社のCM）：放送のあと、依頼の電話が鳴り出す（2日目から、ほかの依頼が来る）
+	# 最初の一本（会社の紹介動画）：ネットに上げると、テレビ局の人がコメントを書いていく（帰社すると、その人から電話が鳴る。2日目から、ほかの依頼が来る）
 	if bool(job().get("debut", false)):
-		last_flubs.append("依頼主『CMが流れました。……もう、うちの局に電話が来てますよ。明日から忙しくなりますね』")
+		last_flubs.append("コメント欄『地方テレビ局のランプと申します。動画、拝見しました。のちほど、お電話します』")
 		said = true
 	if count == passed.size() and count > 0 and not said:
 		last_flubs.append("依頼主『あの怪獣、本物を呼んだのかと思ったよ！』" if job()["script"] == "kaiju" else "依頼主『これをこの予算で？ 次も頼むよ！』")

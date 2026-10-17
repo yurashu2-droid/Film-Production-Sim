@@ -64,6 +64,10 @@
   青いガイド：`features/holo_guides.gd`（準備中と撮影中。映画には映らない層）。1日目の配置：`features/tutorial_day.gd`。
   確認：`tests/tutorial_box_test.gd`・`tests/tutorial_day_test.gd`・`tests/camera_kit_test.gd`・`tests/pr_test.gd`。
 - お金が減る音（coin_drain）は、コードで作った仮の音。無料素材の音へ置き換える。
+- 6 も作った。納品すると、試写会の代わりに「動画サイトに投稿」：依頼主の顔の代わりに再生数が伸び、反応はコメントとして出る
+  （`features/premiere.gd` の `_online()`。再生数は撮れた場面の数で 37／480／1,520／4,890／12,800 回）。
+  精算のコメント欄に、テレビ局のランプ部長が電話の予告を書きこみ、帰社すると机の電話が鳴る（`features/debut_calls.gd`）。
+  依頼の説明（掲示板）は、講師バズ山の言葉にした（`production_briefs.gd`）。確認は `tests/pr_test.gd`（PR_SHOTS で画面も残す）。
 
 ## 作る順番（案）
 
