@@ -8,6 +8,7 @@ const LEGACY_FILES := {
  "scrap_lamp":"S051_street_lamp", "scrap_clock":"S096_giant_clock",
  "scrap_vending":"S059_vending_machine",
  "scrap_fan":"S079_large_wind_fan", "scrap_tub":"S040_clawfoot_tub", "scrap_phone":"S058_phone_booth",
+ "scrap_toilet":"S042_cartoon_toilet", "scrap_watering_can":"P047_watering_can", "scrap_trophy_cup":"P050_trophy_cup",
  "scrap_teapot":"P035_teapot", "scrap_travel_suitcase":"P048_travel_suitcase",
 }
 var camera: Camera3D
@@ -222,12 +223,14 @@ func show_photo_prop(kind: String, rear: bool = false) -> void:
 	camera.position = center + Vector3(1.4,1.1,-4 if rear else 4)
 	camera.look_at(center)
 
-func show_photo_lineup() -> void:
+func show_photo_lineup(kinds: Array = ["scrap_fan","scrap_tub","scrap_phone"], spacing: float = 1.22, frame: float = 2.55) -> void:
 	clear_models()
-	make_prop("scrap_fan",true).position.x = -1.22
-	make_prop("scrap_tub",true).position.x = 0.0
-	make_prop("scrap_phone",true).position.x = 1.22
-	var center := Vector3(0,0.72,0)
-	camera.size = 2.55
+	var max_height := 0.0
+	for i in kinds.size():
+		var body := make_prop(kinds[i],true)
+		body.position.x = (float(i) - (kinds.size()-1) * 0.5) * spacing
+		max_height = maxf(max_height,body.center.y * 2.0)
+	var center := Vector3(0,max_height * 0.5,0)
+	camera.size = frame
 	camera.position = center + Vector3(1.2,1.25,6)
 	camera.look_at(center)

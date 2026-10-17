@@ -1,0 +1,50 @@
+[
+  {
+    "file": "S042_cartoon_toilet_photo.glb",
+    "mesh_batches": 4,
+    "triangles": 6312,
+    "blender_bounds_min": [
+      -0.27250000834465027,
+      -0.39500001072883606,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.289000004529953,
+      0.40950000286102295,
+      0.9000000357627869
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P047_watering_can_photo.glb",
+    "mesh_batches": 5,
+    "triangles": 11828,
+    "blender_bounds_min": [
+      -0.4278391897678375,
+      -0.15700000524520874,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.235281303524971,
+      0.15700000524520874,
+      0.4729999899864197
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P050_trophy_cup_photo.glb",
+    "mesh_batches": 3,
+    "triangles": 7452,
+    "blender_bounds_min": [
+      -0.22499904036521912,
+      -0.13899999856948853,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.22499904036521912,
+      0.13899999856948853,
+      0.5391132235527039
+    ],
+    "textures_embedded": false
+  }
+]
