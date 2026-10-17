@@ -1,0 +1,154 @@
+[
+  {
+    "file": "P002_ring_box_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 2694,
+    "blender_bounds_min": [
+      -0.0560000017285347,
+      -0.05000000074505806,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.0560000017285347,
+      0.08410526812076569,
+      0.14113348722457886
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_ring_box",
+    "original_file": "P002_ring_box",
+    "finite_geometry": true
+  },
+  {
+    "file": "P003_heart_chocolates_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 12612,
+    "blender_bounds_min": [
+      -0.11749999970197678,
+      -0.12484374642372131,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.3425000011920929,
+      0.1623716950416565,
+      0.04006096348166466
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_heart_chocolates",
+    "original_file": "P003_heart_chocolates",
+    "finite_geometry": true
+  },
+  {
+    "file": "P004_perfume_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1288,
+    "blender_bounds_min": [
+      -0.03999999910593033,
+      -0.026999998837709427,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.03999999910593033,
+      0.02500000037252903,
+      0.14800000190734863
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_perfume",
+    "original_file": "P004_perfume",
+    "finite_geometry": true
+  },
+  {
+    "file": "P005_hand_mirror_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 4376,
+    "blender_bounds_min": [
+      -0.07725130766630173,
+      -0.013000000268220901,
+      0.001257174415513873
+    ],
+    "blender_bounds_max": [
+      0.07725130766630173,
+      0.011500000953674316,
+      0.2651025056838989
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_hand_mirror",
+    "original_file": "P005_hand_mirror",
+    "finite_geometry": true
+  },
+  {
+    "file": "P006_folding_fan_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1256,
+    "blender_bounds_min": [
+      -0.2046341896057129,
+      -0.009000000543892384,
+      0.016529610380530357
+    ],
+    "blender_bounds_max": [
+      0.2046341896057129,
+      0.004100000020116568,
+      0.24199999868869781
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_folding_fan",
+    "original_file": "P006_folding_fan",
+    "finite_geometry": true
+  },
+  {
+    "file": "P007_parasol_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 9324,
+    "blender_bounds_min": [
+      -0.39574432373046875,
+      -0.39574432373046875,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.39574432373046875,
+      0.39574432373046875,
+      0.7249999642372131
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_parasol",
+    "original_file": "P007_parasol",
+    "finite_geometry": true
+  },
+  {
+    "file": "P008_tulip_bouquet_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 10808,
+    "blender_bounds_min": [
+      -0.1222582757472992,
+      -0.12248488515615463,
+      0.004794436506927013
+    ],
+    "blender_bounds_max": [
+      0.12238572537899017,
+      0.11979187279939651,
+      0.47099998593330383
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_tulip_bouquet",
+    "original_file": "P008_tulip_bouquet",
+    "finite_geometry": true
+  },
+  {
+    "file": "P009_ribbon_gift_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1144,
+    "blender_bounds_min": [
+      -0.12460000067949295,
+      -0.10465000569820404,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.12459984421730042,
+      0.10359984636306763,
+      0.2513623535633087
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_ribbon_gift",
+    "original_file": "P009_ribbon_gift",
+    "finite_geometry": true
+  }
+]

@@ -3,14 +3,7 @@ extends Node3D
 const MovieProp := preload("res://scripts/production_movie_prop.gd")
 const Scrap := preload("res://scripts/production_scrap.gd")
 const PropShapes := preload("res://scripts/prop_shapes.gd")
-const LEGACY_FILES := {
- "scrap_chest":"P029_treasure_chest", "scrap_fridge":"S044_retro_refrigerator",
- "scrap_lamp":"S051_street_lamp", "scrap_clock":"S096_giant_clock",
- "scrap_vending":"S059_vending_machine",
- "scrap_fan":"S079_large_wind_fan", "scrap_tub":"S040_clawfoot_tub", "scrap_phone":"S058_phone_booth",
- "scrap_toilet":"S042_cartoon_toilet", "scrap_watering_can":"P047_watering_can", "scrap_trophy_cup":"P050_trophy_cup",
- "scrap_teapot":"P035_teapot", "scrap_travel_suitcase":"P048_travel_suitcase",
-}
+const LEGACY_FILES := preload("res://tools/prop_rebuild_baseline.gd").FILES
 var camera: Camera3D
 var models: Array[Node3D] = []
 var key: DirectionalLight3D
@@ -60,10 +53,12 @@ func _ready() -> void:
 	add_child(camera)
 	show_pair("scrap_chest")
 
-func make_prop(kind: String, refined: bool) -> Node3D:
+func make_prop(kind: String, refined: bool, file_override: String = "") -> Node3D:
 	var entry: Dictionary = Scrap.find(kind).duplicate(true)
 	if not refined:
 		entry.file = LEGACY_FILES[kind]
+	if not file_override.is_empty():
+		entry.file = file_override
 	var body := MovieProp.new()
 	body.fixed = true
 	body._build_scrap(entry)
@@ -153,11 +148,14 @@ func audit_props(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Dictionary:
 		if not is_equal_approx(size[size.max_axis_index()],float(expected.size)) or not is_equal_approx(body.mass,float(expected.mass)):
 			errors.append(kind+": size or mass changed")
 		var collider := body.get_child(body.get_child_count()-1) as CollisionShape3D
-		# The ticket lives under visual; the body retains its existing box collider.
+		# Preserve the existing compound or catalog-selected collider type.
 		if PropShapes.has(kind):
 			var colliders := body.find_children("*","CollisionShape3D",false,false)
 			if colliders.size() != PropShapes.TABLE[kind].shapes.size():
 				errors.append(kind+": compound collider count changed")
+		elif String(expected.get("shape","box")) == "cyl":
+			if collider == null or not collider.shape is CylinderShape3D or not is_equal_approx(collider.shape.height,size.y) or not is_equal_approx(collider.shape.radius,minf(size.x,size.z)*0.5):
+				errors.append(kind+": cylinder collider no longer matches the measured prop")
 		elif collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97)):
 			errors.append(kind+": collider no longer matches the measured prop")
 		var anchor := body.visual.find_child("DisposalTicketAnchor",true,false) as Node3D
@@ -233,4 +231,16 @@ func show_photo_lineup(kinds: Array = ["scrap_fan","scrap_tub","scrap_phone"], s
 	var center := Vector3(0,max_height * 0.5,0)
 	camera.size = frame
 	camera.position = center + Vector3(1.2,1.25,6)
+	camera.look_at(center)
+
+func show_asset_pair(kind: String, new_file: String, rear: bool = false) -> void:
+	clear_models()
+	var extent: float = Scrap.find(kind).size
+	var old := make_prop(kind,false)
+	var fresh := make_prop(kind,true,new_file)
+	old.position.x = -extent * 0.68
+	fresh.position.x = extent * 0.68
+	var center := Vector3(0,fresh.center.y,0)
+	camera.size = extent * 1.65
+	camera.position = center + Vector3(-1.3,0.9,-4 if rear else 4)
 	camera.look_at(center)
