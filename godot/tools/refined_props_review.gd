@@ -6,6 +6,7 @@ const LEGACY_FILES := {
  "scrap_chest":"P029_treasure_chest", "scrap_fridge":"S044_retro_refrigerator",
  "scrap_lamp":"S051_street_lamp", "scrap_clock":"S096_giant_clock",
  "scrap_vending":"S059_vending_machine",
+ "scrap_teapot":"P035_teapot", "scrap_travel_suitcase":"P048_travel_suitcase",
 }
 var camera: Camera3D
 var models: Array[Node3D] = []
@@ -154,9 +155,9 @@ func audit_props(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Dictionary:
 			errors.append(kind+": collider no longer matches the measured prop")
 		var anchor := body.visual.find_child("DisposalTicketAnchor",true,false) as Node3D
 		var ticket := body.visual.find_child("Ticket",true,false) as Node3D
-		if anchor == null or ticket == null:
+		if not expected.has("bag") and (anchor == null or ticket == null):
 			errors.append(kind+": authored ticket position missing")
-		elif anchor.global_position.distance_to(ticket.global_position) > 0.01 or anchor.global_basis.z.normalized().dot(Vector3.BACK) < 0.99:
+		elif anchor != null and ticket != null and (anchor.global_position.distance_to(ticket.global_position) > 0.01 or anchor.global_basis.z.normalized().dot(Vector3.BACK) < 0.99):
 			errors.append(kind+": ticket does not follow the authored surface")
 		var triangles := 0
 		var materials := {}
@@ -184,4 +185,25 @@ func show_simple_lineup() -> void:
 	var center := Vector3(0,0.72,0)
 	camera.size = 2.15
 	camera.position = center + Vector3(1.2,0.65,5.5)
+	camera.look_at(center)
+
+func show_fresh_pair(kind: String, rear: bool = false) -> void:
+	clear_models()
+	var extent: float = Scrap.find(kind).size
+	var old := make_prop(kind,false)
+	var fresh := make_prop(kind,true)
+	old.position.x = -extent * 0.68
+	fresh.position.x = extent * 0.68
+	var center := Vector3(0,fresh.center.y,0)
+	camera.size = extent * 1.65
+	camera.position = center + Vector3(-1.3,0.9,-4 if rear else 4)
+	camera.look_at(center)
+
+func show_fresh_lineup(rear: bool = false) -> void:
+	clear_models()
+	make_prop("scrap_teapot",true).position.x = -0.40
+	make_prop("scrap_travel_suitcase",true).position.x = 0.40
+	var center := Vector3(0,0.24,0)
+	camera.size = 1.15
+	camera.position = center + Vector3(-1.1,0.75,-4 if rear else 4)
 	camera.look_at(center)
