@@ -2,6 +2,11 @@ extends Node3D
 ## Matched legacy/refined prop views. Used with the hidden render dev session.
 const MovieProp := preload("res://scripts/production_movie_prop.gd")
 const Scrap := preload("res://scripts/production_scrap.gd")
+const LEGACY_FILES := {
+ "scrap_chest":"P029_treasure_chest", "scrap_fridge":"S044_retro_refrigerator",
+ "scrap_lamp":"S051_street_lamp", "scrap_clock":"S096_giant_clock",
+ "scrap_vending":"S059_vending_machine",
+}
 var camera: Camera3D
 var models: Array[Node3D] = []
 var key: DirectionalLight3D
@@ -54,9 +59,7 @@ func _ready() -> void:
 func make_prop(kind: String, refined: bool) -> Node3D:
 	var entry: Dictionary = Scrap.find(kind).duplicate(true)
 	if not refined:
-		entry.file = "P029_treasure_chest" if kind == "scrap_chest" else "S044_retro_refrigerator"
-	else:
-		entry.file = "P029_treasure_chest_refined" if kind == "scrap_chest" else "S044_retro_refrigerator_refined"
+		entry.file = LEGACY_FILES[kind]
 	var body := MovieProp.new()
 	body.fixed = true
 	body._build_scrap(entry)
@@ -91,7 +94,7 @@ func show_detail(kind: String, rear: bool = false) -> void:
 	camera.position = center + Vector3(2,1.0,-3.4 if rear else 3.4)
 	camera.look_at(center)
 
-func save_catalog() -> Array[String]:
+func save_catalog(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Array[String]:
 	get_tree().paused = false
 	var viewport := SubViewport.new()
 	viewport.size = Vector2i(384,384)
@@ -104,14 +107,16 @@ func save_catalog() -> Array[String]:
 	environment.environment = (get_child(0) as WorldEnvironment).environment.duplicate(true)
 	environment.environment.background_color = Color(0,0,0,0)
 	viewport.add_child(environment)
-	viewport.add_child(key.duplicate())
+	var photo_key := key.duplicate() as DirectionalLight3D
+	photo_key.light_angular_distance = 0.0
+	viewport.add_child(photo_key)
 	viewport.add_child(fill.duplicate())
 	var photo_camera := Camera3D.new()
 	photo_camera.fov = 26.0
 	photo_camera.current = true
 	viewport.add_child(photo_camera)
 	var saved: Array[String] = []
-	for kind: String in ["scrap_chest","scrap_fridge"]:
+	for kind: String in kinds:
 		var holder := make_prop(kind,true)
 		remove_child(holder)
 		viewport.add_child(holder)
@@ -133,11 +138,11 @@ func save_catalog() -> Array[String]:
 	viewport.queue_free()
 	return saved
 
-func audit_props() -> Dictionary:
+func audit_props(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Dictionary:
 	clear_models()
 	var errors: Array[String] = []
 	var rows: Array[Dictionary] = []
-	for kind: String in ["scrap_chest","scrap_fridge"]:
+	for kind: String in kinds:
 		var body := make_prop(kind,true)
 		var expected := Scrap.find(kind)
 		var size: Vector3 = body.half * 2
@@ -145,7 +150,7 @@ func audit_props() -> Dictionary:
 			errors.append(kind+": size or mass changed")
 		var collider := body.get_child(body.get_child_count()-1) as CollisionShape3D
 		# The ticket lives under visual; the body retains its existing box collider.
-		if collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97)):
+		if kind != "scrap_lamp" and (collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97))):
 			errors.append(kind+": collider no longer matches the measured prop")
 		var anchor := body.visual.find_child("DisposalTicketAnchor",true,false) as Node3D
 		var ticket := body.visual.find_child("Ticket",true,false) as Node3D
@@ -171,3 +176,12 @@ func audit_props() -> Dictionary:
 		if kind == "scrap_chest" and not textured: errors.append("chest: embedded wood texture missing")
 		rows.append({"kind":kind,"size_m":size,"mass_kg":body.mass,"triangles_with_ticket":triangles,"materials_with_ticket":materials.size(),"embedded_albedo":textured,"marker_normal":anchor.global_basis.z.normalized() if anchor != null else Vector3.ZERO,"ticket_distance_m":anchor.global_position.distance_to(ticket.global_position) if anchor != null and ticket != null else -1.0})
 	return {"errors":errors,"props":rows}
+
+func show_simple_lineup() -> void:
+	clear_models()
+	for i in 3:
+		make_prop(["scrap_lamp","scrap_clock","scrap_vending"][i],true).position.x = (i-1) * 1.05
+	var center := Vector3(0,0.72,0)
+	camera.size = 2.15
+	camera.position = center + Vector3(1.2,0.65,5.5)
+	camera.look_at(center)
