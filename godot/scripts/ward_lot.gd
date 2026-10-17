@@ -66,9 +66,11 @@ static func _fence(b: Look.Batch, root: Node3D, font: Font) -> void:
 	# 破れ目：網の板が2枚、倒れている（1枚は斜めに立てかけて）。切れた針金
 	var lying := Transform3D(Basis(Vector3.BACK, PI * 0.5 - 0.06) * Basis(Vector3.UP, 0.12), Vector3(FENCE_X - 0.9, 0.06, GAP_Z.x + 4.2))
 	b.box(mesh, lying, Vector3(0.02, 1.7, 1.94), Look.Batch.ALL)
+	b.solid(lying, Vector3(0.05, 1.7, 1.94))
 	b.box(post, lying * Transform3D(Basis.IDENTITY, Vector3(0, 0.85, 0)), Vector3(0.05, 0.05, 1.94), Look.Batch.ALL)
 	var lean := Transform3D(Basis(Vector3.BACK, 0.55), Vector3(FENCE_X - 0.55, 0.78, GAP_Z.y - 1.3))
 	b.box(mesh, lean, Vector3(0.02, 1.7, 1.94), Look.Batch.ALL)
+	b.solid(lean, Vector3(0.05, 1.7, 1.94))
 	b.box(post, lean * Transform3D(Basis.IDENTITY, Vector3(0, 0.85, 0)), Vector3(0.05, 0.05, 1.94), Look.Batch.ALL)
 	for zz: float in [GAP_Z.x, GAP_Z.y]:
 		for k in 3:
@@ -128,32 +130,85 @@ static func _gate(b: Look.Batch, root: Node3D, font: Font) -> void:
 # ---- ゴミ収集車（パッカー車）。at の +X が前 ----
 
 static func _truck(b: Look.Batch, root: Node3D, font: Font, at: Transform3D) -> void:
-	var white := Look.plain(Color("eef0ec"), 0.45, 0.1)
-	var green := Look.plain(GREEN, 0.5, 0.1)
-	var dark := Look.plain(Color("2b2e31"), 0.6, 0.3)
-	var glass := Look.plain(Color("2f4766"), 0.12, 0.4)
-	var tire := Look.plain(Color("1e2022"), 0.9)
-	# 車台と運転席
-	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, 0)), Vector3(6.0, 0.3, 1.8), Look.Batch.ALL)
-	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.25, 1.45, 0)), Vector3(1.5, 1.7, 2.0), Look.Batch.ALL)
-	b.box(glass, at * Transform3D(Basis.IDENTITY, Vector3(3.01, 1.8, 0)), Vector3(0.03, 0.7, 1.8), Look.Batch.ALL)
+	var white := Look.plain(Color("eef0ec"), 0.48)
+	var green := Look.plain(GREEN, 0.5)
+	var dark := Look.plain(Color("2b2e31"), 0.64)
+	var glass := Look.plain(Color("304957"), 0.18)
+	var tire := Look.plain(Color("25282a"), 0.84)
+	var steel := Look.plain(Color("a7adb0"), 0.38, 0.8)
+	var lamp := Look.plain(Color("e0e6d8"), 0.22)
+	# はしご状の車台。車体の下は空け、タイヤだけ地面まで届く。
+	for zz: float in [-0.65, 0.65]:
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, zz)), Vector3(6.0, 0.3, 0.18), Look.Batch.ALL)
+		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, zz)), Vector3(6.0, 0.3, 0.18))
+	for xx: float in [-1.9, -1.0, 2.1]:
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(xx, 0.46, 0)), Vector3(0.15, 0.15, 1.9), Look.Batch.ALL)
+		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(xx, 0.46, 0)), Vector3(0.15, 0.15, 1.9))
+	# 前窓を傾けたキャブオーバー。屋根、ドア枠、段差のあるバンパー。
+	b.extrude(white, at, [Vector2(1.5, 0.65), Vector2(3.0, 0.65), Vector2(3.0, 1.58), Vector2(2.85, 2.18), Vector2(1.62, 2.28), Vector2(1.5, 2.1)], 2.0)
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(2.23, 1.39, 0)), Vector3(1.46, 1.48, 2.0))
+	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.22, 2.28, 0)), Vector3(1.32, 0.08, 2.06), Look.Batch.ALL)
+	b.box(glass, at * Transform3D(Basis(Vector3.BACK, 0.245), Vector3(2.94, 1.84, 0)), Vector3(0.035, 0.54, 1.76), Look.Batch.ALL)
+	b.box(white, at * Transform3D(Basis(Vector3.BACK, 0.245), Vector3(2.96, 1.84, 0)), Vector3(0.04, 0.56, 0.045), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
-		b.box(glass, at * Transform3D(Basis.IDENTITY, Vector3(2.45, 1.8, s * 1.005)), Vector3(0.9, 0.6, 0.03), Look.Batch.ALL)
-	b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(2.25, 0.95, 0)), Vector3(1.52, 0.35, 2.02), Look.Batch.ALL)
-	b.box(Look.plain(Color("c9ced0"), 0.4, 0.5), at * Transform3D(Basis.IDENTITY, Vector3(3.02, 0.85, 0)), Vector3(0.06, 0.3, 1.9), Look.Batch.ALL)
-	b.box(Look.mat("lit", Color("ffb040")), at * Transform3D(Basis.IDENTITY, Vector3(2.4, 2.36, 0)), Vector3(0.25, 0.12, 0.9), Look.Batch.ALL)
-	# 荷箱（上が丸い）と、後ろの投入口
+		var side := s * 1.008
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.51, side)), Vector3(1.1, 1.25, 0.015), Look.Batch.ALL)
+		b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.5, side + s * 0.009)), Vector3(1.04, 1.19, 0.015), Look.Batch.ALL)
+		b.box(glass, at * Transform3D(Basis.IDENTITY, Vector3(2.19, 1.85, side + s * 0.02)), Vector3(0.89, 0.49, 0.018), Look.Batch.ALL)
+		b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.14, side + s * 0.02)), Vector3(1.04, 0.28, 0.018), Look.Batch.ALL)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(1.83, 1.49, side + s * 0.035)), Vector3(0.17, 0.035, 0.025), Look.Batch.ALL)
+		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(2.34, 0.59, s * 1.07)), Vector3(0.7, 0.07, 0.24), Look.Batch.ALL)
+		b.bar(dark, at * Vector3(2.71, 1.89, s * 1.02), at * Vector3(2.72, 1.89, s * 1.25), 0.035)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.72, 1.83, s * 1.27)), Vector3(0.12, 0.23, 0.07), Look.Batch.ALL)
+	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(3.015, 1.09, 0)), Vector3(0.035, 0.3, 1.12), Look.Batch.ALL)
+	for yy: float in [1.0, 1.09, 1.18]:
+		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(3.04, yy, 0)), Vector3(0.025, 0.026, 1.0), Look.Batch.ALL)
+	for s: float in [-1.0, 1.0]:
+		b.box(lamp, at * Transform3D(Basis.IDENTITY, Vector3(3.025, 1.08, s * 0.76)), Vector3(0.045, 0.22, 0.32), Look.Batch.ALL)
+		b.box(Look.plain(Color("d68d30"), 0.28), at * Transform3D(Basis.IDENTITY, Vector3(3.027, 1.3, s * 0.84)), Vector3(0.048, 0.09, 0.14), Look.Batch.ALL)
+	b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(3.07, 0.79, 0)), Vector3(0.19, 0.18, 2.1), Look.Batch.ALL)
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(3.07, 0.79, 0)), Vector3(0.19, 0.18, 2.1))
+	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(3.174, 0.8, 0)), Vector3(0.025, 0.12, 0.3), Look.Batch.ALL)
+	# 小さな回転灯は不透明な台の上に載る。
+	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.15, 2.34, 0)), Vector3(0.24, 0.04, 0.76), Look.Batch.ALL)
+	b.box(Look.plain(Color("e9a83b"), 0.24), at * Transform3D(Basis.IDENTITY, Vector3(2.15, 2.42, 0)), Vector3(0.21, 0.12, 0.7), Look.Batch.ALL)
+	# 曲面を折り板で表現したパッカー箱。屋根の傾斜も薄い当たり判定で追う。
 	b.extrude(green, at * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-0.35, 0.7, 0)), [Vector2(-1.05, 0.0), Vector2(1.05, 0.0), Vector2(1.05, 1.5), Vector2(0.75, 1.95), Vector2(-0.75, 1.95), Vector2(-1.05, 1.5)], 3.6)
-	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.55, 0)), Vector3(3.62, 0.32, 2.12), Look.Batch.ALL)
-	b.box(white, at * Transform3D(Basis(Vector3.BACK, -0.35), Vector3(-2.45, 1.25, 0)), Vector3(0.9, 1.7, 2.1), Look.Batch.ALL)
-	b.box(dark, at * Transform3D(Basis(Vector3.BACK, -0.35), Vector3(-2.82, 0.95, 0)), Vector3(0.1, 0.8, 1.7), Look.Batch.ALL)
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.45, 0)), Vector3(3.6, 1.5, 2.1))
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 2.4, 0)), Vector3(3.6, 0.5, 1.5))
+	for s: float in [-1.0, 1.0]:
+		b.solid(at * Transform3D(Basis(Vector3.RIGHT, s * 0.59), Vector3(-0.35, 2.425, s * 0.9)), Vector3(3.6, 0.04, 0.54))
+		b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.55, s * 1.055)), Vector3(3.56, 0.32, 0.02), Look.Batch.ALL)
+		for xx: float in [-1.78, 1.12]:
+			b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(xx, 1.47, s * 1.08)), Vector3(0.07, 1.4, 0.06), Look.Batch.ALL)
+		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(-0.4, 0.86, s * 1.075)), Vector3(2.5, 0.06, 0.035), Look.Batch.ALL)
+	# 後端の投入口は、左右の厚い頬・上の枠・底の受け皿で囲う。口を箱で埋めない。
+	var intake := Basis(Vector3.BACK, -0.3)
+	for s: float in [-1.0, 1.0]:
+		var cheek := at * Transform3D(intake, Vector3(-2.48, 1.35, s * 0.98))
+		b.box(white, cheek, Vector3(0.82, 1.65, 0.16), Look.Batch.ALL)
+		b.solid(cheek, Vector3(0.82, 1.65, 0.16))
+		b.box(Look.plain(Color("b74b32"), 0.36), at * Transform3D(Basis.IDENTITY, Vector3(-2.95, 0.96, s * 0.83)), Vector3(0.06, 0.16, 0.12), Look.Batch.ALL)
+		b.bar(dark, at * Vector3(-1.98, 1.0, s * 1.1), at * Vector3(-2.4, 2.02, s * 1.1), 0.085)
+	b.box(white, at * Transform3D(intake, Vector3(-2.23, 2.12, 0)), Vector3(0.82, 0.17, 1.85), Look.Batch.ALL)
+	b.solid(at * Transform3D(intake, Vector3(-2.23, 2.12, 0)), Vector3(0.82, 0.17, 1.85))
+	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(-2.32, 1.34, 0)), Vector3(0.08, 1.15, 1.78), Look.Batch.ALL)
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-2.32, 1.34, 0)), Vector3(0.08, 1.15, 1.78))
+	b.box(steel, at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(-2.67, 0.72, 0)), Vector3(0.8, 0.14, 1.82), Look.Batch.ALL)
+	b.solid(at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(-2.67, 0.72, 0)), Vector3(0.8, 0.14, 1.82))
+	# タイヤは肉厚の黒い外周と、奥まった金属のハブ。軸方向の中心を左右でそろえる。
 	for wx: float in [2.1, -1.0, -1.9]:
 		for s: float in [-1.0, 1.0]:
-			b.cyl(tire, at * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(wx, 0.45, s * 0.92)), 0.45, 0.3, 14, -1.0, true, true)
+			var hub := Vector3(wx, 0.45, s * 1.02)
+			var wheel_basis := Basis(Vector3.RIGHT, PI * 0.5)
+			b.cyl(tire, at * Transform3D(wheel_basis, hub + Vector3(0, 0, 0.16)), 0.45, 0.32, 16, -1.0, true, true)
+			b.solid(at * Transform3D(Basis.IDENTITY, hub), Vector3(0.82, 0.84, 0.32))
+			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.166 + 0.018)), 0.25, 0.036, 12, -1.0, true, true)
+			b.cyl(dark, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.19 + 0.018)), 0.095, 0.036, 10, -1.0, true, true)
 	# 荷箱の横の文字（両側）
 	for s: float in [-1.0, 1.0]:
 		var face := at.basis * Basis(Vector3.UP, 0.0 if s > 0.0 else PI)
-		var p := at * Vector3(-0.35, 1.55, s * 1.07)
+		var p := at * Vector3(-0.35, 1.55, s * 1.075)
 		Look.label(root, Transform3D(face, p), WARD + "　清掃事務所", 0.0042, 64, GREEN, font, false)
 
 
@@ -176,6 +231,8 @@ static func _street(b: Look.Batch, root: Node3D, font: Font) -> void:
 # 当たり判定は、フェンスなどと同じ体（WardLot）に入れている。別の体に分けてもよい
 # （体の数・作る順が変わっても、荷台のロープの確認 carton_rope_test.gd の結果は変わらない）
 static func _street_solids(b: Look.Batch) -> void:
+	# 歩道の上面 y=0.12 に合わせる。道路の床の上へ薄く重ねる。
+	b.solidp(Vector3((STREET_X.x + STREET_X.y - 0.9) * 0.5, 0.055, STREET_Z.y + 0.55), Vector3(STREET_X.y - 0.9 - STREET_X.x, 0.13, 1.1))
 	var x1 := 73.45
 	b.solidp(Vector3((STREET_X.x + x1) * 0.5, -0.21, (STREET_Z.x + STREET_Z.y + 1.1) * 0.5), Vector3(x1 - STREET_X.x, 0.4, STREET_Z.y + 1.1 - STREET_Z.x))
 	b.solidp(Vector3((STREET_X.x + 72.75) * 0.5, 1.5, STREET_Z.y + 1.2), Vector3(72.75 - STREET_X.x, 3.0, 0.2))

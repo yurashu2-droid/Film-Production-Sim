@@ -156,6 +156,8 @@ static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color
 	var bag := Look.plain(c.darkened(rng.randf_range(0.0, 0.08)), 0.22)
 	var c0 := p + Vector3(0, r * 0.72, 0)
 	b.lump(bag, c0, Vector3(r * 1.08, r * 0.78, r * 0.98), c0 - Vector3(0, r * 0.5, 0), rng, 0.3, 6, 10, 0.32)
+	# 袋のふくらみごとに当てる。山全体やネットの下の隙間は埋めない。
+	b.solidp(c0, Vector3(r * 1.72, r * 1.45, r * 1.6))
 	var neck := c0 + Vector3(rng.randf_range(-0.05, 0.05), r * 0.72, rng.randf_range(-0.04, 0.04))
 	b.lump(bag, neck, Vector3(0.09, 0.11, 0.09), neck - Vector3(0, 0.1, 0), rng, 0.15, 4, 6, 0.15)
 	var top := neck + Vector3(0, 0.1, 0)
@@ -195,10 +197,17 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	var dark := Look.plain(Color("3a3d40"), 0.5)
 	# ブラウン管テレビ（集積所の横、少し斜め）
 	var tv := Transform3D(Basis(Vector3.UP, 0.25), Vector3(-8.9, 0.0, 13.15))
-	b.box(Look.plain(Color("6b5a48"), 0.6), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.28, 0)), Vector3(0.64, 0.56, 0.44), Look.Batch.ALL)
+	# 古い木目調キャビネットは角を落とし、画面より奥に厚いブラウン管を持たせる。
+	b.extrude(Look.mat("wood", Color("6b5a48")), tv, [Vector2(-0.3, 0.0), Vector2(0.3, 0.0), Vector2(0.32, 0.035), Vector2(0.32, 0.52), Vector2(0.28, 0.56), Vector2(-0.28, 0.56), Vector2(-0.32, 0.52), Vector2(-0.32, 0.035)], 0.44)
+	b.solid(tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.28, 0)), Vector3(0.64, 0.56, 0.44))
+	b.solid(tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.27, -0.33)), Vector3(0.44, 0.38, 0.24))
 	b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.27, -0.33)), Vector3(0.44, 0.38, 0.24), Look.Batch.ALL)
 	b.box(Look.plain(Color("b9b4a8"), 0.5), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.31, 0.222)), Vector3(0.56, 0.44, 0.01), Look.Batch.ALL)
-	b.box(Look.plain(Color("26302f"), 0.12, 0.3), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.33, 0.228)), Vector3(0.46, 0.34, 0.01), Look.Batch.ALL)
+	b.box(Look.plain(Color("26302f"), 0.12, 0.3), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.33, 0.228)), Vector3(0.46, 0.34, 0.025), Look.Batch.ALL)
+	# 縁に囲まれたガラス、右端の選局つまみとスピーカーのスリット。
+	for k in 5:
+		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.255, 0.23 + k * 0.034, 0.232)), Vector3(0.025, 0.01, 0.012), Look.Batch.ALL)
+	b.cyl(dark, tv * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.255, 0.445, 0.25)), 0.032, 0.025, 10, -1.0, true, true)
 	for k in 3:
 		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(-0.16 + k * 0.08, 0.09, 0.224)), Vector3(0.05, 0.03, 0.015), Look.Batch.ALL)
 	# 室内アンテナ（V字の2本の棒）
@@ -209,13 +218,41 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	_ticket(b, root, xf, font, tv * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.17, 0.562, 0.08)))
 	# 縦型の洗濯機（フタが半開き）
 	var wm := Transform3D(Basis(Vector3.UP, -0.15), Vector3(8.4, 0.0, 13.1))
-	b.box(Look.plain(Color("e9ebea"), 0.4), wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.45, 0)), Vector3(0.58, 0.9, 0.58), Look.Batch.ALL)
-	b.box(Look.plain(Color("c9ced0"), 0.4), wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, -0.22)), Vector3(0.58, 0.12, 0.14), Look.Batch.ALL)
-	b.box(Look.plain(Color("dfe3e3"), 0.3), wm * Transform3D(Basis(Vector3.RIGHT, -0.5), Vector3(0, 0.98, 0.04)), Vector3(0.5, 0.02, 0.44), Look.Batch.ALL)
+	var enamel := Look.plain(Color("e9ebea"), 0.42)
+	var trim := Look.plain(Color("c3cccb"), 0.48)
+	# 空洞のある上部と、薄い鉄板を折った箱。フタの下に洗濯槽が見える。
+	for side: float in [-1.0, 1.0]:
+		var side_at := wm * Transform3D(Basis.IDENTITY, Vector3(side * 0.265, 0.45, 0))
+		b.box(enamel, side_at, Vector3(0.05, 0.8, 0.58), Look.Batch.ALL)
+		b.solid(side_at, Vector3(0.05, 0.8, 0.58))
+	for side: float in [-1.0, 1.0]:
+		var face_at := wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.45, side * 0.265))
+		b.box(enamel, face_at, Vector3(0.48, 0.8, 0.05), Look.Batch.ALL)
+		b.solid(face_at, Vector3(0.48, 0.8, 0.05))
+	b.box(trim, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.09, 0)), Vector3(0.53, 0.14, 0.53), Look.Batch.ALL)
+	b.solid(wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.09, 0)), Vector3(0.53, 0.14, 0.53))
+	b.cyl(dark, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.72, 0)), 0.235, 0.12, 16)
+	for k in 16:
+		var angle := TAU * k / 16.0
+		var ring := wm * Transform3D(Basis(Vector3.UP, angle), Vector3(sin(angle) * 0.235, 0.87, cos(angle) * 0.235))
+		b.box(trim, ring, Vector3(0.1, 0.06, 0.035), Look.Batch.ALL)
+	b.box(trim, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, -0.22)), Vector3(0.58, 0.12, 0.14), Look.Batch.ALL)
+	b.solid(wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, -0.22)), Vector3(0.58, 0.12, 0.14))
+	b.box(dark, wm * Transform3D(Basis.IDENTITY, Vector3(-0.12, 1.015, -0.22)), Vector3(0.16, 0.015, 0.06), Look.Batch.ALL)
+	for x: float in [0.08, 0.17]:
+		b.cyl(Look.plain(Color("5a797d"), 0.42), wm * Transform3D(Basis.IDENTITY, Vector3(x, 1.015, -0.22)), 0.025, 0.012, 10)
+	var lid := wm * Transform3D(Basis(Vector3.RIGHT, -0.65), Vector3(0, 1.105, 0.007))
+	b.box(enamel, lid, Vector3(0.5, 0.035, 0.44), Look.Batch.ALL)
+	b.solid(lid, Vector3(0.5, 0.035, 0.44))
+	b.box(trim, lid * Transform3D(Basis.IDENTITY, Vector3(0, 0.022, 0.16)), Vector3(0.19, 0.015, 0.035), Look.Batch.ALL)
+	for x: float in [-0.22, 0.22]:
+		for zz: float in [-0.22, 0.22]:
+			b.box(dark, wm * Transform3D(Basis.IDENTITY, Vector3(x, 0.025, zz)), Vector3(0.07, 0.05, 0.07), Look.Batch.ALL)
 	_ticket(b, root, xf, font, wm * Transform3D(Basis.IDENTITY, Vector3(-0.14, 0.62, 0.292)))
 	# マットレス（フェンスに立てかけた。縞の布）
 	var mt := Transform3D(Basis(Vector3.RIGHT, -0.18), Vector3(5.6, 0.92, 12.42))
 	b.box(Look.plain(Color("e8e1cf"), 0.95), mt, Vector3(1.0, 1.85, 0.2), Look.Batch.ALL)
+	b.solid(mt, Vector3(1.0, 1.85, 0.2))
 	for k in 6:
 		b.box(Look.plain(Color("9fb4c4"), 0.95), mt * Transform3D(Basis.IDENTITY, Vector3(-0.375 + k * 0.15, 0, 0.101)), Vector3(0.05, 1.85, 0.005), Look.Batch.ALL)
 	b.box(Look.plain(Color("c9b48a"), 0.95), mt * Transform3D(Basis.IDENTITY, Vector3(0.18, -0.3, 0.104)), Vector3(0.36, 0.28, 0.003), Look.Batch.ALL)
@@ -224,11 +261,28 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	var sf := Transform3D(Basis(Vector3.UP, 0.1), Vector3(12.3, 0.0, 12.85))
 	var cloth := Look.plain(Color("6f8a6a"), 0.95)
 	b.box(cloth, sf * Transform3D(Basis.IDENTITY, Vector3(0, 0.22, 0)), Vector3(1.5, 0.3, 0.8), Look.Batch.ALL)
+	b.solid(sf * Transform3D(Basis.IDENTITY, Vector3(0, 0.22, 0)), Vector3(1.5, 0.3, 0.8))
+	b.solid(sf * Transform3D(Basis.IDENTITY, Vector3(0, 0.55, -0.32)), Vector3(1.5, 0.66, 0.18))
+	# 台輪と短い木脚で床へ接続。無くなったクッションの下には座枠が残る。
+	var wood := Look.mat("wood", Color("534335"))
+	for x: float in [-0.58, 0.58]:
+		for zz: float in [-0.27, 0.27]:
+			b.box(wood, sf * Transform3D(Basis.IDENTITY, Vector3(x, 0.055, zz)), Vector3(0.09, 0.11, 0.09), Look.Batch.ALL)
+	for k in 4:
+		b.box(wood, sf * Transform3D(Basis.IDENTITY, Vector3(0.13 + k * 0.12, 0.385, 0.05)), Vector3(0.045, 0.045, 0.56), Look.Batch.ALL)
 	b.box(cloth, sf * Transform3D(Basis.IDENTITY, Vector3(0, 0.55, -0.32)), Vector3(1.5, 0.66, 0.18), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
-		b.box(cloth, sf * Transform3D(Basis.IDENTITY, Vector3(s * 0.68, 0.45, 0.02)), Vector3(0.16, 0.5, 0.8), Look.Batch.ALL)
+		var arm := sf * Transform3D(Basis.IDENTITY, Vector3(s * 0.68, 0.45, 0.02))
+		b.extrude(cloth, arm, [Vector2(-0.08, -0.25), Vector2(0.08, -0.25), Vector2(0.08, 0.19), Vector2(0.045, 0.25), Vector2(-0.045, 0.25), Vector2(-0.08, 0.19)], 0.8)
+		b.solid(arm, Vector3(0.16, 0.5, 0.8))
+		b.bar(Look.plain(Color("82977d"), 0.95), sf * Vector3(s * 0.68, 0.7, -0.31), sf * Vector3(s * 0.68, 0.7, 0.35), 0.012)
 	b.box(Look.plain(Color("7d977a"), 0.95), sf * Transform3D(Basis(Vector3.BACK, 0.05), Vector3(-0.32, 0.44, 0.05)), Vector3(0.58, 0.14, 0.62), Look.Batch.ALL)
-	b.box(dark, sf * Transform3D(Basis.IDENTITY, Vector3(0.32, 0.38, 0.05)), Vector3(0.56, 0.02, 0.6), Look.Batch.ALL)
+	b.solid(sf * Transform3D(Basis(Vector3.BACK, 0.05), Vector3(-0.32, 0.44, 0.05)), Vector3(0.58, 0.14, 0.62))
+	# 座面の縁の縫い目と、背クッションの分割。布の色差は面単位に絞る。
+	for zz: float in [-0.25, 0.35]:
+		b.bar(Look.plain(Color("92a28a"), 0.95), sf * Vector3(-0.6, 0.5, zz), sf * Vector3(-0.04, 0.5, zz), 0.012)
+	for x: float in [-0.32, 0.32]:
+		b.box(Look.plain(Color("7d9375"), 0.95), sf * Transform3D(Basis(Vector3.RIGHT, -0.08), Vector3(x, 0.66, -0.209)), Vector3(0.58, 0.37, 0.06), Look.Batch.ALL)
 	_ticket(b, root, xf, font, sf * Transform3D(Basis.IDENTITY, Vector3(-0.4, 0.62, -0.225)))
 	# さびた自転車（タイヤの空気が抜けている）
 	var bike := Transform3D(Basis(Vector3.UP, 0.12), Vector3(14.2, 0.0, 12.75))

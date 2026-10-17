@@ -9,12 +9,21 @@ const SPAN_Y := Vector2(2.3, 8.0)          # 書割の下の端（1階の壁の�
 
 var game: Node
 var hidden := false           # いま、自分の視点から消しているか（確認用）
+var excluded_arm: SpringArm3D
 
 
 func _process(_delta: float) -> void:
 	var me: Node3D = game.local_player() if game != null else null
 	if me == null or me.get("cam") == null:
 		return
+	# 書割には体・小道具が当たるが、切り欠き用の三人称カメラは通す。
+	# ここで縮めるとカメラが板を越せず、入口で切り欠きが働かなくなる。
+	if me.get("arm") != null and me.arm != excluded_arm:
+		var facade := game.find_child("OfficeFacade", true, false)
+		var solid := facade.get_node_or_null("Solid") as StaticBody3D if facade != null else null
+		if solid != null:
+			excluded_arm = me.arm
+			excluded_arm.add_excluded_object(solid.get_rid())
 	var cam: Camera3D = me.cam
 	# 体と、頭の少し上（体のまわりの部屋の様子）のどちらかが隠れるなら、消す
 	var hide := blocks(cam.global_position, me.global_position + Vector3(0, 1.0, 0)) or blocks(cam.global_position, me.global_position + Vector3(0, 2.6, 0))

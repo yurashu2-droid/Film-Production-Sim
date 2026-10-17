@@ -172,7 +172,7 @@ static func _place(root: Node3D, made: Array, at: Transform3D) -> void:
 
 
 # ---- まわりの景色：倉庫と塀で囲んで、地平線を隠す ----
-# 見た目は production_look.gd の Batch でマテリアルごとにまとめる。当たり判定は塀の箱だけ（建物は塀の外で届かない）。
+# 見た目は Batch でまとめ、近景の倉庫と電柱にも実体を持たせる。遠景のスカイラインと細い電線は背景。
 # 建物は「正面(+Z)」をローカルに作り、置く向きだけ回す。西側（x<31.4）は撮影現場の敷地なので何も建てない。
 
 const SIGNS := ["第三倉庫", "資材置場", "搬入口", "共栄物流", "丸山工業", "中古建材", "映像機材", "格安市場", "部品センター", "冷凍倉庫", "松田運送", "B棟"]
@@ -317,6 +317,7 @@ static func _warehouse(b: Look.Batch, dress: Node3D, at: Transform3D, size: Vect
 	var acc := Look.plain(accent, 0.75)
 	var dark := Look.plain(Color("3a3f44"), 0.7, 0.3)
 	b.boxp(wall, Vector3(0, h * 0.5, 0), Vector3(w, h, d), Look.Batch.GROUND)
+	b.solidp(Vector3(0, h * 0.5, 0), Vector3(w, h, d))
 	b.boxp(concrete, Vector3(0, 0.5, 0), Vector3(w + 0.12, 1.0, d + 0.12), Look.Batch.GROUND)
 	# 軒（屋根の縁）。切妻屋根のものは三角の屋根を載せる
 	b.boxp(Look.mat("concrete", Color("85888a")), Vector3(0, h + 0.15, 0), Vector3(w + 0.5, 0.3, d + 0.5), Look.Batch.ALL)
@@ -484,6 +485,8 @@ static func _poles(dress: Node3D) -> void:
 static func _pole_line(b: Look.Batch, pts: Array, wood: Look.Tint, dark: Look.Tint, ins: Look.Tint) -> void:
 	for p: Vector3 in pts:
 		b.cylp(wood, p, 0.15, 9.8, 8, 0.11)
+		# 幹だけに当てる。電線や腕の間を大きな箱で塞がない。
+		b.solidp(p + Vector3(0, 4.9, 0), Vector3(0.27, 9.8, 0.27))
 		b.boxp(wood, p + Vector3(0, 9.0, 0), Vector3(2.4, 0.13, 0.13), Look.Batch.ALL)
 		b.boxp(wood, p + Vector3(0, 8.4, 0), Vector3(1.6, 0.11, 0.11), Look.Batch.ALL)
 		for ox: float in [-1.0, 0.0, 1.0]:
