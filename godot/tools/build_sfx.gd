@@ -165,6 +165,15 @@ func normalized(b: PackedFloat32Array) -> PackedFloat32Array:
 		out[i] /= top
 	return out
 
+
+# 音を詰めて厚くする（大きい所を丸める）。振れ幅を変えずに、聞こえを大きくする。drive が大きいほど詰まる
+func saturate(b: PackedFloat32Array, drive: float) -> PackedFloat32Array:
+	var out := b.duplicate()
+	var norm := tanh(drive)
+	for i in out.size():
+		out[i] = tanh(drive * out[i]) / norm
+	return out
+
 # 頭の、鳴っていない所を詰める（いちばん大きい所の level 倍に届くまで）
 func trim_head(b: PackedFloat32Array, level: float = 0.04) -> PackedFloat32Array:
 	var top := 0.0001
@@ -375,15 +384,22 @@ func _lab_moves() -> void:
 		mix(b, highpass(_step_hit(school, tap_at[i], 6000.0), 400.0), 0.0, 0.3)
 		fade_out(b, 0.07, 0.07)
 		save("step", i, b, 0.5)
-	# 着地：畳の重い2歩を0.03秒ずらして重ね、上履きの当たりを少し足す（3種）
+	# 着地：畳の重い2歩を0.03秒ずらして重ね、下に重い「ドスッ」、上に土を踏む「ザッ」を足す（3種）。
+	# 部品ごとに大きさをそろえて混ぜ、最後に音を詰めて厚くする（振れ幅は同じまま、聞こえが5〜6dB大きくなる）。
+	# 前の、畳と上履きだけの着地は小さく軽かった（2026-10-17、4通りの聞き比べで決定）
 	var heavy := [2.159, 3.945, 1.968, 0.672]
+	var soil := src(LAB + "walk-soil1.mp3")
+	var scuff_at := [0.61, 1.21, 2.4]
 	for i in 3:
-		var b := buf(0.4)
-		mix(b, pitch(_step_hit(tatami, heavy[i], 3000.0), 0.9), 0.0, 1.0)
-		mix(b, _step_hit(tatami, heavy[i + 1], 3000.0), 0.03, 0.75)
-		mix(b, highpass(_step_hit(school, tap_at[i + 2], 6000.0), 400.0), 0.0, 0.25)
-		fade_out(b, 0.16, 0.14)
-		save("land", i, b, 0.62)
+		var b := buf(0.45)
+		mix(b, normalized(lowpass(pitch(_step_hit(tatami, heavy[i], 3000.0), 0.9), 3000.0)), 0.0, 1.0)
+		mix(b, normalized(_step_hit(tatami, heavy[i + 1], 3000.0)), 0.03, 0.75)
+		mix(b, normalized(lowpass(pitch(trim_head(src(IMPACT + "impactSoft_heavy_%03d.ogg" % i)), 0.9), 800.0)), 0.0, 0.8)
+		var scuff := lowpass(trim_head(cut(soil, scuff_at[i] - 0.03, scuff_at[i] + 0.25), 0.1), 4000.0)
+		fade_out(scuff, 0.18, 0.08)
+		mix(b, normalized(scuff), 0.006, 1.0)
+		fade_out(b, 0.22, 0.15)
+		save("land", i, saturate(normalized(b), 2.5), 0.62)
 	# 振る：剣・鞭・パンチの素振りを低くし、中音（300Hz〜1kHz あたり）に絞って、参考の「ブンッ」に寄せる（4種）
 	# [素材, 高さ, これより低い音を削る Hz, これより高い音を削る Hz]
 	var swings := [["sword-gesture2.mp3", 0.7, 300.0, 900.0], ["sword-gesture2.mp3", 0.8, 300.0, 1200.0],
