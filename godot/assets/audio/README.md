@@ -109,7 +109,7 @@ whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯
 
 - 鳴らし方：ボタンは `scripts/sfx.gd` の `_watch_button`。画面に出たボタン全部に、マウスを乗せると ui_hover（−10dB）、
   押すと ui_press（−6dB）。自分で別の音を鳴らすボタンは `set_meta("own_sfx", true)`。
-  ロボットは `features/motion_sounds.gd` の `_roll_sound`。走っている間くり返し鳴らし、速さで音量（全速で −15dB。−10dB では大きすぎた）と高さ（0.8〜1.15倍）を変える。
+  ロボットは `features/motion_sounds.gd` の `_roll_sound`。走っている間くり返し鳴らし、速さで音量（全速で −18.5dB、速さの割合 k で 30×log10(k) 下がる。耳の感じ方の重みで測って、人の足音と同じ大きさ。−10dB では大きすぎた）と高さ（0.8〜1.15倍）を変える。
 - 聞き比べで決めた（2026-10-17）：ボタンは8通りから「マウスとカメラのシャッター」。メニューの開け閉めは、前のスイッチ・決定音が浮いて聞こえたので、4通りから「台本をめくる・閉じる」。ロボットは「車輪＋モーター」で、モーターを車輪と同じ大きさに。
 
 | 音 | 元ファイル | 加工 | 置き場 |
@@ -117,6 +117,7 @@ whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯
 | ui_hover 乗せる | 効果音ラボ click1（マウスのクリック） | 6kHz以上を削り、0.08秒で切る | sfx_local |
 | ui_press 押す | 効果音ラボ camera-shutter2（カメラのシャッター） | 9kHz以上を削り、0.14秒で切る | sfx_local |
 | ui_hover・ui_press（代わり） | Kenney Interface Sounds（CC0）tick_002・toggle_001 | 余韻を整える | sfx |
+| robot_land ロボットの着地「ガタッ」（3種） | Kenney impactPlate_medium（鉄板）＋効果音ラボ tool-box1（工具箱のがちゃつき）＋ dash-tatami1（人の着地の柔らかい当たり） | 鉄板を1.1倍・3kHz以上を削る。工具箱は0.25秒切り出し、300Hz〜4kHzに絞って0.012秒遅らせる。畳を0.5倍で重ねる。鳴らす時、モーターの音を0.12秒止めて、0.3秒で低い所から戻す | sfx_local |
 | menu_open メニューを開く（Escape・各メニュー・台本） | 効果音ラボ page1（ページをめくる） | いちばん大きい所の前0.18秒〜後0.2秒を切り出し、0.03秒で立ち上げ、8kHz以上を削る。−8dBで鳴らす | sfx_local |
 | menu_close メニューを閉じる | 効果音ラボ book-close1（本を閉じる） | 6kHz以上を削り、0.17秒で切る。−8dBで鳴らす | sfx_local |
 | menu_open・menu_close（代わり） | Kenney Interface Sounds（CC0）select_005・back_003 | 前の ui_open・ui_back と同じ | sfx |

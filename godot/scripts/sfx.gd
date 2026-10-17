@@ -8,7 +8,7 @@ const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"
 const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
 	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
 	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring", "step", "land", "whoosh", "whoosh_soft",
-	"ui_hover", "ui_press", "robot_tire", "robot_motor", "menu_open", "menu_close"]
+	"ui_hover", "ui_press", "robot_tire", "robot_motor", "robot_land", "menu_open", "menu_close"]
 const MAX_TAKES := 6
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
 const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back", "ui_hover", "ui_press", "menu_open", "menu_close"]

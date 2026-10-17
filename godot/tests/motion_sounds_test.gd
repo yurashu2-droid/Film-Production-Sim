@@ -155,6 +155,26 @@ func run() -> void:
 	game.input_locked = true
 	await frames(90)
 	check(tire != null and not tire.playing and not motor.playing, "止まると、車輪とモーターの音が止む")
+	# 走りながら跳んで降りると「ガタッ」（人の着地音ではない）。モーターは一瞬止まって、戻る
+	game.input_locked = false
+	Input.action_press("move_forward")
+	await frames(40)
+	heard.clear()
+	Input.action_press("jump")
+	await frames(3)
+	Input.action_release("jump")
+	var stalled := false
+	for i in 80:
+		await physics_frame
+		if count("robot_land") > 0 and motor != null and motor.volume_db < -50.0:
+			stalled = true
+	await frames(30)
+	var revived: bool = motor != null and motor.playing and motor.volume_db > -45.0
+	Input.action_release("move_forward")
+	game.input_locked = true
+	check(count("robot_land") == 1 and count("land") == 0, "ロボットが跳んで降りると「ガタッ」が1回（人の着地音は鳴らない）")
+	check(stalled and revived, "着地でモーターが一瞬止まり、また鳴り出す")
+	await frames(60)
 
 	# 画面のボタン：乗せると「カチ」、押すと「カシャッ」。自分で鳴らすボタン（own_sfx）は鳴らさない
 	heard.clear()
