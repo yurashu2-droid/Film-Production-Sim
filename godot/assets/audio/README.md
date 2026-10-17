@@ -50,7 +50,7 @@ BGM。それ以外も、下の効果音ラボの音が無い環境では合成�
 
 | 音 | 元ファイル | 加工 |
 |---|---|---|
-| explosion 爆発（2種） | bomb4 / bomb3 ＋ big-explosion1 | ドカーンを主音に、大爆発の低い余韻（900Hz以上を削る）を重ねる |
+| explosion・explosion_big・explosion_huge 爆発（火薬の量で ふつう・大・超大。空は explosion_fizzle） | bomb2（パン）・bomb3（胴鳴り）・big-explosion1（ゴー）・cliff-stone-falls1（小石）＋ UVI PSP Hot Rod Kit の kick（ドン）・snare・crash（シャー）＋ Kenney の木・板・軽い当たり（降る木片） | 鳴った瞬間がいちばん大きいよう層を重ねる（`build_sfx.gd` の `_explosions`）。大から上は木片がカラカラ降る、超大はシャーも。音を詰めて、ぱふ −19.5 → ふつう −17 → 大 −14 → 超大 −10dB（耳の重み・頭の1秒）。前の音は8割が150Hz以下の「ゴー」で一撃が無く、小さいスピーカーでは「ぱふっ」としか聞こえなかった（2026-10-17、聞き比べで決定） |
 | explosion_fizzle 不発 | matchstick-failure1 ＋ pafu1 | しけったマッチに、気の抜けたラッパ（0.84倍）を0.12秒遅らせて重ねる |
 | fuse 導火線（3種） | matchstick-failure1 | 頭の0.16秒の「シュッ」を、高さ 1.0／1.22／0.86倍で3つ。燃えている間、細かく鳴らしてパチパチに聞かせる（耳ではまだ確かめていない） |
 | roar 怪獣の鳴き声（2種） | dragon-cry1 / dragon-cry2 ＋ monster-footstep1 | 鳴き声に、足音の低い響き（300Hz以上を削る）をうっすら重ねる |

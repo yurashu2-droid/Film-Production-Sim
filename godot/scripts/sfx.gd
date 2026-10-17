@@ -8,8 +8,11 @@ const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"
 const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
 	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
 	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring", "step", "land", "whoosh", "whoosh_soft",
-	"ui_hover", "ui_press", "robot_tire", "robot_motor", "robot_land", "menu_open", "menu_close"]
+	"ui_hover", "ui_press", "robot_tire", "robot_motor", "robot_land", "menu_open", "menu_close",
+	"explosion_big", "explosion_huge"]
 const MAX_TAKES := 6
+# 無ければ代わりに鳴らす音（爆発の段階：大・超大 → ふつう）
+const ALIASES := {"explosion_big": "explosion", "explosion_huge": "explosion"}
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
 const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back", "ui_hover", "ui_press", "menu_open", "menu_close"]
 const PITCH_SPREAD := 0.06       # 鳴らすたびに高さを少しだけ変える（同じ音の繰り返しに聞こえないように）
@@ -79,6 +82,12 @@ func resynthesize() -> void:
 				_takes[sound] = list
 				_streams[sound] = list[0]
 				break
+	# 段階のある音は、上の段階の音が無い環境では、ふつうの音で鳴らす
+	for alias: String in ALIASES:
+		if not _streams.has(alias) and _streams.has(ALIASES[alias]):
+			_streams[alias] = _streams[ALIASES[alias]]
+			if _takes.has(ALIASES[alias]):
+				_takes[alias] = _takes[ALIASES[alias]]
 	_synth_music()
 	synth_ms = Time.get_ticks_msec() - t0
 

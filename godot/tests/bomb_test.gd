@@ -553,7 +553,9 @@ func run() -> void:
 	check(not game.judge.passed()[1] and bomb.loaded() and booms.is_empty(), "nothing happens until the fuse burns down")
 	await frames(130)
 	check(not bomb.loaded() and game.judge.boom_power == grade and grade == 2, "the explosion uses up the powder (grade %d)" % game.judge.boom_power)
-	check(booms.any(func(b: Array) -> bool: return b[0] == "explosion"), "it is a real blast this time")
+	# 本物の爆発の音は、火薬の量で explosion / explosion_big / explosion_huge のどれか（空は explosion_fizzle）
+	check(booms.any(func(b: Array) -> bool: return b[0] in ["explosion", "explosion_big", "explosion_huge"]), "it is a real blast this time")
+	check(booms.any(func(b: Array) -> bool: return b[0] == "explosion_big"), "a big charge (grade 2) sounds like a big blast")
 	await frames(60)
 	check(game.judge.passed()[1] and game.judge.boom_src == bomb.pid, "scene 2: the bomb goes off behind the pair")
 	game.h_cue(3)

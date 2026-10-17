@@ -1493,7 +1493,8 @@ func host_burst(box: RigidBody3D) -> void:
 		if judge.boom_src == box.pid and judge.boom_power == 0:
 			judge.boom_power = box.stage()
 	host_ev("burst", [pos, power if real else 0.0])
-	host_ev("sfx", ["explosion" if real else "explosion_fizzle", pos])
+	# 音も火薬の量で4段階：空・本番以外＝ぱふ / ふつう / 大 / 超大（tools/build_sfx.gd の _explosions）
+	host_ev("sfx", [["explosion_fizzle", "explosion", "explosion_big", "explosion_huge"][box.stage()] if real else "explosion_fizzle", pos])
 	if not real:
 		host_ev("toast", ["テスト発火（本番では周りを吹き飛ばす）" if state != S.TAKE else "火薬が入っていない。ポンと鳴っただけ", 0])
 		return

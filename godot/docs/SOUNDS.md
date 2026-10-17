@@ -10,7 +10,7 @@
 | 体の動き | 足音・着地・車輪のロボットの走る音（`features/motion_sounds.gd`） |
 | 物の扱い | 掴む（pickup）・置く（drop）・どすん（thump。特技で物が落ちる時だけ）・積む（load）・固定（fix）・外す（unfix）・風切り（whoosh・whoosh_soft） |
 | 撮影 | カチンコ（clap）・カウントダウン・合図（cue）・成功（success_fanfare） |
-| 仕掛け | 導火線（fuse）・爆発・不発・怪獣の鳴き声（roar）・突風（wind） |
+| 仕掛け | 導火線（fuse）・爆発（火薬の量で ぱふ・ふつう・大・超大の4段階）・怪獣の鳴き声（roar）・突風（wind） |
 | 移動 | 出発のエンジン（engine）・段差（bump）・門（gate） |
 | 画面 | 全部のボタンの乗せる・押す（ui_hover・ui_press）。開く・戻る・決定・失敗（ui_open など）は一部の操作で |
 | その他 | 電話（phone_ring）・拍手（applause） |

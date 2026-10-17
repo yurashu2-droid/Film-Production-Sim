@@ -190,6 +190,8 @@ func run() -> void:
 	check(count("ui_hover") == 1 and count("ui_press") == 1, "ボタンに乗せると ui_hover、押すと ui_press が1回ずつ鳴る")
 	button.queue_free()
 	quiet.queue_free()
+	# 爆発：火薬の量で3段階の音がある（空は「ぱふ」）。段階の音が無い環境でも、ふつうの爆発で鳴る
+	check(sfx.has_sound("explosion") and sfx.has_sound("explosion_big") and sfx.has_sound("explosion_huge") and sfx.has_sound("explosion_fizzle"), "爆発の音が、ぱふ・ふつう・大・超大の4段階ある")
 	# メニュー（Escape の一時メニューなど）：開くとページをめくる音、閉じると本を閉じる音
 	heard.clear()
 	game.open_menu("pause")

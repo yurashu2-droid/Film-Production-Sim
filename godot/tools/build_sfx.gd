@@ -16,6 +16,8 @@ const INTERFACE := "res://../tools/diagnostics/kenney_interface-sounds/Audio/"
 const UVI_WHOOSH := "res://../tools/diagnostics/uvi_whoosh/all_wav/"
 # UVI の robot を鍵60で2.5秒鳴らした音（作り方は assets/audio/README.md）
 const UVI_ROBOT := "res://../tools/diagnostics/uvi_misc/out_robot/robot_hold60.wav"
+# UVI の PSP Hot Rod Kit を1打ずつ鳴らした音（kick・snare・crash。強さ127）。爆発の「ドン」「シャー」に使う
+const UVI_KIT := "res://../tools/diagnostics/new_se/wav_x/"
 
 var _report: Array[String] = []
 var _out := OUT
@@ -47,6 +49,9 @@ func _init() -> void:
 	if FileAccess.file_exists(ProjectSettings.globalize_path(UVI_ROBOT)) and DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LAB)):
 		_out = OUT_LOCAL
 		_robot_roll()
+	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(UVI_KIT)) and DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LAB)):
+		_out = OUT_LOCAL
+		_explosions()
 	for line in _report:
 		print(line)
 	print("BUILD_SFX_OK ", _report.size())
@@ -473,6 +478,96 @@ func _robot_roll() -> void:
 		mix(b, normalized(lowpass(highpass(trim_head(cut(tools, rattle_at[i], rattle_at[i] + 0.25), 0.1), 300.0), 2500.0)), 0.02, 0.12)
 		fade_out(b, 0.25, 0.15)
 		save("robot_land", i, b, 0.62)
+
+
+# 爆発（火薬の量で3段階。空・本番以外は explosion_fizzle の「ぱふ」）。2026-10-17、聞き比べで決定。
+# 前の爆発（爆発4＋大爆発の余韻）は、8割が150Hz以下の「ゴー」で、いちばん大きいのが0.6〜1秒後。一撃が無く、
+# 低音の出ないスピーカーでは「ぱふっ」としか聞こえなかった。層を重ねて、鳴った瞬間がいちばん大きい音にする：
+#   パン（爆発2の頭の高い所）＋ドン（キックを低く）＋胴鳴り（爆発3を早く減らす）＋ゴー（大爆発の低い余韻）
+#   大から上は、撮影所の木片がカラカラ降る音（Kenney の木・板・軽い当たり＋崖の小石）、超大はシャー（シンバル）も
+# 聞こえ（耳の重み・頭の1秒）は、ぱふ −19.5 → ふつう −17.5 → 大 −14 → 超大 −10.5dB くらいで、段階ごとに約3.5dB大きくする
+func _explosions() -> void:
+	var crack := normalized(highpass(_faded(trim_head(src(LAB + "bomb2.mp3")), 0.12, 0.08), 250.0))
+	var punch := normalized(lowpass(pitch(trim_head(src(UVI_KIT + "kick.wav")), 0.6), 300.0))
+	var body := normalized(_decayed(_faded(trim_head(src(LAB + "bomb3.mp3")), 0.9, 0.3), 0.35))
+	var rumble := lowpass(_faded(cut(src(LAB + "big-explosion1.mp3"), 0.2, 2.4), 1.4, 0.8), 700.0)
+	for i in mini(int(0.15 * RATE), rumble.size()):
+		rumble[i] *= float(i) / (0.15 * RATE)
+	rumble = normalized(rumble)
+	var sizzle := normalized(highpass(_decayed(trim_head(src(UVI_KIT + "crash.wav")), 0.6), 2000.0))
+	var snap := normalized(pitch(trim_head(src(UVI_KIT + "snare.wav")), 0.8))
+	var pebbles := normalized(lowpass(cut(src(LAB + "cliff-stone-falls1.mp3"), 0.4, 2.4), 5000.0))
+	for i in pebbles.size():
+		pebbles[i] *= pow(1.0 - float(i) / pebbles.size(), 2.0)
+	# ふつう：ドカンと短く
+	var b := buf(2.2)
+	mix(b, crack, 0.0, 0.9)
+	mix(b, punch, 0.0, 1.0)
+	mix(b, body, 0.005, 0.8)
+	mix(b, rumble, 0.05, 0.35)
+	save("explosion", 0, _boom_end(b, 1.3), 0.85)
+	_drop_takes("explosion", 1)
+	# 大：ドカン＋木片が降る（2種）
+	for i in 2:
+		b = buf(2.6)
+		mix(b, crack, 0.0, 0.9)
+		mix(b, punch, 0.0, 1.0)
+		mix(b, body, 0.005, 0.8)
+		mix(b, rumble, 0.05, 0.35)
+		mix(b, _debris(7 + i, pebbles), 0.0, 1.0)
+		save("explosion_big", i, _boom_end(b, 2.2), 0.85)
+	# 超大：大きく長め＋木片＋シャー（2種）
+	for i in 2:
+		b = buf(3.2)
+		mix(b, crack, 0.0, 0.9)
+		mix(b, snap, 0.0, 0.4)
+		mix(b, punch, 0.0, 1.0)
+		mix(b, body, 0.005, 0.9)
+		mix(b, rumble, 0.05, 0.6)
+		mix(b, sizzle, 0.02, 0.25)
+		mix(b, _debris(17 + i, pebbles), 0.0, 1.0)
+		save("explosion_huge", i, _boom_end(b, 3.0), 0.9)
+
+
+# 撮影所の木片が0.35〜1.8秒にばらばらと降る音（14個。後ほど小さく）と、小石のパラパラ
+func _debris(seed_n: int, pebbles: PackedFloat32Array) -> PackedFloat32Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_n
+	var out := buf(3.2)
+	var kinds := ["impactWood_light", "impactPlank_medium", "impactGeneric_light"]
+	var times: Array[float] = []
+	for k in 14:
+		times.append(rng.randf_range(0.35, 1.8))
+	times.sort()
+	for t: float in times:
+		var x := pitch(src(IMPACT + "%s_%03d.ogg" % [kinds[rng.randi_range(0, 2)], rng.randi_range(0, 4)]), rng.randf_range(0.85, 1.25))
+		mix(out, normalized(x), t, 0.35 * rng.randf_range(0.35, 1.0) * (1.0 - 0.5 * (t - 0.35) / 1.45))
+	mix(out, pebbles, 0.35, 0.35 * 0.5)
+	return out
+
+
+# 終わりの0.3秒を消し、音を詰めて厚くする（drive が大きいほど、振れ幅は同じまま聞こえが大きい）
+func _boom_end(b: PackedFloat32Array, drive: float) -> PackedFloat32Array:
+	var f := int(0.3 * RATE)
+	for i in f:
+		var u := float(i) / f
+		b[b.size() - f + i] *= (1.0 - u) * (1.0 - u)
+	return saturate(normalized(b), drive)
+
+
+# fade_out の写し（元の波形を変えずに返す）
+func _faded(b: PackedFloat32Array, start: float, dur: float) -> PackedFloat32Array:
+	var out := b.duplicate()
+	fade_out(out, start, dur)
+	return out
+
+
+# 指数で減らす（tau 秒で 1/e）
+func _decayed(b: PackedFloat32Array, tau: float) -> PackedFloat32Array:
+	var out := b.duplicate()
+	for i in out.size():
+		out[i] *= exp(-float(i) / (tau * RATE))
+	return out
 
 
 # 風切り：UVI の「Whooshes」から、音程の無い（風らしい）鍵だけを選び、高さを少し上げて短くする。
