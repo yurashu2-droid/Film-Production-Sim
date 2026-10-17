@@ -86,6 +86,22 @@ BGM。それ以外も、下の効果音ラボの音が無い環境では合成�
 | whoosh 振る（4種） | sword-gesture2、whip-gesture1、punch-real-swing1 | 0.7〜0.8倍に下げ、200〜300Hz以下と0.9〜2.5kHz以上を削る。0.15秒で切る |
 | whoosh_soft 振り向く（3種） | punch-real-swing1、kick-real-swing3 | 0.7〜1.15倍、300Hz以下と4kHz以上を削る。0.34秒で切る |
 
+UVI（Prisma の「Whooshes」）から作った風切り（上の効果音ラボの whoosh・whoosh_soft を置き換える。公開リポジトリには入れない。出力は `sfx_local/`）：
+
+- 利用条件：UVI の利用許諾は、商用の作品での使用は追加料金なしで可。音そのもの（加工した物も含む）の単体での再配布・販売は禁止。
+  そのため素材も出力も公開しない（効果音ラボと同じ扱い）。ゲームの音として使えるかは、配布の前に UVI へ確かめる。
+- 素材の作り方：`tools/uvi_direct/uvi.cmd`（`.claude/skills/uvi-se/SKILL.md`）で、登録した音色 `whoosh` の鍵 36〜96 を1音ずつ
+  （長さ0.2秒・強さ120・余韻2.5秒・ピーク −3dB）`tools/diagnostics/uvi_whoosh/all_wav/k<鍵>.wav` に書き出す。
+  そのフォルダがあれば `build_sfx.gd` が whoosh・whoosh_soft を作り直す。
+- 選び方：鍵ごとに違う風切りが入っていて、多くは音程のある成分が強く、電子音に聞こえた（ユーザーの指摘、2026-10-17）。
+  スペクトルの目立つ山の強さを測り、雑音らしい13鍵（38・47・48・49・52・53・54・57・58・64・66・73・77）だけから選んだ。
+  聞き比べで「Whooshes らしさを残した」版が選ばれた。振り向きの鍵66は聞いて変だったので外した。
+
+| 音 | 鍵 | 加工 |
+|---|---|---|
+| whoosh 振る（4種） | 38、48、54、53 | 2.5倍（53は3倍）に上げ、200〜300Hz以下と1.6〜8kHz以上を削る。いちばん大きい所の0.08秒後から0.1秒で消す |
+| whoosh_soft 振り向く（2種） | 64、57 | 1倍・2倍。200〜300Hz以下を削る。いちばん大きい所の0.2秒後から0.2秒で消す |
+
 素材が無い環境の代わり（公開してよい。`sfx/`）：step・land は Kenney Impact Sounds（CC0）の footstep_concrete（着地は impactSoft_medium を低く重ねる）。
 whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯域で絞って作る。
 

@@ -12,6 +12,8 @@ const OUT_LOCAL := "res://assets/audio/sfx_local/"
 const IMPACT := "res://../tools/diagnostics/kenney_impact/Audio/"
 const LAB := "res://../tools/diagnostics/soundeffect_lab/"
 const INTERFACE := "res://../tools/diagnostics/kenney_interface-sounds/Audio/"
+# UVI（Prisma の「Whooshes」）を鍵ごとに1音ずつ書き出した音。作り方は assets/audio/README.md。再配布できないので出力は sfx_local
+const UVI_WHOOSH := "res://../tools/diagnostics/uvi_whoosh/all_wav/"
 
 var _report: Array[String] = []
 var _out := OUT
@@ -36,6 +38,10 @@ func _init() -> void:
 		_out = OUT_LOCAL
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_LOCAL))
 		_lab()
+	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(UVI_WHOOSH)):
+		_out = OUT_LOCAL
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_LOCAL))
+		_uvi_whooshes()
 	for line in _report:
 		print(line)
 	print("BUILD_SFX_OK ", _report.size())
@@ -372,6 +378,58 @@ func _step_hit(from: PackedFloat32Array, at: float, cutoff: float) -> PackedFloa
 	fade_out(b, 0.06, 0.08)
 	return b
 
+# 風切り：UVI の「Whooshes」から、音程の無い（風らしい）鍵だけを選び、高さを少し上げて短くする。
+# 効果音ラボの素材から作った風切りより好まれた（2026-10-17、聞き比べ。「Whooshes らしさを残した」版）。
+# 61鍵のうち、音程のある成分が強い鍵（電子音に聞こえる）は外した。振り向きの1種（鍵66）も、聞いて変だったので外した
+func _uvi_whooshes() -> void:
+	# [鍵, 高さ, これより低い音を削る Hz, これより高い音を削る Hz]
+	var swings := [[38, 2.5, 300.0, 2500.0], [48, 2.5, 300.0, 8000.0], [54, 2.5, 300.0, 2500.0], [53, 3.0, 200.0, 1600.0]]
+	for i in swings.size():
+		save("whoosh", i, _uvi_whoosh(swings[i], 0.08, 0.1), 0.75)
+	var soft := [[64, 1.0, 300.0, 8000.0], [57, 2.0, 200.0, 8000.0]]
+	for i in soft.size():
+		save("whoosh_soft", i, _uvi_whoosh(soft[i], 0.2, 0.2), 0.5)
+	_drop_takes("whoosh", swings.size())
+	_drop_takes("whoosh_soft", soft.size())
+
+
+# 鍵の音を高さ r にし、帯域を絞り、いちばん大きい所から hold 秒のあと fade 秒で消す
+func _uvi_whoosh(recipe: Array, hold: float, fade: float) -> PackedFloat32Array:
+	var b := trim_head(pitch(src(UVI_WHOOSH + "k%d.wav" % recipe[0]), recipe[1]))
+	var peak := peak_time(b)
+	b = lowpass(highpass(b, recipe[2]), recipe[3])
+	fade_out(b, peak + hold, fade)
+	return b
+
+
+# いちばん大きい所（0.01秒ごとの平均の強さ）の秒
+func peak_time(b: PackedFloat32Array) -> float:
+	var win := int(0.01 * RATE)
+	var best := 0.0
+	var at := 0
+	var i := 0
+	while i + win <= b.size():
+		var power := 0.0
+		for k in range(i, i + win):
+			power += b[k] * b[k]
+		if power > best:
+			best = power
+			at = i + win / 2
+		i += win / 4
+	return at / float(RATE)
+
+
+# 同じ名前の、count 番目より後の古いテイクを消す（種類を減らした時に、前の音が残って鳴らないように）
+func _drop_takes(name: String, count: int) -> void:
+	if _only != "" and name != _only:
+		return
+	for n in range(count, 8):
+		var path := ProjectSettings.globalize_path("%s%s_%d.res" % [_out, name, n])
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+			_report.append("SFX %s_%d を消した" % [name, n])
+
+
 # 素材の長さと、音が鳴っている区間を表示する（耳で聞けない代わりの下調べ）
 func _probe() -> void:
 	# 「-- --probe=<フォルダ>」で、別の素材フォルダも調べられる
@@ -438,7 +496,13 @@ func buf(sec: float) -> PackedFloat32Array:
 # 素材を読み、モノラルの波形にする
 func src(path: String) -> PackedFloat32Array:
 	var full := ProjectSettings.globalize_path(path)
-	var stream: AudioStream = AudioStreamMP3.load_from_file(full) if full.ends_with(".mp3") else AudioStreamOggVorbis.load_from_file(full)
+	var stream: AudioStream
+	if full.ends_with(".mp3"):
+		stream = AudioStreamMP3.load_from_file(full)
+	elif full.ends_with(".wav"):
+		stream = AudioStreamWAV.load_from_file(full)
+	else:
+		stream = AudioStreamOggVorbis.load_from_file(full)
 	if stream == null:
 		push_error("素材が読めない：" + full)
 		return buf(0.1)
