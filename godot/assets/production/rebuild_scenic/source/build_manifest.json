@@ -1,0 +1,254 @@
+[
+  {
+    "file": "S098_crane_tower_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 4268,
+    "blender_bounds_min": [
+      -1.285500168800354,
+      -0.7250000238418579,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2855000495910645,
+      0.7250000238418579,
+      3.194999933242798
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_crane",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S096_giant_clock_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 1508,
+    "blender_bounds_min": [
+      -0.6150000095367432,
+      -0.3569999933242798,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.6150000095367432,
+      0.3569999933242798,
+      2.8299999237060547
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_clock",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S090_bus_front_shell_rebuilt.glb",
+    "mesh_batches": 10,
+    "triangles": 1528,
+    "blender_bounds_min": [
+      -1.309999942779541,
+      -0.7074999809265137,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.309999942779541,
+      0.7074999809265137,
+      2.7750000953674316
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_bus",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S093_space_capsule_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 2092,
+    "blender_bounds_min": [
+      -0.949999988079071,
+      -0.973758339881897,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.949999988079071,
+      0.973758339881897,
+      2.5950000286102295
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_capsule",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S091_train_engine_front_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 3328,
+    "blender_bounds_min": [
+      -1.059999942779541,
+      -1.0425001382827759,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.059999942779541,
+      1.0425000190734863,
+      2.549999952316284
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_train",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S100_scenic_windmill_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 3776,
+    "blender_bounds_min": [
+      -1.331752061843872,
+      -0.90625,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.331752061843872,
+      0.9062500596046448,
+      3.211751937866211
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_windmill",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S089_car_front_shell_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 1641,
+    "blender_bounds_min": [
+      -1.125,
+      -1.0034849643707275,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.125,
+      1.0034849643707275,
+      1.6449999809265137
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_car_front_shell",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S092_rowboat_shell_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1484,
+    "blender_bounds_min": [
+      -0.8090000152587891,
+      -1.399999976158142,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.8090000152587891,
+      1.399999976158142,
+      0.7089999914169312
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_rowboat_shell",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S094_rickshaw_cart_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 2868,
+    "blender_bounds_min": [
+      -0.8139999508857727,
+      -1.25132155418396,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.8139999508857727,
+      1.25132155418396,
+      1.8600002527236938
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_rickshaw_cart",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S095_treasure_pedestal_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 336,
+    "blender_bounds_min": [
+      -0.550000011920929,
+      -0.550000011920929,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.550000011920929,
+      0.550000011920929,
+      1.281499981880188
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_treasure_pedestal",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S097_waterwheel_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 2892,
+    "blender_bounds_min": [
+      -1.1699999570846558,
+      -0.6725000143051147,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.1699999570846558,
+      0.6725000143051147,
+      2.434999942779541
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_waterwheel",
+    "style": "lower-poly"
+  },
+  {
+    "file": "S099_ticket_turnstile_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 764,
+    "blender_bounds_min": [
+      -1.0799999237060547,
+      -0.45500004291534424,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.0799999237060547,
+      0.45500004291534424,
+      1.3055000305175781
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_ticket_turnstile",
+    "style": "lower-poly"
+  },
+  {
+    "file": "X001_paper_mountain_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 42,
+    "blender_bounds_min": [
+      -0.9897016882896423,
+      -0.9881283044815063,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.9897016882896423,
+      0.9881282448768616,
+      1.3200000524520874
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_paper_mountain",
+    "style": "lower-poly"
+  },
+  {
+    "file": "X002_cardboard_bicycle_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 3776,
+    "blender_bounds_min": [
+      -0.2849999964237213,
+      -0.7949999570846558,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.2849999964237213,
+      0.7949999570846558,
+      0.8700000047683716
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_cardboard_bicycle",
+    "style": "lower-poly"
+  }
+]

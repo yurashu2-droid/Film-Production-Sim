@@ -1,0 +1,394 @@
+[
+  {
+    "file": "S034_folding_privacy_screen_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1160,
+    "blender_bounds_min": [
+      -0.9276291728019714,
+      -0.26059189438819885,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.9276292324066162,
+      0.2579687535762787,
+      1.8600000143051147
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_folding_privacy_screen",
+    "original_file": "S034_folding_privacy_screen",
+    "old_bounds_min": [
+      -0.9276291728019714,
+      -0.26059189438819885,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.9276292324066162,
+      0.2579687535762787,
+      1.8600000143051147
+    ]
+  },
+  {
+    "file": "S035_wardrobe_cabinet_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 932,
+    "blender_bounds_min": [
+      -0.75,
+      -0.42625001072883606,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.75,
+      0.42625001072883606,
+      2.179999828338623
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_wardrobe_cabinet",
+    "original_file": "S035_wardrobe_cabinet",
+    "old_bounds_min": [
+      -0.75,
+      -0.42625001072883606,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.75,
+      0.42625001072883606,
+      2.179999828338623
+    ]
+  },
+  {
+    "file": "S036_open_bookshelf_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 880,
+    "blender_bounds_min": [
+      -0.6500000357627869,
+      -0.20250000059604645,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.6500000357627869,
+      0.20250000059604645,
+      1.899999976158142
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_open_bookshelf",
+    "original_file": "S036_open_bookshelf",
+    "old_bounds_min": [
+      -0.6500000357627869,
+      -0.20250000059604645,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.6500000357627869,
+      0.20250000059604645,
+      1.899999976158142
+    ]
+  },
+  {
+    "file": "S037_filing_cabinet_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 784,
+    "blender_bounds_min": [
+      -0.32499998807907104,
+      -0.3725000023841858,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.32499998807907104,
+      0.3725000023841858,
+      1.2200000286102295
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_filing_cabinet",
+    "original_file": "S037_filing_cabinet",
+    "old_bounds_min": [
+      -0.32499998807907104,
+      -0.3725000023841858,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.32499998807907104,
+      0.3725000023841858,
+      1.2200000286102295
+    ]
+  },
+  {
+    "file": "S038_reception_desk_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 352,
+    "blender_bounds_min": [
+      -1.3815783262252808,
+      -0.5337055921554565,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.3815783262252808,
+      0.5337055921554565,
+      1.1150000095367432
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_reception_desk",
+    "original_file": "S038_reception_desk",
+    "old_bounds_min": [
+      -1.3815783262252808,
+      -0.5337055921554565,
+      0.0
+    ],
+    "old_bounds_max": [
+      1.3815783262252808,
+      0.5337055921554565,
+      1.1150000095367432
+    ]
+  },
+  {
+    "file": "S039_bulb_vanity_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 1800,
+    "blender_bounds_min": [
+      -0.6499999761581421,
+      -0.2750000059604645,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.6499999761581421,
+      0.2750000059604645,
+      1.7450000047683716
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_bulb_vanity",
+    "original_file": "S039_bulb_vanity",
+    "old_bounds_min": [
+      -0.6499999761581421,
+      -0.2750000059604645,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.6499999761581421,
+      0.2750000059604645,
+      1.7450000047683716
+    ]
+  },
+  {
+    "file": "S041_pedestal_sink_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1404,
+    "blender_bounds_min": [
+      -0.4000000059604645,
+      -0.30649998784065247,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4000000059604645,
+      0.30649998784065247,
+      1.0774999856948853
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_pedestal_sink",
+    "original_file": "S041_pedestal_sink",
+    "old_bounds_min": [
+      -0.4000000059604645,
+      -0.30649998784065247,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.4000000059604645,
+      0.30649998784065247,
+      1.0774999856948853
+    ]
+  },
+  {
+    "file": "S043_kitchen_stove_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1716,
+    "blender_bounds_min": [
+      -0.4650000035762787,
+      -0.4424999952316284,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4650000035762787,
+      0.4424999952316284,
+      1.0116506814956665
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_kitchen_stove",
+    "original_file": "S043_kitchen_stove",
+    "old_bounds_min": [
+      -0.4650000035762787,
+      -0.4424999952316284,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.4650000035762787,
+      0.4424999952316284,
+      1.0116506814956665
+    ]
+  },
+  {
+    "file": "S045_diner_booth_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 564,
+    "blender_bounds_min": [
+      -1.2549999952316284,
+      -0.8500000238418579,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2549999952316284,
+      0.8500000238418579,
+      1.2450000047683716
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_diner_booth",
+    "original_file": "S045_diner_booth",
+    "old_bounds_min": [
+      -1.2549999952316284,
+      -0.8500000238418579,
+      0.0
+    ],
+    "old_bounds_max": [
+      1.2549999952316284,
+      0.8500000238418579,
+      1.2450000047683716
+    ]
+  },
+  {
+    "file": "S046_upright_piano_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 3520,
+    "blender_bounds_min": [
+      -0.8450000286102295,
+      -0.45249998569488525,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.8450000286102295,
+      0.45249998569488525,
+      1.399999976158142
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_upright_piano",
+    "original_file": "S046_upright_piano",
+    "old_bounds_min": [
+      -0.8450000286102295,
+      -0.45249998569488525,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.8450000286102295,
+      0.45249998569488525,
+      1.399999976158142
+    ]
+  },
+  {
+    "file": "S047_hospital_bed_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1984,
+    "blender_bounds_min": [
+      -0.5774999856948853,
+      -1.059999942779541,
+      -1.847510588959267e-08
+    ],
+    "blender_bounds_max": [
+      0.5774999856948853,
+      1.059999942779541,
+      1.0649999380111694
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_hospital_bed",
+    "original_file": "S047_hospital_bed",
+    "old_bounds_min": [
+      -0.5774999856948853,
+      -1.059999942779541,
+      -1.847510588959267e-08
+    ],
+    "old_bounds_max": [
+      0.5774999856948853,
+      1.059999942779541,
+      1.0649999380111694
+    ]
+  },
+  {
+    "file": "S048_lectern_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 220,
+    "blender_bounds_min": [
+      -0.4300000071525574,
+      -0.3149999976158142,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4300000071525574,
+      0.3149999976158142,
+      1.2947967052459717
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_lectern",
+    "original_file": "S048_lectern",
+    "old_bounds_min": [
+      -0.4300000071525574,
+      -0.3149999976158142,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.4300000071525574,
+      0.3149999976158142,
+      1.2947967052459717
+    ]
+  },
+  {
+    "file": "S049_church_pew_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 368,
+    "blender_bounds_min": [
+      -1.225000023841858,
+      -0.39750000834465027,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.225000023841858,
+      0.3974999785423279,
+      1.1299999952316284
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_church_pew",
+    "original_file": "S049_church_pew",
+    "old_bounds_min": [
+      -1.225000023841858,
+      -0.39750000834465027,
+      0.0
+    ],
+    "old_bounds_max": [
+      1.225000023841858,
+      0.3974999785423279,
+      1.1299999952316284
+    ]
+  },
+  {
+    "file": "S050_standing_coatrack_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1544,
+    "blender_bounds_min": [
+      -0.3499999940395355,
+      -0.3499999940395355,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.3499999940395355,
+      0.3499999940395355,
+      1.9700000286102295
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_standing_coatrack",
+    "original_file": "S050_standing_coatrack",
+    "old_bounds_min": [
+      -0.3499999940395355,
+      -0.3499999940395355,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.3499999940395355,
+      0.3499999940395355,
+      1.9700000286102295
+    ]
+  }
+]

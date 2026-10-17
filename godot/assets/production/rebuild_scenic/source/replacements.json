@@ -1,0 +1,72 @@
+[
+  {
+    "kind": "scrap_crane",
+    "original_file": "S098_crane_tower",
+    "file": "S098_crane_tower_rebuilt"
+  },
+  {
+    "kind": "scrap_clock",
+    "original_file": "S096_giant_clock",
+    "file": "S096_giant_clock_rebuilt"
+  },
+  {
+    "kind": "scrap_bus",
+    "original_file": "S090_bus_front_shell",
+    "file": "S090_bus_front_shell_rebuilt"
+  },
+  {
+    "kind": "scrap_capsule",
+    "original_file": "S093_space_capsule",
+    "file": "S093_space_capsule_rebuilt"
+  },
+  {
+    "kind": "scrap_train",
+    "original_file": "S091_train_engine_front",
+    "file": "S091_train_engine_front_rebuilt"
+  },
+  {
+    "kind": "scrap_windmill",
+    "original_file": "S100_scenic_windmill",
+    "file": "S100_scenic_windmill_rebuilt"
+  },
+  {
+    "kind": "scrap_car_front_shell",
+    "original_file": "S089_car_front_shell",
+    "file": "S089_car_front_shell_rebuilt"
+  },
+  {
+    "kind": "scrap_rowboat_shell",
+    "original_file": "S092_rowboat_shell",
+    "file": "S092_rowboat_shell_rebuilt"
+  },
+  {
+    "kind": "scrap_rickshaw_cart",
+    "original_file": "S094_rickshaw_cart",
+    "file": "S094_rickshaw_cart_rebuilt"
+  },
+  {
+    "kind": "scrap_treasure_pedestal",
+    "original_file": "S095_treasure_pedestal",
+    "file": "S095_treasure_pedestal_rebuilt"
+  },
+  {
+    "kind": "scrap_waterwheel",
+    "original_file": "S097_waterwheel",
+    "file": "S097_waterwheel_rebuilt"
+  },
+  {
+    "kind": "scrap_ticket_turnstile",
+    "original_file": "S099_ticket_turnstile",
+    "file": "S099_ticket_turnstile_rebuilt"
+  },
+  {
+    "kind": "scrap_paper_mountain",
+    "original_file": "X001_paper_mountain",
+    "file": "X001_paper_mountain_rebuilt"
+  },
+  {
+    "kind": "scrap_cardboard_bicycle",
+    "original_file": "X002_cardboard_bicycle",
+    "file": "X002_cardboard_bicycle_rebuilt"
+  }
+]

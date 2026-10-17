@@ -1,0 +1,97 @@
+[
+  {
+    "kind": "scrap_newspaper",
+    "original_file": "P020_newspaper",
+    "file": "P020_newspaper_rebuilt"
+  },
+  {
+    "kind": "scrap_treasure_map",
+    "original_file": "P021_treasure_map",
+    "file": "P021_treasure_map_rebuilt"
+  },
+  {
+    "kind": "scrap_compass",
+    "original_file": "P022_compass",
+    "file": "P022_compass_rebuilt"
+  },
+  {
+    "kind": "scrap_potion_bottle",
+    "original_file": "P023_potion_bottle",
+    "file": "P023_potion_bottle_rebuilt"
+  },
+  {
+    "kind": "scrap_foam_sword",
+    "original_file": "P024_foam_sword",
+    "file": "P024_foam_sword_rebuilt"
+  },
+  {
+    "kind": "scrap_round_shield",
+    "original_file": "P025_round_shield",
+    "file": "P025_round_shield_rebuilt"
+  },
+  {
+    "kind": "scrap_star_wand",
+    "original_file": "P026_star_wand",
+    "file": "P026_star_wand_rebuilt"
+  },
+  {
+    "kind": "scrap_royal_scroll",
+    "original_file": "P028_royal_scroll",
+    "file": "P028_royal_scroll_rebuilt"
+  },
+  {
+    "kind": "scrap_spell_book",
+    "original_file": "P032_spell_book",
+    "file": "P032_spell_book_rebuilt"
+  },
+  {
+    "kind": "scrap_spyglass",
+    "original_file": "P033_spyglass",
+    "file": "P033_spyglass_rebuilt"
+  },
+  {
+    "kind": "scrap_adventure_satchel",
+    "original_file": "P034_adventure_satchel",
+    "file": "P034_adventure_satchel_rebuilt"
+  },
+  {
+    "kind": "scrap_banana_peel",
+    "original_file": "P040_banana_peel",
+    "file": "P040_banana_peel_rebuilt"
+  },
+  {
+    "kind": "scrap_giant_sandwich",
+    "original_file": "P041_giant_sandwich",
+    "file": "P041_giant_sandwich_rebuilt"
+  },
+  {
+    "kind": "scrap_pie",
+    "original_file": "P042_cream_pie",
+    "file": "P042_cream_pie_rebuilt"
+  },
+  {
+    "kind": "scrap_chicken",
+    "original_file": "P043_rubber_chicken",
+    "file": "P043_rubber_chicken_rebuilt"
+  },
+  {
+    "kind": "scrap_duck",
+    "original_file": "P049_rubber_duck",
+    "file": "P049_rubber_duck_rebuilt"
+  },
+  {
+    "kind": "scrap_poop",
+    "original_file": "J001_rubber_poop",
+    "file": "J001_rubber_poop_rebuilt"
+  },
+  {
+    "kind": "scrap_torch",
+    "original_file": "P030_fake_torch",
+    "file": "P030_fake_torch_rebuilt"
+  },
+  {
+    "kind": "scrap_idol",
+    "original_file": "P031_ancient_idol",
+    "file": "P031_ancient_idol_rebuilt"
+  }
+]
