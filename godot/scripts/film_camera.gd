@@ -3,6 +3,13 @@ extends "res://scripts/prop.gd"
 
 const VIEW_SIZE := Vector2i(1280, 720)
 const HEAD_Y := 1.35
+const DROP := 1.30                # 三脚なし：カメラ本体を、三脚の頭の高さから床まで下げる分（三脚の頭の、カメラを載せる所の高さ）
+# 三脚なしのときに隠す、三脚の部品（脚・開き止め・頭の飾り）。首振り・上下の可動部（PIVOT_PAN_Z・PIVOT_TILT_X）は、見えない軸として残す
+const TRIPOD_PARTS := ["01_BOWL_CROWN", "PIVOT_LEG_01_SPLAY", "PIVOT_LEG_02_SPLAY", "PIVOT_LEG_03_SPLAY", "PIVOT_SPREADER_01", "PIVOT_SPREADER_02",
+	"PIVOT_SPREADER_03", "T06_TRIPOD_ROOT merged surfaces", "PIVOT_BOWL_LEVEL_XY merged surfaces", "PIVOT_PAN_Z merged surfaces", "PIVOT_PAN_LOCK_Z",
+	"PIVOT_TILT_LOCK_X", "PIVOT_PAN_BAR_X", "PIVOT_QR_LOCK_X", "PIVOT_TILT_X merged surfaces", "SLIDE_QUICK_RELEASE_PLATE_Y merged surfaces"]
+var tripod := true                # 三脚に載っているか（会社のアップグレード。features/camera_kit.gd が決める）
+var head_y := HEAD_Y              # レンズの高さ（三脚なしなら、床から少し上）
 const FOV_MIN := 18.0
 const FOV_MAX := 75.0
 const PropShapes := preload("res://scripts/prop_shapes.gd")
@@ -113,6 +120,7 @@ func build() -> void:
 
 	# 当たり判定と重心は表（prop_shapes.gd）：三脚の広がりに合わせた段々の円柱と、雲台・カメラの箱
 	PropShapes.build(self, kind)
+
 
 	view = SubViewport.new()
 	view.size = VIEW_SIZE
@@ -226,3 +234,56 @@ func _apply_extra(s: Array) -> void:
 	cam_yaw = s[3]
 	cam_pitch = s[4]
 	fov = s[5]
+
+
+# 三脚に載せる・外す（全員の画面で同じに呼ぶ）。外すと、三脚の部品を隠し、カメラ本体を床まで下げて、当たり判定を本体の箱にする。
+# 向きの操作（首振り・上下）は、そのまま使える（見えない軸が残っている）
+func set_tripod(on: bool) -> void:
+	if on == tripod:
+		return
+	tripod = on
+	for part: String in TRIPOD_PARTS:
+		var node: Node3D = visual.find_child(part, true, false)
+		if node != null:
+			node.visible = on
+	visual.position.y = 0.0 if on else -DROP
+	head_y = HEAD_Y if on else HEAD_Y - DROP
+	for child: Node in get_children():
+		if child is CollisionShape3D:
+			remove_child(child)
+			child.queue_free()
+	if on:
+		mass = 14.0
+		center = Vector3(0, 0.7, 0)
+		half = Vector3(0.45, 0.75, 0.45)
+		hold_min = 1.4
+		PropShapes.build(self, kind)
+	else:
+		# カメラ本体だけ：本体の外形の箱ひとつ（段ボールの上に載せる・手で持つ）
+		var box := _body_bounds()
+		mass = 5.0
+		center = box.get_center()
+		half = box.size * 0.5
+		hold_min = maxf(1.0, half.z + 0.8)
+		center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+		center_of_mass = center
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = box.size * 0.96
+		shape.shape = bs
+		shape.position = center
+		add_child(shape)
+
+
+# カメラ本体（三脚の部品を除く）の外形（この物の座標）
+func _body_bounds() -> AABB:
+	var out := AABB()
+	var first := true
+	var mount: Node3D = visual.find_child("ATTACH_C04_CAMERA_ROOT", true, false)
+	for mi: MeshInstance3D in mount.find_children("*", "MeshInstance3D", true, false):
+		if not mi.is_visible_in_tree():
+			continue
+		var b: AABB = (global_transform.affine_inverse() * mi.global_transform) * mi.get_aabb()
+		out = b if first else out.merge(b)
+		first = false
+	return out

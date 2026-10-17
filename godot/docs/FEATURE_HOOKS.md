@@ -82,7 +82,7 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 登録してある仕組み：`adhesive`（接着剤）・`cue_cards`（カンペ・等身大パネル）・`cargo_kit`（箱とロープ）・`bomb_kit`（爆弾の道具）・
 `beats`（5場面の台本）・`rope_grab`（ロープをつかむ）・`talent`（特技）・`director`（監督の机）。
 これらは `production_main.gd` の `_ready()` で作っている（物を作る順番が決まっているため）。
-`scripts/features/` に置いてある仕組み：`online_room`・`premiere`（試写会）・`psychic_hold`・`spectacle`（見ごたえ）・`signboard`（CMの手描きの看板）・`debut_calls`（CMのあとの電話）・`office_facade`（書割の社屋の切り欠き）・`stand_ins`（役に入る・役者を雇う）・`contraptions`（仕掛け：結ぶ・滑車・ボタン・点火トーチ・目覚まし時計・送風機）・`boulder`（張りぼての大岩）・`job_props`（依頼主が用意する物を、廃材置き場に出す）・`night_filter`（夜用フィルター。付けたカメラの映像を夜にする）・`backdrop`（背景フィルム缶。入れたカメラの映像の緑の所を、城・宇宙・海に置き換える）・`start_day`（遊んで確かめる用。「-- --day2」で2日目から始める）・`junk_bags`（ゴミ袋・ブルーシートの包み。持って振ると、しまってある小道具・大道具が出てくる）。
+`scripts/features/` に置いてある仕組み：`online_room`・`premiere`（試写会）・`psychic_hold`・`spectacle`（見ごたえ）・`signboard`（CMの手描きの看板）・`debut_calls`（CMのあとの電話）・`office_facade`（書割の社屋の切り欠き）・`stand_ins`（役に入る・役者を雇う）・`contraptions`（仕掛け：結ぶ・滑車・ボタン・点火トーチ・目覚まし時計・送風機）・`boulder`（張りぼての大岩）・`job_props`（依頼主が用意する物を、廃材置き場に出す）・`night_filter`（夜用フィルター。付けたカメラの映像を夜にする）・`backdrop`（背景フィルム缶。入れたカメラの映像の緑の所を、城・宇宙・海に置き換える）・`start_day`（遊んで確かめる用。「-- --day2」で2日目から始める）・`junk_bags`（ゴミ袋・ブルーシートの包み。持って振ると、しまってある小道具・大道具が出てくる）・`camera_kit`（撮影カメラの三脚。会社の「カメラ」の段階で、三脚なし／三脚）。
 
 まだ中心のファイルに直接書いてある物（動きは同じ。移すときは、順番が変わらないことを確かめる）：
 接着剤・カンペ・特技の「あとから入った人への送り直し」（送る時が、ほかより早い）、特技と接着剤と机の画面の案内、

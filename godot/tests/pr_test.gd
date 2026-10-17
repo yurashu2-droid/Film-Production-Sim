@@ -64,10 +64,14 @@ func dump(tag: String) -> void:
 		" fx_in=", f.get("fx_in"), " behind=", f.get("fx_behind"), " close=", f.get("close"), " crew=", flow.notes.crew_in_frame(), " why=", beats.why)
 
 
-# 場面が撮れるまで待つ（最大 sec 秒）
+# 場面が撮れるまで待つ（最大 sec 秒）。PR_SHOTS を付けて画面ありで流すと、撮れた瞬間の撮影カメラの絵を保存する
 func wait_lit(i: int, sec: float) -> bool:
 	for k in int(sec * 60.0):
 		if i < beats.lit.size() and beats.lit[i]:
+			if OS.get_environment("PR_SHOTS") != "" and DisplayServer.get_name() != "headless":
+				await RenderingServer.frame_post_draw
+				DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/shots/tutorial/"))
+				game.film.view.get_texture().get_image().save_png("res://tests/shots/tutorial/pr_%d.png" % (i + 1))
 			return true
 		await physics_frame
 	dump("scene %d" % i)

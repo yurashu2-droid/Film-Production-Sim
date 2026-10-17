@@ -2104,7 +2104,7 @@ func h_sample() -> void:
 
 
 func _aim_camera(point: Vector3, fov: float) -> void:
-	var d: Vector3 = film.global_basis.inverse() * (point - (film.global_position + Vector3(0, film.HEAD_Y, 0)))
+	var d: Vector3 = film.global_basis.inverse() * (point - (film.global_position + Vector3(0, float(film.get("head_y")) if film.get("head_y") != null else film.HEAD_Y, 0)))
 	film.cam_yaw = atan2(-d.x, -d.z)
 	film.cam_pitch = atan2(d.y, Vector2(d.x, d.z).length())
 	film.fov = fov
