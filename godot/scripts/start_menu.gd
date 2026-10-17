@@ -4,6 +4,8 @@ const GAME_SCENE := preload("res://production_game.tscn")
 const UI := preload("res://scripts/ui/ui_theme.gd")
 const TitleSet := preload("res://scripts/title_set.gd")
 const StartTransition := preload("res://scripts/start_transition.gd")
+const GameSettings := preload("res://scripts/game_settings.gd")
+const Player := preload("res://scripts/player.gd")
 var _transition: CanvasLayer
 const StartupResources := preload("res://scripts/startup_resources.gd")
 var _startup_resources: Node
@@ -14,6 +16,12 @@ var host_button: Button
 var join_button: Button
 var address_input: LineEdit
 var connection_choice: OptionButton
+var settings_button: Button
+var quit_button: Button
+# 設定＝床の音響卓、ゲームを閉じる＝非常口の看板（3D は title_set.gd）。画面上の置き場所（ビューポートの座標）
+const MIXER_RECT := Rect2(LEFT + CASE_W + 26.0, 738, 176, 128)
+const EXIT_RECT := Rect2(LEFT + CASE_W + 226.0, 752, 150, 74)
+var _settings_layer: Control      # 設定の板（暗幕ごと）。開いている間だけ見せる
 var _canvas: CanvasLayer
 var _stage: Control
 var _diorama: SubViewportContainer
@@ -129,6 +137,13 @@ void fragment() {
 	root.add_child(connection_choice)
 	_connection_changed(0)
 
+	# 設定と、ゲームを閉じる：ケースの山の右の床に、音響卓と非常口の看板を置いてある。その上に見えないボタンを重ねる
+	settings_button = _object_button("設定", 0)
+	settings_button.pressed.connect(open_settings)
+	quit_button = _object_button("ゲームを閉じる", 1)
+	quit_button.pressed.connect(func(): get_tree().quit())
+	_build_settings(root)
+
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_canvas.visibility_changed.connect(func() -> void:
 		_diorama_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if _canvas.visible else SubViewport.UPDATE_DISABLED
@@ -145,6 +160,82 @@ const CASE_TOP := 492.0
 const CASE_W := 440.0
 const CASE_H := 68.0
 const SLOT_W := 252.0        # 3段目のケースの、IPアドレスを書く窓の幅
+
+
+
+# 設定の板：画面を暗くして、真ん中に音量のつまみ・全画面・マウスの感度を出す
+func _build_settings(root: Control) -> void:
+	_settings_layer = Control.new()
+	_settings_layer.name = "Settings"
+	_settings_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_settings_layer.visible = false
+	root.add_child(_settings_layer)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP      # 後ろのケースを押せないように
+	dim.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			close_settings())
+	_settings_layer.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settings_layer.add_child(center)
+	var panel := UI.panel("slate", 1.0, true, 32, 26)
+	panel.custom_minimum_size = Vector2(480, 0)
+	center.add_child(panel)
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 16)
+	panel.add_child(rows)
+	rows.add_child(UI.label("設定", 30, UI.CLAP_WHITE, "display"))
+	rows.add_child(GameSettings.build_rows())
+	rows.add_child(UI.hairline())
+	# マウスの感度（遊んでいる途中の一時メニューのつまみと同じ値）
+	Player.load_settings()
+	rows.add_child(UI.label("マウスの感度（左：ゆっくり　右：速い）", 16, UI.CLAP_WHITE, "bold"))
+	var sens := HSlider.new()
+	sens.name = "MouseSens"
+	sens.min_value = 0.2
+	sens.max_value = 3.0
+	sens.step = 0.05
+	sens.value = Player.sens_scale
+	sens.custom_minimum_size = Vector2(380, 28)
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(1, 1, 1, 0.22)
+	track.set_corner_radius_all(3)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	sens.add_theme_stylebox_override("slider", track)
+	sens.value_changed.connect(func(v: float): Player.set_sens(v))
+	rows.add_child(sens)
+	var close := Button.new()
+	close.name = "Close"
+	close.text = "閉じる"
+	UI.style_button(close, "tape", 20, 50)
+	close.pressed.connect(close_settings)
+	rows.add_child(close)
+
+
+func open_settings() -> void:
+	if _busy or _settings_layer.visible:
+		return
+	_settings_layer.visible = true
+	_film_set.enabled = false
+	UI.pop(_settings_layer)
+
+
+func close_settings() -> void:
+	if _settings_layer == null or not _settings_layer.visible:
+		return
+	_settings_layer.visible = false
+	_film_set.enabled = not _busy
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _settings_layer != null and _settings_layer.visible and event.is_action_pressed("ui_cancel"):
+		close_settings()
+		get_viewport().set_input_as_handled()
 
 
 func _gap(h: float) -> Control:
@@ -192,6 +283,30 @@ func _hit_button(text: String, index: int) -> Button:
 	return b
 
 
+# 音響卓・非常口の看板の上に重ねる、見えないボタン
+func _object_button(text: String, index: int) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.flat = true
+	for style: String in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(style, StyleBoxEmpty.new())
+	var focus := StyleBoxFlat.new()
+	focus.draw_center = false
+	focus.border_color = Color(1, 1, 1, 0.7)
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(3)
+	b.add_theme_stylebox_override("focus", focus)
+	for c: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
+		b.add_theme_color_override(c, Color(0, 0, 0, 0))
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.mouse_entered.connect(func() -> void: _film_set.set_extra_hover(index, true))
+	b.mouse_exited.connect(func() -> void: _film_set.set_extra_hover(index, b.has_focus()))
+	b.focus_entered.connect(func() -> void: _film_set.set_extra_hover(index, true))
+	b.focus_exited.connect(func() -> void: _film_set.set_extra_hover(index, false))
+	_root.add_child(b)
+	return b
+
+
 # ケースにはめ込んだ、書き込み用の窓
 func _style_slot(e: LineEdit) -> void:
 	var normal := StyleBoxFlat.new()
@@ -223,6 +338,7 @@ func _layout() -> void:
 	var join_x: float = (SLOT_W + 12.0 + (CASE_W - SLOT_W - 12.0) * 0.5) / CASE_W
 	var labels := ["ひとりで遊ぶ", "会社を開く", "番号で参加"] if _online() else ["ひとりで遊ぶ", "友達を招く（ホスト）", "友達の会社へ"]
 	_film_set.layout_cases(rects, ["primary", "dark", "dark"], labels, [0.5, 0.5, join_x])
+	_film_set.layout_extras([MIXER_RECT, EXIT_RECT])
 	_place_hits()
 
 
@@ -238,10 +354,19 @@ func _place_hits() -> void:
 			r = Rect2(r.position.x + SLOT_W + 6.0, r.position.y, r.size.x - SLOT_W - 6.0, r.size.y)
 		_hits[k].position = r.position
 		_hits[k].size = r.size
+	if _film_set.extras.size() == 2:
+		for k in 2:
+			var er: Rect2 = _film_set.extra_rect(k)
+			var hit: Button = settings_button if k == 0 else quit_button
+			hit.position = er.position
+			hit.size = er.size
 
 
 func _intro() -> void:
 	_intro_done = true
+	# タイトル画面の曲（UVI で作った曲。公開リポジトリには無いので、無ければ鳴らさない）
+	if Sfx.has_sound("music_title"):
+		Sfx.play_music("music_title", 1.2)
 	_stage.modulate.a = 0.0
 	_diorama.modulate = Color(0, 0, 0, 1)
 	var tw := create_tween().set_parallel(true)
@@ -258,6 +383,10 @@ func _set_busy(on: bool) -> void:
 	join_button.disabled = on
 	address_input.editable = not on
 	connection_choice.disabled = on
+	settings_button.disabled = on
+	quit_button.disabled = on
+	if on:
+		close_settings()
 
 func _online() -> bool:
 	return connection_choice.selected == 0
@@ -306,6 +435,7 @@ func _join() -> void:
 func _process(delta: float) -> void:
 	if _film_set != null and _canvas != null and _canvas.visible:
 		_place_hits()
+		_film_set.set_mixer_levels([GameSettings.volume["master"], GameSettings.volume["music"], GameSettings.volume["sfx"]])
 		if _root.size.x > 10.0:
 			_film_set.set_mouse((_root.get_local_mouse_position() / _root.size - Vector2(0.5, 0.5)) * 2.0)
 	if _joining:
@@ -379,6 +509,8 @@ func _finish_launch(send_hello: bool, host_requested: bool) -> void:
 			return
 	launching_game.input_locked = true
 	launching_game.process_mode = Node.PROCESS_MODE_INHERIT
+	if Sfx.current_music() == "music_title":
+		Sfx.stop_music(0.8)          # 画面を覆っている間に、タイトル画面の曲を消す
 	_canvas.visible = false
 	if send_hello:
 		launching_game.h_hello.rpc_id(1)

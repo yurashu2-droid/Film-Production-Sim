@@ -149,6 +149,7 @@ func _loop_player(pl: Node3D, sound: String) -> AudioStreamPlayer3D:
 	p.unit_size = 8.0
 	p.max_distance = 60.0
 	p.position = Vector3(0, 0.3, 0)
+	p.bus = "SFX"
 	pl.add_child(p)
 	return p
 

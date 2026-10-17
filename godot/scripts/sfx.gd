@@ -11,6 +11,13 @@ const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate"
 	"ui_hover", "ui_press", "robot_tire", "robot_motor", "robot_land", "menu_open", "menu_close",
 	"explosion_big", "explosion_huge"]
 const MAX_TAKES := 6
+# UVI の音色で作った曲（tools/bgm/bgm.py → godot/tools/build_music.gd）。UVI の利用条件で、音そのものの再配布はできないので
+# 公開リポジトリには無い（.gitignore 済み）。無い環境では、その曲は鳴らない（合成音の曲だけになる）
+const LOCAL_MUSIC_DIR := "res://assets/audio/music_local/"
+const LOCAL_MUSIC := ["title"]       # music_<名前> として読む
+# 曲ごとの音量の補正（dB）。UVI の曲は合成の曲より大きく作ってあるので、ここで下げる
+const MUSIC_TRIM := {"music_title": -8.0}
+const GameSettings := preload("res://scripts/game_settings.gd")
 # 無ければ代わりに鳴らす音（爆発の段階：大・超大 → ふつう）
 const ALIASES := {"explosion_big": "explosion", "explosion_huge": "explosion"}
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
@@ -49,14 +56,17 @@ var _amb_tween: Tween = null
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	GameSettings.apply_saved()      # 音の流れ（Music・SFX）を作り、保存した音量と全画面を戻す
 	for i in 2:
 		var mp: AudioStreamPlayer = AudioStreamPlayer.new()
 		mp.volume_db = SILENT_DB
+		mp.bus = "Music"
 		add_child(mp)
 		_music_players.append(mp)
 	for i in 2:
 		var ap := AudioStreamPlayer.new()
 		ap.volume_db = SILENT_DB
+		ap.bus = "SFX"
 		add_child(ap)
 		_amb_players.append(ap)
 	resynthesize()
@@ -89,6 +99,7 @@ func resynthesize() -> void:
 			if _takes.has(ALIASES[alias]):
 				_takes[alias] = _takes[ALIASES[alias]]
 	_synth_music()
+	_load_local_music()
 	synth_ms = Time.get_ticks_msec() - t0
 
 
@@ -145,6 +156,7 @@ func play(sound: String, position: Variant = null, volume_db: float = 0.0) -> vo
 		p3.stream = stream
 		p3.pitch_scale = pitch
 		p3.volume_db = volume_db
+		p3.bus = "SFX"
 		p3.unit_size = 8.0
 		p3.max_distance = 60.0
 		add_child(p3)
@@ -157,6 +169,7 @@ func play(sound: String, position: Variant = null, volume_db: float = 0.0) -> vo
 		p.stream = stream
 		p.pitch_scale = pitch
 		p.volume_db = volume_db
+		p.bus = "SFX"
 		add_child(p)
 		p.finished.connect(_on_oneshot_finished.bind(p))
 		_oneshots.append(p)
@@ -208,7 +221,8 @@ func play_music(track: String, fade_sec: float = 0.4) -> void:
 	var nw: AudioStreamPlayer = _music_players[_music_cur]
 	nw.stop()
 	nw.stream = _streams[track]
-	nw.volume_db = SILENT_DB if fade_sec > 0.0 else MUSIC_DB
+	var target_db: float = MUSIC_DB + float(MUSIC_TRIM.get(track, 0.0))
+	nw.volume_db = SILENT_DB if fade_sec > 0.0 else target_db
 	nw.play()
 	if fade_sec <= 0.0:
 		old.stop()
@@ -216,7 +230,7 @@ func play_music(track: String, fade_sec: float = 0.4) -> void:
 	_music_tween = create_tween()
 	_music_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_music_tween.set_parallel(true)
-	_music_tween.tween_property(nw, "volume_db", MUSIC_DB, fade_sec)
+	_music_tween.tween_property(nw, "volume_db", target_db, fade_sec)
 	if old.playing:
 		_music_tween.tween_property(old, "volume_db", SILENT_DB, fade_sec)
 		_music_tween.chain().tween_callback(old.stop)
@@ -510,6 +524,13 @@ func _synth_sfx() -> void:
 		_tone(b, 0.25 + k * 0.13, 0.25, _midi(88.0 - k * 3.0), 0.3, 0.002, 0.08, 0.06, -1.0, 0.0, 0.4)
 	_tone(b, 0.45, 1.1, _midi(62.0), 0.45, 0.02, 0.3, 0.0, _midi(46.0), 0.3, 0.0)
 	_streams["coin_drain"] = _finish(b, 0.55)
+
+
+func _load_local_music() -> void:
+	for name: String in LOCAL_MUSIC:
+		var path := LOCAL_MUSIC_DIR + name + ".res"
+		if ResourceLoader.exists(path):
+			_streams["music_" + name] = load(path)
 
 
 func _synth_music() -> void:
