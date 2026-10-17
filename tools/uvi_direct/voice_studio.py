@@ -1,4 +1,4 @@
-"""File-based save requests; only the main thread touches the VST3 plugin."""
+"""File-based save requests; editor and state access stay on the main thread."""
 import json
 import os
 import queue
@@ -7,6 +7,7 @@ import time
 import uuid
 
 from voice_registry import atomic_json, save_current_voice, voice_directory
+from voice_preview import preview_audio
 
 
 def live_session():
@@ -78,9 +79,11 @@ def run_studio(plugin):
     watcher = threading.Thread(target=watch, daemon=True)
     watcher.start()
     print('Choose a sound and wait for loading; run 02_register_current_voice.cmd to save it.', flush=True)
+    print('Click the UVI on-screen keyboard to audition through your default audio output.', flush=True)
     try:
         while True:
-            plugin.show_editor(close_editor)
+            with preview_audio(plugin):
+                plugin.show_editor(close_editor)
             try:
                 request_id = requests.get_nowait()
             except queue.Empty:

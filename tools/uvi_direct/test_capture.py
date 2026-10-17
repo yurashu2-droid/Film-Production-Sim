@@ -1,5 +1,6 @@
 """No GUI or licensed instrument is opened by these checks."""
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import struct
 import tempfile
@@ -75,6 +76,15 @@ class CaptureTests(unittest.TestCase):
         ready = threading.Event()
         results = []
         failures = []
+        preview_active = []
+
+        @contextmanager
+        def preview(plugin):
+            preview_active.append(True)
+            try:
+                yield
+            finally:
+                preview_active.pop()
 
         class Instrument:
             count = 0
@@ -83,9 +93,13 @@ class CaptureTests(unittest.TestCase):
             def preset_data(self):
                 if threading.get_ident() != main_thread:
                     raise AssertionError('VST3 state accessed from a background thread')
+                if preview_active:
+                    raise AssertionError('State saved while audio processing was active')
                 return preset()
 
             def show_editor(self, close_event):
+                if not preview_active:
+                    raise AssertionError('Editor opened without audio preview')
                 self.count += 1
                 if self.count == 1:
                     ready.set()
@@ -104,7 +118,8 @@ class CaptureTests(unittest.TestCase):
         thread = threading.Thread(target=client)
         thread.start()
         instrument = Instrument()
-        run_studio(instrument)
+        with patch('voice_studio.preview_audio', side_effect=preview):
+            run_studio(instrument)
         thread.join(4)
         self.assertFalse(thread.is_alive())
         self.assertEqual(failures, [])

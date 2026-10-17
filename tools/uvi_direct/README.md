@@ -8,6 +8,8 @@
 2. その画面で好きな音色を選び、**Loading Programが消えるまで待つ**。
 3. **`02_register_current_voice.cmd`** をダブルクリックする。
 
+音色は**画面下の鍵盤をクリックして試聴**できます。Windowsの既定のスピーカー／ヘッドホンへ出力します。追加パッケージやマイク入力は不要です。音が出ない古い登録画面が開いている場合は、×で閉じて`01_open_voice_editor.cmd`を開き直してください。
+
 現在の音色名とbankを自動で取得し、設定を保存して音色一覧に追加します。保存結果の`id`がClaudeやコードから呼ぶ名前です。ID入力やカタログの手編集は不要。実際に演奏する必要もありません。
 
 保存時はUVI画面が一瞬閉じて開き直ります。次の音色を選び、同じ登録バッチを実行すれば続けて登録できます。終了するときはUVI画面を閉じます。同じプリセットの再登録は保存済み設定を更新します。**登録対象は`01_open_voice_editor.cmd`から開いたUVI画面です。**
@@ -91,7 +93,7 @@ report = render(instrument, messages, end + 0.8, 48000, -3,
                 'output/uvi_direct/from_python.wav')
 ```
 
-同じ`instrument`で`render()`を繰り返せます。VST3はメインスレッドで操作してください。
+同じ`instrument`で`render()`を繰り返せます。VST3のロード・画面表示・設定取得はメインスレッドで操作してください。登録モードの試聴だけは専用スレッドで短い音声ブロックを処理し、設定取得前に停止します。
 
 ## 留意点
 
@@ -103,10 +105,10 @@ report = render(instrument, messages, end + 0.8, 48000, -3,
 ## 画面を使わない検証
 
 ```powershell
-python -m unittest discover -s tools/uvi_direct -p test_capture.py
+python -m unittest discover -s tools/uvi_direct -p "test_*.py"
 ```
 
-この検証はGUIやUVI本体を起動せず、自動命名・保存・一覧への反映・保存要求の受け渡しとメインスレッドでの状態取得を確認します。実機の画面上での選択操作や、別バージョンのUVIの動作まで保証するものではありません。
+この検証はGUIやUVI本体を起動せず、自動命名・保存・一覧への反映・保存要求の受け渡し、メインスレッドでの状態取得、試聴処理の出力と終了を確認します。加えて、このPCのUVI Player 5.0.0では画面鍵盤を操作し、試聴音声がAudioStreamの出力へ渡ることを確認済みです。別バージョンのUVIの動作まで保証するものではありません。
 
 参照：
 - https://spotify.github.io/pedalboard/reference/pedalboard.html

@@ -46,7 +46,7 @@ description: Use when creating or revising game sound effects with the locally i
 ユーザーは次の2つのバッチを使える。
 
 1. `tools/uvi_direct/01_open_voice_editor.cmd` で音色登録用のUVI画面を開く。
-2. その画面で音色を選び、Loading Programが消えるまで待つ。
+2. その画面で音色を選び、Loading Programが消えるまで待つ。画面下の鍵盤で試聴でき、Windowsの既定の音声出力へ再生される。
 3. `tools/uvi_direct/02_register_current_voice.cmd` を実行する。
 
 音色名・bankを現在のプラグイン設定から読み取り、自動でIDを割り当てて保存する。画面は保存時に閉じて自動で開き直り、次の音色も同じ方法で登録できる。演奏は不要。対象は`01_open_voice_editor.cmd`から開いた画面。終了するときはそのUVI画面を閉じる。
@@ -59,7 +59,7 @@ description: Use when creating or revising game sound effects with the locally i
 
 - まず短い試聴音を作り、用途に合う立ち上がり・長さ・余韻に整える。無音、クリッピング、音切れを確認する。
 - 初回の音色登録以外はコード経由の直接出力を使える。スピーカー録音や画面鍵盤クリックを毎回やり直す必要はない。
-- VST3はメインスレッドで呼ぶ。WindowsではVST3バンドル内部の実体をロードする。`uvi.cmd`がPythonとローカル依存パッケージを探す。
+- VST3のロード・画面表示・設定取得はメインスレッドで呼ぶ。登録画面の試聴処理は専用スレッドで行い、保存前に必ず停止する。WindowsではVST3バンドル内部の実体をロードする。`uvi.cmd`がPythonとローカル依存パッケージを探す。
 - 自動命名はUVI Player 5.0.0の保存形式で確認している。認識できない形式や複数パートの状態は登録せずエラーを返す。その場合は単一の音色を選んだ状態かを確認する。
 - iLokログインや管理者許可が必要な場合は本人へ引き継ぐ。既存の登録状態は通常そのまま使える。
 - UVI由来の単独SEの製品同梱は利用条件を確認する。試聴依頼だけでゲームへの組み込みや素材公開まで進めない。
