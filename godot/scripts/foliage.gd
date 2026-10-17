@@ -67,6 +67,27 @@ static func hedge(b: Look.Batch, pos: Vector3, size: Vector3, flowers := 0, kind
 		b.boxp(Look.Tint.new(petal.mat, Color("f6d65a")), p + Vector3(0, 0.03, 0), Vector3(0.035, 0.02, 0.035), Look.Batch.ALL)
 
 
+# 生け垣のアーチ：門形の芯の線（2本の足と、上の半円）に沿って茂みを並べる。
+# pos は足元の中央、w は芯の線の半分の幅（足の中心の x）、h は半円の中心の高さ、r は茂みの太さ、depth は奥行きの半分
+static func hedge_arch(b: Look.Batch, pos: Vector3, w: float, h: float, r: float, depth: float, kind := "hedge") -> void:
+	var rng := _rng(pos)
+	var greens: Array = GREENS.get(kind, GREENS["hedge"])
+	var step := r * 1.15
+	var spine: Array = []
+	for side in [-1.0, 1.0]:
+		var n := maxi(int((h - r * 0.8) / step), 1)
+		for k in n:
+			spine.append(pos + Vector3(side * w, r * 0.8 + (h - r * 0.8) * k / n, 0))
+	var arcs := maxi(int(PI * w / step), 2)
+	for k in arcs + 1:
+		var a := PI * k / arcs
+		spine.append(pos + Vector3(cos(a) * w, h + sin(a) * w, 0))
+	var stretch := Vector3(1.0, 1.0, depth / r)
+	for c: Vector3 in spine:
+		var at := c + Vector3(rng.randf_range(-0.04, 0.04), rng.randf_range(-0.04, 0.04), rng.randf_range(-0.03, 0.03)) * r * 2.0
+		_clump(b, rng, at, r * rng.randf_range(0.95, 1.08), at, greens, pos.y, pos.y + h + w + r, r * 0.85, stretch, 28, 0.6)
+
+
 # 木の植えます：低い縁石で囲んだ土と、草の房
 static func pit(b: Look.Batch, pos: Vector3, w: float) -> void:
 	var curb := Look.mat("concrete", Color("bdb7a6"))

@@ -4,6 +4,8 @@ extends "res://scripts/prop.gd"
 const Scrap := preload("res://scripts/production_scrap.gd")
 const PropShapes := preload("res://scripts/prop_shapes.gd")
 const Dump := preload("res://scripts/dump_dressing.gd")
+const Foliage := preload("res://scripts/foliage.gd")
+const Look := preload("res://scripts/production_look.gd")
 var active := false
 var _jaw: Node3D
 var _jaw_rest := Transform3D.IDENTITY
@@ -85,6 +87,8 @@ func _build_scrap(d: Dictionary) -> void:
 	rolls = false
 	visual = (load("res://assets/production/scrap/" + String(d["file"]) + ".glb") as PackedScene).instantiate() as Node3D
 	add_child(visual)
+	if d.has("leaves"):
+		_dress_leaves(d["leaves"])
 	source_bounds = _measure_visual()
 	var extent := maxf(source_bounds.size.x, maxf(source_bounds.size.y, source_bounds.size.z))
 	var factor: float = float(d["size"]) / extent
@@ -125,6 +129,19 @@ func _build_scrap(d: Dictionary) -> void:
 	# ゴミ袋・包みから出てくる物（"bag"）は、袋に入っていたので貼っていない
 	if not d.has("bag"):
 		Dump.sticker_on(self, visual)
+
+## 葉の付いた物：模型の平たい緑の部品を隠し、ゲーム内の植え込みと同じ作り（foliage.gd の葉の房）に置き換える。
+## 表（production_scrap.gd）の "leaves"：{"hide": 隠す部品の名前, "arch": [足の中心の x, 半円の中心の高さ, 太さ, 奥行きの半分]}（模型の寸法）
+func _dress_leaves(spec: Dictionary) -> void:
+	for nm: String in spec.get("hide", []):
+		var part := visual.get_node_or_null(nm) as Node3D
+		if part:
+			part.visible = false
+	if spec.has("arch"):
+		var a: Array = spec["arch"]
+		var b := Look.Batch.new()
+		Foliage.hedge_arch(b, Vector3.ZERO, a[0], a[1], a[2], a[3])
+		b.build(visual, "Leaves")
 
 func _add_collider(shape: Shape3D, at: Vector3) -> void:
 	var collider := CollisionShape3D.new()

@@ -339,6 +339,7 @@ const ITEMS := [
 	{"kind": "scrap_layered_pine", "file": "S067_layered_pine_rebuilt", "label": "モミの木（張りぼて）", "size": 2.0, "mass": 7.0,
 		"tags": [], "shape": "box", "com": 0.22, "pos": Vector2(220, 232), "yaw": PI, "bag": "large"},
 	{"kind": "scrap_hedge_arch", "file": "S069_hedge_arch_rebuilt", "label": "生け垣のアーチ", "size": 2.1, "mass": 9.0,
+		"leaves": {"hide": ["Broad_leaf_midgreen", "Young_leaf_lighter_green"], "arch": [1.0, 1.52, 0.3, 0.48]},
 		"tags": [], "shape": "arch", "com": 0.35, "pos": Vector2(224, 232), "yaw": PI, "bag": "large"},
 	{"kind": "scrap_scenic_pond", "file": "S071_scenic_pond", "label": "池の書割", "size": 1.9, "mass": 6.0,
 		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(228, 232), "yaw": PI, "bag": "large"},
@@ -381,7 +382,7 @@ const ITEMS := [
 	{"kind": "scrap_ticket_turnstile", "file": "S099_ticket_turnstile_rebuilt", "label": "改札の回転バー", "size": 1.3, "mass": 8.0,
 		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(244, 236), "yaw": PI, "bag": "large"},
 	# 素材に無い物は、tools/make_set_models.gd がコードで作った模型（張りぼての山・段ボールの自転車）
-	{"kind": "scrap_paper_mountain", "file": "X001_paper_mountain_rebuilt", "label": "張りぼての山", "size": 2.0, "mass": 9.0,
+	{"kind": "scrap_paper_mountain", "file": "X001_paper_mountain", "label": "張りぼての山", "size": 2.0, "mass": 9.0,
 		"tags": [], "shape": "box", "com": 0.3, "pos": Vector2(200, 244), "yaw": PI, "bag": "large"},
 	{"kind": "scrap_cardboard_bicycle", "file": "X002_cardboard_bicycle_rebuilt", "label": "段ボールの自転車", "size": 1.3, "mass": 3.0,
 		"tags": [], "shape": "box", "com": 0.35, "pos": Vector2(204, 244), "yaw": PI, "bag": "large"},
