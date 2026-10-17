@@ -5,6 +5,7 @@ extends Node
 ##   足音＝歩く・走る足が地面に着いた瞬間（左右の足のどちらが低いかが入れ替わった時）
 ##   着地＝跳んで降りた時
 ##   風切り＝物が急に速く動いた時（振る・持ったまま振り向く・投げる・吹き飛ぶ）。落ちる・倒れる・転がるだけでは鳴らさない
+##   車輪のロボット（M02）＝足音の代わりに、走っている間ずっと車輪とモーターの音。速さで音量と高さが変わる
 # 足音を鳴らす動き → 音量（dB）。走るほど大きく、しゃがみ歩きは小さく。
 # 参考の映像（足音は振りより約20dB小さい）に合わせて下げたら、遊んでみて「小さくしなくてよかった」となったので、この大きさ（2026-10-15）
 const STEP_CLIPS := {"walk": -15.0, "run": -9.0, "crouch_walk": -24.0, "run_start": -10.0, "run_stop": -8.0, "step_down": -10.0}
@@ -19,6 +20,9 @@ const SWISH_WARP := 30.0       # 1コマでこれより速く動いたのは、�
 const SWISH_TURN_WARP := 1.2   # 1コマで、これ（ラジアン）より回ったのも置き直し
 const SWISH_GRAB := 0.35       # 持った直後は手へ寄っていく動きなので、この秒数は鳴らさない
 const SWISH_MAX := 3           # 0.25秒の間に鳴らす風切りの数の上限（爆発で物がいっせいに飛んでも、うるさくしない）
+const ROLL_DB := -10.0         # 車輪のロボットが走る速さ（5.8m/秒）の時の、車輪とモーターの音量
+const ROLL_FULL := 5.8         # この速さで、いちばん大きく・高くなる
+const ROLL_PITCH := {"robot_tire": Vector2(0.8, 1.1), "robot_motor": Vector2(0.85, 1.15)}   # 止まりかけ〜全速の高さ
 
 var game: Node
 var steps := 0                 # 鳴らした数（確認用）
@@ -27,6 +31,7 @@ var swishes := 0
 var _feet := {}                # 人 → [どちらの足が低いか(-1=左/0=まだ/1=右), 最後の足音からの秒, 宙にいる秒]
 var _props := {}               # 物のID → [位置, 向き, 速さの記録 [Vector2(時刻, 速さ)...], 鳴らせるか, 半径, 持っている人, 持った時刻]
 var _recent: Array[float] = []
+var _rolls := {}               # 人 → [前の位置, なめらかにした速さ, 車輪の音, モーターの音]
 var _clock := 0.0
 
 
@@ -47,11 +52,14 @@ func _step_sounds(pl: Node, delta: float) -> void:
 	st[1] += delta
 	_feet[pl] = st
 	var vis: Node3D = pl.vis
-	if vis.tag == "M02" or pl.vehicle_riding():
-		st[0] = 0                  # 車輪のキャラ・車に乗っている人は、足音なし
+	var robot: bool = vis.tag == "M02"
+	var base: String = vis.current.trim_prefix("carry_").trim_prefix("onehand_")
+	if robot:
+		_roll_sound(pl, delta, not pl.vehicle_riding(), base != "jump")
+	if pl.vehicle_riding():
+		st[0] = 0                  # 車に乗っている人は、足音なし
 		st[2] = 0.0
 		return
-	var base: String = vis.current.trim_prefix("carry_").trim_prefix("onehand_")
 	if base == "jump":
 		st[2] += delta
 		st[0] = 0
@@ -61,7 +69,7 @@ func _step_sounds(pl: Node, delta: float) -> void:
 		Sfx.play("land", pl.global_position, lerpf(-9.0, -3.0, clampf((st[2] - LAND_AIR) / 0.6, 0.0, 1.0)))
 		st[1] = 0.0
 	st[2] = 0.0
-	if not STEP_CLIPS.has(base):
+	if robot or not STEP_CLIPS.has(base):
 		st[0] = 0
 		return
 	var left: Vector3 = vis.foot_position("L")
@@ -76,6 +84,49 @@ func _step_sounds(pl: Node, delta: float) -> void:
 		Sfx.play("step", left if side < 0 else right, STEP_CLIPS[base])
 		st[1] = 0.0
 	st[0] = side
+
+
+# ---- 車輪のロボットが走る音 ----
+
+# 車輪とモーターの音を、体に付けてくり返し鳴らす。速さ（位置の動きから測る。ほかの人のロボットも同じ）で音量と高さを変える。
+# 宙にいる間は、車輪の音だけ止める
+func _roll_sound(pl: Node3D, delta: float, active: bool, grounded: bool) -> void:
+	var r: Array = _rolls.get(pl, [])
+	if r.is_empty() or not is_instance_valid(r[2]):
+		if not Sfx.has_sound("robot_tire") or not Sfx.has_sound("robot_motor"):
+			return
+		r = [pl.global_position, 0.0, _loop_player(pl, "robot_tire"), _loop_player(pl, "robot_motor")]
+		_rolls[pl] = r
+	var pos: Vector3 = pl.global_position
+	var speed := Vector2(pos.x - (r[0] as Vector3).x, pos.z - (r[0] as Vector3).z).length() / delta
+	r[0] = pos
+	if speed > 20.0 or not active:
+		speed = 0.0                # 置き直し・車に乗っている間は鳴らさない
+	r[1] = lerpf(r[1], speed, clampf(delta * 8.0, 0.0, 1.0))
+	var k := clampf(float(r[1]) / ROLL_FULL, 0.0, 1.0)
+	for i in 2:
+		var p: AudioStreamPlayer3D = r[2 + i]
+		var on := k > 0.05 and not Sfx.muted and (grounded or i == 1)
+		if not on:
+			if p.playing:
+				p.stop()
+			continue
+		var span: Vector2 = ROLL_PITCH[p.name]
+		p.volume_db = ROLL_DB + linear_to_db(k)
+		p.pitch_scale = lerpf(span.x, span.y, k)
+		if not p.playing:
+			p.play(randf() * p.stream.get_length())
+
+
+func _loop_player(pl: Node3D, sound: String) -> AudioStreamPlayer3D:
+	var p := AudioStreamPlayer3D.new()
+	p.name = sound
+	p.stream = Sfx.get_stream(sound)
+	p.unit_size = 8.0
+	p.max_distance = 60.0
+	p.position = Vector3(0, 0.3, 0)
+	pl.add_child(p)
+	return p
 
 
 # ---- 風切り ----

@@ -136,6 +136,40 @@ func run() -> void:
 		me.aim_yaw += 0.01          # ゆっくり回すと鳴らない
 		await physics_frame
 	check(count("whoosh") + count("whoosh_soft") == 0, "ゆっくり回すと風切りは鳴らない")
+
+	# 車輪のロボット：走っている間、車輪とモーターの音がくり返し鳴る。止まると止む。足音は鳴らない
+	me.set_cast("M02")
+	me.aim_yaw = -PI * 0.5
+	await frames(20)
+	heard.clear()
+	game.input_locked = false
+	Input.action_press("move_forward")
+	await frames(90)
+	var tire: AudioStreamPlayer3D = me.get_node_or_null("robot_tire")
+	var motor: AudioStreamPlayer3D = me.get_node_or_null("robot_motor")
+	check(tire != null and motor != null and tire.playing and motor.playing, "車輪のロボットが走ると、車輪とモーターの音が鳴る")
+	if motor != null:
+		print("MOTION_SOUNDS_MEASURE ロボット：音量 %.1fdB 高さ %.2f" % [motor.volume_db, motor.pitch_scale])
+	check(count("step") == 0, "車輪のロボットは足音を鳴らさない")
+	Input.action_release("move_forward")
+	game.input_locked = true
+	await frames(90)
+	check(tire != null and not tire.playing and not motor.playing, "止まると、車輪とモーターの音が止む")
+
+	# 画面のボタン：乗せると「カチ」、押すと「カシャッ」。自分で鳴らすボタン（own_sfx）は鳴らさない
+	heard.clear()
+	var button := Button.new()
+	root.add_child(button)
+	button.mouse_entered.emit()
+	button.pressed.emit()
+	var quiet := Button.new()
+	quiet.set_meta("own_sfx", true)
+	root.add_child(quiet)
+	quiet.mouse_entered.emit()
+	quiet.pressed.emit()
+	check(count("ui_hover") == 1 and count("ui_press") == 1, "ボタンに乗せると ui_hover、押すと ui_press が1回ずつ鳴る")
+	button.queue_free()
+	quiet.queue_free()
 	print("MOTION_SOUNDS_MEASURE 鳴らした数：足音 %d・着地 %d・風切り %d" % [sounds.steps, sounds.lands, sounds.swishes])
 	print("MOTION_SOUNDS_TEST_FAIL" if failed else "MOTION_SOUNDS_TEST_OK")
 	sfx.silence_all()

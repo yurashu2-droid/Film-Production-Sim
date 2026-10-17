@@ -7,11 +7,16 @@ const SAMPLED_SFX := {"clap": preload("res://assets/audio/clapper_wood.tres")}
 const SAMPLE_DIRS := ["res://assets/audio/sfx_local/", "res://assets/audio/sfx/"]
 const SAMPLE_NAMES := ["pickup", "drop", "thump", "load", "fix", "unfix", "gate", "bump", "engine", "explosion",
 	"explosion_fizzle", "roar", "countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue",
-	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring", "step", "land", "whoosh", "whoosh_soft"]
+	"ui_select", "ui_open", "ui_back", "wind", "fuse", "applause", "phone_ring", "step", "land", "whoosh", "whoosh_soft",
+	"ui_hover", "ui_press", "robot_tire", "robot_motor"]
 const MAX_TAKES := 6
 # 合図や画面の音は、高さを変えると違う音に聞こえるので変えない
-const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back"]
+const FIXED_PITCH := ["countdown", "countdown_go", "success_fanfare", "ui_ok", "ui_fail", "cue", "engine", "ui_select", "ui_open", "ui_back", "ui_hover", "ui_press"]
 const PITCH_SPREAD := 0.06       # 鳴らすたびに高さを少しだけ変える（同じ音の繰り返しに聞こえないように）
+# 画面のボタン：全部のボタンで、マウスを乗せると「カチ」（ui_hover）、押すと「カシャッ」（ui_press）。
+# 自分で別の音を鳴らすボタンは、set_meta("own_sfx", true) を付けると鳴らさない
+const HOVER_DB := -10.0
+const PRESS_DB := -6.0
 
 signal played(sound: String, position: Variant)
 signal music_changed(track: String)
@@ -52,6 +57,7 @@ func _ready() -> void:
 		add_child(ap)
 		_amb_players.append(ap)
 	resynthesize()
+	get_tree().node_added.connect(_watch_button)
 
 
 func resynthesize() -> void:
@@ -75,6 +81,20 @@ func resynthesize() -> void:
 				break
 	_synth_music()
 	synth_ms = Time.get_ticks_msec() - t0
+
+
+# 画面に出たボタンに、乗せる・押す音を付ける
+func _watch_button(node: Node) -> void:
+	if not node is BaseButton or node.has_meta("ui_sfx"):
+		return
+	node.set_meta("ui_sfx", true)
+	var b := node as BaseButton
+	b.mouse_entered.connect(func() -> void:
+		if not b.disabled and not b.has_meta("own_sfx"):
+			play("ui_hover", null, HOVER_DB))
+	b.pressed.connect(func() -> void:
+		if not b.has_meta("own_sfx"):
+			play("ui_press", null, PRESS_DB))
 
 
 # ---------------------------------------------------------------- public API

@@ -14,6 +14,8 @@ const LAB := "res://../tools/diagnostics/soundeffect_lab/"
 const INTERFACE := "res://../tools/diagnostics/kenney_interface-sounds/Audio/"
 # UVI（Prisma の「Whooshes」）を鍵ごとに1音ずつ書き出した音。作り方は assets/audio/README.md。再配布できないので出力は sfx_local
 const UVI_WHOOSH := "res://../tools/diagnostics/uvi_whoosh/all_wav/"
+# UVI の robot を鍵60で2.5秒鳴らした音（作り方は assets/audio/README.md）
+const UVI_ROBOT := "res://../tools/diagnostics/uvi_misc/out_robot/robot_hold60.wav"
 
 var _report: Array[String] = []
 var _out := OUT
@@ -42,6 +44,9 @@ func _init() -> void:
 		_out = OUT_LOCAL
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_LOCAL))
 		_uvi_whooshes()
+	if FileAccess.file_exists(ProjectSettings.globalize_path(UVI_ROBOT)) and DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(LAB)):
+		_out = OUT_LOCAL
+		_robot_roll()
 	for line in _report:
 		print(line)
 	print("BUILD_SFX_OK ", _report.size())
@@ -165,6 +170,12 @@ func trim_head(b: PackedFloat32Array, level: float = 0.04) -> PackedFloat32Array
 # 戻る・失敗は低めにする。物音より小さく鳴らす
 
 func _interface() -> void:
+	# ボタンに乗せる・押す（全部のボタンで鳴る。scripts/sfx.gd）。効果音ラボの音が無い環境の代わり
+	var b0 := src(INTERFACE + "tick_002.ogg")
+	save("ui_hover", 0, b0, 0.4)
+	b0 = trim_head(src(INTERFACE + "toggle_001.ogg"))
+	fade_out(b0, 0.05, 0.04)
+	save("ui_press", 0, b0, 0.45)
 	# 選ぶ：ごく短い中くらいの高さの音（2種）
 	for i in 2:
 		var b := lowpass(src(INTERFACE + ["select_002.ogg", "select_007.ogg"][i]), 7000.0)
@@ -326,6 +337,7 @@ func _lab() -> void:
 	fade_out(b, 0.12, 0.15)
 	save("cue", 0, b, 0.55)
 	_lab_moves()
+	_lab_buttons()
 
 
 # 足音・着地・風切り。参考にしたゲーム映像（一人称で棒を持って走り回る）の音を測って合わせた：
@@ -377,6 +389,30 @@ func _step_hit(from: PackedFloat32Array, at: float, cutoff: float) -> PackedFloa
 	var b := trim_head(lowpass(cut(from, at - 0.04, at + 0.18), cutoff), 0.15)
 	fade_out(b, 0.06, 0.08)
 	return b
+
+# ボタンに乗せる「カチ」（パソコンのマウス）と、押す「カシャッ」（カメラのシャッター。撮影所らしく）。
+# 8通りの聞き比べで決めた（2026-10-17）。全部のボタンで鳴る（scripts/sfx.gd の _watch_button）
+func _lab_buttons() -> void:
+	var b := trim_head(lowpass(src(LAB + "click1.mp3"), 6000.0))
+	fade_out(b, 0.04, 0.04)
+	save("ui_hover", 0, b, 0.4)
+	b = trim_head(lowpass(src(LAB + "camera-shutter2.mp3"), 9000.0))
+	fade_out(b, 0.08, 0.06)
+	save("ui_press", 0, b, 0.45)
+
+
+# 車輪のロボット（M02）が走る音：小さな車輪の転がる音＋モーターの「ウイーン」。2つを同じ大きさで重ねて鳴らす
+# （聞き比べで、モーターを大きくした版に決めた。2026-10-17）。走っている間くり返し、速さで音量と高さを変える（features/motion_sounds.gd）
+func _robot_roll() -> void:
+	# 車輪：モノレールの走行音（タイヤの音）を1.6倍に上げて小さな車輪にし、150Hz以下と3.5kHz以上を削る
+	var tire := cut(src(LAB + "monorail-driving1.mp3"), 10.0, 14.0)
+	tire = lowpass(highpass(pitch(tire, 1.6), 150.0), 3500.0)
+	save_loop("robot_tire", tire, 0.1, 0.4)
+	# モーター：UVI の robot（Digital Motion Robot Slide）を鍵60で鳴らし、0.3〜1.3秒の所を使う
+	var motor := cut(src(UVI_ROBOT), 0.3, 1.3)
+	motor = lowpass(highpass(motor, 300.0), 5000.0)
+	save_loop("robot_motor", motor, 0.1, 0.3)
+
 
 # 風切り：UVI の「Whooshes」から、音程の無い（風らしい）鍵だけを選び、高さを少し上げて短くする。
 # 効果音ラボの素材から作った風切りより好まれた（2026-10-17、聞き比べ。「Whooshes らしさを残した」版）。
@@ -574,11 +610,11 @@ func fade_out(b: PackedFloat32Array, start: float, dur: float) -> void:
 	b.resize(e)
 
 
-# つなぎ目が分からないよう、終わりの1秒を頭へ重ねてから、くり返し再生の音として書き出す
-func save_loop(name: String, b: PackedFloat32Array, level: float) -> void:
+# つなぎ目が分からないよう、終わりの blend_sec 秒を頭へ重ねてから、くり返し再生の音として書き出す
+func save_loop(name: String, b: PackedFloat32Array, level: float, blend_sec: float = 1.0) -> void:
 	if _only != "" and name != _only:
 		return
-	var blend := RATE
+	var blend := int(blend_sec * RATE)
 	var n := b.size() - blend
 	var out := PackedFloat32Array()
 	out.resize(n)

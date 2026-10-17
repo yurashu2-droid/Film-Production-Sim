@@ -105,6 +105,21 @@ UVI（Prisma の「Whooshes」）から作った風切り（上の効果音ラ�
 素材が無い環境の代わり（公開してよい。`sfx/`）：step・land は Kenney Impact Sounds（CC0）の footstep_concrete（着地は impactSoft_medium を低く重ねる）。
 whoosh・whoosh_soft は Kenney に無いので、`build_sfx.gd` が雑音を帯域で絞って作る。
 
+## 全部のボタンの音（乗せる・押す）と、車輪のロボットの走る音
+
+- 鳴らし方：ボタンは `scripts/sfx.gd` の `_watch_button`。画面に出たボタン全部に、マウスを乗せると ui_hover（−10dB）、
+  押すと ui_press（−6dB）。自分で別の音を鳴らすボタンは `set_meta("own_sfx", true)`。
+  ロボットは `features/motion_sounds.gd` の `_roll_sound`。走っている間くり返し鳴らし、速さで音量（全速で −10dB）と高さ（0.8〜1.15倍）を変える。
+- 聞き比べで決めた（2026-10-17）：ボタンは8通りから「マウスとカメラのシャッター」。ロボットは「車輪＋モーター」で、モーターを車輪と同じ大きさに。
+
+| 音 | 元ファイル | 加工 | 置き場 |
+|---|---|---|---|
+| ui_hover 乗せる | 効果音ラボ click1（マウスのクリック） | 6kHz以上を削り、0.08秒で切る | sfx_local |
+| ui_press 押す | 効果音ラボ camera-shutter2（カメラのシャッター） | 9kHz以上を削り、0.14秒で切る | sfx_local |
+| ui_hover・ui_press（代わり） | Kenney Interface Sounds（CC0）tick_002・toggle_001 | 余韻を整える | sfx |
+| robot_tire 車輪 | 効果音ラボ monorail-driving1 の10〜14秒 | 1.6倍に上げて小さな車輪に。150Hz以下・3.5kHz以上を削り、0.4秒重ねてくり返しの音に | sfx_local |
+| robot_motor モーター | UVI robot（Digital Motion Robot Slide）を鍵60・2.5秒鳴らした音（`tools/diagnostics/uvi_misc/out_robot/robot_hold60.wav`）の0.3〜1.3秒 | 300Hz以下・5kHz以上を削り、0.3秒重ねてくり返しの音に | sfx_local |
+
 ## 画面の音（選ぶ・開く・戻る・決定・失敗）
 
 - 配布元・作者：[Kenney / Interface Sounds 1.0](https://kenney.nl/assets/interface-sounds)、Kenney。ライセンス：CC0（同梱・加工可能）。

@@ -182,14 +182,11 @@ func _hit_button(text: String, index: int) -> Button:
 	for c: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color", "font_disabled_color"]:
 		b.add_theme_color_override(c, Color(0, 0, 0, 0))
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	b.mouse_entered.connect(func() -> void:
-		_film_set.set_hover(index, true)
-		if not b.disabled:
-			Sfx.play("ui_select" if Sfx.has_sound("ui_select") else "pickup", null, -10.0))
+	# 乗せる・押す音は、全部のボタンと同じ（scripts/sfx.gd）
+	b.mouse_entered.connect(func() -> void: _film_set.set_hover(index, true))
 	b.mouse_exited.connect(func() -> void: _film_set.set_hover(index, b.has_focus()))
 	b.focus_entered.connect(func() -> void: _film_set.set_hover(index, true))
 	b.focus_exited.connect(func() -> void: _film_set.set_hover(index, false))
-	b.pressed.connect(func() -> void: Sfx.play("fix", null, -10.0))
 	_root.add_child(b)
 	_hits.append(b)
 	return b
