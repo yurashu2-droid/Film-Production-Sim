@@ -54,6 +54,8 @@ func view() -> Dictionary:
 			marks.append([] if disc.absent else [snappedf(disc.global_position.x, 0.25), snappedf(disc.global_position.z, 0.25)])
 	var actors: Array = []
 	for a: Node3D in game.actors:
+		if not a.present():
+			continue      # 出ていない役者（役者C・D は、使わない台本では地下で待っている）
 		actors.append([snappedf(a.global_position.x, 0.5), snappedf(a.global_position.z, 0.5)])
 	var passed: Array = []
 	if not (game.takes as Array).is_empty():

@@ -1822,7 +1822,8 @@ func _send_world() -> void:
 		_last_sent[pid] = packet
 		chunk[pid] = st
 		mounts[pid] = mount
-		if chunk.size() >= 7:
+		# 1通は通信の上限（MTU 1392バイト）に収める。役者4人分の状態と一緒に送るので、物は6個まで
+		if chunk.size() >= 6:
 			rx_world.rpc(chunk, acts, mounts)
 			chunk = {}
 			mounts = {}
