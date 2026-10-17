@@ -8,8 +8,13 @@ extends Node
 ##   車輪のロボット（M02）＝足音の代わりに、走っている間ずっと車輪とモーターの音。速さで音量と高さが変わる。
 ##     着地は「ガタッ」で、モーターの音が一瞬止まって、うなりながら戻る
 # 足音を鳴らす動き → 音量（dB）。走るほど大きく、しゃがみ歩きは小さく。
-# 参考の映像（足音は振りより約20dB小さい）に合わせて下げたら、遊んでみて「小さくしなくてよかった」となったので、この大きさ（2026-10-15）
-const STEP_CLIPS := {"walk": -15.0, "run": -9.0, "crouch_walk": -24.0, "run_start": -10.0, "run_stop": -8.0, "step_down": -10.0}
+# 参考の映像（足音は振りより約20dB小さい）に合わせて下げたら、遊んでみて「小さくしなくてよかった」（2026-10-15）。
+# その後、ロボットの音と比べて「人の音は倍くらいでいい」となり、+6dB（音の振れ幅で2倍）にした（2026-10-17）
+const STEP_CLIPS := {"walk": -9.0, "run": -3.0, "crouch_walk": -18.0, "run_start": -4.0, "run_stop": -2.0, "step_down": -4.0}
+const LAND_DB := Vector2(-3.0, 3.0)    # 人の着地の音量（宙にいた時間が短い〜長い）。足音と同じく+6dB
+# ロボットの音（走る音・着地）は、聞こえの大きさを人とそろえても、鳴りっぱなしの機械の音なので大きく聞こえた。
+# 「3分の1くらいでいい」となり、−9.5dB（音の振れ幅で1/3）にした（2026-10-17）
+const ROBOT_TRIM := -9.5
 const STEP_SWAP := 0.006       # 左右の足の高さの差（m）が、これを超えて入れ替わったら1歩
 const STEP_GAP := 0.14         # 1人の足音どうしの最短の間（秒）
 const LAND_AIR := 0.3          # これより長く宙にいたら、降りた時に着地の音
@@ -23,7 +28,7 @@ const SWISH_GRAB := 0.35       # 持った直後は手へ寄っていく動き�
 const SWISH_MAX := 3           # 0.25秒の間に鳴らす風切りの数の上限（爆発で物がいっせいに飛んでも、うるさくしない）
 # 車輪のロボットが走る速さ（5.8m/秒）の時の、車輪とモーターの音量。人の足音と同じ聞こえの大きさに合わせた
 # （耳の感じ方の重みで測って、走る人と全速、歩く人と歩く速さが、それぞれ同じくらい。2026-10-17）
-const ROLL_DB := -18.5
+const ROLL_DB := -18.5 + ROBOT_TRIM
 const ROLL_CURVE := 30.0       # 速さの割合 k のとき、音量は ROLL_DB + ROLL_CURVE×log10(k)（人の歩き・走りの差と同じ7dBほどの差）
 const ROLL_FULL := 5.8         # この速さで、いちばん大きく・高くなる
 const ROLL_STALL := 0.12       # 着地でモーターが止まっている秒
@@ -72,9 +77,9 @@ func _step_sounds(pl: Node, delta: float) -> void:
 		return
 	if st[2] >= LAND_AIR:
 		lands += 1
-		var land_db := lerpf(-9.0, -3.0, clampf((st[2] - LAND_AIR) / 0.6, 0.0, 1.0))
+		var land_db := lerpf(LAND_DB.x, LAND_DB.y, clampf((st[2] - LAND_AIR) / 0.6, 0.0, 1.0))
 		if robot and Sfx.has_sound("robot_land"):
-			Sfx.play("robot_land", pl.global_position, land_db)
+			Sfx.play("robot_land", pl.global_position, land_db + ROBOT_TRIM)
 			if _rolls.has(pl):
 				_rolls[pl][4] = 0.0
 		else:
