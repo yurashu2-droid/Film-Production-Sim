@@ -156,6 +156,15 @@ func audit_props(kinds: Array = ["scrap_chest","scrap_fridge"]) -> Dictionary:
 		elif String(expected.get("shape","box")) == "cyl":
 			if collider == null or not collider.shape is CylinderShape3D or not is_equal_approx(collider.shape.height,size.y) or not is_equal_approx(collider.shape.radius,minf(size.x,size.z)*0.5):
 				errors.append(kind+": cylinder collider no longer matches the measured prop")
+		elif String(expected.get("shape","box")) == "arch":
+			var colliders := body.find_children("*","CollisionShape3D",false,false)
+			var fractions := [Vector3(0.2,0.75,0.9),Vector3(0.2,0.75,0.9),Vector3(1,0.24,0.9)]
+			if colliders.size() != 3:
+				errors.append(kind+": arch collider count changed")
+			else:
+				for i in 3:
+					if not colliders[i].shape is BoxShape3D or not colliders[i].shape.size.is_equal_approx(size * fractions[i]):
+						errors.append(kind+": arch collider size changed")
 		elif collider == null or not collider.shape is BoxShape3D or not collider.shape.size.is_equal_approx(size * Vector3(0.97,1,0.97)):
 			errors.append(kind+": collider no longer matches the measured prop")
 		var anchor := body.visual.find_child("DisposalTicketAnchor",true,false) as Node3D
@@ -197,8 +206,8 @@ func show_fresh_pair(kind: String, rear: bool = false) -> void:
 	var extent: float = Scrap.find(kind).size
 	var old := make_prop(kind,false)
 	var fresh := make_prop(kind,true)
-	old.position.x = -extent * 0.68
-	fresh.position.x = extent * 0.68
+	old.position.x = extent * (0.68 if rear else -0.68)
+	fresh.position.x = extent * (-0.68 if rear else 0.68)
 	var center := Vector3(0,fresh.center.y,0)
 	camera.size = extent * 1.65
 	camera.position = center + Vector3(-1.3,0.9,-4 if rear else 4)
@@ -238,8 +247,8 @@ func show_asset_pair(kind: String, new_file: String, rear: bool = false) -> void
 	var extent: float = Scrap.find(kind).size
 	var old := make_prop(kind,false)
 	var fresh := make_prop(kind,true,new_file)
-	old.position.x = -extent * 0.68
-	fresh.position.x = extent * 0.68
+	old.position.x = extent * (0.68 if rear else -0.68)
+	fresh.position.x = extent * (-0.68 if rear else 0.68)
 	var center := Vector3(0,fresh.center.y,0)
 	camera.size = extent * 1.65
 	camera.position = center + Vector3(-1.3,0.9,-4 if rear else 4)

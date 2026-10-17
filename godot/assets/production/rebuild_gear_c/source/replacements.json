@@ -1,0 +1,102 @@
+[
+  {
+    "kind": "scrap_sewing_kit",
+    "original_file": "P092_sewing_kit",
+    "file": "P092_sewing_kit_rebuilt"
+  },
+  {
+    "kind": "scrap_pin_cushion",
+    "original_file": "P093_pin_cushion",
+    "file": "P093_pin_cushion_rebuilt"
+  },
+  {
+    "kind": "scrap_measuring_tape",
+    "original_file": "P095_measuring_tape",
+    "file": "P095_measuring_tape_rebuilt"
+  },
+  {
+    "kind": "scrap_prop_wrench",
+    "original_file": "P096_prop_wrench",
+    "file": "P096_prop_wrench_rebuilt"
+  },
+  {
+    "kind": "scrap_folding_step",
+    "original_file": "P097_folding_step",
+    "file": "P097_folding_step_rebuilt"
+  },
+  {
+    "kind": "scrap_first_aid_case",
+    "original_file": "P098_first_aid_case",
+    "file": "P098_first_aid_case_rebuilt"
+  },
+  {
+    "kind": "scrap_dustpan",
+    "original_file": "P099_dustpan",
+    "file": "P099_dustpan_rebuilt"
+  },
+  {
+    "kind": "scrap_popcorn_bucket",
+    "original_file": "P100_popcorn_bucket",
+    "file": "P100_popcorn_bucket_rebuilt"
+  },
+  {
+    "kind": "scrap_theater_curtain",
+    "original_file": "S076_theater_curtain",
+    "file": "S076_theater_curtain_rebuilt"
+  },
+  {
+    "kind": "scrap_backdrop_roller",
+    "original_file": "S077_backdrop_roller",
+    "file": "S077_backdrop_roller_rebuilt"
+  },
+  {
+    "kind": "scrap_scenery_wagon",
+    "original_file": "S078_scenery_wagon",
+    "file": "S078_scenery_wagon_rebuilt"
+  },
+  {
+    "kind": "scrap_rain_bar_rig",
+    "original_file": "S080_rain_bar_rig",
+    "file": "S080_rain_bar_rig_rebuilt"
+  },
+  {
+    "kind": "scrap_smoke_stack_rig",
+    "original_file": "S081_smoke_stack_rig",
+    "file": "S081_smoke_stack_rig_rebuilt"
+  },
+  {
+    "kind": "scrap_starship_console",
+    "original_file": "S082_starship_console",
+    "file": "S082_starship_console_rebuilt"
+  },
+  {
+    "kind": "scrap_fake_reactor",
+    "original_file": "S083_fake_reactor",
+    "file": "S083_fake_reactor_rebuilt"
+  },
+  {
+    "kind": "scrap_cartoon_boiler",
+    "original_file": "S084_cartoon_boiler",
+    "file": "S084_cartoon_boiler_rebuilt"
+  },
+  {
+    "kind": "scrap_pipe_valve_wall",
+    "original_file": "S085_pipe_valve_wall",
+    "file": "S085_pipe_valve_wall_rebuilt"
+  },
+  {
+    "kind": "scrap_conveyor_belt",
+    "original_file": "S086_conveyor_belt",
+    "file": "S086_conveyor_belt_rebuilt"
+  },
+  {
+    "kind": "scrap_vault_door",
+    "original_file": "S087_vault_door",
+    "file": "S087_vault_door_rebuilt"
+  },
+  {
+    "kind": "scrap_oversized_gear_wall",
+    "original_file": "S088_oversized_gear_wall",
+    "file": "S088_oversized_gear_wall_rebuilt"
+  }
+]

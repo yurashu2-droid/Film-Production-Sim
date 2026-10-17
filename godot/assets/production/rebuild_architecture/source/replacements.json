@@ -1,0 +1,117 @@
+[
+  {
+    "kind": "scrap_chimney",
+    "original_file": "S020_crooked_chimney",
+    "file": "S020_crooked_chimney_rebuilt"
+  },
+  {
+    "kind": "scrap_column",
+    "original_file": "S011_foam_column",
+    "file": "S011_foam_column_rebuilt"
+  },
+  {
+    "kind": "scrap_arch",
+    "original_file": "S010_freestanding_arch",
+    "file": "S010_freestanding_arch_rebuilt"
+  },
+  {
+    "kind": "scrap_hinged_door_wall",
+    "original_file": "S001_hinged_door_wall",
+    "file": "S001_hinged_door_wall_rebuilt"
+  },
+  {
+    "kind": "scrap_saloon_swing_doors",
+    "original_file": "S002_saloon_swing_doors",
+    "file": "S002_saloon_swing_doors_rebuilt"
+  },
+  {
+    "kind": "scrap_barred_cell_gate",
+    "original_file": "S003_barred_cell_gate",
+    "file": "S003_barred_cell_gate_rebuilt"
+  },
+  {
+    "kind": "scrap_barn_double_door",
+    "original_file": "S004_barn_double_door",
+    "file": "S004_barn_double_door_rebuilt"
+  },
+  {
+    "kind": "scrap_sliding_shoji",
+    "original_file": "S005_sliding_shoji",
+    "file": "S005_sliding_shoji_rebuilt"
+  },
+  {
+    "kind": "scrap_sash_window_wall",
+    "original_file": "S006_sash_window_wall",
+    "file": "S006_sash_window_wall_rebuilt"
+  },
+  {
+    "kind": "scrap_porthole_bulkhead",
+    "original_file": "S008_porthole_bulkhead",
+    "file": "S008_porthole_bulkhead_rebuilt"
+  },
+  {
+    "kind": "scrap_serving_hatch",
+    "original_file": "S009_serving_hatch",
+    "file": "S009_serving_hatch_rebuilt"
+  },
+  {
+    "kind": "scrap_timber_portal",
+    "original_file": "S012_timber_portal",
+    "file": "S012_timber_portal_rebuilt"
+  },
+  {
+    "kind": "scrap_straight_stair",
+    "original_file": "S013_straight_stair",
+    "file": "S013_straight_stair_rebuilt"
+  },
+  {
+    "kind": "scrap_turning_stair",
+    "original_file": "S014_turning_stair",
+    "file": "S014_turning_stair_rebuilt"
+  },
+  {
+    "kind": "scrap_access_ramp",
+    "original_file": "S015_access_ramp",
+    "file": "S015_access_ramp_rebuilt"
+  },
+  {
+    "kind": "scrap_trapdoor_platform",
+    "original_file": "S017_trapdoor_platform",
+    "file": "S017_trapdoor_platform_rebuilt"
+  },
+  {
+    "kind": "scrap_plank_bridge",
+    "original_file": "S018_plank_bridge",
+    "file": "S018_plank_bridge_rebuilt"
+  },
+  {
+    "kind": "scrap_gable_roof",
+    "original_file": "S019_gable_roof",
+    "file": "S019_gable_roof_rebuilt"
+  },
+  {
+    "kind": "scrap_scenic_fireplace",
+    "original_file": "S021_scenic_fireplace",
+    "file": "S021_scenic_fireplace_rebuilt"
+  },
+  {
+    "kind": "scrap_broken_arch",
+    "original_file": "S022_broken_arch",
+    "file": "S022_broken_arch_rebuilt"
+  },
+  {
+    "kind": "scrap_elevator_facade",
+    "original_file": "S023_elevator_facade",
+    "file": "S023_elevator_facade_rebuilt"
+  },
+  {
+    "kind": "scrap_folding_room_corner",
+    "original_file": "S024_folding_room_corner",
+    "file": "S024_folding_room_corner_rebuilt"
+  },
+  {
+    "kind": "scrap_sewer_entry",
+    "original_file": "S025_sewer_entry",
+    "file": "S025_sewer_entry_rebuilt"
+  }
+]

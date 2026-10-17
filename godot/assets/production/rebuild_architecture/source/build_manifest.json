@@ -1,0 +1,1037 @@
+[
+  {
+    "file": "S020_crooked_chimney_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 2080,
+    "blender_bounds_min": [
+      -0.4749999940395355,
+      -0.42500001192092896,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.47499996423721313,
+      0.42500001192092896,
+      2.0899999141693115
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_chimney",
+    "original_file": "S020_crooked_chimney",
+    "normalization_size": 1.1,
+    "mass_kg": 3.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.4749999940395355,
+        -0.42500001192092896,
+        0.0
+      ],
+      "max": [
+        0.4750000238418579,
+        0.42500001192092896,
+        2.0899999141693115
+      ]
+    },
+    "authoring_axis_fit": [
+      0.8962264060974121,
+      1.0493826866149902,
+      1.0502512454986572
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S011_foam_column_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 612,
+    "blender_bounds_min": [
+      -0.44999998807907104,
+      -0.44999998807907104,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.44999998807907104,
+      0.44999998807907104,
+      2.870000123977661
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_column",
+    "original_file": "S011_foam_column",
+    "normalization_size": 1.8,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.44999998807907104,
+        -0.44999998807907104,
+        0.0
+      ],
+      "max": [
+        0.44999998807907104,
+        0.44999998807907104,
+        2.869999885559082
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      0.9999999403953552
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S010_freestanding_arch_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1100,
+    "blender_bounds_min": [
+      -1.4000000953674316,
+      -0.3499999940395355,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.4000000953674316,
+      0.3499999940395355,
+      3.2970733642578125
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_arch",
+    "original_file": "S010_freestanding_arch",
+    "normalization_size": 2.2,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.4000000953674316,
+        -0.3499999940395355,
+        0.0
+      ],
+      "max": [
+        1.4000000953674316,
+        0.3499999940395355,
+        3.2970731258392334
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      1.0026376247406006
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S001_hinged_door_wall_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 1580,
+    "blender_bounds_min": [
+      -1.2000000476837158,
+      -0.4699999988079071,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2000000476837158,
+      0.4699999988079071,
+      2.5
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_hinged_door_wall",
+    "original_file": "S001_hinged_door_wall",
+    "normalization_size": 1.6,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2000000476837158,
+        -0.4700000286102295,
+        0.0
+      ],
+      "max": [
+        1.2000000476837158,
+        0.4699999690055847,
+        2.5
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S002_saloon_swing_doors_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1364,
+    "blender_bounds_min": [
+      -1.1800000667572021,
+      -0.4399999976158142,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.1800000667572021,
+      0.4399999976158142,
+      2.580000162124634
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_saloon_swing_doors",
+    "original_file": "S002_saloon_swing_doors",
+    "normalization_size": 1.9,
+    "mass_kg": 7.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.1799999475479126,
+        -0.4400000274181366,
+        0.0
+      ],
+      "max": [
+        1.1799999475479126,
+        0.4399999678134918,
+        2.5799999237060547
+      ]
+    },
+    "authoring_axis_fit": [
+      0.9999998807907104,
+      1.0,
+      0.9999998807907104
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S003_barred_cell_gate_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1076,
+    "blender_bounds_min": [
+      -1.100000023841858,
+      -0.4625000059604645,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.100000023841858,
+      0.4625000059604645,
+      2.5
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_barred_cell_gate",
+    "original_file": "S003_barred_cell_gate",
+    "normalization_size": 1.6,
+    "mass_kg": 9.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.100000023841858,
+        -0.4625000059604645,
+        0.0
+      ],
+      "max": [
+        1.100000023841858,
+        0.4624999761581421,
+        2.5
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9999999403953552,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S004_barn_double_door_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1540,
+    "blender_bounds_min": [
+      -1.5,
+      -0.4625000059604645,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.5,
+      0.4625000059604645,
+      2.700000047683716
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_barn_double_door",
+    "original_file": "S004_barn_double_door",
+    "normalization_size": 1.8,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.5,
+        -0.4625000059604645,
+        0.0
+      ],
+      "max": [
+        1.5,
+        0.4624999761581421,
+        2.700000047683716
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9999999403953552,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S005_sliding_shoji_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1564,
+    "blender_bounds_min": [
+      -1.2999999523162842,
+      -0.3725000023841858,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2999999523162842,
+      0.3725000023841858,
+      2.5
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_sliding_shoji",
+    "original_file": "S005_sliding_shoji",
+    "normalization_size": 1.6,
+    "mass_kg": 5.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2999999523162842,
+        -0.3725000023841858,
+        0.0
+      ],
+      "max": [
+        1.2999999523162842,
+        0.3725000023841858,
+        2.5
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S006_sash_window_wall_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1296,
+    "blender_bounds_min": [
+      -1.2000000476837158,
+      -0.5600000023841858,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2000000476837158,
+      0.5600000023841858,
+      2.4000000953674316
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_sash_window_wall",
+    "original_file": "S006_sash_window_wall",
+    "normalization_size": 1.5,
+    "mass_kg": 7.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2000000476837158,
+        -0.5600000023841858,
+        0.0
+      ],
+      "max": [
+        1.2000000476837158,
+        0.559999942779541,
+        2.4000000953674316
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9999999403953552,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S008_porthole_bulkhead_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 888,
+    "blender_bounds_min": [
+      -1.100000023841858,
+      -0.4675000011920929,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.100000023841858,
+      0.4675000011920929,
+      2.4000000953674316
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_porthole_bulkhead",
+    "original_file": "S008_porthole_bulkhead",
+    "normalization_size": 1.5,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.100000023841858,
+        -0.4675000309944153,
+        0.0
+      ],
+      "max": [
+        1.100000023841858,
+        0.4674999713897705,
+        2.4000000953674316
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S009_serving_hatch_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1112,
+    "blender_bounds_min": [
+      -1.2000000476837158,
+      -0.6707382798194885,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2000000476837158,
+      0.6770447492599487,
+      2.5
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_serving_hatch",
+    "original_file": "S009_serving_hatch",
+    "normalization_size": 1.6,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2000000476837158,
+        -0.6707382798194885,
+        0.0
+      ],
+      "max": [
+        1.2000000476837158,
+        0.6770447492599487,
+        2.5
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9596424698829651,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S012_timber_portal_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 528,
+    "blender_bounds_min": [
+      -1.5499999523162842,
+      -0.4000000059604645,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.5499999523162842,
+      0.4000000059604645,
+      2.7950000762939453
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_timber_portal",
+    "original_file": "S012_timber_portal",
+    "normalization_size": 2.2,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.5499999523162842,
+        -0.4000000059604645,
+        0.0
+      ],
+      "max": [
+        1.5499999523162842,
+        0.4000000059604645,
+        2.7950000762939453
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S013_straight_stair_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1496,
+    "blender_bounds_min": [
+      -0.6500000953674316,
+      -1.0587501525878906,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.6500000953674316,
+      1.0587499141693115,
+      2.276892900466919
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_straight_stair",
+    "original_file": "S013_straight_stair",
+    "normalization_size": 1.6,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.6500000953674316,
+        -1.0587501525878906,
+        0.0
+      ],
+      "max": [
+        0.6500000953674316,
+        1.0587499141693115,
+        2.276892900466919
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9760313630104065,
+      0.9993055462837219
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S014_turning_stair_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 2332,
+    "blender_bounds_min": [
+      -1.2000000476837158,
+      -0.9000000953674316,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2000000476837158,
+      0.8999999761581421,
+      2.504099130630493
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_turning_stair",
+    "original_file": "S014_turning_stair",
+    "normalization_size": 1.75,
+    "mass_kg": 12.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2000000476837158,
+        -0.9000000953674316,
+        0.0
+      ],
+      "max": [
+        1.2000000476837158,
+        0.8999999761581421,
+        2.504099130630493
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9729729890823364,
+      0.9740200042724609
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S015_access_ramp_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 900,
+    "blender_bounds_min": [
+      -0.8149999976158142,
+      -1.5,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.8149999976158142,
+      1.5,
+      1.6399781703948975
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_access_ramp",
+    "original_file": "S015_access_ramp",
+    "normalization_size": 2.0,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.8149999976158142,
+        -1.5,
+        0.0
+      ],
+      "max": [
+        0.8149999976158142,
+        1.5,
+        1.6399781703948975
+      ]
+    },
+    "authoring_axis_fit": [
+      0.9999998807907104,
+      1.0006458759307861,
+      0.9829545021057129
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S017_trapdoor_platform_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1120,
+    "blender_bounds_min": [
+      -1.2000000476837158,
+      -1.2000000476837158,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2000000476837158,
+      1.2000000476837158,
+      0.6673923134803772
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_trapdoor_platform",
+    "original_file": "S017_trapdoor_platform",
+    "normalization_size": 1.6,
+    "mass_kg": 10.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2000000476837158,
+        -1.2000000476837158,
+        0.0
+      ],
+      "max": [
+        1.2000000476837158,
+        1.2000000476837158,
+        0.6673923134803772
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      0.9931433200836182
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S018_plank_bridge_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1456,
+    "blender_bounds_min": [
+      -0.699999988079071,
+      -1.5500000715255737,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.699999988079071,
+      1.5500000715255737,
+      1.149999976158142
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_plank_bridge",
+    "original_file": "S018_plank_bridge",
+    "normalization_size": 2.0,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.699999988079071,
+        -1.5499999523162842,
+        0.0
+      ],
+      "max": [
+        0.699999988079071,
+        1.5499999523162842,
+        1.149999976158142
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      0.9999999403953552,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S019_gable_roof_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1044,
+    "blender_bounds_min": [
+      -1.5278551578521729,
+      -1.100000023841858,
+      0.006108664907515049
+    ],
+    "blender_bounds_max": [
+      1.5278551578521729,
+      1.100000023841858,
+      1.1228147745132446
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_gable_roof",
+    "original_file": "S019_gable_roof",
+    "normalization_size": 1.9,
+    "mass_kg": 9.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.5278551578521729,
+        -1.100000023841858,
+        0.006108664907515049
+      ],
+      "max": [
+        1.5278550386428833,
+        1.100000023841858,
+        1.1228147745132446
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0166972875595093,
+      0.9954752326011658,
+      0.9584288001060486
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S021_scenic_fireplace_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 976,
+    "blender_bounds_min": [
+      -0.949999988079071,
+      -0.5149999856948853,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.949999988079071,
+      0.5149999856948853,
+      1.5199999809265137
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_scenic_fireplace",
+    "original_file": "S021_scenic_fireplace",
+    "normalization_size": 1.2,
+    "mass_kg": 8.0,
+    "original_transformed_envelope": {
+      "min": [
+        -0.949999988079071,
+        -0.5149999856948853,
+        0.0
+      ],
+      "max": [
+        0.949999988079071,
+        0.5149999856948853,
+        1.5199999809265137
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0,
+      1.0,
+      0.9999999403953552
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S022_broken_arch_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1168,
+    "blender_bounds_min": [
+      -1.3799999952316284,
+      -0.5881792306900024,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.3799999952316284,
+      0.5881792306900024,
+      3.247062921524048
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_broken_arch",
+    "original_file": "S022_broken_arch",
+    "normalization_size": 2.3,
+    "mass_kg": 11.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.3799999952316284,
+        -0.5881792306900024,
+        0.0
+      ],
+      "max": [
+        1.3799999952316284,
+        0.5881792306900024,
+        3.2470626831054688
+      ]
+    },
+    "authoring_axis_fit": [
+      0.9857141971588135,
+      1.1883410215377808,
+      1.0064926147460938
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S023_elevator_facade_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1336,
+    "blender_bounds_min": [
+      -1.2999999523162842,
+      -0.4762499928474426,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2999999523162842,
+      0.4762499928474426,
+      2.799999952316284
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_elevator_facade",
+    "original_file": "S023_elevator_facade",
+    "normalization_size": 1.7,
+    "mass_kg": 9.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.3000000715255737,
+        -0.476250022649765,
+        0.0
+      ],
+      "max": [
+        1.3000000715255737,
+        0.47624996304512024,
+        2.799999952316284
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0000001192092896,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S024_folding_room_corner_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1228,
+    "blender_bounds_min": [
+      -1.2699999809265137,
+      -1.2637500762939453,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.2699998617172241,
+      1.2637499570846558,
+      2.5
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_folding_room_corner",
+    "original_file": "S024_folding_room_corner",
+    "normalization_size": 1.6,
+    "mass_kg": 9.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.2699999809265137,
+        -1.2637500762939453,
+        0.0
+      ],
+      "max": [
+        1.2699999809265137,
+        1.2637500762939453,
+        2.5
+      ]
+    },
+    "authoring_axis_fit": [
+      0.9999999403953552,
+      1.0,
+      1.0
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  },
+  {
+    "file": "S025_sewer_entry_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1200,
+    "blender_bounds_min": [
+      -1.149999976158142,
+      -0.7100000381469727,
+      0.0
+    ],
+    "blender_bounds_max": [
+      1.149999976158142,
+      0.7099999189376831,
+      2.2899999618530273
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_sewer_entry",
+    "original_file": "S025_sewer_entry",
+    "normalization_size": 1.5,
+    "mass_kg": 9.0,
+    "original_transformed_envelope": {
+      "min": [
+        -1.149999976158142,
+        -0.7100000381469727,
+        0.0
+      ],
+      "max": [
+        1.149999976158142,
+        0.7099999785423279,
+        2.2899999618530273
+      ]
+    },
+    "authoring_axis_fit": [
+      1.0360360145568848,
+      1.0,
+      1.0005574226379395
+    ],
+    "validation": {
+      "finite_vertices": true,
+      "closed_authored_shells": true,
+      "nondegenerate_faces": true,
+      "baked_transforms": true,
+      "original_vertex_envelope_error_max": 1e-05,
+      "godot_runtime": "parent integration pending"
+    }
+  }
+]

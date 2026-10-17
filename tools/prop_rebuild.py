@@ -23,6 +23,7 @@ def main():
     parser.add_argument('groups',nargs='*')
     parser.add_argument('--engine',type=Path)
     parser.add_argument('--catalog',action='store_true')
+    parser.add_argument('--include-retained',action='store_true',help='Also compare the ten already accepted models')
     args=parser.parse_args()
     data=load()
     if args.mode=='status':
@@ -56,6 +57,10 @@ def main():
         save(data)
         print('INTEGRATED',len(selected))
         return
+    if args.include_retained:
+        for row in data['entries']:
+            if row['status']=='retained':
+                selected.append((row,{'file':row['current_file']},'retained'))
     session=Session(project=ROOT/'godot',name='prop_rebuild_review',engine=args.engine)
     session.start('render')
     session.request({'op':'load','scene':'res://tools/refined_props_review.tscn'})
@@ -75,7 +80,7 @@ def main():
         if args.catalog:
             session.request({'op':'call','method':'save_catalog','args':[kinds]})
         for row,replacement,group in selected:
-            row.update(status='rebuilt',comparison='artifacts/props-refresh-all/'+group+'/'+row['kind']+'_comparison.png')
+            row.update(status='retained' if row['status']=='retained' else 'rebuilt',comparison='artifacts/props-refresh-all/'+group+'/'+row['kind']+'_comparison.png')
         save(data)
         gallery=['# 全モデル置き換えの比較\n','左が元モデル、右が新モデル。\n']
         for row in data['entries']:
