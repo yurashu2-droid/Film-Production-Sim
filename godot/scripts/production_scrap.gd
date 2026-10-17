@@ -41,7 +41,7 @@ const ITEMS := [
 	{"kind": "scrap_capsule", "file": "S093_space_capsule", "label": "宇宙カプセル", "size": 1.3, "mass": 6.0,
 		"tags": ["spaceship"], "shape": "box", "com": 0.35, "pos": Vector2(51.5, 28.5), "yaw": PI},
 	# --- 笑える・使い回せる大道具 ---
-	{"kind": "scrap_chest", "file": "P029_treasure_chest", "label": "お宝の箱", "size": 0.7, "mass": 5.0,
+	{"kind": "scrap_chest", "file": "P029_treasure_chest_refined", "label": "お宝の箱", "size": 0.7, "mass": 5.0,
 		"tags": ["treasure"], "shape": "box", "com": 0.4, "pos": Vector2(55.0, 28.5), "yaw": PI},
 	{"kind": "scrap_toilet", "file": "S042_cartoon_toilet", "label": "撮影用トイレ", "size": 0.9, "mass": 4.0,
 		"tags": ["gag"], "shape": "box", "com": 0.35, "pos": Vector2(58.0, 28.5), "yaw": PI},
@@ -68,7 +68,7 @@ const ITEMS := [
 		"tags": ["monster"], "shape": "box", "com": 0.3, "pos": Vector2(57.0, 35.5), "yaw": PI},
 	{"kind": "scrap_tub", "file": "S040_clawfoot_tub", "label": "猫足のバスタブ", "size": 1.3, "mass": 9.0,
 		"tags": ["gag"], "shape": "box", "com": 0.3, "pos": Vector2(60.5, 35.5), "yaw": PI},
-	{"kind": "scrap_fridge", "file": "S044_retro_refrigerator", "label": "レトロ冷蔵庫（中は空）", "size": 1.4, "mass": 9.0,
+	{"kind": "scrap_fridge", "file": "S044_retro_refrigerator_refined", "label": "レトロ冷蔵庫（中は空）", "size": 1.4, "mass": 9.0,
 		"tags": ["city"], "shape": "box", "com": 0.3, "pos": Vector2(44.5, 39.0), "yaw": PI},
 	{"kind": "scrap_vending", "file": "S059_vending_machine", "label": "自動販売機（張りぼて）", "size": 1.5, "mass": 9.0,
 		"tags": ["city"], "shape": "box", "com": 0.3, "pos": Vector2(47.5, 39.0), "yaw": PI},

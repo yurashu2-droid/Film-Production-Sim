@@ -346,6 +346,18 @@ static func sticker_on(prop: Node3D, visual: Node3D) -> void:
 			best_score = score
 			best = v
 			best_n = n
+	# 制作資料から作り直した物は、鍵穴や取っ手を隠さない位置をモデルに指定できる。
+	# マーカーの +Z が貼る面の外向き。通常の廃材はこれまでどおり自動配置する。
+	var anchor := visual.find_child("DisposalTicketAnchor", true, false) as Node3D
+	if anchor != null:
+		var authored := anchor.transform
+		var parent := anchor.get_parent() as Node3D
+		while parent != prop:
+			authored = parent.transform * authored
+			parent = parent.get_parent() as Node3D
+		best = authored.origin
+		best_n = authored.basis.z.normalized()
+		best_score = 0.0
 	if best_score == -INF:
 		return
 	var side := Vector3.UP.cross(best_n).normalized()
