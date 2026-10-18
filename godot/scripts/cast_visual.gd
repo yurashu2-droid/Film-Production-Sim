@@ -27,6 +27,7 @@ var grounding_enabled := bool(ProjectSettings.get_setting("animation/foot_ground
 		if is_instance_valid(_model):
 			_update_grounding()
 var _model: Node3D
+var _hand_props: SkeletonModifier3D        # 元から手に持っている小道具を外す（hand_props_hide.gd）
 var _foot_points: Dictionary = {}
 var _head := -1
 var _body := -1
@@ -52,6 +53,10 @@ func setup(cast_tag: String) -> void:
 	_setup_face()
 	_setup_transitions()
 	_setup_carry()
+	_hand_props = preload("res://scripts/hand_props_hide.gd").new()
+	_hand_props.name = "HandPropsHide"
+	skel.add_child(_hand_props)
+	_hand_props.setup(skel)
 	_setup_grounding()
 	skel.skeleton_updated.connect(_update_grounding)
 	play("idle")
@@ -208,6 +213,12 @@ func _update_grounding() -> void:
 		for point: Vector3 in _foot_points[bone]:
 			bottom = minf(bottom, y_axis.dot(point) + tr.origin.y)
 	_model.position.y = maxf(0.0, SOLE_CLEARANCE - bottom)
+
+
+# 元から手に持っている小道具（バラ・クリップボード・木づち・カチンコなど）を外す・戻す。物を持っている間は外す
+func hide_hand_props(on: bool) -> void:
+	if _hand_props != null and _hand_props.hidden != on:
+		_hand_props.hidden = on
 
 
 func has(a: String) -> bool:

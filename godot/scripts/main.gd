@@ -636,10 +636,16 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 
 
 # ---- 手持ち（小物を G で手に持つ。prop.gd の hand_held） ----
-const HAND_AT := Vector3(0.24, -0.3, -0.5)      # 頭（視点）から見た、手持ちの置き場所（右・下・前）
+const HAND_AT := Vector3(0.28, -0.34, -0.6)     # 目（視点）から見た、手持ちの置き場所（右・下・前）
 
 
-# 手持ちの目標：頭から見て右下・少し前に、立てたまま持つ（物に carry_target があれば、そちら。スプレー缶は口を視線の先へ）
+# 手持ちの基準：目の高さ（一人称のカメラの高さ）と、視点の向き。頭の骨（hold_view_anchor）は目より高いので使わない
+func hand_anchor(pl: CharacterBody3D) -> Transform3D:
+	var eye: float = pl.eye_height() if pl.has_method("eye_height") else 1.5
+	return Transform3D(Basis.from_euler(Vector3(pl.aim_pitch, pl.aim_yaw, 0.0)), pl.global_position + Vector3(0, eye, 0))
+
+
+# 手持ちの目標：目から見て右下・少し前に、立てたまま持つ（物に carry_target があれば、そちら。スプレー缶は口を視線の先へ）
 func _hand_target(pl: CharacterBody3D, prop: RigidBody3D) -> Array:
 	var pos: Vector3
 	var yaw: float
@@ -650,7 +656,7 @@ func _hand_target(pl: CharacterBody3D, prop: RigidBody3D) -> Array:
 		yaw = float(own[1])
 		pitch = float(own[3])
 	else:
-		var anchor := hold_view_anchor(pl)
+		var anchor := hand_anchor(pl)
 		pos = anchor.origin + anchor.basis * (HAND_AT + Vector3(0, 0, -maxf(prop.half.x, prop.half.z)))
 		yaw = pl.aim_yaw + prop.carry_yaw
 	var basis := Basis.from_euler(Vector3(pitch, yaw, 0.0))
@@ -672,6 +678,7 @@ func _leave_hand(pl: CharacterBody3D, prop: RigidBody3D) -> void:
 	prop.hold_player_position = pl.global_position
 	prop.hold_forward = pl.aim_forward()
 	prop.hold_reference_valid = true
+	host_ev("hold_adjust", [pl.peer_id, prop.pid, _hold_snapshot(pl, prop)])     # 手持ちをやめたことを、全員の画面へ
 
 
 # 便利な手元の配置は、Gで引き寄せたときだけ使用する。
@@ -733,7 +740,7 @@ func _hold_snapshot(pl: Node, prop: Node) -> Dictionary:
 		return {}
 	return {"transform":prop.hold_transform,"player_position":prop.hold_player_position,"forward":prop.hold_forward,
 		"view_transform":prop.hold_view_transform,"grip_local":prop.hold_grip_local,
-		"lifted":prop.hold_lifted,"dist":pl.hold_dist,"yaw":pl.hold_yaw,"pitch":pl.hold_pitch,
+		"lifted":prop.hold_lifted,"hand":prop.hand_held,"dist":pl.hold_dist,"yaw":pl.hold_yaw,"pitch":pl.hold_pitch,
 		"roll":pl.hold_roll,"offset":pl.hold_offset,"revision":pl.hold_revision}
 
 
@@ -750,6 +757,7 @@ func _apply_hold_snapshot(pl: Node, pid: int, data: Dictionary) -> void:
 	prop.hold_forward = data.get("forward", pl.aim_forward())
 	prop.hold_reference_valid = true
 	prop.hold_lifted = data.get("lifted", false)
+	prop.hand_held = bool(data.get("hand", false))       # 手持ち（G）か。腕の見せ方・念力の演出は、全員の画面でこれを見る
 	pl.hold_dist = float(data.get("dist", 1.6))
 	pl.hold_yaw = float(data.get("yaw", 0.0))
 	pl.hold_pitch = float(data.get("pitch", 0.0))

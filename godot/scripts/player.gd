@@ -546,6 +546,9 @@ func _physics_process(delta: float) -> void:
 			game.send_hold_controls(hold_dist, hold_yaw, hold_pitch, hold_offset, hold_roll, hold_revision)
 
 func _process(delta: float) -> void:
+	# 物を持っている間は、キャラが元から手に持っている小道具を外す（全員の画面で。持っている物は全員に届いている）
+	if vis != null and vis.has_method("hide_hand_props"):
+		vis.hide_hand_props(held != 0)
 	if is_local:
 		# 視点は、描画のコマごとに向きを変える（物理のコマごとだけだと、速い画面では視点を振ったときにカクつく）
 		if head != null:

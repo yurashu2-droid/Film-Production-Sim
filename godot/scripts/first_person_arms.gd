@@ -25,6 +25,7 @@ const SHOULDER := 0.46          # 肩の左右の位置（まん中から。m）
 const SWING := 0.25             # 腕の振り（前後・左右）を、どれだけ見せるか（1＝そのまま。そのままだと、振った腕が顔の前を横切る）
 const LOOK := 0.6               # 見上げ・見下ろしに、腕がどれだけついて来るか（1＝画面に貼りつく / 0＝ついて来ない）
 const FOLLOW := 6.0             # 見せ方を切り替える速さ（毎秒）
+# 小物の手持ち（G。prop.gd の hand_held）の間は、腕を出さない（"none"）。両手で顔の前の小物へ伸ばすと、太い腕が画面の手前をふさぐ
 
 static var _cache: Dictionary = {}       # キャラ・部品・左右 → 腕だけのメッシュ（素材ごとに一度だけ作る）
 
@@ -42,6 +43,9 @@ static func place(arms: Node3D, pl: Node3D, delta: float) -> void:
 			arm.set_meta("from", arm.get_meta("mode"))
 			arm.set_meta("blend", 0.0)
 		arm.set_meta("mode", mode)
+		arm.visible = mode != "none"
+		if mode == "none":
+			continue
 		var shift: Transform3D = _shift(arm, pl, mode)
 		var blend: float = minf(1.0, float(arm.get_meta("blend", 1.0)) + delta * FOLLOW)
 		arm.set_meta("blend", blend)
@@ -61,6 +65,8 @@ static func _mode(side: String, pl: Node3D) -> String:
 		return "true" if side == "R" else "bare"
 	var prop: Node3D = game.props.get(pl.held) if pl.held != 0 else null
 	if prop != null and is_instance_valid(prop):
+		if bool(prop.get("hand_held")):
+			return "none"          # 手持ち（G）の間は、腕を出さない（持っている小物だけが、画面の右下に見える）
 		return "bare" if side == "L" and prop.kind in vis.ONE_HAND_PROPS else "reach"
 	var motion: String = vis.current
 	if motion.begins_with("carry_") or motion.begins_with("onehand_"):

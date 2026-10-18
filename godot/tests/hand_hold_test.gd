@@ -26,7 +26,7 @@ func frames(count: int) -> void:
 
 # 頭（視点）から見た、物の中心の場所
 func seen_at(me: Node, prop: Node3D) -> Vector3:
-	var anchor: Transform3D = game.hold_view_anchor(me)
+	var anchor: Transform3D = game.hand_anchor(me)
 	return anchor.affine_inverse() * (prop.global_transform * prop.center)
 
 
@@ -84,6 +84,29 @@ func run() -> void:
 	game.host_release(can)
 	await frames(3)
 	check(not can.hand_held and can.holder == 0, "放すと、手持ちは解ける")
+	# 元から手に小道具を持っているキャラ（01：バラ）は、物を持っている間だけ、その小道具が外れる
+	me.set_cast("01")
+	await frames(5)
+	var skel: Skeleton3D = me.vis.skel
+	var bone := skel.find_bone("PROP")
+	check(bone >= 0 and not me.vis._hand_props.hidden, "手ぶらのときは、元から持っている小道具（バラ）が見えている")
+	can.restore([me.global_position + Vector3(0.3, -0.05, -0.6), Quaternion.IDENTITY, false])
+	await frames(5)
+	game.h_grab(can.pid)
+	await frames(5)
+	check(can.holder == me.peer_id and me.vis._hand_props.hidden, "物を持っている間は、元から持っている小道具が外れる")
+	game.host_release(can)
+	await frames(5)
+	check(not me.vis._hand_props.hidden, "放すと、元から持っている小道具が戻る")
+	# 手持ちかどうかは、持ち方の知らせ（hold_adjust）に載って全員の画面へ届く
+	game.h_grab(can.pid)
+	await frames(3)
+	game.h_hold_command("pull")
+	await frames(3)
+	var snap: Dictionary = game._hold_snapshot(me, can)
+	check(bool(snap.get("hand", false)), "手持ちかどうかが、持ち方の知らせに載る")
+	game.host_release(can)
+	await frames(3)
 	# 大きな物の G は、今までどおり
 	var big: RigidBody3D = null
 	for p: Node in game.props.values():

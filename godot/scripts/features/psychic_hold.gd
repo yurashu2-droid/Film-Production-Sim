@@ -44,6 +44,8 @@ func _process(_delta: float) -> void:
 		var prop: Node3D = game.props.get(pl.held) if pl.held != 0 else null
 		if prop != null and (not is_instance_valid(prop) or prop.absent or not prop.is_visible_in_tree()):
 			prop = null
+		if prop != null and bool(prop.get("hand_held")):
+			prop = null           # 手持ち（G）の小物は、手に持っている。念力では持っていない
 		if _links.has(id) and (prop == null or _links[id][0] != pl.held or not is_instance_valid(_links[id][1])):
 			_drop(id)
 		if prop == null:
