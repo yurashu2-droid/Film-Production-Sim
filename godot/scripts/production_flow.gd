@@ -221,6 +221,7 @@ var _rng := RandomNumberGenerator.new()
 var _gate := 0.0
 # 見立て：どの物を何の役に使うか（物のID → 役。""＝役を外した）。依頼ごとに付け直す
 var casting: Dictionary = {}
+var cast_face: Dictionary = {}       # 見立ての飾りの顔を付ける側（物のID → 0..3。cast_dress.gd の face）。役を付けた人が見ていた側
 const SITE_RADIUS := 38.0         # 現場に持ってきた物かどうかを、場所で見分ける
 # 監督の机（production_director.gd）。事務所の机の「のぞき箱」で、参考スライドをのぞく
 var slides: Dictionary = {}       # スライドの中身（依頼を受けたときにホストが決める。production_slides.gd）
@@ -401,7 +402,7 @@ func _cast_item(prop: Node) -> Dictionary:
 
 
 # 役を決める（ホスト）。role が "" なら役を外す
-func cast_set(pid: int, role: String) -> bool:
+func cast_set(pid: int, role: String, face := -1) -> bool:
 	var prop: Node = game.props.get(pid)
 	if prop == null or prop.absent or not Cast.castable(prop.kind) or Cast.locked(prop.kind):
 		return false
@@ -409,8 +410,12 @@ func cast_set(pid: int, role: String) -> bool:
 		return false
 	if role == Cast.default_role(prop.kind):
 		casting.erase(pid)
+		cast_face.erase(pid)
 	else:
 		casting[pid] = role
+		# 飾りの顔を付ける側（役を付けた人が見ていた側。決まっていなければ前のまま）
+		if face >= 0:
+			cast_face[pid] = face
 	game.production_sync.rpc(snapshot())
 	return true
 
@@ -553,7 +558,7 @@ func rent_in() -> int:
 	return RENT_EVERY - ((day - 1) % RENT_EVERY)
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"cast_face":cast_face,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company}
 
 func apply(data: Dictionary) -> void:
 	game._crew_epoch = maxi(game._crew_epoch,int(data.get("crew_epoch",0)))
@@ -582,6 +587,7 @@ func apply(data: Dictionary) -> void:
 	rent_paid = int(data.get("rent_paid",rent_paid))
 	bankrupt = bool(data.get("bankrupt",bankrupt))
 	casting = data.get("casting",casting)
+	cast_face = data.get("cast_face",cast_face)
 	owned = data.get("owned",owned)
 	bought_now = data.get("bought_now",bought_now)
 	bought = int(data.get("bought",bought))
@@ -640,6 +646,7 @@ func accept(index: int) -> void:
 	last_payment = 0
 	last_flubs.clear()
 	casting = {}
+	cast_face = {}
 	peeper = 0
 	orderer = 0
 	ordered = {}
@@ -1755,6 +1762,7 @@ func return_office() -> void:
 	saved = 0
 	rent_paid = 0
 	casting = {}
+	cast_face = {}
 	slides = {}
 	peeper = 0
 	phase = 0

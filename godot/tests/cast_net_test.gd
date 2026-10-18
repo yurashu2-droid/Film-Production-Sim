@@ -43,8 +43,8 @@ func view() -> Dictionary:
 		roles[kind] = flow.role_of(prop)
 	# 物の上に出る見立ての札（制作班の画面にだけ出る）
 	var tags := {}
-	for pid: int in game._cast_tags:
-		tags[pid] = str(game._cast_tags[pid].text)
+	for pid: int in game._cast_dress:
+		tags[pid] = str(game._cast_dress[pid].role)
 	return {"phase": flow.phase, "story": flow.story(), "likes": flow.likes(), "casting": flow.casting.duplicate(),
 		"pids": pids, "roles": roles, "sheet": flow.cast_sheet(), "tags": tags}
 
@@ -98,7 +98,7 @@ func client_run() -> void:
 	game.h_cast.rpc_id(1, toilet.pid, "monster")
 	reply = await request("snapshot")
 	check(reply["view"]["casting"].get(toilet.pid, "") == "monster" and reply["view"]["roles"]["scrap_toilet"] == "monster", "a role set by the participant reaches the host")
-	check(str(reply["view"]["tags"].get(toilet.pid, "")).begins_with("怪獣役"), "and the host's screen labels the toilet as the monster")
+	check(str(reply["view"]["tags"].get(toilet.pid, "")) == "monster", "and the host's screen dresses the toilet as the monster")
 	await sees(reply["view"], same, "the host's decision comes back into the participant's own flow.casting and flow.role_of(), and its label shows")
 
 	# ホストが付けた役が、参加者の画面に出る

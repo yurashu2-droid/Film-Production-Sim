@@ -1,7 +1,7 @@
 extends "res://scripts/main.gd"
 const Flow := preload("res://scripts/production_flow.gd")
 const ProductionHud := preload("res://scripts/production_hud.gd")
-const CastTag := preload("res://scripts/cast_tag.gd")
+const CastDress := preload("res://scripts/cast_dress.gd")
 const ProductionPing := preload("res://scripts/production_ping.gd")
 const ProductionExport := preload("res://scripts/production_export.gd")
 const CameraSwitcher := preload("res://scripts/camera_switcher.gd")
@@ -39,7 +39,7 @@ var _crew_epoch := 0
 var menu_open := ""        # ""＝歩いている / board＝依頼 / packing＝積み込み確認 / pause＝一時メニュー
 var brief_job := 0          # 打ち合わせ中の依頼の番号
 var script_open := false    # 手に持った台本を開いているか
-var _cast_tags: Dictionary = {}   # 見立ての札（物のID → Label3D）。制作班にだけ見える
+var _cast_dress: Dictionary = {}   # 見立ての飾り（物のID → cast_dress.gd）。映画にも映る
 var _attack: Dictionary = {}      # 飛んでいる途中の「怪獣の技」 {t, pos, pid}
 const ATTACK_FLIGHT := 0.9        # 怪獣の技が、撃ち出されてから落ちるまでの秒数
 
@@ -329,7 +329,6 @@ func _process(_delta: float) -> void:
 	# 演技・効果の案内は撮影現場でだけ出す
 	if performance != null and performance.get("_hint") != null:
 		performance._hint.visible = production.phase == 4 and menu_open == ""
-	_sync_cast_tags()
 	if _headless:
 		return
 	var mode := Input.MOUSE_MODE_VISIBLE if wants_cursor() else Input.MOUSE_MODE_CAPTURED
@@ -645,7 +644,7 @@ func h_cast(pid: int, role: String) -> void:
 	if prop.holder != Net.sender() and me.reach_base().distance_to(prop.center_global()) > Player.REACH + 2.0:
 		return
 	var before: Array = (production.cast_sheet()["combos"] as Array).map(func(c: Dictionary) -> String: return str(c["name"]))
-	if not production.cast_set(pid, role):
+	if not production.cast_set(pid, role, cast_face_side(prop, me.global_position)):
 		return
 	var story: String = production.story()
 	if role == "":
@@ -738,6 +737,7 @@ func _soft_burst(pos: Vector3, src: int) -> void:
 
 func _physics_process(delta: float) -> void:
 	super._physics_process(delta)
+	_sync_cast_dress()
 	if Net.is_host() and not _attack.is_empty():
 		_attack["t"] = float(_attack["t"]) - delta
 		if float(_attack["t"]) <= 0.0:
@@ -747,35 +747,43 @@ func _physics_process(delta: float) -> void:
 				_soft_burst(hit["pos"], int(hit["pid"]))
 
 
-# 見立ての荷札：自分たちで役を決めた物に、役とらしさを書いた紙の札をぶら下げる（撮影カメラには映らない。cast_tag.gd）
-func _sync_cast_tags() -> void:
+# 見立ての飾り：自分たちで役を決めた物に、その役らしい飾り（目玉・旗・炎・窓 など）を付ける。映画にも映る（cast_dress.gd）。
+# 飾りは物の当たり判定の表面に貼るので、物が世界にあって当たり判定がある間に作る（箱の中にしまった物は、出てきてから）
+func _sync_cast_dress() -> void:
 	var want := {}
-	var me: Node = local_player()
-	if me != null and production.phase in [2, 4] and state in [S.PREP, S.COUNTDOWN, S.TAKE] and menu_open == "":
+	if production != null:
 		for pid: int in production.casting:
 			var prop: Node = props.get(pid)
-			if prop == null or prop.absent or prop.global_position.distance_to(me.global_position) > 26.0:
+			if prop == null or prop.absent:
 				continue
 			var role: String = production.role_of(prop)
 			if role != "":
 				want[pid] = role
-	for pid: int in _cast_tags.keys():
-		if not want.has(pid):
-			(_cast_tags[pid] as Node).queue_free()
-			_cast_tags.erase(pid)
+	for pid: int in _cast_dress.keys():
+		var dress: Node = _cast_dress[pid]
+		if not want.has(pid) or not is_instance_valid(dress) or dress.role != want[pid] or dress.grade != production.cast_fit(props[pid], want[pid]) or dress.face != int(production.cast_face.get(pid, 0)):
+			if is_instance_valid(dress):
+				dress.queue_free()
+			_cast_dress.erase(pid)
 	for pid: int in want:
 		var prop: Node3D = props[pid]
-		var tag: Node3D = _cast_tags.get(pid)
-		if tag == null:
-			tag = CastTag.new()
-			tag.build(font)
-			tag.top_level = true
-			add_child(tag)
-			_cast_tags[pid] = tag
-		tag.text = "%s %s" % [Flow.Cast.role_title(want[pid], production.story()), Flow.Cast.stars(production.cast_fit(prop, want[pid]))]
-		# 物の前の上の角（右寄り）から、まっすぐ下へ垂らす。札の面は、物の正面と同じ向き
-		var corner: Vector3 = prop.global_transform * (prop.center + Vector3(prop.half.x * 0.55, prop.half.y, prop.half.z + 0.01))
-		tag.global_transform = Transform3D(Basis(Vector3.UP, prop.global_rotation.y), corner)
+		if _cast_dress.has(pid) or prop.collision_layer == 0:
+			continue
+		var dress := CastDress.new()
+		dress.name = "CastDress"
+		prop.add_child(dress)
+		dress.build(prop, want[pid], production.cast_fit(prop, want[pid]), font, pid, int(production.cast_face.get(pid, 0)))
+		_cast_dress[pid] = dress
+
+
+# 物のどの側が、その位置から見えている側か（0 = 物の +z、1 = +x、2 = -z、3 = -x。外形の大きさで割って比べる）
+func cast_face_side(prop: Node3D, from: Vector3) -> int:
+	var d: Vector3 = prop.global_transform.affine_inverse() * from - prop.center
+	var nx: float = d.x / maxf(prop.half.x, 0.05)
+	var nz: float = d.z / maxf(prop.half.z, 0.05)
+	if absf(nx) > absf(nz):
+		return 1 if nx > 0.0 else 3
+	return 0 if nz > 0.0 else 2
 
 
 @rpc("any_peer","call_local","reliable")

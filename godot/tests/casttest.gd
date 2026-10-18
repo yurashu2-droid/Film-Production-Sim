@@ -116,6 +116,20 @@ func run() -> void:
 	game.h_cast(monster.pid, "monster")
 	check(flow.role_of(monster) == "monster" and flow.casting.get(monster.pid, "") == "monster", "Y casts the toilet as the monster")
 	check((flow.snapshot()["casting"] as Dictionary).has(monster.pid), "casting travels in the snapshot")
+	# 見立ての飾り：役を付けた人が見ていた側に、怪獣の目玉や角が付く（映画にも映る。文字ではない）
+	await frames(3)
+	var dress: Node = game._cast_dress.get(monster.pid)
+	var my_side: int = game.cast_face_side(monster, game.local_player().global_position)
+	check(dress != null and dress.get_parent() == monster and dress.role == "monster" and dress.get_child_count() >= 5 and int(flow.cast_face.get(monster.pid, -1)) == my_side and dress.face == my_side, "the toilet gets monster eyes and horns, on the side the caster was looking at (side %d)" % my_side)
+	var filmed := dress != null
+	if dress != null:
+		for mi: Node in dress.find_children("*", "MeshInstance3D", true, false):
+			filmed = filmed and (mi as MeshInstance3D).layers == 1
+	check(filmed and dress.find_children("*", "Label3D", true, false).is_empty(), "the dressing is something the film camera sees, not words")
+	flow.cast_set(monster.pid, "")
+	await frames(2)
+	check(not is_instance_valid(dress) and not game._cast_dress.has(monster.pid), "taking the role off takes the dressing off")
+	flow.cast_set(monster.pid, "monster")
 	game.h_cast(of_kind("scrap_arch")[0].pid, "monster")
 	check(flow.role_of(of_kind("scrap_arch")[0]) == "", "a prop out of reach cannot be cast")
 	check(not flow.cast_set(game.fx.pid, "city") and not flow.cast_set(monster.pid, "castle"), "the effects machine is locked and roles outside the script are refused")
