@@ -18,6 +18,7 @@ var shot := ""
 var rock: RigidBody3D
 var rig: Node
 var _shake := 0.0
+var _keep_ui := false            # 後半（ゲームの流れ）のカットは、画面の表示もそのまま映す
 var K := {}                     # カットの途中の状態（ラムダの中で書き換えるので、辞書に置く）
 
 
@@ -65,16 +66,27 @@ func run() -> void:
 	flow = game.production
 	rig = game.hooks.feature("contraptions")
 	rock = game.hooks.feature("boulder").rock
-	flow.day = 2
-	for i in flow.JOBS.size():
-		if str(flow.JOBS[i]["title"]) == "転がる大岩・予告編":
-			game.h_accept_job(i)
-			break
-	await frames(20)
-	game.h_open_order()
-	game.h_order_set("boulder", 1)
-	game.h_order_confirm()
-	await frames(10)
+	if shot in ["scam_box", "premiere_online"]:
+		_keep_ui = true
+	elif shot == "cast_pop":
+		_keep_ui = true
+		flow.day = 2
+		for i in flow.JOBS.size():
+			if str(flow.JOBS[i].get("script", "")) == "kaiju":
+				game.h_accept_job(i)
+				break
+		await frames(20)
+	else:
+		flow.day = 2
+		for i in flow.JOBS.size():
+			if str(flow.JOBS[i]["title"]) == "転がる大岩・予告編":
+				game.h_accept_job(i)
+				break
+		await frames(20)
+		game.h_open_order()
+		game.h_order_set("boulder", 1)
+		game.h_order_confirm()
+		await frames(10)
 	# 自分の体は、画の外へ
 	var me: Node3D = game.local_player()
 	me.global_position = Vector3(60, 0.1, 30)
@@ -105,6 +117,8 @@ func _clear_set() -> void:
 
 
 func _hide_ui() -> void:
+	if _keep_ui:
+		return
 	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
 		(layer as CanvasLayer).visible = false
 
@@ -630,3 +644,228 @@ func title_sign() -> void:
 			if (frame + i * 9) % 26 == 0:
 				who.play("jump", 0.1, true))
 
+
+
+# ---- 後半：ゲームの流れ（画面の表示もそのまま） ----
+
+# 怪しい教材の箱：開けると、ホログラムのバズ山が出てきて、貯金が 100万 減る
+func scam_box() -> void:
+	var kit: Node = game.hooks.feature("delivery_box")
+	kit.start()
+	await frames(10)
+	var b: Node3D = kit.box
+	var me: Node3D = game.local_player()
+	me.process_mode = Node.PROCESS_MODE_INHERIT
+	me.global_position = b.global_position + Vector3(0, 0.1, 1.6)
+	me.visible = false
+	await frames(5)
+	var c: Vector3 = b.global_position
+	cam.cull_mask = 0xFFFFF & ~SELF_LAYER          # ホログラムの講師は、制作班にだけ見える層
+	cam.fov = 40
+	var eye := c + Vector3(-1.6, 1.25, 3.2)
+	look(eye, c + Vector3(0, 0.9, 0))
+	dof(6.0, 0.04)
+	K["opened"] = false
+	await rec(7.5, func(t: float) -> void:
+		cam.global_position = eye + Vector3(0.3, 0.1, -0.6) * ease_io(t)
+		cam.look_at(c + Vector3(0, 0.95 + 0.25 * t, 0))
+		if not K["opened"] and t > 0.06:
+			K["opened"] = true
+			kit.hook_f(me)
+			print("TRAILER_MARK open frame=", frame))
+
+
+# 見立て：便器に役を付けると、目玉と角がポン（準備中は役の名前も出る）
+func cast_pop() -> void:
+	var toilet := of_kind("scrap_toilet")
+	var at := Vector3(ROAD_X - 2.0, 0.0, 21.0)
+	place(toilet, at + Vector3(0, 0.5, 0), 0.0)
+	await frames(40)
+	cam.cull_mask = 0xFFFFF & ~SELF_LAYER
+	cam.fov = 34
+	var c: Vector3 = toilet.center_global()
+	var eye := c + Vector3(0.5, 0.55, 2.6)
+	look(eye, c + Vector3(0, 0.2, 0))
+	dof(4.5, 0.05)
+	var side: int = game.cast_face_side(toilet, eye)
+	K["cast"] = false
+	await rec(2.6, func(t: float) -> void:
+		cam.global_position = eye + Vector3(-0.1, -0.05, -0.35) * ease_io(t)
+		cam.look_at(c + Vector3(0, 0.2, 0))
+		if not K["cast"] and t > 0.3:
+			K["cast"] = true
+			flow.cast_set(toilet.pid, "monster", side)
+			game.host_ev("cast_toast", ["撮影用トイレ → 怪獣役", "撮影用トイレ → 怪獣役（それらしい）"])
+			print("TRAILER_MARK pop frame=", frame)
+		var dress: Node3D = game._cast_dress.get(toilet.pid)
+		if dress != null:
+			if not K.has("pop0"):
+				K["pop0"] = t
+			var k: float = clampf((t - float(K["pop0"])) / 0.12, 0.0, 1.0)
+			var pop := 1.0 + sin(k * PI) * 0.35
+			for d: Node in dress.get_children():
+				(d as Node3D).scale = Vector3.ONE * maxf(0.01, k * pop))
+
+
+# 試写会（最初の一本はネットに上げる）：再生数が増えて、コメントが流れる
+func premiere_online() -> void:
+	var premiere: Node = game.hooks.feature("premiere")
+	game.h_accept_job(flow.debut_job())
+	await frames(20)
+	var me: Node3D = game.local_player()
+	me.process_mode = Node.PROCESS_MODE_INHERIT
+	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
+	look(flow.HOME_TRUCK + Vector3(-6, 2, 6), flow.HOME_TRUCK)
+	await frames(3)
+	game.h_depart()
+	for i in 600:
+		if flow.phase == 4:
+			break
+		await physics_frame
+	await frames(30)
+	game.h_take()
+	for i in 400:
+		if game.state == game.S.TAKE:
+			break
+		await physics_frame
+	print("TRAILER take state=", game.state, " phase=", flow.phase)
+	await frames(200)
+	game._cut()
+	await frames(5)
+	print("TRAILER after cut state=", game.state, " takes=", (game._take_data as Array).size(), " frames=", (game._take_data[0]["frames"] as Array).size() if (game._take_data as Array).size() > 0 else -1)
+	premiere._times[0] = [0.5, 1.2, 2.0, 2.8]
+	game.request_deliver(0)
+	await frames(10)
+	print("TRAILER premiere state=", game.state, " screening=", premiere.screening, " replay=", game.get("replaying"))
+	await rec(12.0, func(_t: float) -> void:
+		if frame % 30 == 0:
+			print("TRAILER t=", frame / 30, " screening=", premiere.screening, " replay_t=", game.get("replay_t")))
+
+
+# ---- 後半のドタバタ：機能をテンポよく ----
+
+# 爆破：段ボールの山の真ん中で、爆弾がドカン。箱が飛ぶ
+func boom_fx() -> void:
+	truck_away()
+	rock.restore([Vector3(60, 0.9, 40), Quaternion.IDENTITY, true])
+	var at := Vector3(ROAD_X, 0.0, 19.0)
+	var bomb: RigidBody3D = game.fx
+	bomb.restore([at + Vector3(0, 0.05, 0), Quaternion.IDENTITY, true])
+	var junk: Array = []
+	for p: Node in game.props.values():
+		if p.kind == "carton" and not p.absent and junk.size() < 6:
+			junk.append(p)
+	for i in junk.size():
+		var a := TAU * float(i) / float(junk.size())
+		(junk[i] as RigidBody3D).restore([at + Vector3(cos(a) * 1.3, 0.45, sin(a) * 1.3), Quaternion(Vector3.UP, a), false])
+	await frames(30)
+	cam.fov = 40
+	var eye := at + Vector3(0.8, 0.9, 6.0)
+	look(eye, at + Vector3(0, 0.8, 0))
+	dof(9.0, 0.03)
+	K["boom"] = false
+	await rec(2.2, func(t: float) -> void:
+		if not K["boom"] and t > 0.18:
+			K["boom"] = true
+			game.host_ev("burst", [at + Vector3(0, 0.4, 0), 1.0])
+			for p: RigidBody3D in junk:
+				var d: Vector3 = (p.global_position - at).normalized()
+				p.apply_central_impulse((d * 7.0 + Vector3(0, 8.0, 0)) * p.mass)
+				p.apply_torque_impulse(Vector3(randf_range(-2, 2), randf_range(-2, 2), randf_range(-2, 2)) * p.mass)
+			_shake = 1.2
+			print("TRAILER_MARK boom frame=", frame))
+
+
+# 送風機：風で、軽い物が吹き飛ぶ
+func fan_wind() -> void:
+	truck_away()
+	var fan := of_kind("scrap_fan")
+	var at := Vector3(ROAD_X - 1.5, 0.0, 20.0)
+	place(fan, at + Vector3(0, 0.6, 0), PI * 0.5, true)
+	await frames(20)
+	var light: Array = []
+	for kind: String in ["letter", "crown", "fish", "scrap_chicken", "rose", "script"]:
+		var p := of_kind(kind)
+		if p != null:
+			light.append(p)
+	var dir: Vector3 = fan.global_basis.z.normalized()
+	for i in light.size():
+		(light[i] as RigidBody3D).restore([at + dir * (1.2 + 0.35 * float(i)) + Vector3(0, 0.6 + 0.1 * float(i % 2), randf_range(-0.4, 0.4)), Quaternion.IDENTITY, false])
+	await frames(30)
+	cam.fov = 40
+	var eye := at + dir * 2.2 + Vector3(0, 1.1, 5.4)
+	look(eye, at + dir * 2.4 + Vector3(0, 0.9, 0))
+	dof(8.0, 0.03)
+	K["on"] = false
+	await rec(2.0, func(t: float) -> void:
+		if not K["on"] and t > 0.22:
+			K["on"] = true
+			rig.host_fan(fan, 3.0)
+		if K["on"]:
+			for p: RigidBody3D in light:
+				p.apply_central_force((dir * 8.5 + Vector3(0, 3.2, 0)) * p.mass))
+
+
+# 軽トラに積む：荷台へ、次々と物が放り込まれる
+func truck_load() -> void:
+	var truck: RigidBody3D = game.get("truck")
+	var at := Vector3(ROAD_X, 0.3, 21.0)
+	truck.restore([at, Quaternion(Vector3.UP, PI * 0.5), true])
+	rock.restore([Vector3(60, 0.9, 40), Quaternion.IDENTITY, true])
+	await frames(20)
+	var items: Array = []
+	for kind: String in ["scrap_tub", "scrap_toilet", "scrap_duck", "scrap_lamp", "carton"]:
+		var p := of_kind(kind)
+		if p != null:
+			items.append(p)
+	var bed: Vector3 = truck.global_transform * Vector3(truck.deck_c.x, truck.deck_top, truck.deck_c.y)
+	cam.fov = 42
+	var eye := bed + Vector3(-3.6, 2.3, 3.0)
+	look(eye, bed + Vector3(0, -0.3, 0))
+	dof(9.0, 0.03)
+	for p: RigidBody3D in items:
+		p.restore([Vector3(150, 0.5, 120 + float(items.find(p)) * 3.0), Quaternion.IDENTITY, true])
+	await frames(3)
+	await rec(2.4, func(t: float) -> void:
+		var k := int(t * 4.6)
+		for i in items.size():
+			var p: RigidBody3D = items[i]
+			if i == k and not K.has("thrown%d" % i):
+				K["thrown%d" % i] = true
+				p.restore([bed + Vector3(randf_range(-0.35, 0.35), 2.4, randf_range(-0.5, 0.5)), Quaternion(Vector3(randf(), randf(), randf()).normalized(), randf() * 2.0), false])
+				p.linear_velocity = Vector3(0, -2.0, 0)
+				p.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4)))
+
+
+# 台車に載せたカメラ：押して走りながら、役者を追う
+func dolly_track() -> void:
+	truck_away()
+	rock.restore([Vector3(60, 0.9, 40), Quaternion.IDENTITY, true])
+	var dolly := of_kind("dolly")
+	if dolly == null:
+		dolly = game.stage.spawn("dolly", Vector3(ROAD_X - 2.6, 0.05, ROAD_FAR), 0.0)
+	var film: RigidBody3D = game.film
+	var a := actor(0)
+	var b := actor(1)
+	var z0 := ROAD_FAR + 2.0
+	stand(a, Vector3(ROAD_X - 0.6, 0.05, z0 + 1.5), 0.0)
+	stand(b, Vector3(ROAD_X + 0.6, 0.05, z0 + 1.0), 0.0)
+	var tags := crew_tags()
+	var pusher := puppet(str(tags[1]), Vector3(ROAD_X - 2.6, 0, z0 - 1.6), 0.0)
+	pusher.play("carry_run")
+	pusher.set_face("happy")
+	await frames(20)
+	run_to(a, Vector3(ROAD_X - 0.6, 0.05, ROAD_NEAR + 2.0), "idle", false, "happy", "happy")
+	run_to(b, Vector3(ROAD_X + 0.6, 0.05, ROAD_NEAR + 2.0), "idle", false, "happy", "happy")
+	cam.fov = 38
+	dof(10.0, 0.03)
+	K["z"] = z0
+	await rec(2.6, func(t: float) -> void:
+		K["z"] = float(K["z"]) + 3.3 / FPS
+		var z: float = K["z"]
+		var d := Vector3(ROAD_X - 2.6, 0.02, z)
+		dolly.restore([d, Quaternion(Vector3.UP, 0.0), true])
+		film.restore([d + Vector3(0, 0.25, 0.1), Quaternion(Vector3.UP, -PI * 0.5), true])
+		pusher.global_position = d + Vector3(0, 0, -1.2)
+		cam.global_position = Vector3(ROAD_X - 5.6, 1.7, z + 1.5)
+		cam.look_at(Vector3(ROAD_X - 1.0, 0.8, z + 1.2)))
