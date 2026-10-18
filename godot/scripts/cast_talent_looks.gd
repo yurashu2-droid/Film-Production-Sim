@@ -1,6 +1,6 @@
 extends RefCounted
 ## キャラの特技の見た目の部品（cast_talent.gd が使う）。ゲームの状態には触らない。
-##   ・ショール：物にかぶせる布（物の大きさに合わせて作る。ずれた分だけ片側へ垂れる）と、腕に掛けた布（残りの枚数）
+##   ・ショール：物にかぶせる布（物の大きさに合わせて作る。ずれた分だけ片側へ垂れる）。残りの枚数は、見た目には出さない
 ##   ・止まれ！：背中の赤い札（使うと倒れて、ゆっくり起き上がる）、吹き出し、「ぴたっ」
 ##   ・毛ひも：頭の房（毛の残りの長さだけ生えている）と、手に持つ毛の束
 ## 残りの数や秒は、文字では出さない。ここの見た目だけで分かるようにする。
@@ -12,10 +12,6 @@ const CLOTH := Color(0.16, 0.74, 0.72)          # ショールの色（ドレス
 const CLOTH_BAND := Color(0.98, 0.86, 0.36)     # ふちの帯
 const CLOTH_TASSEL := Color(1.0, 0.96, 0.82)    # 房
 const CLOTH_GRID := 16
-# 腕のショール（残りの枚数）：前腕に掛けた、たたんだ布の大きさと置き場所
-const SHAWL_HALF := Vector3(0.1, 0.025, 0.0)     # 腕に載る所（腕に沿った幅・厚みの半分。前後は腕の太さから決める。m）
-const SHAWL_DRAPE := 0.2                         # 前後へ垂れる長さ（m）
-const SHAWL_ALONG := 0.45                        # 肘から手首までの、どのあたりに掛けるか（0＝肘・1＝手首）
 const PADDLE_RED := Color(0.90, 0.12, 0.12)
 const PADDLE_PALE := Color(0.62, 0.52, 0.52)
 
@@ -129,83 +125,6 @@ static func prop_shawl(center: Vector3, half: Vector3, slip: float, dir: Vector2
 	var mesh := cloth(center, box, drape, slide, center.y - half.y + 0.012)
 	mesh.name = "TalentShawl"
 	return mesh
-
-
-# 腕に掛けたショール（残りの枚数）。たたんだ布を、左右の前腕に1枚ずつ掛けて、前後へ短く垂らす（ナプキンを腕に掛ける形）。
-# 前腕の骨に付けるので、腕を動かしても付いてくる。腕の太さと表面の高さは、キャラの体の形から測る
-static func show_shoulders(vis: Node3D, count: int) -> void:
-	if count == int(vis.get_meta("talent_shawls", -1)):
-		return
-	vis.set_meta("talent_shawls", count)
-	for side: String in ["L", "R"]:
-		var rack: BoneAttachment3D = vis.skel.get_node_or_null("TalentShawl" + side)
-		if rack != null:
-			for old in rack.get_children():
-				rack.remove_child(old)
-				old.queue_free()
-	for i in count:
-		var side: String = "L" if i == 0 else "R"
-		var fore: int = vis.skel.find_bone("FOREARM." + side)
-		var hand: int = vis.skel.find_bone("HAND." + side)
-		if fore < 0 or hand < 0:
-			continue
-		var rack: BoneAttachment3D = vis.skel.get_node_or_null("TalentShawl" + side)
-		if rack == null:
-			rack = BoneAttachment3D.new()
-			rack.name = "TalentShawl" + side
-			rack.bone_name = "FOREARM." + side
-			vis.skel.add_child(rack)
-		var rest: Transform3D = vis.skel.get_bone_global_rest(fore)
-		var mid: Vector3 = rest.origin.lerp(vis.skel.get_bone_global_rest(hand).origin, SHAWL_ALONG)
-		# 腕の上の面の高さと、前後の太さ（測れなければ、骨の少し上）
-		var arm: Array = _limb_top(vis, mid)
-		var top: Vector3 = arm[0]
-		var thick: float = arm[1]
-		var half := Vector3(SHAWL_HALF.x, SHAWL_HALF.y, thick + 0.02)
-		var piece := cloth(Vector3(top.x, top.y - half.y + 0.01, top.z), half, SHAWL_DRAPE, Vector2.ZERO, -INF, 0.02)
-		piece.transform = rest.affine_inverse()
-		# 描く層は体と同じ（一人称で自分の体を隠しているときは、布も隠れる）
-		for body: MeshInstance3D in vis.skel.find_children("*", "MeshInstance3D", false, false):
-			piece.layers = body.layers
-			break
-		rack.add_child(piece)
-
-
-# 腕に掛けてあるショールの数（確認用）。腕のショールを持たないキャラは -1
-static func shawls_shown(vis: Node3D) -> int:
-	var out := -1
-	for side: String in ["L", "R"]:
-		var rack: Node = vis.skel.get_node_or_null("TalentShawl" + side)
-		if rack != null:
-			out = maxi(out, 0) + rack.get_child_count()
-	if out < 0 and vis.has_meta("talent_shawls"):
-		out = 0
-	return out
-
-
-# 体の形（骨格の空間。立ち姿）で、腕の at の所の上の面：[[x, いちばん高い所, 前後の真ん中], 前後の太さの半分]。
-# 腕のまわりだけを見る。測れなければ、骨の少し上
-static func _limb_top(vis: Node3D, at: Vector3) -> Array:
-	var skel: Skeleton3D = vis.skel
-	var best := -INF
-	var front := INF
-	var back := -INF
-	for mi: MeshInstance3D in skel.find_children("*", "MeshInstance3D", false, false):
-		if mi.mesh == null:
-			continue
-		var to_skel: Transform3D = skel.global_transform.affine_inverse() * mi.global_transform
-		for surface in mi.mesh.get_surface_count():
-			var verts: PackedVector3Array = mi.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
-			for v: Vector3 in verts:
-				var p: Vector3 = to_skel * v
-				if absf(p.x - at.x) > 0.04 or absf(p.y - at.y) > 0.35 or absf(p.z - at.z) > 0.35:
-					continue
-				best = maxf(best, p.y)
-				front = minf(front, p.z)
-				back = maxf(back, p.z)
-	if best == -INF:
-		return [at + Vector3(0, 0.12, 0), 0.12]
-	return [Vector3(at.x, best, (front + back) * 0.5), (back - front) * 0.5]
 
 
 # ---- 止まれ！：背中の赤い札 ----

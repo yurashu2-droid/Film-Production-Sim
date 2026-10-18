@@ -173,7 +173,7 @@ func four_more(toilet: Node, pie: Node, plunger: Node, chicken: Node, rose: Node
 				good = prop
 				good_role = role
 	check(bad_role != "" and good != null, "there is a role the toilet is forced into (%s) and a prop that is perfect for a role (%s as %s)" % [bad_role, good.kind if good else "-", good_role])
-	check(talent.shawls_left(id) == Talents.SHAWL_COUNT and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 2, "the dress wearer starts with two shawls over the arms")
+	check(talent.shawls_left(id) == Talents.SHAWL_COUNT and talent.shown_shawls_left(id) == 2, "the dress wearer starts with two shawls")
 	place(toilet, ahead(1.8))
 	place(good, ahead(2.2, 1.6))
 	place(pie, ahead(1.6, -1.4))
@@ -192,7 +192,7 @@ func four_more(toilet: Node, pie: Node, plunger: Node, chicken: Node, rose: Node
 	check(cloth is MeshInstance3D and (cloth as MeshInstance3D).layers == 1 and toilet.find_children("*", "CollisionShape3D", true, false).all(func(c: Node) -> bool: return c.get_parent() != cloth), "a cloth lies on the prop: on the film layer, with no collision")
 	var cloth_box: AABB = (cloth as MeshInstance3D).get_aabb()
 	check(cloth_box.end.y >= toilet.center.y + toilet.half.y and cloth_box.position.y < toilet.center.y + toilet.half.y - 0.1 and cloth_box.size.x > toilet.half.x * 2.0, "it covers the top and hangs down the sides (%.2f m down)" % (toilet.center.y + toilet.half.y - cloth_box.position.y))
-	check(talent.shawls_left(id) == 1 and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 1, "one shawl is left over the arms")
+	check(talent.shawls_left(id) == 1 and talent.shown_shawls_left(id) == 1, "one shawl is left")
 	me.target = toilet
 	texts.append(str(talent.hint(me)["keys"]))
 	check(str(talent.hint(me)["keys"]) == "K ショールを外す", "looking at a covered prop offers: K, take the shawl off")
@@ -205,7 +205,7 @@ func four_more(toilet: Node, pie: Node, plunger: Node, chicken: Node, rose: Node
 		if Roles.is_joker(kind):
 			joker = kind
 	check(joker != "" and Roles.fit(joker, bad_role, ["blank"]) == 0 and Roles.fit(joker, bad_role, ["blank", "shawl"]) == 1, "a blank life-size panel under a shawl is plausible too")
-	check(talent.shawls_left(id) == 0 and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 0, "with both shawls out, the arms are bare")
+	check(talent.shawls_left(id) == 0 and talent.shown_shawls_left(id) == 0, "with both shawls out, none are left")
 	talent.host_use(id, pie.pid)
 	await frames(4)
 	check(not talent.shawled(pie.pid) and "もう無い" in talent.shawl_refusal(id, pie), "a third shawl is refused")
@@ -213,7 +213,7 @@ func four_more(toilet: Node, pie: Node, plunger: Node, chicken: Node, rose: Node
 	talent.host_use(id, toilet.pid)
 	await frames(4)
 	check(not talent.shawled(toilet.pid) and flow.cast_fit(toilet, bad_role) == 0 and toilet.get_node_or_null("TalentShawl") == null, "K on the covered prop takes the shawl off, and the fit is forced again")
-	check(talent.shawls_left(id) == 1 and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 1 and int(flow.cast_sheet()["coins"]) == coins_plain, "the shawl is back over the arm")
+	check(talent.shawls_left(id) == 1 and talent.shown_shawls_left(id) == 1 and int(flow.cast_sheet()["coins"]) == coins_plain, "the shawl is back")
 	game.h_grab(pie.pid)
 	await frames(3)
 	check(talent.shawl_refusal(id, pie) != "", "a prop someone holds is refused")
@@ -255,7 +255,7 @@ func four_more(toilet: Node, pie: Node, plunger: Node, chicken: Node, rose: Node
 	# 次の依頼を受けるときの片付けで、全部肩に戻る
 	talent.host_clear_all()
 	await frames(4)
-	check(talent.shawls.is_empty() and talent.shawls_left(id) == 2 and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 2 and good.get_node_or_null("TalentShawl") == null, "clearing for a new job brings both shawls back to the shoulders")
+	check(talent.shawls.is_empty() and talent.shawls_left(id) == 2 and talent.shown_shawls_left(id) == 2 and good.get_node_or_null("TalentShawl") == null, "clearing for a new job brings both shawls back to the shoulders")
 	flow.cast_set(toilet.pid, "")
 	place(toilet, flow.HOME_TRUCK + Vector3(-12, 0.3, 9))
 	place(good, flow.HOME_TRUCK + Vector3(-13, 0.3, 11))
@@ -830,7 +830,7 @@ func run() -> void:
 	await frames(3)
 	check(game.state == S.REPLAY and talent.shown_shawls().is_empty() and talent.shown_shawls_left(id) == 2 and talent.shawled(chicken.pid), "the replay starts with the shawl still on the shoulder; the real state is untouched")
 	await frames(12)
-	check(chicken.get_node_or_null("TalentShawl") == null and preload("res://scripts/cast_talent_looks.gd").shawls_shown(me.vis) == 2, "and that is what the screen shows")
+	check(chicken.get_node_or_null("TalentShawl") == null and talent.shown_shawls_left(id) == 2, "and that is what the screen shows")
 	# 見返しの間に流れる合図は、見た目だけを変える（首・毛・止まれ！の札も同じ仕組み）
 	talent.on_event("neck", [id, true])
 	talent.on_event("hair", [talent.hair_coils[0].pid, id, true, 3.0])

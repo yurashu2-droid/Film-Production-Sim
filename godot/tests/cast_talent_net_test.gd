@@ -83,7 +83,7 @@ func view() -> Dictionary:
 	var paddle := {}
 	for who: int in game.players:
 		var crew: Node = game.players[who]
-		shoulders[who] = preload("res://scripts/cast_talent_looks.gd").shawls_shown(crew.vis)
+		shoulders[who] = talent.shown_shawls_left(who)
 		rise[who] = snappedf(crew.neck, 0.1)
 		var locks: Node = crew.vis.skel.get_node_or_null("TalentTufts")
 		tufts[who] = locks.find_children("*", "MeshInstance3D", true, false).size() if locks != null else -1

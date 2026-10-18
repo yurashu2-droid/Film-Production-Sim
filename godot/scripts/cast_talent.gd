@@ -1328,9 +1328,6 @@ func _process(delta: float) -> void:
 			_show_stowed(vis, shown_stowed(who))
 		elif vis.tag == ROBOT:
 			_show_lamp(vis, shown_lamp(who))
-		elif vis.tag == SHAWL and Talents.ready(SHAWL):
-			# 肩に残っている枚数（数字では出さない）
-			Looks.show_shoulders(vis, shown_shawls_left(who))
 		elif vis.tag == HALT and Talents.ready(HALT):
 			# 背中の赤い札：使える間は立っている。使うと倒れて、ゆっくり起き上がる
 			Looks.show_paddle(vis, halt_ready(who))
