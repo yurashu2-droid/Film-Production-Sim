@@ -77,7 +77,9 @@ func client_run() -> void:
 	# ---- はじめは白紙。カンペとパネルの二つがある ----
 	var reply: Dictionary = await request("hello")
 	var blank_card: Dictionary = reply["view"]["card"]
-	check((reply["view"]["boards"] as Array).size() == 2 and (view()["boards"] as Array) == reply["view"]["boards"] and panel.kind == "standin", "both peers have the cue card and the life-size panel")
+	# 描ける物：カンペと等身大パネル（と、看板づくりの段ボール板。features/spray_sign.gd）
+	var board_ids: Array = reply["view"]["boards"]
+	check(cards.card.pid in board_ids and panel.pid in board_ids and (view()["boards"] as Array) == board_ids and panel.kind == "standin", "both peers have the cue card and the life-size panel")
 	check(reply["view"]["blank"] and view()["blank"] and reply["view"]["panel"]["size"] == Vector2i(panel.res), "the panel starts blank on both peers")
 	await sees(reply["view"], ["panel", "card", "revision"], "the blank sheets are identical pixel for pixel")
 

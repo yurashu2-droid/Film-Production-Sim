@@ -2,14 +2,17 @@ extends Node
 ## 1日目（会社の紹介動画。production_flow.gd の JOBS の "debut"）の段取り。docs/production/tutorial-cm.md
 ##   ・廃材置き場の門は開けない（production_flow.gd の _process）。1日目は、廃材置き場へ行かずに撮る
 ##   ・依頼を受けると、紹介動画に使いそうな物を、事務所の前（撮影の舞台の手前の左。カメラを置く所のそば）に雑に置いておく：
-##     城に見立てる書割・爆炎の書割・等身大パネル・看板に描くカンペ・カメラを載せる箱馬
+##     城に見立てる書割・爆炎の書割・等身大パネル・看板にする段ボール板2枚とスプレー缶と接着剤・カメラを載せる箱馬
 ##     その日、廃材置き場にしまってある物でも出す（日替わりの廃材から外す）
 ## 決めるのはホスト。置き場所は、ほかの物と同じに全員へ配られる
 const PILE := [
 	["flat", Vector3(65.9, 0.05, 16.8), 0.4],
 	["boomflat", Vector3(67.2, 0.05, 18.0), -0.3],
 	["standin", Vector3(68.3, 0.05, 16.9), 0.8],
-	["cue_card", Vector3(67.1, 0.05, 16.4), -0.5],
+	["cardboard", Vector3(67.0, 0.05, 15.6), -0.4],
+	["cardboard", Vector3(68.4, 0.08, 15.4), 0.3],
+	["spray_paint", Vector3(66.6, 0.05, 16.5), 0.0],
+	["glue", Vector3(66.9, 0.05, 16.8), 0.6],
 	["applebox", Vector3(65.6, 0.05, 18.0), 0.2],
 	["applebox", Vector3(66.2, 0.05, 18.4), -0.6],
 	["applebox", Vector3(65.5, 0.05, 18.8), 1.1],
@@ -34,7 +37,10 @@ func hook_new_job() -> void:
 		placed.append([p, row[1], float(row[2])])
 	game.host_ev("stash", [hidden])
 	for item: Array in placed:
-		(item[0] as RigidBody3D).restore([item[1], Quaternion(Vector3.UP, float(item[2])), false])
+		var turn := Quaternion(Vector3.UP, float(item[2]))
+		if (item[0] as Node).kind == "cardboard":
+			turn = turn * Quaternion(Vector3.RIGHT, -PI * 0.5)      # 段ボール板は、表を上にして寝かせる
+		(item[0] as RigidBody3D).restore([item[1], turn, false])
 
 
 # その種類の物を1つ（出ている物か、今日しまってある物。人が持っている物・荷台の物は使わない）

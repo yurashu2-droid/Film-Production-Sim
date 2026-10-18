@@ -136,7 +136,7 @@ const SCRIPTS := [
 			"memo": "爆炎の書割を、役者の奥に立てる。1 で回すと、書割が爆ぜる"},
 		{"dir": "【場転】全員集合。手描きの看板（会社の名前と電話番号）の前に駆け寄って、両手を上げる。",
 			"lines": [["全員", "ぜんぶ、格安で！"], ["社長", "お電話、お待ちしております"], ["社員", "番号は、看板のとおりです"]],
-			"memo": "板やパネルに会社の名前を描いて（F）、表をカメラへ向けて置く。カメラを引いて、その前に役者を集める"}],
+			"memo": "段ボール板にスプレーで会社の名前を書いて（缶を持って F）、接着剤で箱馬などに貼って立て、表をカメラへ向ける。カメラを引いて、その前に役者を集める"}],
 		"beats": [
 			{"rule": "roll", "from": 0, "to": 0, "gait": "walk", "pose": "hips", "pose_by": {"0": "hips", "1": "wave", "2": "point", "3": "cheer"}, "look": "camera", "face": ["happy", "happy"], "music": "music_tension"},
 			{"rule": "show", "role": "castle", "who": [0], "from": 0, "to": 1, "gait": "walk", "pose": "hips", "look": "camera", "face": ["happy", "happy"]},

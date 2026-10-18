@@ -517,6 +517,7 @@ static func _facade(root: Node3D, font: Font) -> void:
 	# 文字：表の社名、裏の書き込み
 	var sign := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 5.43, z + 0.18)), "格安アクション映画制作班", 0.011, 72, Color("f6e7c4"), font, false)
 	sign.layers = FACADE_LAYER
+	sign.name = "CompanyNameSign"          # 会社の名前を決めたら、書き換える（features/spray_sign.gd）
 	var tag := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 4.6, z + 0.16)), "撮影所・事務所", 0.006, 40, Color("3a5a5e"), font, false)
 	tag.layers = FACADE_LAYER
 	var back := Look.label(root, Transform3D(Basis(Vector3.UP, PI), Vector3(72, 5.6, z - 0.13)), "書割 No.1　社屋（表）\n裏は見ないこと", 0.008, 48, Color("6a4a2e"), font, false)

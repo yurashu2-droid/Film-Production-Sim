@@ -86,7 +86,7 @@ func showing() -> bool:
 # 試写会：看板が映ったところで、依頼主が気づく
 func hook_premiere_cues(index: int) -> Array:
 	if bool(_by_take.get(index, false)):
-		return [[maxf(float(_first_by_take.get(index, 0.0)), 0.5) + 0.3, "おっ、御社の名前！ いいですねえ", "happy"]]
+		return [[maxf(float(_first_by_take.get(index, 0.0)), 0.5) + 0.3, "おっ、『%s』の看板！ いいですねえ" % game.production.company_name(), "happy"]]
 	return []
 
 

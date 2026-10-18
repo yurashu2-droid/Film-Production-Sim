@@ -1327,6 +1327,8 @@ func cue_names() -> Array:
 
 
 func film_title() -> String:
+	if production and bool(production.job().get("debut", false)) and str(production.company) != "":
+		return "%s 紹介動画" % production.company_name()       # 会社の名前を決めたら、紹介動画の題もその名前で
 	return str(production.job()["title"]) if production else super.film_title()
 
 

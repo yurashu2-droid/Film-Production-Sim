@@ -602,7 +602,7 @@ func _open() -> void:
 	_end_t = 0.0
 	_closing_line = []
 	_chapter.modulate.a = 0.0
-	_show_card("アップロード完了" if _online() else "格安アクション映画制作班　作品", "『%s』" % str(game.film_title()), CARD_SEC)
+	_show_card("アップロード完了" if _online() else "%s　作品" % game.production.company_name(), "『%s』" % str(game.film_title()), CARD_SEC)
 
 
 # 依頼主のひとこと。気分で、顔の動きと音を変える（happy はねる / wow びくっ / sad かしげる / neutral うなずく）

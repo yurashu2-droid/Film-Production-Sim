@@ -166,6 +166,10 @@ var owned := {}                  # 買って会社の持ち物になった物（
 var bought_now: Array = []       # この依頼の間に買った物（発注の id）
 var bought := 0                  # この依頼の間に、買い物で貯金から払った額（精算の内訳に出す）
 var sack_stock: Array = []       # 前の依頼から持ち越した火薬の袋（1袋ごとの残りの量）
+# 会社の名前（看板にスプレーで書くときに決める。features/spray_sign.gd）。空なら、ゲームの題名を仮の名前にする。
+# 会社が呼ばれる所（作品の札・依頼主のひとこと・電話・建物の看板）は、company_name() を使う
+const DEFAULT_COMPANY := "格安アクション映画制作班"
+var company := ""
 var _new_names: Array = []       # いま買ったばかりの物の名前（お知らせに出す）
 var last_flubs: Array[String] = []
 var notes: RefCounted
@@ -341,6 +345,11 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 		game.production_sync.rpc(snapshot())
 		game.move_crew(Office.SPAWN_POINT, 0.0)
 		game._grab_mouse(false)
+
+# 会社の名前（まだ決めていなければ、ゲームの題名）
+func company_name() -> String:
+	return company if company != "" else DEFAULT_COMPANY
+
 
 func job() -> Dictionary:
 	return JOBS[chosen_job]
@@ -544,13 +553,14 @@ func rent_in() -> int:
 	return RENT_EVERY - ((day - 1) % RENT_EVERY)
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company}
 
 func apply(data: Dictionary) -> void:
 	game._crew_epoch = maxi(game._crew_epoch,int(data.get("crew_epoch",0)))
 	var old := phase
 	phase = int(data["phase"])
 	wallet = int(data["wallet"])
+	company = str(data.get("company", company))
 	lease_left = float(data["lease_left"])
 	expired = bool(data["expired"])
 	chosen_job = int(data["chosen_job"])
@@ -1637,7 +1647,7 @@ func settle(index: int) -> void:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
 	# 最初の一本（会社の紹介動画）：ネットに上げると、テレビ局の人がコメントを書いていく（帰社すると、その人から電話が鳴る。2日目から、ほかの依頼が来る）
 	if bool(job().get("debut", false)):
-		last_flubs.append("コメント欄『地方テレビ局のランプと申します。動画、拝見しました。のちほど、お電話します』")
+		last_flubs.append("コメント欄『地方テレビ局のランプと申します。%sさんの動画、拝見しました。のちほど、お電話します』" % company_name())
 		said = true
 	if count == passed.size() and count > 0 and not said:
 		last_flubs.append("依頼主『あの怪獣、本物を呼んだのかと思ったよ！』" if job()["script"] == "kaiju" else "依頼主『これをこの予算で？ 次も頼むよ！』")
@@ -1735,6 +1745,7 @@ func return_office() -> void:
 	if bankrupt:
 		# 倒産：新しい会社を立ち上げて、最初からやり直す
 		wallet = START_WALLET
+		company = ""          # 新しい会社。名前は、また看板に書くときに決める
 		for id: String in levels:
 			levels[id] = 0
 		day = 0

@@ -79,7 +79,7 @@ func run() -> void:
 	game.request_deliver(0)
 	var noticed := false
 	for i in 400:
-		if premiere.last_line.contains("御社の名前"):
+		if premiere.last_line.contains("『%s』の看板" % flow.company_name()):
 			noticed = true
 			break
 		await physics_frame
