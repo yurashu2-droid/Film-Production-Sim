@@ -7,6 +7,7 @@ extends SceneTree
 const FPS := 30
 const CREW_LAYER := 1 << 11
 const SELF_LAYER := 1 << 12
+const CUT_LAYER := 1 << 18          # 切り抜きの層（被写体だけを、黒と白の背景で撮るときに使う）
 const CastVisual := preload("res://scripts/cast_visual.gd")
 
 var game: Node
@@ -69,7 +70,7 @@ func run() -> void:
 	if shot in ["scam_box", "premiere_online"]:
 		_keep_ui = true
 	elif shot == "cast_pop":
-		_keep_ui = true
+		_keep_ui = arg("noui", "") == ""
 		flow.day = 2
 		for i in flow.JOBS.size():
 			if str(flow.JOBS[i].get("script", "")) == "kaiju":
@@ -123,6 +124,53 @@ func _hide_ui() -> void:
 		(layer as CanvasLayer).visible = false
 
 
+# 被写体の切り抜き（--matte=1 のとき）：毎コマ、ふつうの画のあとで時間を止め、被写体だけを黒と白の背景で撮る
+# （tools/trailer/make_matte.py が、2枚の差から透明さを出し、ふつうの画の色と合わせて、透明な動画にする）
+var _matte_nodes: Array = []
+var _matte_env: Environment
+
+
+func matte(nodes: Array) -> void:
+	for n: Node in nodes:
+		_matte_nodes.append(n)
+		for g: Node in n.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).layers |= CUT_LAYER
+		if n is GeometryInstance3D:
+			(n as GeometryInstance3D).layers |= CUT_LAYER
+
+
+func _grab_matte() -> void:
+	if _matte_env == null:
+		_matte_env = Environment.new()
+		_matte_env.background_mode = Environment.BG_COLOR
+		_matte_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		_matte_env.ambient_light_color = Color(0.5, 0.5, 0.5)
+	DirAccess.make_dir_recursive_absolute(out_dir + "/m")
+	var ts := Engine.time_scale
+	Engine.time_scale = 0.0
+	PhysicsServer3D.set_active(false)
+	var mask := cam.cull_mask
+	var env := cam.environment
+	var shown: Array = []
+	for layer: Node in root.find_children("*", "CanvasLayer", true, false):
+		if (layer as CanvasLayer).visible:
+			shown.append(layer)
+			(layer as CanvasLayer).visible = false
+	cam.cull_mask = CUT_LAYER
+	cam.environment = _matte_env
+	for bg: Array in [[Color.BLACK, "k"], [Color.WHITE, "w"]]:
+		_matte_env.background_color = bg[0]
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("%s/m/%05d_%s.png" % [out_dir, frame - 1, bg[1]])
+	cam.cull_mask = mask
+	cam.environment = env
+	for layer: CanvasLayer in shown:
+		layer.visible = true
+	PhysicsServer3D.set_active(true)
+	Engine.time_scale = ts
+
+
 # 1コマ書き出す（カメラの揺れを足して）
 func grab() -> void:
 	_hide_ui()
@@ -134,6 +182,8 @@ func grab() -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_jpg("%s/%05d.jpg" % [out_dir, frame], 0.93)
 	frame += 1
+	if not _matte_nodes.is_empty() and arg("matte", "") != "":
+		await _grab_matte()
 	cam.global_transform = base
 
 
@@ -251,6 +301,7 @@ func boulder_drop() -> void:
 	rock.restore([at + Vector3(0, 11.0, 0), Quaternion(Vector3(1, 0.3, 0).normalized(), 0.6), false])
 	rock.freeze = true
 	await frames(10)
+	matte([rock])
 	var from := cam.global_position
 	K["started"] = false
 	K["landed"] = false
@@ -311,6 +362,7 @@ func tub_cast() -> void:
 	var eye := at + Vector3(1.0, 0.75, 2.5)
 	look(eye, at + Vector3(0, 0.45, 0))
 	dof(5.0, 0.05)
+	matte([tub])
 	K["dropped"] = false
 	K["landed"] = false
 	await rec(2.8, func(t: float) -> void:
@@ -561,6 +613,7 @@ func take2() -> void:
 	cam.fov = 34
 	look(eye, Vector3(ROAD_X, 0.8, c.z - 2.0))
 	dof(12.0, 0.03)
+	matte([a.vis, b.vis, _tub, rock])
 	run_to(a, c + Vector3(-0.3, 0, 0), "duck", true, "shock", "shock")
 	run_to(b, c + Vector3(0.3, 0, 0), "duck", true, "shock", "shock")
 	K["launched"] = false
@@ -633,6 +686,7 @@ func title_sign() -> void:
 		who.set_face("happy")
 		team.append(who)
 	await frames(10)
+	matte([sheet] + team)
 	var c: Vector3 = at + Vector3(0, 0.85, 0)
 	var eye := c + Vector3(0.0, 0.3, 6.4)
 	cam.fov = 36
@@ -690,6 +744,7 @@ func cast_pop() -> void:
 	look(eye, c + Vector3(0, 0.2, 0))
 	dof(4.5, 0.05)
 	var side: int = game.cast_face_side(toilet, eye)
+	matte([toilet])
 	K["cast"] = false
 	await rec(2.6, func(t: float) -> void:
 		cam.global_position = eye + Vector3(-0.1, -0.05, -0.35) * ease_io(t)
@@ -1083,9 +1138,6 @@ func screening_client() -> void:
 
 # 切り抜き：キャラを背景なし（透明）で書き出す（MAD 風のステッカー・集合・名前カード用）。
 # キャラだけを専用の層に置き、黒い背景と白い背景で2回撮る（make_cutouts.py が、2枚の差から透明さを出す）
-const CUT_LAYER := 1 << 18
-
-
 func cutouts() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
