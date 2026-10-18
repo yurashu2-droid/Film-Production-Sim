@@ -37,12 +37,32 @@ func run() -> void:
 	var me: Node3D = game.local_player()
 	var sheet: RigidBody3D = kit.sheets[0]
 	var at := Vector3(70.0, 0.05, 11.0)
-	sheet.restore([at, Quaternion.IDENTITY, true])
+	sheet.restore([at + Vector3(0, 0.45, 0), Quaternion.IDENTITY, true])      # 箱馬の上に貼ったくらいの高さ
 	var can: RigidBody3D = kit.cans[1]          # 赤
 	me.global_position = at + Vector3(0.0, 0.1, 1.2)
 	can.restore([me.global_position + Vector3(0.3, 0, 0), Quaternion.IDENTITY, false])
 	await frames(10)
+	# 缶の寄り（置いてある所）
+	var close := Camera3D.new()
+	close.fov = 40
+	root.add_child(close)
+	var stand: Vector3 = me.global_position
+	me.global_position = at + Vector3(3.0, 0.1, 3.0)          # 缶の寄りを撮る間は、体をよける
+	can.restore([at + Vector3(0.6, 0.05, 0.6), Quaternion.IDENTITY, true])
+	await frames(5)
+	var c0: Vector3 = can.global_position
+	close.global_position = c0 + Vector3(0.18, 0.16, 0.24)
+	close.look_at(c0 + Vector3(0, 0.1, 0))
+	await snap(close, "can")
+	me.global_position = stand
+	can.restore([stand + Vector3(0.3, -0.05, 0), Quaternion.IDENTITY, false])
+	await frames(5)
+	me.vis.rotation.y = PI          # 体も板の方へ向ける（視点の向きだけでなく。缶を持つ手が板の側に来る）
 	game.h_grab(can.pid)
+	await frames(3)
+	game.h_hold_command("pull")      # G：起こして手元へ（地面からつかんだ物は、つかんだ高さのままなので）
+	await frames(20)
+	me.set_first_person(true)          # 一人称（缶が手元の前に来る。ふつうに遊ぶときの吹き方）
 	await frames(10)
 	me.aim_yaw = 0.0
 	for k in 50:
@@ -51,22 +71,30 @@ func run() -> void:
 		if not kit._aim(me).is_empty():
 			break
 	var pitch0: float = me.aim_pitch - 0.12      # 最初に当たるのは板の上の縁なので、少し下（真ん中寄り）を狙う
+	me.aim_pitch = pitch0
+	await process_frame
 	# 横から見るカメラ（缶の口から板までの霧が見える）
 	var side := Camera3D.new()
 	side.fov = 50
 	root.add_child(side)
-	side.global_position = at + Vector3(-0.9, 1.05, 0.15)
-	side.look_at(at + Vector3(0.25, 0.8, 0.75))
+	# 缶の口と板の間を、真横（左）から写す
+	var aim: Dictionary = kit._aim(me)
+	var mid: Vector3 = (can.nozzle_global() + (aim["at"] if not aim.is_empty() else at + Vector3(0, 0.4, 0))) * 0.5
+	side.global_position = at + Vector3(-0.75, 0.85, 0.15)
+	side.look_at(mid)
 	var t := 0.0
 	var shots := [0.1, 0.35, 0.8]
 	Input.action_press("operate")
 	while t < 1.1:
 		me.aim_yaw = sin(t * 5.0) * 0.16
+		me.vis.rotation.y = me.aim_yaw + PI
 		me.aim_pitch = pitch0 + sin(t * 2.3) * 0.04
 		await process_frame
 		t += 1.0 / 60.0
 		if not shots.is_empty() and t >= float(shots[0]):
-			await snap(side, "mist_%02d" % int(float(shots.pop_front()) * 100))
+			var when := int(float(shots.pop_front()) * 100)
+			await snap(side, "mist_%02d" % when)
+			await snap(me.cam, "fp_%02d" % when)
 	Input.action_release("operate")
 	for after: float in [0.15, 0.45, 0.9, 1.4]:
 		while t < 1.1 + after:
@@ -76,8 +104,8 @@ func run() -> void:
 	var front := Camera3D.new()
 	front.fov = 45
 	root.add_child(front)
-	front.global_position = at + Vector3(0.0, 0.45, 1.25)
-	front.look_at(at + Vector3(0, 0.38, 0))
+	front.global_position = at + Vector3(0.0, 0.9, 1.25)
+	front.look_at(at + Vector3(0, 0.83, 0))
 	me.global_position = at + Vector3(2.5, 0.1, 2.5)
 	await frames(3)
 	await snap(front, "marks")

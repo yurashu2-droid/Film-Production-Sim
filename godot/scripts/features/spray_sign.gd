@@ -29,8 +29,9 @@ var spare: Array = []            # ホスト：まだ地下にしまってある
 var _pending := PackedVector2Array()
 var _pending_pid := 0
 var _spreads := PackedFloat32Array()
-var _mists := {}                 # 缶の物のID → {"core", "jet", "haze", "until", "target", "can"}（霧。全員の画面）
-var _dot: Texture2D
+var _mists := {}                 # 缶の物のID → {"inner", "outer", "until", "target", "can", "grow", "cut"}（霧。全員の画面）
+var _noise: NoiseTexture2D
+const CONE_SHADER := preload("res://shaders/spray_cone.gdshader")
 var _send_t := 0.0
 var _hiss_t := 0.0
 var _dialog: CanvasLayer
@@ -260,74 +261,53 @@ func rx_spray(pid: int, points: PackedVector2Array, spreads: PackedFloat32Array,
 		_mist_at(can, sheet.world_at(points[points.size() - 1]), Time.get_ticks_msec() / 1000.0 + SEND_EVERY * 2.5)
 
 
-# ---- 霧（缶ごとに3層：細く速い芯・円すいに広がる粒・漂って沈む霧） ----
-# 噴き出し：口から狙った所へ円すい形に飛び、板の手前で速さを失う（板に当たった分は、跡になって絵へ移る）
-# 漂う霧：噴き出しのまわりに残り、広がりながら下へ沈んで薄く散る
+# ---- 霧（缶ごとに：霧の円すい2枚。内は濃く速く・外は薄く広く） ----
+# 円すい：口から板まで張る霧。模様が口から板へ流れる。吹き始めは口から先へ伸び、止めると口の側から切れて板の方へ抜ける
 
 func _build_mist() -> void:
-	var dot := GradientTexture2D.new()
-	dot.width = 64
-	dot.height = 64
-	dot.fill = GradientTexture2D.FILL_RADIAL
-	dot.fill_from = Vector2(0.5, 0.5)
-	dot.fill_to = Vector2(0.5, 0.0)
-	var g := Gradient.new()
-	g.set_color(0, Color(1, 1, 1, 1))
-	g.set_color(1, Color(1, 1, 1, 0))
-	g.add_point(0.45, Color(1, 1, 1, 0.55))
-	dot.gradient = g
-	_dot = dot
+	# 霧の模様（円すいのシェーダーで流す）
+	var fn := FastNoiseLite.new()
+	fn.frequency = 0.04
+	fn.fractal_octaves = 3
+	_noise = NoiseTexture2D.new()
+	_noise.width = 128
+	_noise.height = 128
+	_noise.seamless = true
+	_noise.noise = fn
 
 
 func _mist_for(can: RigidBody3D) -> Dictionary:
 	if _mists.has(can.pid):
 		return _mists[can.pid]
-	var core := _emitter(0.03, 0.2, 160, 0.0, 3.0)        # 芯：口からまっすぐ、細く速い
-	var jet := _emitter(0.06, 0.3, 220, 0.0, 10.0)        # 円すい：広がりながら板へ
-	var haze := _emitter(0.22, 1.4, 50, -0.25, 24.0)      # 漂う霧：板の手前で広がって沈む
-	var m := {"core": core, "jet": jet, "haze": haze, "until": 0.0, "target": Vector3.ZERO}
+	var inner := _cone(0.85, 2.8)                          # 内の円すい：細く濃く、速く流れる
+	var outer := _cone(0.45, 1.7)                          # 外の円すい：太く薄く、ゆっくり
+	var m := {"inner": inner, "outer": outer, "until": 0.0, "target": Vector3.ZERO, "grow": 0.0, "cut": 1.0}
 	_mists[can.pid] = m
 	return m
 
 
-func _emitter(size: float, life: float, amount: int, sink: float, cone: float) -> CPUParticles3D:
-	var e := CPUParticles3D.new()
-	e.emitting = false
-	e.amount = amount
-	e.lifetime = life
-	e.local_coords = false
-	e.direction = Vector3(0, 0, -1)
-	e.spread = cone
-	e.initial_velocity_min = 3.2 if sink == 0.0 else 0.6
-	e.initial_velocity_max = 4.4 if sink == 0.0 else 1.1
-	e.damping_min = 4.0 if sink == 0.0 else 1.6
-	e.damping_max = 7.0 if sink == 0.0 else 2.4
-	e.gravity = Vector3(0, sink, 0)
-	e.scale_amount_min = 0.6
-	e.scale_amount_max = 1.4
-	var grow := Curve.new()
-	grow.add_point(Vector2(0.0, 0.5))
-	grow.add_point(Vector2(1.0, 1.6 if sink == 0.0 else 3.6))
-	e.scale_amount_curve = grow
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.9 if sink == 0.0 else 0.6))
-	if sink != 0.0:
-		fade.add_point(0.6, Color(1, 1, 1, 0.35))      # 漂う霧は、しばらく残ってから薄くなる
-	fade.set_color(1, Color(1, 1, 1, 0.0))
-	e.color_ramp = fade
-	var quad := QuadMesh.new()
-	quad.size = Vector2(size, size)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	mat.albedo_texture = _dot
-	mat.no_depth_test = false
-	quad.material = mat
-	e.mesh = quad
-	game.add_child(e)
-	return e
+# 霧の円すい：側面だけの円すい（口が細く、板の側が太い）。大きさは毎コマ、口から板までに合わせる
+func _cone(density: float, flow: float) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.25          # 根元も少し太くする（細いと、濃い線に見える）
+	mesh.bottom_radius = 1.0
+	mesh.height = 1.0
+	mesh.radial_segments = 24
+	mesh.rings = 6
+	mesh.cap_top = false
+	mesh.cap_bottom = false
+	var mat := ShaderMaterial.new()
+	mat.shader = CONE_SHADER
+	mat.set_shader_parameter("density", density)
+	mat.set_shader_parameter("flow", flow)
+	mat.set_shader_parameter("noise", _noise)
+	mesh.material = mat
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visible = false
+	game.add_child(mi)
+	return mi
 
 
 # この缶の霧を、until（秒）まで、target へ向けて出す
@@ -339,29 +319,45 @@ func _mist_at(can: RigidBody3D, target: Vector3, until: float) -> void:
 
 
 func _update_mist(now: float) -> void:
+	var dt := get_process_delta_time()
 	for pid: int in _mists:
 		var m: Dictionary = _mists[pid]
 		var can: RigidBody3D = m.get("can")
-		var on: bool = can != null and is_instance_valid(can) and now < float(m["until"])
-		for key: String in ["core", "jet", "haze"]:
-			var e: CPUParticles3D = m[key]
-			e.emitting = on
-			if not on:
-				continue
-			var from: Vector3 = can.nozzle_global()
-			var to: Vector3 = m["target"]
-			var dir := (to - from)
-			if dir.length() < 0.05:
-				continue
-			e.global_position = from
-			e.global_basis = Basis.looking_at(dir.normalized(), Vector3.UP if absf(dir.normalized().y) < 0.95 else Vector3.RIGHT)
-			# 板まで届く速さにする（近いと短く、遠いと長く飛ぶ）
-			if key != "haze":
-				var reach := dir.length()
-				e.initial_velocity_min = clampf(reach * (7.0 if key == "core" else 5.5), 1.5, 11.0)
-				e.initial_velocity_max = e.initial_velocity_min * 1.25
-			var col: Color = can.paint
-			e.color = col.lerp(Color.WHITE, 0.25) if key == "core" else (Color(col.r * 0.85 + 0.1, col.g * 0.85 + 0.1, col.b * 0.85 + 0.1, 1.0) if key == "jet" else col.lerp(Color(0.6, 0.6, 0.62), 0.15))
+		var alive: bool = can != null and is_instance_valid(can)
+		var on: bool = alive and now < float(m["until"])
+		# 吹き始めは口から先へ伸び、止めると口の側から切れて、残りが板の方へ抜ける
+		if on:
+			m["cut"] = 0.0
+			m["grow"] = minf(1.0, float(m["grow"]) + dt / 0.08)
+		else:
+			m["cut"] = minf(1.2, float(m["cut"]) + dt / 0.22)
+			if float(m["cut"]) >= 1.2:
+				m["grow"] = 0.0
+		var showing: bool = alive and float(m["cut"]) < 1.2
+		for key: String in ["inner", "outer"]:
+			(m[key] as MeshInstance3D).visible = showing
+		if not alive:
+			continue
+		var from: Vector3 = can.nozzle_global()
+		var to: Vector3 = m["target"]
+		var dir := to - from
+		var length := dir.length()
+		if length < 0.05:
+			continue
+		var up := dir / length
+		var side := up.cross(Vector3.UP if absf(up.y) < 0.95 else Vector3.RIGHT).normalized()
+		var fwd := side.cross(up)
+		# 円すいの広がり：ノズルの開き（片側およそ10度）。外の円すいは少し太い
+		var spread := 0.025 + length * 0.17
+		for key: String in ["inner", "outer"]:
+			var cone: MeshInstance3D = m[key]
+			var r := spread * (0.7 if key == "inner" else 1.25)
+			# 物の y＋0.5 が口（細い方）になるように、口から板へ向かう向きを −y にする
+			cone.global_transform = Transform3D(Basis(side * r, -up * length, fwd * r), from + dir * 0.5)
+			var mat: ShaderMaterial = cone.mesh.material
+			mat.set_shader_parameter("paint", can.paint)
+			mat.set_shader_parameter("grow", float(m["grow"]))
+			mat.set_shader_parameter("cut", float(m["cut"]))
 
 
 # ---- 会社の名前 ----
