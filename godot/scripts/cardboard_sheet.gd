@@ -77,8 +77,9 @@ func pixel_at(local: Vector3) -> Variant:
 # ---- スプレーの跡（docs/production/spray-paint-study.md） ----
 const CELL := 20                 # 垂れを数える升目（ピクセル）
 const DRIP_AT := 9.0             # 升目に溜まった塗料がこれを超えると、下へ垂れる
-const DOTS_PER_POINT := 190      # 1回分（1コマ分）に出る粒の数
-const DOT_ALPHA := 0.38          # 1粒の濃さ（同じ所に重なるほど濃くなる）
+const DOTS_PER_POINT := 240      # 1回分（1コマ分）に出る粒の数
+const DOT_ALPHA := 0.5           # 1粒の濃さ（同じ所に重なるほど濃くなる）
+const DOT_R := 2                 # 1粒の丸の半径（ピクセル）
 var _wet := {}                   # 升目 → 溜まった塗料の量
 
 
@@ -101,17 +102,25 @@ func spray(points: PackedVector2Array, spreads: PackedFloat32Array, color: Color
 
 # 1回の吹き：ガウス分布の細かい粒の集まり。真ん中ほど詰まって濃く、外はまばら（柔らかい縁と飛び散り）
 func _dab(c: Vector2, sigma: float, color: Color, rng: RandomNumberGenerator, count: int) -> void:
-	var strength := DOT_ALPHA
+	var strength := DOT_ALPHA * clampf(9.0 / sigma, 0.3, 1.0)      # 遠い（広い）ほど、1粒は薄い
 	for j in count:
 		var r := sigma * sqrt(-2.0 * log(maxf(rng.randf(), 0.000001)))
 		var a := rng.randf() * TAU
 		var x := int(c.x + cos(a) * r)
 		var y := int(c.y + sin(a) * r)
-		if x < 0 or y < 0 or x >= res.x or y >= res.y:
-			continue
-		ink.set_pixel(x, y, ink.get_pixel(x, y).lerp(color, strength))
-		if r < sigma * 0.8 and x + 1 < res.x:
-			ink.set_pixel(x + 1, y, ink.get_pixel(x + 1, y).lerp(color, strength * 0.6))
+		# 1粒は小さな丸（真ん中が濃く、縁が薄い）。重なってなめらかにつながる
+		for dy in range(-DOT_R, DOT_R + 1):
+			var py := y + dy
+			if py < 0 or py >= res.y:
+				continue
+			for dx in range(-DOT_R, DOT_R + 1):
+				var px := x + dx
+				if px < 0 or px >= res.x:
+					continue
+				var fall := 1.0 - float(dx * dx + dy * dy) / float((DOT_R + 1) * (DOT_R + 1))
+				if fall <= 0.0:
+					continue
+				ink.set_pixel(px, py, ink.get_pixel(px, py).lerp(color, strength * fall))
 	# 溜まった量（細く近く吹くほど、早く溜まる）。超えたら垂れる
 	var cell := Vector2i(int(c.x) / CELL, int(c.y) / CELL)
 	var wet: float = float(_wet.get(cell, 0.0)) + float(count) * strength * 0.04 / maxf(1.0, sigma)
