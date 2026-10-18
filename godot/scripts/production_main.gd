@@ -40,6 +40,7 @@ var menu_open := ""        # ""＝歩いている / board＝依頼 / packing＝�
 var brief_job := 0          # 打ち合わせ中の依頼の番号
 var script_open := false    # 手に持った台本を開いているか
 var _cast_dress: Dictionary = {}   # 見立ての飾り（物のID → cast_dress.gd）。映画にも映る
+var _cast_names: Dictionary = {}   # 見立ての役の名前（物のID → Label3D）。準備中だけ、制作班にだけ見える
 var _attack: Dictionary = {}      # 飛んでいる途中の「怪獣の技」 {t, pos, pid}
 const ATTACK_FLIGHT := 0.9        # 怪獣の技が、撃ち出されてから落ちるまでの秒数
 
@@ -329,6 +330,7 @@ func _process(_delta: float) -> void:
 	# 演技・効果の案内は撮影現場でだけ出す
 	if performance != null and performance.get("_hint") != null:
 		performance._hint.visible = production.phase == 4 and menu_open == ""
+	_sync_cast_names()
 	if _headless:
 		return
 	var mode := Input.MOUSE_MODE_VISIBLE if wants_cursor() else Input.MOUSE_MODE_CAPTURED
@@ -745,6 +747,43 @@ func _physics_process(delta: float) -> void:
 			_attack = {}
 			if state in [S.PREP, S.TAKE]:
 				_soft_burst(hit["pos"], int(hit["pid"]))
+
+
+# 見立ての役の名前：飾りだけだと分かりにくい役もあるので、準備中は物の上に小さく「怪獣役」と出す。
+# 制作班にだけ見える（撮影カメラには映らない）。らしさの★は出さない（上映会で分かる）。本番・見返しの間は出さない
+func _sync_cast_names() -> void:
+	var want := {}
+	var me: Node = local_player()
+	if me != null and production != null and production.phase in [2, 4] and state == S.PREP and menu_open == "":
+		for pid: int in production.casting:
+			var prop: Node = props.get(pid)
+			if prop == null or prop.absent or prop.global_position.distance_to(me.global_position) > 26.0:
+				continue
+			var role: String = production.role_of(prop)
+			if role != "":
+				want[pid] = role
+	for pid: int in _cast_names.keys():
+		if not want.has(pid):
+			(_cast_names[pid] as Node).queue_free()
+			_cast_names.erase(pid)
+	for pid: int in want:
+		var prop: Node3D = props[pid]
+		var name_tag: Label3D = _cast_names.get(pid)
+		if name_tag == null:
+			name_tag = Label3D.new()
+			name_tag.font = ProductionHud.UI.fnt("bold")
+			name_tag.font_size = 26
+			name_tag.fixed_size = true
+			name_tag.pixel_size = 0.0011
+			name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			name_tag.modulate = Color("f4f1ea")
+			name_tag.outline_modulate = Color(0, 0, 0, 0.8)
+			name_tag.outline_size = 10
+			name_tag.layers = Stage.FilmCamera.CREW_LAYER
+			add_child(name_tag)
+			_cast_names[pid] = name_tag
+		name_tag.text = Flow.Cast.role_title(want[pid], production.story())
+		name_tag.global_position = prop.center_global() + Vector3(0, maxf(prop.half.y, 0.2) + 0.3, 0)
 
 
 # 見立ての飾り：自分たちで役を決めた物に、その役らしい飾り（目玉・旗・炎・窓 など）を付ける。映画にも映る（cast_dress.gd）。

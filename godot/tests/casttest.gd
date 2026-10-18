@@ -126,6 +126,9 @@ func run() -> void:
 		for mi: Node in dress.find_children("*", "MeshInstance3D", true, false):
 			filmed = filmed and (mi as MeshInstance3D).layers == 1
 	check(filmed and dress.find_children("*", "Label3D", true, false).is_empty(), "the dressing is something the film camera sees, not words")
+	# 準備中は、役の名前も物の上に小さく出る（制作班にだけ。★は出さない）
+	var name_tag: Label3D = game._cast_names.get(monster.pid)
+	check(game.state == S.PREP and name_tag != null and name_tag.text == "怪獣役" and name_tag.layers == (1 << 11) and name_tag.global_position.y > monster.center_global().y + monster.half.y, "while preparing, the role name floats over the prop for the crew only (%s)" % (name_tag.text if name_tag != null else "none"))
 	# 窓のような平たい飾りは、物に投影して描く（デカール。曲面に沿う）
 	var city: Node3D = game.CastDress.new()
 	monster.add_child(city)
@@ -134,7 +137,7 @@ func run() -> void:
 	city.free()
 	flow.cast_set(monster.pid, "")
 	await frames(2)
-	check(not is_instance_valid(dress) and not game._cast_dress.has(monster.pid), "taking the role off takes the dressing off")
+	check(not is_instance_valid(dress) and not game._cast_dress.has(monster.pid) and not game._cast_names.has(monster.pid), "taking the role off takes the dressing and the name off")
 	flow.cast_set(monster.pid, "monster")
 	game.h_cast(of_kind("scrap_arch")[0].pid, "monster")
 	check(flow.role_of(of_kind("scrap_arch")[0]) == "", "a prop out of reach cannot be cast")
