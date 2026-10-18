@@ -16,7 +16,8 @@ const SHOWN := 2                 # はじめから出ている板
 const SPARE := 4                 # たたむと出てくる板（地下にしまってある）
 const COLORS := [["黒", Color(0.08, 0.08, 0.09)], ["赤", Color(0.82, 0.13, 0.1)]]
 const REACH := 3.0               # 板から、これより遠いと吹けない
-const RADIUS := 12.0             # 吹いた点の大きさ（ピクセル）
+const SPREAD_NEAR := 4.5         # 吹いた跡の広がり（ガウスの幅。ピクセル）：缶の口が板に近い時
+const SPREAD_FAR := 30.0         # 　　　　　　　　　　　　　　　　　　　　　　：遠い時（1.5m 以上）
 const SEND_EVERY := 0.06
 const NAME_MAX := 14
 const FOLD_REACH := 4.0
@@ -27,9 +28,11 @@ var cans: Array = []             # スプレー缶
 var spare: Array = []            # ホスト：まだ地下にしまってある板（物のID）
 var _pending := PackedVector2Array()
 var _pending_pid := 0
+var _spreads := PackedFloat32Array()
+var _mists := {}                 # 缶の物のID → {"core", "jet", "haze", "until", "target", "can"}（霧。全員の画面）
+var _dot: Texture2D
 var _send_t := 0.0
 var _hiss_t := 0.0
-var _mist: CPUParticles3D
 var _dialog: CanvasLayer
 var _edit: LineEdit
 var _ask_pid := 0                # 名前を聞いている間、吹こうとしていた板
@@ -156,16 +159,15 @@ func _process(delta: float) -> void:
 	var can := _held_can(me)
 	var on: bool = can != null and not _dialog.visible and Input.is_action_pressed("operate") and not game.ui_blocking() \
 		and game.state in [game.S.PREP, game.S.COUNTDOWN, game.S.TAKE] and not game.replaying
-	_mist.emitting = on
+	var now := Time.get_ticks_msec() / 1000.0
 	if on:
-		_mist.global_position = can.nozzle_global()
-		var dir: Vector3 = -me.cam.global_basis.z
-		_mist.global_basis = Basis.looking_at(dir, Vector3.UP)
 		_hiss_t -= delta
 		if _hiss_t <= 0.0:
-			_hiss_t = 0.35
-			Sfx.play("whoosh_soft", can.nozzle_global(), -14.0)
+			_hiss_t = 0.26
+			Sfx.play("spray_hiss", can.nozzle_global(), -6.0)
 		var hit := _aim(me)
+		var target: Vector3 = hit["at"] if not hit.is_empty() else can.nozzle_global() - me.cam.global_basis.z * 1.2
+		_mist_at(can, target, now + 0.08)
 		if not hit.is_empty():
 			var sheet: RigidBody3D = hit["sheet"]
 			if str(game.production.company) == "" and not _asked:
@@ -177,10 +179,17 @@ func _process(delta: float) -> void:
 			var px: Variant = sheet.pixel_at(sheet.to_local(hit["at"]))
 			if px != null and (_pending.is_empty() or (px as Vector2).distance_to(_pending[_pending.size() - 1]) > 1.5):
 				_pending.append(px)
+				_spreads.append(spread_for(can.nozzle_global().distance_to(hit["at"])))
 	_send_t -= delta
 	if _send_t <= 0.0 or _pending.size() >= 24 or not on:
 		_send_t = SEND_EVERY
 		_flush(can)
+	_update_mist(now)
+
+
+# 缶の口から板までの距離 → 広がり（ガウスの幅。ピクセル）。近いと細く濃い・遠いと太く薄い
+static func spread_for(distance: float) -> float:
+	return lerpf(SPREAD_NEAR, SPREAD_FAR, clampf((distance - 0.15) / 1.35, 0.0, 1.0))
 
 
 # 狙っている段ボール板の表の点。{"sheet", "at"}（無ければ空）
@@ -204,15 +213,17 @@ func _aim(me: Node) -> Dictionary:
 func _flush(can: RigidBody3D) -> void:
 	if _pending.is_empty() or _pending_pid == 0:
 		_pending = PackedVector2Array()
+		_spreads = PackedFloat32Array()
 		return
 	if can != null:
-		h_spray.rpc_id(1, _pending_pid, _pending, can.pid)
+		h_spray.rpc_id(1, _pending_pid, _pending, _spreads, can.pid)
 	_pending = PackedVector2Array()
+	_spreads = PackedFloat32Array()
 
 
 @rpc("any_peer", "call_local", "reliable")
-func h_spray(pid: int, points: PackedVector2Array, can_pid: int) -> void:
-	if not Net.is_host() or points.is_empty() or points.size() > 32:
+func h_spray(pid: int, points: PackedVector2Array, spreads: PackedFloat32Array, can_pid: int) -> void:
+	if not Net.is_host() or points.is_empty() or points.size() > 32 or spreads.size() != points.size():
 		return
 	var who := Net.sender()
 	var me: Node3D = game.players.get(who)
@@ -225,37 +236,132 @@ func h_spray(pid: int, points: PackedVector2Array, can_pid: int) -> void:
 	if sheet.center_global().distance_to(me.global_position) > REACH + 1.5:
 		return
 	var clean := PackedVector2Array()
-	for p: Vector2 in points:
-		if not is_finite(p.x) or not is_finite(p.y):
+	var widths := PackedFloat32Array()
+	for i in points.size():
+		var p: Vector2 = points[i]
+		if not is_finite(p.x) or not is_finite(p.y) or not is_finite(spreads[i]):
 			return
 		clean.append(p.clamp(Vector2.ZERO, Vector2(sheet.res - Vector2i.ONE)))
-	game.cue_cards.rx_draw.rpc(pid, clean, can.paint, RADIUS, sheet.revision + 1)
+		widths.append(clampf(spreads[i], SPREAD_NEAR, SPREAD_FAR))
+	rx_spray.rpc(pid, clean, widths, can.paint, randi(), sheet.revision + 1, can_pid)
 
 
-# 吹いている間の霧（自分の画面だけ）
+# 吹いた跡を描く（全員の画面。粒のまき方は、ホストが決めた seed で同じになる）。吹いている人以外の画面では、霧も出す
+@rpc("authority", "call_local", "reliable")
+func rx_spray(pid: int, points: PackedVector2Array, spreads: PackedFloat32Array, color: Color, seed: int, version: int, can_pid: int) -> void:
+	var sheet: RigidBody3D = game.props.get(pid)
+	if sheet == null or not (sheet in sheets):
+		return
+	sheet.spray(points, spreads, color, seed)
+	sheet.revision = version
+	var can: RigidBody3D = game.props.get(can_pid)
+	var me: Node = game.local_player()
+	if can != null and can in cans and (me == null or me.held != can_pid) and not points.is_empty():
+		_mist_at(can, sheet.world_at(points[points.size() - 1]), Time.get_ticks_msec() / 1000.0 + SEND_EVERY * 2.5)
+
+
+# ---- 霧（缶ごとに3層：細く速い芯・円すいに広がる粒・漂って沈む霧） ----
+# 噴き出し：口から狙った所へ円すい形に飛び、板の手前で速さを失う（板に当たった分は、跡になって絵へ移る）
+# 漂う霧：噴き出しのまわりに残り、広がりながら下へ沈んで薄く散る
+
 func _build_mist() -> void:
-	_mist = CPUParticles3D.new()
-	_mist.name = "SprayMist"
-	_mist.emitting = false
-	_mist.amount = 40
-	_mist.lifetime = 0.35
-	_mist.direction = Vector3(0, 0, -1)
-	_mist.spread = 9.0
-	_mist.initial_velocity_min = 2.5
-	_mist.initial_velocity_max = 3.5
-	_mist.gravity = Vector3.ZERO
-	_mist.scale_amount_min = 0.5
-	_mist.scale_amount_max = 1.2
-	var dot := SphereMesh.new()
-	dot.radius = 0.012
-	dot.height = 0.024
+	var dot := GradientTexture2D.new()
+	dot.width = 64
+	dot.height = 64
+	dot.fill = GradientTexture2D.FILL_RADIAL
+	dot.fill_from = Vector2(0.5, 0.5)
+	dot.fill_to = Vector2(0.5, 0.0)
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 1))
+	g.set_color(1, Color(1, 1, 1, 0))
+	g.add_point(0.45, Color(1, 1, 1, 0.55))
+	dot.gradient = g
+	_dot = dot
+
+
+func _mist_for(can: RigidBody3D) -> Dictionary:
+	if _mists.has(can.pid):
+		return _mists[can.pid]
+	var core := _emitter(0.03, 0.2, 160, 0.0, 3.0)        # 芯：口からまっすぐ、細く速い
+	var jet := _emitter(0.06, 0.3, 220, 0.0, 10.0)        # 円すい：広がりながら板へ
+	var haze := _emitter(0.22, 1.4, 50, -0.25, 24.0)      # 漂う霧：板の手前で広がって沈む
+	var m := {"core": core, "jet": jet, "haze": haze, "until": 0.0, "target": Vector3.ZERO}
+	_mists[can.pid] = m
+	return m
+
+
+func _emitter(size: float, life: float, amount: int, sink: float, cone: float) -> CPUParticles3D:
+	var e := CPUParticles3D.new()
+	e.emitting = false
+	e.amount = amount
+	e.lifetime = life
+	e.local_coords = false
+	e.direction = Vector3(0, 0, -1)
+	e.spread = cone
+	e.initial_velocity_min = 3.2 if sink == 0.0 else 0.6
+	e.initial_velocity_max = 4.4 if sink == 0.0 else 1.1
+	e.damping_min = 4.0 if sink == 0.0 else 1.6
+	e.damping_max = 7.0 if sink == 0.0 else 2.4
+	e.gravity = Vector3(0, sink, 0)
+	e.scale_amount_min = 0.6
+	e.scale_amount_max = 1.4
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 1.6 if sink == 0.0 else 3.6))
+	e.scale_amount_curve = grow
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.9 if sink == 0.0 else 0.6))
+	if sink != 0.0:
+		fade.add_point(0.6, Color(1, 1, 1, 0.35))      # 漂う霧は、しばらく残ってから薄くなる
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	e.color_ramp = fade
+	var quad := QuadMesh.new()
+	quad.size = Vector2(size, size)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.2, 0.2, 0.2, 0.35)
-	dot.material = mat
-	_mist.mesh = dot
-	game.add_child(_mist)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_texture = _dot
+	mat.no_depth_test = false
+	quad.material = mat
+	e.mesh = quad
+	game.add_child(e)
+	return e
+
+
+# この缶の霧を、until（秒）まで、target へ向けて出す
+func _mist_at(can: RigidBody3D, target: Vector3, until: float) -> void:
+	var m := _mist_for(can)
+	m["until"] = maxf(float(m["until"]), until)
+	m["target"] = target
+	m["can"] = can
+
+
+func _update_mist(now: float) -> void:
+	for pid: int in _mists:
+		var m: Dictionary = _mists[pid]
+		var can: RigidBody3D = m.get("can")
+		var on: bool = can != null and is_instance_valid(can) and now < float(m["until"])
+		for key: String in ["core", "jet", "haze"]:
+			var e: CPUParticles3D = m[key]
+			e.emitting = on
+			if not on:
+				continue
+			var from: Vector3 = can.nozzle_global()
+			var to: Vector3 = m["target"]
+			var dir := (to - from)
+			if dir.length() < 0.05:
+				continue
+			e.global_position = from
+			e.global_basis = Basis.looking_at(dir.normalized(), Vector3.UP if absf(dir.normalized().y) < 0.95 else Vector3.RIGHT)
+			# 板まで届く速さにする（近いと短く、遠いと長く飛ぶ）
+			if key != "haze":
+				var reach := dir.length()
+				e.initial_velocity_min = clampf(reach * (7.0 if key == "core" else 5.5), 1.5, 11.0)
+				e.initial_velocity_max = e.initial_velocity_min * 1.25
+			var col: Color = can.paint
+			e.color = col.lerp(Color.WHITE, 0.25) if key == "core" else (Color(col.r * 0.85 + 0.1, col.g * 0.85 + 0.1, col.b * 0.85 + 0.1, 1.0) if key == "jet" else col.lerp(Color(0.6, 0.6, 0.62), 0.15))
 
 
 # ---- 会社の名前 ----

@@ -38,6 +38,27 @@ func shot(cam: Camera3D, from: Vector3, at: Vector3, file: String) -> void:
 	root.get_texture().get_image().save_png("res://tests/shots/spray/%s.png" % file)
 
 
+# 横線の跡の断面：x 200〜500 の列で濃さを平均し、山の高さ（0〜1）と、半分の高さでの幅（ピクセル）を測る
+func _band(sheet: RigidBody3D, y: int) -> Vector2:
+	var profile: Array = []
+	var peak := 0.0
+	for dy in range(-90, 91):
+		var yy := y + dy
+		var sum := 0.0
+		if yy >= 0 and yy < sheet.res.y:
+			for x in range(200, 500, 2):
+				var c: Color = sheet.ink.get_pixel(x, yy)
+				sum += clampf((sheet.BASE.v - c.v) / sheet.BASE.v, 0.0, 1.0)
+		var d := sum / 150.0
+		profile.append(d)
+		peak = maxf(peak, d)
+	var width := 0
+	for d: float in profile:
+		if d >= peak * 0.5:
+			width += 1
+	return Vector2(peak, width)
+
+
 func run() -> void:
 	game = load("res://production_game.tscn").instantiate()
 	root.add_child(game)
@@ -74,7 +95,7 @@ func run() -> void:
 	me.global_position = board_at + Vector3(0, 0.1, 1.8)
 	can.restore([me.global_position + Vector3(0.4, 0, 0), Quaternion.IDENTITY, false])
 	await frames(10)
-	kit.h_spray(sheet.pid, PackedVector2Array([Vector2(100, 200), Vector2(300, 220)]), can.pid)
+	kit.h_spray(sheet.pid, PackedVector2Array([Vector2(100, 200), Vector2(300, 220)]), PackedFloat32Array([6.0, 6.0]), can.pid)
 	await frames(2)
 	check(is_zero_approx(sheet.painted()), "缶を持っていないと、吹けない")
 	game.h_grab(can.pid)
@@ -95,24 +116,32 @@ func run() -> void:
 	# 吹く：太い線を何本か
 	for row in 6:
 		var pts := PackedVector2Array()
-		for k in 20:
-			pts.append(Vector2(80 + k * 27, 120 + row * 45 + (k % 3) * 6))
-		kit.h_spray(sheet.pid, pts, can.pid)
+		for k in 68:
+			pts.append(Vector2(80 + k * 8, 120 + row * 45 + (k % 3) * 2))
+		var widths := PackedFloat32Array()
+		widths.resize(32)
+		widths.fill(6.0)
+		for part in [pts.slice(0, 32), pts.slice(32, 64), pts.slice(64)]:
+			var w := widths.slice(0, (part as PackedVector2Array).size())
+			kit.h_spray(sheet.pid, part, w, can.pid)
 	await frames(5)
 	check(sheet.painted() > 0.05, "吹いた所に、色が付く（%.2f）" % sheet.painted())
 	# 実際の操作：缶を持って、板を狙い、F（operate）を押したまま
 	var by_hand: float = sheet.painted()
+	var rev0: int = sheet.revision
+	me.global_position = board_at + Vector3(0.0, 0.1, 1.2)      # 字を書くときは近づく（遠いと太く薄い霧になる）
+	await frames(3)
 	# 視点を下げていって、板に照準が合う向きを探す（後ろからの視点なので、向きでカメラの場所も変わる）
 	me.aim_yaw = 0.0
 	var found := false
-	for k in 40:
+	for k in 50:
 		me.aim_pitch = -0.2 - float(k) * 0.02
 		await process_frame
 		if not kit._aim(me).is_empty():
 			found = true
 			break
 	check(found, "板に照準を合わせられる（視点の上下 %.2f）" % me.aim_pitch)
-	var pitch0: float = me.aim_pitch
+	var pitch0: float = me.aim_pitch - 0.12      # 最初に当たるのは板の上の縁なので、少し下（真ん中寄り）を狙う
 	Input.action_press("operate")
 	for k in 40:
 		me.aim_yaw = sin(float(k) * 0.3) * 0.12
@@ -120,10 +149,49 @@ func run() -> void:
 		await process_frame
 	Input.action_release("operate")
 	await frames(10)
-	check(sheet.painted() > by_hand + 0.005, "缶を持って F を押したまま狙うと、吹ける（%.3f → %.3f）" % [by_hand, sheet.painted()])
+	check(int(sheet.revision) > rev0 + 3, "缶を持って F を押したまま狙うと、吹ける（絵の版 %d → %d）" % [rev0, int(sheet.revision)])
+	# 近いと細く濃い・遠いと太く薄い：同じ長さの線を、近い時と遠い時の広がりで吹き比べる
+	var near_sheet: RigidBody3D = kit.sheets[1]
+	near_sheet.restore([board_at + Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
+	# 1コマごとに 8px ずつ動かした線（ふつうの速さで横に払う）
+	var line := PackedVector2Array()
+	var near := PackedFloat32Array()
+	var far := PackedFloat32Array()
+	var line2 := PackedVector2Array()
+	for k in 68:
+		line.append(Vector2(80 + k * 8, 120))
+		line2.append(Vector2(80 + k * 8, 300))
+		near.append(kit.spread_for(0.2))
+		far.append(kit.spread_for(1.6))
+	near_sheet.spray(line, near, Color.BLACK, 7)
+	var near_dark: float = near_sheet.painted()
+	var band_near := _band(near_sheet, 120)
+	near_sheet.ink.fill(near_sheet.BASE)
+	near_sheet._refresh()
+	near_sheet.spray(line2, far, Color.BLACK, 7)
+	var band_far := _band(near_sheet, 300)
+	check(band_near.x > band_far.x and band_near.y < band_far.y, "近いと細く濃い（濃さ %.2f・幅 %dpx）、遠いと太く薄い（濃さ %.2f・幅 %dpx）" % [band_near.x, int(band_near.y), band_far.x, int(band_far.y)])
+	near_sheet.ink.fill(near_sheet.BASE)
+	near_sheet._refresh()
+	# 同じ所に近くから吹き続けると、垂れる
+	var dwell := PackedVector2Array()
+	var dwell_w := PackedFloat32Array()
+	for k in 30:
+		dwell.append(Vector2(350, 200))
+		dwell_w.append(kit.spread_for(0.15))
+	near_sheet.spray(dwell, dwell_w, Color.BLACK, 11)
+	var below: Color = near_sheet.ink.get_pixel(350, 245)
+	var dripped := false
+	for x in range(330, 371):
+		for y in range(225, 280):
+			if (near_sheet.ink.get_pixel(x, y) as Color).v < 0.25:
+				dripped = true
+	check(dripped and near_dark >= 0.0, "同じ所に近くから吹き続けると、下へ垂れる")
+	near_sheet.ink.fill(near_sheet.BASE)
+	near_sheet._refresh()
 	me.global_position = board_at + Vector3(0, 0.1, 9.0)
 	var before: float = sheet.painted()
-	kit.h_spray(sheet.pid, PackedVector2Array([Vector2(600, 400), Vector2(650, 420)]), can.pid)
+	kit.h_spray(sheet.pid, PackedVector2Array([Vector2(600, 400), Vector2(650, 420)]), PackedFloat32Array([6.0, 6.0]), can.pid)
 	await frames(2)
 	check(is_equal_approx(sheet.painted(), before), "遠くからは、吹けない")
 	# ---- 看板として映る ----

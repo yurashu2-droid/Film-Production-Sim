@@ -74,6 +74,81 @@ func pixel_at(local: Vector3) -> Variant:
 	return Vector2(u * float(res.x - 1), v * float(res.y - 1))
 
 
+# ---- スプレーの跡（docs/production/spray-paint-study.md） ----
+const CELL := 20                 # 垂れを数える升目（ピクセル）
+const DRIP_AT := 9.0             # 升目に溜まった塗料がこれを超えると、下へ垂れる
+const DOTS_PER_POINT := 190      # 1回分（1コマ分）に出る粒の数
+const DOT_ALPHA := 0.38          # 1粒の濃さ（同じ所に重なるほど濃くなる）
+var _wet := {}                   # 升目 → 溜まった塗料の量
+
+
+# 吹いた跡を描く（全員の画面で同じに描く。粒のまき方は seed で決まる）。
+# points：吹いた所のピクセル、spreads：その時の広がり（ガウスの幅。ピクセル）。点と点の間は埋める
+func spray(points: PackedVector2Array, spreads: PackedFloat32Array, color: Color, seed: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	for i in points.size():
+		var to: Vector2 = points[i]
+		var sigma: float = spreads[mini(i, spreads.size() - 1)]
+		var from: Vector2 = points[i - 1] if i > 0 else to
+		var steps := maxi(1, int(ceil(from.distance_to(to) / maxf(1.0, sigma * 0.3))))
+		# 1回分（1コマ分）に出る塗料の量は一定。間を埋めるときは、その量を分けて配る（素早く動かすと線が薄くなる）
+		var share := maxi(4, DOTS_PER_POINT / steps)
+		for k in range(1 if i > 0 else 0, steps + 1):
+			_dab(from.lerp(to, float(k) / float(steps)), sigma, color, rng, share)
+	_refresh()
+
+
+# 1回の吹き：ガウス分布の細かい粒の集まり。真ん中ほど詰まって濃く、外はまばら（柔らかい縁と飛び散り）
+func _dab(c: Vector2, sigma: float, color: Color, rng: RandomNumberGenerator, count: int) -> void:
+	var strength := DOT_ALPHA
+	for j in count:
+		var r := sigma * sqrt(-2.0 * log(maxf(rng.randf(), 0.000001)))
+		var a := rng.randf() * TAU
+		var x := int(c.x + cos(a) * r)
+		var y := int(c.y + sin(a) * r)
+		if x < 0 or y < 0 or x >= res.x or y >= res.y:
+			continue
+		ink.set_pixel(x, y, ink.get_pixel(x, y).lerp(color, strength))
+		if r < sigma * 0.8 and x + 1 < res.x:
+			ink.set_pixel(x + 1, y, ink.get_pixel(x + 1, y).lerp(color, strength * 0.6))
+	# 溜まった量（細く近く吹くほど、早く溜まる）。超えたら垂れる
+	var cell := Vector2i(int(c.x) / CELL, int(c.y) / CELL)
+	var wet: float = float(_wet.get(cell, 0.0)) + float(count) * strength * 0.04 / maxf(1.0, sigma)
+	if wet > DRIP_AT:
+		_drip(c, sigma, color, rng)
+		wet = 0.0
+	_wet[cell] = wet
+
+
+# 垂れ：溜まった所から下へ、細くなりながら伸びて、先に小さな玉ができて止まる
+func _drip(c: Vector2, sigma: float, color: Color, rng: RandomNumberGenerator) -> void:
+	var length := rng.randf_range(28.0, 74.0)
+	var width := clampf(sigma * 0.22, 1.2, 3.2)
+	var x0 := c.x + rng.randf_range(-sigma * 0.4, sigma * 0.4)
+	for t in int(length):
+		var w := width * (1.0 - 0.35 * float(t) / length)
+		var y := int(c.y + float(t))
+		if y >= res.y:
+			return
+		var x := x0 + sin(float(t) * 0.15) * 0.6
+		for dx in range(int(floor(x - w)), int(ceil(x + w)) + 1):
+			if dx >= 0 and dx < res.x:
+				ink.set_pixel(dx, y, ink.get_pixel(dx, y).lerp(color, 0.85))
+	var end := Vector2(x0, c.y + length)
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var px := Vector2i(int(end.x) + dx, int(end.y) + dy)
+			if px.x >= 0 and px.y >= 0 and px.x < res.x and px.y < res.y and Vector2(dx, dy).length() <= width + 1.2:
+				ink.set_pixel(px.x, px.y, ink.get_pixel(px.x, px.y).lerp(color, 0.9))
+
+
+# 絵のピクセル → 表の点（世界の座標）
+func world_at(px: Vector2) -> Vector3:
+	var local := Vector3((px.x / float(res.x - 1) - 0.5) * SIZE.x, (1.0 - px.y / float(res.y - 1)) * SIZE.y, THICK * 0.5)
+	return global_transform * local
+
+
 # スプレーで描いた所の割合（0〜1）。地の色と下書きは数えない（濃い色＝黒・赤・白で吹いた所だけ）
 func painted() -> float:
 	if _painted < 0.0:

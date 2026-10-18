@@ -525,6 +525,11 @@ func _synth_sfx() -> void:
 	_tone(b, 0.45, 1.1, _midi(62.0), 0.45, 0.02, 0.3, 0.0, _midi(46.0), 0.3, 0.0)
 	_streams["coin_drain"] = _finish(b, 0.55)
 
+	# spray_hiss（仮の合成音。スプレー缶の「シューッ」：高い音だけを残した雑音。吹いている間、繰り返し鳴らす）
+	b = _buf(0.3)
+	_noise(b, 0.0, 0.3, 0.8, 0.92, 0.02, 2.0)
+	_streams["spray_hiss"] = _finish(b, 0.35)
+
 
 func _load_local_music() -> void:
 	for name: String in LOCAL_MUSIC:
