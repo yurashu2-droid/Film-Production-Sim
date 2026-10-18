@@ -14,9 +14,11 @@ uniform sampler2D noise : filter_linear, repeat_enable;      // ミップマッ�
 uniform sampler2D depth_tex : hint_depth_texture, filter_linear_mipmap;
 
 varying vec3 obj;
+varying vec3 axis_view;            // 円すいの軸（視点の空間）。口の側から見ているかを知る
 
 void vertex() {
 	obj = VERTEX;
+	axis_view = normalize((MODELVIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 }
 
 void fragment() {
@@ -29,9 +31,12 @@ void fragment() {
 	// 縁を消す（面を斜めに見る所ほど薄い）
 	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
 	float edge = pow(facing, 1.6);
+	// 口の真後ろ（一人称で、手元の缶から吹く時）から見ると、側面はどこも斜めになる。その時は縁を消しすぎない
+	float behind_nozzle = smoothstep(0.55, 0.95, abs(dot(axis_view, normalize(VIEW))));
+	edge = mix(edge, 0.75, behind_nozzle);
 	// 長さ：口のすぐ先が濃く、板の手前で薄くなる。伸びている途中は、先が無い
 	// 口のすぐ先は細すぎて線に見えるので、少し離れた所からふわっと現れる
-	float along = smoothstep(0.08, 0.5, t) * (1.0 - smoothstep(0.75, 1.0, t)) * (1.0 - t * 0.25);
+	float along = smoothstep(0.03, 0.3, t) * (1.0 - smoothstep(0.75, 1.0, t)) * (1.0 - t * 0.25);
 	along *= 1.0 - smoothstep(grow - 0.08, grow, t);
 	// 止めたあと：口の側から消えていき、残りは板の方へ抜ける
 	along *= smoothstep(cut, cut + 0.12, t);

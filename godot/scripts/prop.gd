@@ -39,6 +39,11 @@ var hold_grip_local := Vector3.ZERO
 var hold_player_position := Vector3.ZERO
 var hold_forward := Vector3.FORWARD
 var hold_lifted := false
+# 手持ち：小物を G で手に持った（視点から見て右下・少し前に、立てたまま。main.gd の hold_target）。
+# 右ドラッグ・Q/E・ホイール・N・R・L で動かした途端に、いつもの持ち方（つかんだ時の位置関係のまま）へ戻る
+var hand_held := false
+const SMALL_SIZE := 0.35     # いちばん長い辺がこれ以下で、
+const SMALL_MASS := 2.5      # 重さがこれ以下なら小物（G で手持ちになる。箱馬・段ボール箱などは入らない）
 var _held_roll_friction := -1.0
 var _hold_com_local := Vector3.ZERO
 var _hold_inverse_inertia := Basis.IDENTITY
@@ -137,7 +142,13 @@ func set_playback(v: bool) -> void:
 		angular_velocity = Vector3.ZERO
 
 
+# 小物か（G で手持ちになる物）。転がして運ぶ物は除く
+func small_item() -> bool:
+	return not rolls and mass <= SMALL_MASS and maxf(half.x, maxf(half.y, half.z)) * 2.0 <= SMALL_SIZE
+
+
 func set_holder(id: int, local_grip: Variant = null) -> void:
+	hand_held = false
 	if id != 0 and (holder != id or not hold_reference_valid):
 		# つかむだけでは置き方を変えない。運搬の補助は別の明示操作。
 		hold_transform = global_transform

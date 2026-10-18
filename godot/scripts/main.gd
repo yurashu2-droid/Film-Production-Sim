@@ -605,6 +605,10 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 	var pl: CharacterBody3D = players.get(holder)
 	if pl == null:
 		return null
+	if prop.hand_held:
+		if not _hand_left(pl):
+			return _hand_target(pl, prop)
+		_leave_hand(pl, prop)
 	if prop.hold_reference_valid:
 		var anchor := hold_view_anchor(pl)
 		# 自分の支持物を動かした速度を、手の目標へ循環させない。
@@ -629,6 +633,45 @@ func hold_target(holder: int, prop: RigidBody3D) -> Variant:
 		var angles: Vector3 = basis.get_euler()
 		return [pos, angles.y, pl.global_position.y, angles.x, basis, point]
 	return _carry_target(pl, prop)
+
+
+# ---- 手持ち（小物を G で手に持つ。prop.gd の hand_held） ----
+const HAND_AT := Vector3(0.24, -0.3, -0.5)      # 頭（視点）から見た、手持ちの置き場所（右・下・前）
+
+
+# 手持ちの目標：頭から見て右下・少し前に、立てたまま持つ（物に carry_target があれば、そちら。スプレー缶は口を視線の先へ）
+func _hand_target(pl: CharacterBody3D, prop: RigidBody3D) -> Array:
+	var pos: Vector3
+	var yaw: float
+	var pitch := 0.0
+	if prop.has_method("carry_target"):
+		var own: Array = prop.carry_target(pl)
+		pos = own[0]
+		yaw = float(own[1])
+		pitch = float(own[3])
+	else:
+		var anchor := hold_view_anchor(pl)
+		pos = anchor.origin + anchor.basis * (HAND_AT + Vector3(0, 0, -maxf(prop.half.x, prop.half.z)))
+		yaw = pl.aim_yaw + prop.carry_yaw
+	var basis := Basis.from_euler(Vector3(pitch, yaw, 0.0))
+	return [pos, yaw, pl.global_position.y, pitch, basis, pos]
+
+
+# 手持ちのまま、持ち方を動かしたか（右ドラッグ・Q/E・ホイール・N）
+func _hand_left(pl: CharacterBody3D) -> bool:
+	return not is_equal_approx(pl.hold_dist, 1.6) or not is_zero_approx(pl.hold_yaw) or not is_zero_approx(pl.hold_pitch) \
+		or not is_zero_approx(pl.hold_roll) or pl.hold_offset != Vector3.ZERO or not pl.hold_turning
+
+
+# 手持ちをやめて、いつもの持ち方へ（いまの場所と向きを、つかんだ時の位置関係として使う）
+func _leave_hand(pl: CharacterBody3D, prop: RigidBody3D) -> void:
+	prop.hand_held = false
+	prop.hold_transform = prop.global_transform
+	prop.hold_grip_local = prop.center
+	prop.hold_view_transform = hold_view_anchor(pl)
+	prop.hold_player_position = pl.global_position
+	prop.hold_forward = pl.aim_forward()
+	prop.hold_reference_valid = true
 
 
 # 便利な手元の配置は、Gで引き寄せたときだけ使用する。
@@ -726,6 +769,16 @@ func h_hold_command(command: String, amount: float = 0.0) -> void:
 	if holding_support(pl, prop):
 		ev.rpc_id(who, "toast", ["自分の足場です。降りてから起こす・持ち上げる・引き寄せる", 0])
 		return
+	# 小物の G：手持ちにする（右ドラッグ・ホイール・N などで動かすと、いつもの持ち方へ戻る）
+	if command == "pull" and prop.small_item():
+		prop.hand_held = true
+		_reset_hold_controls(pl)
+		pl.hold_revision += 1
+		host_ev("hold_adjust", [who, prop.pid, _hold_snapshot(pl, prop)])
+		return
+	# R・L は、手持ちをやめてから（いまの場所と向きから）
+	if prop.hand_held:
+		_leave_hand(pl, prop)
 	var target: Array = hold_target(who, prop)
 	var basis: Basis = target[4]
 	var goal := Transform3D(basis, target[0] - basis * prop.center)

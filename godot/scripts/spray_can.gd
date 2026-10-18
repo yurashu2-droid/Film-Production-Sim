@@ -41,6 +41,19 @@ func build(color_name: String, color: Color) -> void:
 	add_child(collider)
 
 
+# ---- 手持ち（G）：視点（頭）から見て右下・少し前に、立てたまま持つ。口は視線の先へ向ける ----
+# 一人称では画面の右下に缶が見え、霧が右下から照準の方へ広がる。後ろからの視点でも、頭の右前あたりに来る。
+# 右ドラッグ・ホイール・N などで動かすと、ほかの小物と同じに、いつもの持ち方へ戻る（main.gd の hold_target）
+const HOLD_AT := Vector3(0.24, -0.3, -0.5)      # 頭から見た缶の置き場所（右・下・前）
+
+
+# 手持ちの目標：[中心の場所, 左右の向き, 足元の高さ, 上下の傾き]（main.gd の _hand_target・_carry_target が使う）
+func carry_target(player: Node3D) -> Array:
+	var anchor: Transform3D = game.hold_view_anchor(player)
+	var at: Vector3 = anchor.origin + anchor.basis * HOLD_AT
+	return [at, float(player.aim_yaw) + PI, player.global_position.y, 0.0]
+
+
 # 缶の口（世界の座標）。吹いた色の霧を出す所
 func nozzle_global() -> Vector3:
 	if _origin != null and is_instance_valid(_origin):

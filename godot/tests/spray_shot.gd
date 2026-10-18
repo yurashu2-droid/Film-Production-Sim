@@ -82,6 +82,9 @@ func run() -> void:
 	var mid: Vector3 = (can.nozzle_global() + (aim["at"] if not aim.is_empty() else at + Vector3(0, 0.4, 0))) * 0.5
 	side.global_position = at + Vector3(-0.75, 0.85, 0.15)
 	side.look_at(mid)
+	var eye := Camera3D.new()
+	eye.fov = 70
+	root.add_child(eye)
 	var t := 0.0
 	var shots := [0.1, 0.35, 0.8]
 	Input.action_press("operate")
@@ -94,7 +97,11 @@ func run() -> void:
 		if not shots.is_empty() and t >= float(shots[0]):
 			var when := int(float(shots.pop_front()) * 100)
 			await snap(side, "mist_%02d" % when)
-			await snap(me.cam, "fp_%02d" % when)
+			# 一人称の絵：頭の位置・向きのカメラで、自分の体と一人称の腕を隠して撮る（缶と霧が見える）
+			eye.global_transform = game.hold_view_anchor(me)
+			me.vis.visible = false
+			await snap(eye, "fp_%02d" % when)
+			me.vis.visible = true
 	Input.action_release("operate")
 	for after: float in [0.15, 0.45, 0.9, 1.4]:
 		while t < 1.1 + after:

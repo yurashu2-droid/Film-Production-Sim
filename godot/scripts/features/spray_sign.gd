@@ -279,8 +279,8 @@ func _build_mist() -> void:
 func _mist_for(can: RigidBody3D) -> Dictionary:
 	if _mists.has(can.pid):
 		return _mists[can.pid]
-	var inner := _cone(0.85, 2.8)                          # 内の円すい：細く濃く、速く流れる
-	var outer := _cone(0.45, 1.7)                          # 外の円すい：太く薄く、ゆっくり
+	var inner := _cone(1.1, 2.8)                           # 内の円すい：細く濃く、速く流れる
+	var outer := _cone(0.6, 1.7)                           # 外の円すい：太く薄く、ゆっくり
 	var m := {"inner": inner, "outer": outer, "until": 0.0, "target": Vector3.ZERO, "grow": 0.0, "cut": 1.0}
 	_mists[can.pid] = m
 	return m
