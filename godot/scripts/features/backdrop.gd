@@ -66,16 +66,6 @@ func _spawn_can(theme: String, at: Vector3) -> RigidBody3D:
 	p.half = box.size * 0.5
 	p.hold_min = maxf(1.1, p.half.z + 0.95)
 	game.stage._shape(p, box.get_center(), box.size * 0.97, false)
-	# ふたの上の札（制作班にだけ見える）
-	var tag := Label3D.new()
-	tag.text = THEMES[theme]
-	tag.font_size = 36
-	tag.pixel_size = 0.003
-	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.outline_size = 8
-	tag.layers = CREW_LAYER
-	tag.position = Vector3(0, box.end.y + 0.08, 0)
-	p.add_child(tag)
 	return game.stage._register(p, at, 0.0)
 
 

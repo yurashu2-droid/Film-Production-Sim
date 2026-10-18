@@ -44,7 +44,7 @@ func view() -> Dictionary:
 	# 物の上に出る見立ての札（制作班の画面にだけ出る）
 	var tags := {}
 	for pid: int in game._cast_tags:
-		tags[pid] = (game._cast_tags[pid] as Label3D).text
+		tags[pid] = str(game._cast_tags[pid].text)
 	return {"phase": flow.phase, "story": flow.story(), "likes": flow.likes(), "casting": flow.casting.duplicate(),
 		"pids": pids, "roles": roles, "sheet": flow.cast_sheet(), "tags": tags}
 

@@ -15,6 +15,7 @@ const AT := Vector3(73.1, 0.0, 3.3)  # 箱を置く所（事務所の中。起�
 const YAW := -0.35
 const SIZE := 2.3                    # 箱の見た目の拡大率（段ボール箱の素材。ふつうの段ボール箱は 2.6）
 const REACH := 1.8                   # この距離まで近づくと、F で開けられる
+const HEAR := 14.0                   # この距離までなら、講師のせりふが字幕で出る
 const TEACHER := "06"                # 講師の見た目（キャラの素材を、青いホログラムにする）
 const TEACHER_SCALE := 0.62
 const LINE_SEC := 4.2                # 1つのせりふを見せる秒数
@@ -36,7 +37,8 @@ var box: StaticBody3D
 var _flaps: Array[Node3D] = []
 var _teacher: Node3D
 var _vis: Node3D
-var _bubble: Label3D
+var _bubble: Label                  # せりふの字幕（画面の下。空中の吹き出しは出さない）
+var _subs: CanvasLayer
 var _mats: Array[ShaderMaterial] = []
 var _line_t := 0.0
 var _levels0 := ""                   # 箱を開ける前の会社の段階（買い物をしたら、そこで開く）
@@ -137,18 +139,24 @@ func _build() -> void:
 		mesh.layers = CREW_LAYER
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_mats.append(mat)
-	_bubble = Label3D.new()
-	_bubble.font = game.font
-	_bubble.font_size = 56
-	_bubble.outline_size = 14
-	_bubble.outline_modulate = Color(0.02, 0.08, 0.2, 0.9)
-	_bubble.modulate = Color(0.75, 0.92, 1.0)
-	_bubble.pixel_size = 0.0017
-	_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_bubble.no_depth_test = true
-	_bubble.layers = CREW_LAYER
-	_bubble.position = Vector3(0, _top_y + 0.85, 0)
-	_teacher.add_child(_bubble)
+	# せりふは画面の下の字幕（箱の近くにいる人の画面だけ）
+	_subs = CanvasLayer.new()
+	_subs.name = "TeacherSubtitles"
+	_subs.layer = 20
+	add_child(_subs)
+	_bubble = Label.new()
+	_bubble.add_theme_font_override("font", game.font)
+	_bubble.add_theme_font_size_override("font_size", 26)
+	_bubble.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
+	_bubble.add_theme_color_override("font_outline_color", Color(0.02, 0.06, 0.16, 0.95))
+	_bubble.add_theme_constant_override("outline_size", 10)
+	_bubble.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_bubble.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_bubble.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_bubble.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_bubble.offset_bottom = -170
+	_bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_subs.add_child(_bubble)
 
 
 func _set_solid(solid: bool) -> void:
@@ -183,8 +191,12 @@ func _process(delta: float) -> void:
 		# 2日目からは、箱は片づけてある
 		on = false
 		box.visible = false
+		_bubble.visible = false
 		_set_solid(false)
 		return
+	# 字幕は、講師の声が届く所にいる人の画面にだけ出す（メニューを開いている間は隠す）
+	var me: Node3D = game.local_player()
+	_bubble.visible = _teacher.visible and me != null and me.global_position.distance_to(box.global_position) < HEAR and not game.ui_blocking()
 	if Net.is_host() and not opened and (int(flow.phase) != 0 or str(flow.levels) != _levels0):
 		host_open()
 	if line >= 0:
@@ -320,7 +332,7 @@ func _say(i: int) -> void:
 		out.tween_callback(func() -> void: _teacher.visible = false)
 		return
 	line = i
-	_bubble.text = LINES[i]
+	_bubble.text = "バズ山「%s」" % LINES[i]
 	_vis.play("ORDER" if i % 2 == 0 else "idle", 0.15, true)
 	_vis.set_face("happy")
 	Sfx.play("ui_select", box.global_position, -8.0)

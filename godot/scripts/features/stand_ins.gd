@@ -188,19 +188,8 @@ func _wear(body: Node3D, role: int) -> Array:
 	sash.global_position = chest + front * 0.2
 	sash.global_rotation = holder.global_rotation
 	sash.rotate_object_local(Vector3.FORWARD, 0.75)
-	var tag := Label3D.new()
-	tag.name = "RoleTag"
-	tag.text = "役者%s" % ROLE_NAMES[role]
-	tag.font_size = 40
-	tag.pixel_size = 0.006
-	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.no_depth_test = true
-	tag.modulate = SASH[role].lightened(0.2)
-	tag.outline_size = 10
-	tag.layers = CREW_LAYER
-	holder.add_child(tag)
-	tag.global_position = body.global_position + Vector3(0, 2.45, 0)
-	return [sash, tag, role]
+	# 頭の上の「役者A」の札は出さない（たすきの色で分かる。狙えば名前も出る）
+	return [sash, null, role]
 
 
 # ---- 自分の操作：Y ----

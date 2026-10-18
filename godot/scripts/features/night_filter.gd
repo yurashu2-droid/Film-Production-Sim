@@ -13,7 +13,6 @@ var game: Node
 var gel: RigidBody3D
 var night: Dictionary = {}                 # フィルターを付けた撮影カメラ（物のID → true）
 var _env: Environment
-var _tags: Dictionary = {}                 # カメラの物のID → 札
 var _live := {}
 
 
@@ -59,7 +58,11 @@ func hook_f(me: Node) -> bool:
 
 
 func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	# フィルターを付けたカメラを狙うと、名前の横に出す（カメラの上の札は出さない）
 	if gel == null or me.held != gel.pid:
+		var aimed := _aimed_camera(me)
+		if aimed != null and night.has(int(aimed.pid)):
+			return {"tail": "　（夜用フィルター付き）"}
 		return {}
 	var cam := _aimed_camera(me)
 	if cam == null:
@@ -130,7 +133,6 @@ func _apply() -> void:
 		var vc: Camera3D = cam.get("view_cam")
 		if vc != null:
 			vc.environment = _night_env(vc) if on else null
-		_tag(cam, on)
 
 
 # 擬似夜景：世界の空と光をそのまま使い、映像だけを暗く・青く・色を浅くする
@@ -152,23 +154,3 @@ func _night_env(vc: Camera3D) -> Environment:
 	lut.gradient = ramp
 	_env.adjustment_color_correction = lut
 	return _env
-
-
-func _tag(cam: Node, on: bool) -> void:
-	var pid := int(cam.pid)
-	if on and not _tags.has(pid):
-		var l := Label3D.new()
-		l.text = "夜用フィルター"
-		l.font_size = 40
-		l.pixel_size = 0.005
-		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		l.no_depth_test = true
-		l.modulate = Color(0.6, 0.75, 1.0)
-		l.outline_size = 8
-		l.layers = CREW_LAYER
-		cam.add_child(l)
-		l.position = Vector3(0, 2.1, 0)
-		_tags[pid] = l
-	elif not on and _tags.has(pid):
-		(_tags[pid] as Node).queue_free()
-		_tags.erase(pid)

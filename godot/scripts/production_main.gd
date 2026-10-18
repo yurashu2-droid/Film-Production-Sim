@@ -1,6 +1,7 @@
 extends "res://scripts/main.gd"
 const Flow := preload("res://scripts/production_flow.gd")
 const ProductionHud := preload("res://scripts/production_hud.gd")
+const CastTag := preload("res://scripts/cast_tag.gd")
 const ProductionPing := preload("res://scripts/production_ping.gd")
 const ProductionExport := preload("res://scripts/production_export.gd")
 const CameraSwitcher := preload("res://scripts/camera_switcher.gd")
@@ -36,7 +37,6 @@ var _legacy_mode := false
 var _crew_epoch := 0
 # 歩く画面には何も開かない。掲示板や軽トラに近づいて F を押したときだけ画面が開く
 var menu_open := ""        # ""＝歩いている / board＝依頼 / packing＝積み込み確認 / pause＝一時メニュー
-var _markers: Dictionary = {}
 var brief_job := 0          # 打ち合わせ中の依頼の番号
 var script_open := false    # 手に持った台本を開いているか
 var _cast_tags: Dictionary = {}   # 見立ての札（物のID → Label3D）。制作班にだけ見える
@@ -133,7 +133,6 @@ func _ready() -> void:
 	production_export = ProductionExport.new()
 	production_export.game = self
 	add_child(production_export)
-	_build_markers()
 	performance = ProductionPerformance.new()
 	performance.name = "Performance"
 	performance.game = self
@@ -323,68 +322,19 @@ func _process(_delta: float) -> void:
 		menu_open = ""
 	if menu_open != "" and (state in [S.RESULT, S.REPLAY, S.DELIVERED] or production.phase in [3, 5]):
 		menu_open = ""
-	if _markers.has("board"):
-		# 近づいたら目印は消して、下の「F」の案内に任せる
-		var here := station()
-		_markers["board"].visible = production.phase == 0 and menu_open == "" and here != "board"
-		_markers["packing"].visible = production.phase == 2 and menu_open == "" and here != "packing"
-		_markers["order"].visible = production.phase == 2 and menu_open == "" and here != "order"
-		var me_now: Node = local_player()
-		_markers["upgrade"].visible = production.phase in [0, 2] and menu_open == "" and me_now != null and me_now.global_position.distance_to(Vector3(69.4, 0, -7.6)) > 6.0
-		# 監督の机（のぞき箱と電話）：机のそばへ来るまで出しておく
-		_markers["desk"].visible = production.phase == 2 and menu_open == "" and me_now != null and me_now.global_position.distance_to(Director.BOX_AT) > 4.5
-		# 台本を手放したら、ページも閉じる
-		if script_open and not holding_script():
-			script_open = false
-		# 台本：誰も持たず、荷台にも無い間だけ、その場所を示す
-		var book: Node = production.script_prop
-		_markers["script"].visible = book != null and production.phase == 2 and menu_open == "" and book.holder == 0 and book.rider_of == 0
-		if _markers["script"].visible:
-			_markers["script"].global_position = book.global_position + Vector3(0, 0.55, 0)
-		_markers["yard"].visible = production.phase == 2 and menu_open == "" and me_now != null and me_now.global_position.distance_to(Flow.Yard.gate_point()) > 9.0
-		# 機材置き場：囲いの中に入るまで出しておく（足元の文字は、南側からしか読めない）
-		_markers["gear"].visible = production.phase == 2 and menu_open == "" and me_now != null and not Flow.Office.GEAR_YARD.has_point(Vector2(me_now.global_position.x, me_now.global_position.z))
-		# 演技・効果の案内は撮影現場でだけ出す
-		if performance != null and performance.get("_hint") != null:
-			performance._hint.visible = production.phase == 4 and menu_open == ""
+	# 行き先は、空中の目印ではなく、本物の看板（掲示板・段ボール置き場・廃材と軽トラ など）と、近づいたときの「F」の案内で見せる
+	# 台本を手放したら、ページも閉じる
+	if script_open and not holding_script():
+		script_open = false
+	# 演技・効果の案内は撮影現場でだけ出す
+	if performance != null and performance.get("_hint") != null:
+		performance._hint.visible = production.phase == 4 and menu_open == ""
 	_sync_cast_tags()
 	if _headless:
 		return
 	var mode := Input.MOUSE_MODE_VISIBLE if wants_cursor() else Input.MOUSE_MODE_CAPTURED
 	if Input.mouse_mode != mode:
 		Input.mouse_mode = mode
-
-
-# 行き先の目印（遠くからでも見える小さな札）
-func _build_markers() -> void:
-	_markers["board"] = _marker("依頼ボード", Flow.Office.CONTRACT_POINT + Vector3(0, 3.35, -2.1))
-	_markers["packing"] = _marker("積み込み確認", Flow.HOME_TRUCK + Vector3(0, 2.7, 0))
-	_markers["order"] = _marker("機材レンタル", Flow.Rental.POINT + Vector3(1.4, 3.9, 0))
-	_markers["yard"] = _marker("今日の廃材", Flow.Yard.gate_point() + Vector3(0, 3.0, 0))
-	_markers["script"] = _marker("台本", Flow.Office.CONTRACT_POINT)
-	_markers["upgrade"] = _marker("会社を大きくする", Vector3(69.4, 4.0, -7.6))
-	_markers["desk"] = _marker("監督の机（参考スライド・発注）", (Director.BOX_AT + Director.PHONE_AT) * 0.5 + Vector3(0, 1.75, 0))
-	var yard: Rect2 = Flow.Office.GEAR_YARD
-	# 西から見ると、奥の「機材レンタル」の目印と同じ方向になる。重ならないよう、少し高く出す
-	_markers["gear"] = _marker("機材置き場（いっしょに運ぶ）", Vector3(yard.get_center().x, 4.6, yard.get_center().y))
-
-
-func _marker(text: String, at: Vector3) -> Label3D:
-	var l := Label3D.new()
-	l.text = text
-	l.font = ProductionHud.UI.fnt("bold")
-	l.font_size = 34
-	l.fixed_size = true
-	l.pixel_size = 0.0011
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.modulate = Color("f4f1ea")
-	l.outline_modulate = Color(0, 0, 0, 0.8)
-	l.outline_size = 10
-	l.visible = false
-	add_child(l)
-	l.global_position = at
-	return l
 
 
 # カメラを操作している人の左クリック：次の合図を出す（数字キーへ手を伸ばさなくていい）
@@ -797,7 +747,7 @@ func _physics_process(delta: float) -> void:
 				_soft_burst(hit["pos"], int(hit["pid"]))
 
 
-# 見立ての札：自分たちで役を決めた物の上に、役とらしさを出す（撮影カメラには映らない）
+# 見立ての荷札：自分たちで役を決めた物に、役とらしさを書いた紙の札をぶら下げる（撮影カメラには映らない。cast_tag.gd）
 func _sync_cast_tags() -> void:
 	var want := {}
 	var me: Node = local_player()
@@ -815,15 +765,17 @@ func _sync_cast_tags() -> void:
 			_cast_tags.erase(pid)
 	for pid: int in want:
 		var prop: Node3D = props[pid]
-		var tag: Label3D = _cast_tags.get(pid)
+		var tag: Node3D = _cast_tags.get(pid)
 		if tag == null:
-			tag = _marker("", Vector3.ZERO)
-			tag.font_size = 26
-			tag.layers = Stage.FilmCamera.CREW_LAYER
-			tag.visible = true
+			tag = CastTag.new()
+			tag.build(font)
+			tag.top_level = true
+			add_child(tag)
 			_cast_tags[pid] = tag
 		tag.text = "%s %s" % [Flow.Cast.role_title(want[pid], production.story()), Flow.Cast.stars(production.cast_fit(prop, want[pid]))]
-		tag.global_position = prop.center_global() + Vector3(0, maxf(prop.half.y, 0.25) + 0.38, 0)
+		# 物の前の上の角（右寄り）から、まっすぐ下へ垂らす。札の面は、物の正面と同じ向き
+		var corner: Vector3 = prop.global_transform * (prop.center + Vector3(prop.half.x * 0.55, prop.half.y, prop.half.z + 0.01))
+		tag.global_transform = Transform3D(Basis(Vector3.UP, prop.global_rotation.y), corner)
 
 
 @rpc("any_peer","call_local","reliable")

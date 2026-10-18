@@ -117,8 +117,6 @@ func _add(gname: String, visual: Node3D, at: Vector3, yaw: float, tag: String) -
 	holder.add_child(copy)
 	var mat := _material()
 	_holo(copy, mat)
-	if tag != "":
-		_tag(holder, tag, _top(copy) + 0.25)
 	guides.append({"name": gname, "node": holder, "mats": [mat], "ok": false})
 
 
@@ -137,23 +135,7 @@ func _add_ring(gname: String, at: Vector3, tag: String) -> void:
 	holder.add_child(ring)
 	var mat := _material()
 	_holo(ring, mat)
-	_tag(holder, tag, 0.45)
 	guides.append({"name": gname, "node": holder, "mats": [mat], "ok": false})
-
-
-func _tag(holder: Node3D, text: String, y: float) -> void:
-	var l := Label3D.new()
-	l.text = text
-	l.font = game.font
-	l.font_size = 40
-	l.outline_size = 10
-	l.outline_modulate = Color(0.02, 0.08, 0.2, 0.85)
-	l.modulate = Color(0.7, 0.9, 1.0)
-	l.pixel_size = 0.0025
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.layers = CREW_LAYER
-	l.position.y = y
-	holder.add_child(l)
 
 
 func _top(node: Node3D) -> float:

@@ -388,12 +388,11 @@ func run() -> void:
 	await frames(2)
 	me.target = box_b
 	game.input_locked = false
-	kit._show_note(me)
+	var view := str(kit.hud_view(me))
 	game.input_locked = true
-	check(kit.f_action(me).get("do", "") == "unpack" and kit._note.visible and "ゴムの魚" in kit._note.text and not has_digit(kit._note.text), "aiming at a filled carton offers to take a prop out and shows the contents above it (%s)" % kit._note.text)
+	check(kit.f_action(me).get("do", "") == "unpack" and "ゴムの魚" in view and game.find_children("KitNote", "", true, false).is_empty(), "aiming at a filled carton offers to take a prop out and names the contents beside the crosshair, not in the air (%s)" % view)
 	me.target = null
-	kit._show_note(me)
-	check(not kit._note.visible, "the tag goes away when the carton is no longer aimed at")
+	check(not "ゴムの魚" in str(kit.hud_view(me)), "the contents go away when the carton is no longer aimed at")
 	kit.h_unpack(box_b.pid, letter.pid)
 	await frames(4)
 	check(me.held == letter.pid and letter.stored_in == 0 and not letter.absent and letter.visible and letter.collision_layer != 0, "F takes the chosen prop out, into the hands")

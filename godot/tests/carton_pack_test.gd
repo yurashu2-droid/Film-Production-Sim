@@ -209,7 +209,7 @@ func run() -> void:
 	var slim: Array = []
 	var big: Array = []
 	for prop: Node in game.props.values():
-		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope", "pulley", "buzzer", "igniter", "timer", "nightgel"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
+		if prop.absent or prop.holder != 0 or prop.immovable or prop.rolls or prop.kind in ["carton", "truck", "mark", "fx", "script", "standin", "glue", "rope", "pulley", "buzzer", "igniter", "timer", "nightgel", "cardboard"] or prop.kind in kit.GEAR or prop.deck_top >= 0.0:
 			continue
 		if longest(prop) <= 0.5:
 			small.append(prop)
@@ -280,7 +280,7 @@ func run() -> void:
 		if why != "" and not kit.fits_alone(prop):
 			too_big += 1
 			words.append(why)
-	check(too_big >= 3 and words.all(func(w: String) -> bool: return "入らない" in w and not has_digit(w)), "props bigger than the inside of a carton are refused, with a reason and no numbers (%d refused, e.g. %s)" % [too_big, str(words.slice(0, 1))])
+	check(too_big >= 3 and words.all(func(w: String) -> bool: return "入らない" in w and not has_digit(w)), "props bigger than the inside of a carton are refused, with a reason and no numbers (%d refused, e.g. %s)" % [too_big, str(words.filter(func(w: String) -> bool: return not ("入らない" in w and not has_digit(w))))])
 	var rock: Node = big.filter(func(p: Node) -> bool: return p.kind == "rock")[0] if big.any(func(p: Node) -> bool: return p.kind == "rock") else big[0]
 	check(not (await pack(rock, box_c)) and rock.stored_in == 0 and not rock.absent, "a refused prop stays out, in the world")
 
@@ -394,10 +394,7 @@ func run() -> void:
 	me.target = box_d
 	var view: Dictionary = kit.hud_view(me)
 	check(kit._short(two) in str(view.get("tail", "")) and not has_digit(str(view.get("tail", "")) + str(view.get("keys", ""))), "the hint names it and has no numbers (%s / %s)" % [str(view.get("tail", "")), str(view.get("keys", ""))])
-	game.input_locked = false
-	kit._show_note(me)
-	game.input_locked = true
-	check(kit._note.visible and kit._short(one) in kit._note.text and not has_digit(kit._note.text), "the names of the contents hang over the carton that is aimed at (%s)" % kit._note.text)
+	check(kit._short(one) in kit.boxes._tag(box_d) and not has_digit(kit.boxes._tag(box_d)), "the names of the contents are listed for the aimed carton's name (%s)" % kit.boxes._tag(box_d))
 	var notes := 0
 	for box: Node in kit.cartons:
 		notes += box.find_children("*", "Label3D", true, false).size()

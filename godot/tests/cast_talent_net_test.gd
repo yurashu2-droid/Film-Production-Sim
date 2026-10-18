@@ -287,7 +287,7 @@ func client_run() -> void:
 	for node: Node in game.get_children():
 		if node is Label3D and (node as Label3D).text in ["止まれ！", "ぴたっ"]:
 			shouts += 1
-	check(shouts >= 1, "the participant sees the bubble or the tag")
+	check(shouts == 0, "no words float in the air on the participant's screen either")
 	await wait(3.6)
 	reply = await request("halted", "fish")
 	check(not reply["halted"] and float(reply["gravity"]) == 1.0 and float(reply["y"]) < 2.0, "after the two seconds it falls again, gravity back")

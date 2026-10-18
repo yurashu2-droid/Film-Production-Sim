@@ -1797,12 +1797,4 @@ func _configure_site() -> void:
 	elif site == 2:
 		var yard := Assets.decorate(_site_root,"yard")
 		yard.position = Vector3(8,0,-6)
-		var label := Label3D.new()
-		label.text = "空き地ロケ　／　10分だけ貸切"
-		label.font = game.font
-		label.font_size = 90
-		label.position = Vector3(0,3.0,-10.0)
-		# 空中に浮いた案内の文字は、制作班にだけ見せる（撮影カメラの映像には映さない。film_camera.gd の CREW_LAYER）
-		label.layers = 1 << 11
-		_site_root.add_child(label)
 	Location.build(_site_root,game.font,site)

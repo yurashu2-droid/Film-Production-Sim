@@ -186,32 +186,6 @@ static func show_paddle(vis: Node3D, up: float) -> void:
 	paint.emission_energy_multiplier = 0.6
 
 
-# 制作班にだけ見える、頭の上や物の上の文字（映画には映らない）。seconds たったら消える
-static func pop_word(parent: Node, font: Font, text: String, at: Vector3, size: int, tint: Color, seconds: float) -> Label3D:
-	var word := Label3D.new()
-	word.text = text
-	if font != null:
-		word.font = font
-	word.font_size = size
-	word.fixed_size = true
-	word.pixel_size = 0.0011
-	word.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	word.no_depth_test = true
-	word.modulate = tint
-	word.outline_modulate = Color(0, 0, 0, 0.85)
-	word.outline_size = 12
-	word.layers = FilmCamera.CREW_LAYER
-	word.top_level = true
-	parent.add_child(word)
-	word.global_position = at
-	var fade := word.create_tween()
-	fade.tween_property(word, "scale", Vector3.ONE, 0.12).from(Vector3.ONE * 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	fade.tween_interval(maxf(seconds - 0.4, 0.05))
-	fade.tween_property(word, "modulate:a", 0.0, 0.28)
-	fade.tween_callback(word.queue_free)
-	return word
-
-
 # ---- 毛ひも：頭の房と、手に持つ束 ----
 
 static func _hair_material() -> StandardMaterial3D:

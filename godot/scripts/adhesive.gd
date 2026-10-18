@@ -42,8 +42,9 @@ func setup() -> void:
 	label.text = "接着剤"
 	label.font = game.font
 	label.font_size = 48
-	label.pixel_size = 0.0015
-	label.position = tool.center + Vector3(0,0,tool.half.z+0.012)
+	# ボトルに印刷した文字：ボトルの幅に収める（はみ出すと、横に浮いた札に見える）
+	label.pixel_size = minf(0.0015, tool.half.x * 2.0 * 0.85 / (48.0 * label.text.length()))
+	label.position = tool.center + Vector3(0,0,tool.half.z+0.004)
 	tool.add_child(label)
 
 func handle_input(event: InputEvent) -> bool:

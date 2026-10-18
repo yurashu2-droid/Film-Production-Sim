@@ -79,7 +79,6 @@ func setup() -> void:
 	reels._tint_rope(reels.rope.visual)
 	boxes._build_pile()
 	boxes._build_yard()
-	boxes.marker = game._marker("段ボール置き場（箱・ロープ）", Vector3(YARD.get_center().x, 3.4, YARD.get_center().y))
 	if Net.is_host():
 		flow._home_layout[reels.rope.pid] = reels.rope.get_state()
 		host_reset()
@@ -87,12 +86,10 @@ func setup() -> void:
 
 
 func _process(_delta: float) -> void:
-	if boxes.marker == null or flow == null:
+	if flow == null:
 		return
 	var me: Node3D = game.local_player()
 	ropes._show_marks(me)
-	boxes._show_note(me)
-	boxes.show_marker(me)
 
 
 # 毎コマ：ロープ（全員の画面）→ 箱（ホストだけ）の順
@@ -237,6 +234,11 @@ func hud_view(me: Node) -> Dictionary:
 	# 中身のある箱を持っているときは、中身も出す
 	if held != null and held.kind == "carton" and not boxes.box_items(held).is_empty():
 		out["tail"] = "　" + boxes.box_note(held)
+	# 中身のある箱を狙っているときも、名前の横に中身を出す（空中の札は出さない）。F の案内があれば、その前に
+	var inside := ""
+	if held == null and target != null and target.kind == "carton" and not target.absent and not game.ui_blocking() and not boxes.box_items(target).is_empty():
+		inside = "（中身：%s）" % boxes._tag(target)
+		out["tail"] = "　" + inside
 	var act := f_action(me)
 	if act.is_empty():
 		return out
@@ -245,6 +247,8 @@ func hud_view(me: Node) -> Dictionary:
 		ropes.hud_for(act, put, out)
 	else:
 		boxes.hud_for(act, held, target, out)
+	if inside != "" and not str(out.get("tail", "")).contains(inside):
+		out["tail"] = "　" + inside + str(out.get("tail", ""))
 	return out
 
 
@@ -308,21 +312,11 @@ var lay: Dictionary:
 		return boxes.lay
 	set(value):
 		boxes.lay = value
-var marker: Label3D:
-	get:
-		return boxes.marker
-	set(value):
-		boxes.marker = value
 var spill_chance: float:
 	get:
 		return boxes.spill_chance
 	set(value):
 		boxes.spill_chance = value
-var _note: Label3D:
-	get:
-		return boxes._note
-	set(value):
-		boxes._note = value
 var lashes: Dictionary:
 	get:
 		return ropes.lashes
@@ -414,8 +408,6 @@ func host_restore(data: Dictionary) -> void:
 	boxes.host_restore(data)
 
 
-func _show_note(me: Node3D) -> void:
-	boxes._show_note(me)
 
 
 # 荷台のロープ（cargo_lash.gd）

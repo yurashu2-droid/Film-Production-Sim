@@ -199,7 +199,7 @@ func setup() -> void:
 	refresh()
 
 
-# 印に、番号を付ける：円盤の上の数字（床の印として、映画にも映る）と、遠くからでも分かる札（制作班にだけ見える）
+# 印に、番号を付ける：円盤の上の数字（床の印として、映画にも映る）。役者は円盤の色で分かる
 func _dress(disc: RigidBody3D, aid: int, step: int) -> void:
 	var numeral := Label3D.new()
 	numeral.name = "Numeral"
@@ -214,22 +214,6 @@ func _dress(disc: RigidBody3D, aid: int, step: int) -> void:
 	numeral.rotation.x = -PI * 0.5
 	numeral.visible = false
 	disc.add_child(numeral)
-	var tag := Label3D.new()
-	tag.name = "Tag"
-	tag.text = str(ACTORS[aid]) + str(STEPS[step])
-	tag.font = game.font
-	tag.font_size = 30
-	tag.fixed_size = true
-	tag.pixel_size = 0.0011
-	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.no_depth_test = true
-	tag.modulate = Color("f4f1ea")
-	tag.outline_modulate = Color(0, 0, 0, 0.8)
-	tag.outline_size = 10
-	tag.layers = CREW_LAYER
-	tag.position = Vector3(0, 0.42, 0)
-	tag.visible = false
-	disc.add_child(tag)
 
 
 func mark(aid: int, step: int) -> RigidBody3D:
@@ -350,7 +334,6 @@ func refresh() -> void:
 				item.set_absent(not on or aid >= cast)
 			item.label = "立ち位置の印 %s%s" % [ACTORS[aid], STEPS[step] if on else ""]
 			(item.get_node("Numeral") as Node3D).visible = on
-			(item.get_node("Tag") as Node3D).visible = on
 	var count := list().size() if on else 0
 	if lit.size() != count:
 		lit = _falses(count)
@@ -431,7 +414,6 @@ func _process(delta: float) -> void:
 	for cam: Node in game.camera_switcher.cameras:
 		cam.set_film(on and flow.phase in [2, 4, 5], frac, rolling, low)
 	game.camera_switcher.monitor.set_marks(lamps() if on else [], frac)
-	_sync_hold_sign(on and holding and game.state == S.TAKE)
 	# 残りわずか：リールがカタカタ鳴る。切れる間際ほど、せわしなく
 	if not low:
 		_rattle = 0.0
@@ -442,37 +424,6 @@ func _process(delta: float) -> void:
 		var sfx: Node = get_node_or_null("/root/Sfx")
 		if sfx != null and sfx.has_sound("ui_select"):
 			sfx.play("ui_select", (game.program_camera() as Node3D).global_position + Vector3(0, 1.4, 0), -3.0)
-
-
-# 場転の札：フィルムを止めている間、撮影カメラの上に浮かぶ（制作班にだけ見える。映画には映らない）。
-# 画面の隅の文字ではなく、現場の物で「いまは止まっている・次は何の場面か」が分かるように
-var _hold_sign: Label3D
-
-
-func _sync_hold_sign(show: bool) -> void:
-	if _hold_sign == null:
-		if not show:
-			return
-		_hold_sign = Label3D.new()
-		_hold_sign.name = "HoldSign"
-		_hold_sign.font = game.font
-		_hold_sign.font_size = 30
-		_hold_sign.pixel_size = 0.0012
-		_hold_sign.fixed_size = true
-		_hold_sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_hold_sign.no_depth_test = true
-		_hold_sign.modulate = Color("ffcc00")
-		_hold_sign.outline_modulate = Color(0, 0, 0, 0.85)
-		_hold_sign.outline_size = 14
-		_hold_sign.layers = CREW_LAYER
-		add_child(_hold_sign)
-	_hold_sign.visible = show
-	if not show:
-		return
-	var cam: Node3D = game.program_camera()
-	if cam != null:
-		_hold_sign.global_position = cam.global_position + Vector3(0, 2.25, 0)
-	_hold_sign.text = "場転中（フィルム停止）\n次：%s　／　1 で回す" % hold_title(next_scene).get_slice("（", 0)
 
 
 # ---- 場面を進める ----

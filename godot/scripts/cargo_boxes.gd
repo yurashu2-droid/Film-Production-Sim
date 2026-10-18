@@ -53,9 +53,7 @@ var cartons: Array = []                       # 段ボール箱（物のIDの小
 var pile: RigidBody3D
 var contents: Dictionary = {}                 # 箱の物のID → 中身の物のID（入れた順）
 var lay: Dictionary = {}                      # 箱の物のID → {中身の物のID → 箱から見た置き方（Transform3D。実寸で積んだ場所と向き）}
-var marker: Label3D
 var _tick := 0.0
-var _note: Label3D                            # 狙った箱の上に出す、中身の名前の札（狙っている間だけ）
 var _slots := {}                              # 置ける場所の計算の控え（[箱, 物] → 結果）。中身が変わったら捨てる
 var _alone := {}                              # 空の箱になら入る物か（物の種類 → 入る・入らない）
 var _resting := {}                            # 箱の中に手で置かれて、止まっている物（物のID → 続けて止まっていた回数）
@@ -626,35 +624,7 @@ func _show_boxes() -> void:
 			box.mass = weight
 
 
-# 中身の名前の札：狙っている箱の上にだけ出す（並んだ箱の札が重ならないよう、いつもは出さない）。
-# 制作班にだけ見える（映画には映らない）。数は書かない（箱の中を見れば分かる）
-func _show_note(me: Node3D) -> void:
-	if _note == null:
-		_note = Label3D.new()
-		_note.name = "KitNote"
-		_note.font = game.font
-		_note.font_size = 26
-		_note.fixed_size = true
-		_note.pixel_size = 0.0011
-		_note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_note.no_depth_test = true
-		_note.modulate = Color("f6e7c4")
-		_note.outline_modulate = Color(0, 0, 0, 0.8)
-		_note.outline_size = 10
-		_note.layers = FilmCamera.CREW_LAYER
-		_note.top_level = true
-		_note.visible = false
-		kit.add_child(_note)
-	var box: Node3D = me.target if me != null and not game.ui_blocking() else null
-	if box == null or box.kind != "carton" or box.absent or box_items(box).is_empty():
-		_note.visible = false
-		return
-	_note.text = _tag(box)
-	_note.global_position = box.global_transform * Vector3(0, box.room.end.y + maxf(box_over(box), 0.0) + 0.3, 0)
-	_note.visible = true
-
-
-# 箱の上に出す短い札：「ゴムの魚・クリームパイ・紙の王冠 など」。名前は3つまで
+# 箱の中身の短い一覧：「ゴムの魚・クリームパイ・紙の王冠 など」。名前は3つまで（狙ったときの名前の横に出す。cargo_kit.gd の hud_view）
 func _tag(box: Node) -> String:
 	return _names(box, 3)
 
@@ -778,12 +748,6 @@ func collect_cartons() -> void:
 	for i in maxi(0, CARTON_COUNT - cartons.size()):
 		cartons.append(game.stage.spawn("carton", Vector3(float(game.props.size() + 1) * 3.0, -60.0, 30.0)))
 	cartons.sort_custom(func(a: Node, b: Node) -> bool: return a.pid < b.pid)
-
-
-# 置き場の目印：離れている間だけ出す
-func show_marker(me: Node3D) -> void:
-	var centre := Vector3(YARD.get_center().x, 0.0, YARD.get_center().y)
-	marker.visible = flow.phase == 2 and game.menu_open == "" and me != null and me.global_position.distance_to(centre) > 5.0
 
 
 # 毎コマ（ホストだけ。ロープの計算のあと）：手で置いた物を中身にする・道中でこぼす・片づけ・置き場に箱を足す

@@ -1165,7 +1165,7 @@ func _fly_cloth(prop: Node3D, to: Vector3, gone: bool) -> void:
 	fly.chain().tween_callback(ghost.queue_free)
 
 
-# 「止まれ！」：頭の上の吹き出しと、止まった物の「ぴたっ」（どちらも制作班にだけ見える）。背中の札が倒れる
+# 「止まれ！」：身ぶりをして、背中の札が倒れる（空中の文字は出さない。止まった物は、動きが止まることで分かる）
 func _on_halt(who: int, pids: Array) -> void:
 	if game.replaying:
 		_halt_view[who] = Talents.HALT_WAIT
@@ -1175,11 +1175,6 @@ func _on_halt(who: int, pids: Array) -> void:
 	if pl == null:
 		return
 	pl.start_performance("halt")
-	Looks.pop_word(game, game.font, "止まれ！", head_top(pl) + Vector3(0, 0.55, 0), 56, Color(1.0, 0.36, 0.3), 1.5)
-	for i in mini(pids.size(), 8):
-		var prop: Node3D = game.props.get(pids[i])
-		if prop != null and not prop.absent:
-			Looks.pop_word(game, game.font, "ぴたっ", prop.center_global() + Vector3(0, prop.half.y + 0.28, 0), 30, Color(1.0, 0.95, 0.75), Talents.HALT_TIME)
 
 
 func _on_neck(who: int, on: bool) -> void:
