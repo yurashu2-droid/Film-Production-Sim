@@ -1079,3 +1079,51 @@ func screening_client() -> void:
 		_react(t * 0.9, i)
 		cam.global_position = eye + Vector3(0, 0, 0.25) * ease_io(t)
 		cam.look_at(head + Vector3(0, 0.05, 0)))
+
+
+# 切り抜き：キャラを背景なし（透明）で書き出す（MAD 風のステッカー・集合・名前カード用）。
+# キャラだけを専用の層に置き、黒い背景と白い背景で2回撮る（make_cutouts.py が、2枚の差から透明さを出す）
+const CUT_LAYER := 1 << 18
+
+
+func cutouts() -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.92, 0.92, 1.0)
+	env.ambient_light_energy = 0.55
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	cam.environment = env
+	cam.cull_mask = CUT_LAYER
+	cam.fov = 30
+	var key := DirectionalLight3D.new()
+	key.light_cull_mask = CUT_LAYER
+	key.light_energy = 1.2
+	game.add_child(key)
+	var at := Vector3(75, 0, 30)
+	var poses := {"M02": "cheer", "04": "point", "09": "hips", "03": "wave", "01": "cheer", "02": "point", "06": "hips"}
+	for tag: String in poses:
+		var p := puppet(tag, at, 0.0)
+		for mi: Node in p.find_children("*", "GeometryInstance3D", true, false):
+			(mi as GeometryInstance3D).layers = CUT_LAYER
+		p.set_face("happy")
+		var pose := preload("res://scripts/peep_pose.gd").new()
+		pose.mode = poses[tag]
+		pose.lean = 0.0
+		(p.skel as Skeleton3D).add_child(pose)
+		await frames(8)
+		var box: AABB = p.global_transform * game.stage.merged_aabb(p)
+		var mid := box.get_center()
+		var h := maxf(box.size.y, box.size.x * 1.8) * 1.1
+		cam.global_position = mid + Vector3(0.0, 0.1, h / (2.0 * tan(deg_to_rad(15.0))))
+		cam.look_at(mid)
+		key.global_transform = Transform3D(Basis.looking_at(Vector3(-0.4, -0.6, -1.0)), cam.global_position)
+		for bg: Array in [[Color.BLACK, "k"], [Color.WHITE, "w"]]:
+			env.background_color = bg[0]
+			cam.make_current()
+			await process_frame
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("%s/cut_%s_%s.png" % [out_dir, tag, bg[1]])
+		p.queue_free()
+		await frames(2)
+	frame = 7
