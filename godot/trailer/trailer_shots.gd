@@ -1179,3 +1179,48 @@ func cutouts() -> void:
 		p.queue_free()
 		await frames(2)
 	frame = 7
+
+
+# 物の切り抜き（モーショングラフィックス用）：黒と白の背景で2回撮る（make_cutouts.py）。斜め上から
+func cutouts_props() -> void:
+	truck_away()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.92, 0.92, 1.0)
+	env.ambient_light_energy = 0.55
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	cam.environment = env
+	cam.cull_mask = CUT_LAYER
+	cam.fov = 30
+	var key := DirectionalLight3D.new()
+	key.light_cull_mask = CUT_LAYER
+	key.light_energy = 1.3
+	game.add_child(key)
+	var at := Vector3(75, 0.0, 30)
+	var items := {"timer": of_kind("timer"), "igniter": of_kind("igniter"), "boulder": rock, "tub": of_kind("scrap_tub"), "toilet": of_kind("scrap_toilet"), "bomb": game.fx, "fan": of_kind("scrap_fan"), "clapper": game.clapper, "truck": game.get("truck")}
+	for name: String in items:
+		var p: RigidBody3D = items[name]
+		if p == null:
+			continue
+		p.restore([at + Vector3(0, 0.02, 0), Quaternion(Vector3.UP, -0.5), true])
+		await frames(4)
+		for g: Node in p.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).layers |= CUT_LAYER
+		var c: Vector3 = p.center_global()
+		var r: float = p.half.length()
+		var d := r / tan(deg_to_rad(15.0)) * 1.05
+		cam.global_position = c + Vector3(0.25, 0.45, 1.0).normalized() * d
+		cam.look_at(c)
+		key.global_transform = Transform3D(Basis.looking_at(Vector3(-0.4, -0.7, -1.0)), cam.global_position)
+		for bg: Array in [[Color.BLACK, "k"], [Color.WHITE, "w"]]:
+			env.background_color = bg[0]
+			cam.make_current()
+			await process_frame
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("%s/cut_%s_%s.png" % [out_dir, name, bg[1]])
+		for g: Node in p.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).layers &= ~CUT_LAYER
+		p.restore([Vector3(150, 0.5, 200 + float(items.keys().find(name)) * 4.0), Quaternion.IDENTITY, true])
+		await frames(2)
+	frame = 9
