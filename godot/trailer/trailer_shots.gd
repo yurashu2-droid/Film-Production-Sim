@@ -869,3 +869,32 @@ func dolly_track() -> void:
 		pusher.global_position = d + Vector3(0, 0, -1.2)
 		cam.global_position = Vector3(ROAD_X - 5.6, 1.7, z + 1.5)
 		cam.look_at(Vector3(ROAD_X - 1.0, 0.8, z + 1.2)))
+
+
+# 試写会の依頼主（ベレー帽先生）の寄り：暗い部屋で、スクリーンの明かりにちらちら照らされて、驚いて、喜ぶ
+func client_react() -> void:
+	var kit: Node = game.hooks.feature("delivery_box")
+	var base: Vector3 = kit.AT + Vector3(-1.5, 0.0, 1.0)
+	var who := puppet("04", base, PI)
+	who.set_face("neutral")
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.62, 0.78, 1.0)
+	glow.light_energy = 3.0
+	glow.omni_range = 4.0
+	game.add_child(glow)
+	await frames(10)
+	# 首の長いキャラなので、頭の骨ではなく、見た目のいちばん上から顔の高さを決める
+	var box: AABB = game.stage.merged_aabb(who)
+	var head: Vector3 = Vector3(base.x, box.end.y - 0.32, base.z)
+	glow.global_position = head + Vector3(0, 0.1, -1.1)
+	cam.fov = 34
+	var eye := head + Vector3(0.15, 0.05, -1.7)
+	look(eye, head + Vector3(0, 0.05, 0))
+	dof(2.2, 0.12)
+	await rec(3.4, func(t: float) -> void:
+		glow.light_energy = 2.4 + 1.2 * absf(sin(float(frame) * 0.9)) * absf(sin(float(frame) * 0.31))
+		cam.global_position = eye + Vector3(0, 0, 0.25) * ease_io(t)
+		if t > 0.28 and who.face != "surprised" and t < 0.55:
+			who.set_face("surprised")
+		if t >= 0.55 and who.face != "happy":
+			who.set_face("happy"))
