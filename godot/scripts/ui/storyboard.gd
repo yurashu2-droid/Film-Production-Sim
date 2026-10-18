@@ -50,8 +50,8 @@ static func svg(story: String, index: int) -> String:
 		var frames: Array = PARODY[story]
 		body = _parody(str(frames[clampi(index, 0, frames.size() - 1)]))
 	elif story == "trap":
-		# 転がる大岩・予告編：動くカメラ → 上から落ちる罠 → 大岩に追われる → 寄りで決め
-		body = [_trap_1(), _trap_2(), _trap_3(), _castle_3()][clampi(index, 0, 3)]
+		# 転がる大岩・予告編：動くカメラ → 上から落ちる罠 → 大岩に追われる → 穴に飛び込んでよける
+		body = [_trap_1(), _trap_2(), _trap_3(), _trap_4()][clampi(index, 0, 3)]
 	elif story == "kaiju":
 		body = [_kaiju_1(), _kaiju_2(), _kaiju_3()][clampi(index, 0, 2)]
 	else:
@@ -445,6 +445,26 @@ static func _trap_3() -> String:
 	out += _fig(Vector2(330, 242), 0.95, "run", false, -12.0)
 	out += _fig(Vector2(408, 244), 0.92, "run", false, -12.0)
 	out += _startle(Vector2(330, 140)) + _startle(Vector2(408, 142))
+	return out
+
+
+# 穴に飛び込んだ二人（頭だけ出ている）の上を、大きな丸い何かが転がっていく。穴も「？」の影（何を穴にするかは描かない）
+static func _trap_4() -> String:
+	var out := _ground(206)
+	out += _ghost("M 150,206 L 150,250 Q 255,268 360,250 L 360,206 Z")
+	out += _question(Vector2(255, 240), 0.7)
+	# 穴から出た、二人の頭と、頭を押さえる手
+	for x: float in [222.0, 290.0]:
+		out += '<circle cx="%.1f" cy="190" r="15" fill="%s" stroke="%s" stroke-width="3.5"/>' % [x, PAPER, PENCIL]
+		out += _line([Vector2(x - 20, 198), Vector2(x - 12, 172), Vector2(x, 168)], PENCIL, 3.5)
+		out += _line([Vector2(x + 20, 198), Vector2(x + 12, 172), Vector2(x, 168)], PENCIL, 3.5)
+		out += _startle(Vector2(x, 150))
+	# 上を転がっていく大きな丸い何か（左から右へ）
+	out += _ghost("M 230,92 a 58,58 0 1,0 116,0 a 58,58 0 1,0 -116,0 Z")
+	out += _question(Vector2(288, 94), 1.3)
+	for k in 3:
+		out += _line([Vector2(214 - k * 6, 62 + k * 30), Vector2(186 - k * 6, 62 + k * 30)], SOFT, 3.0)
+	out += _arrow(Vector2(358, 60), Vector2(440, 60))
 	return out
 
 

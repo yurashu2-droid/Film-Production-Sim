@@ -30,9 +30,23 @@ var st := St.STANDBY
 var st_t := 0.0
 var after_flinch := St.IDLE
 var special: Array = []       # 告白で使う固有モーション
-# 骨格に重ねるポーズ（peep_pose.gd の "bow"・"hips"・"wave"・"point"・"cheer"。"" ＝無し）。全員の画面へ、記録へも載る
+# 骨格に重ねるポーズ（peep_pose.gd の "bow"・"hips"・"wave"・"point"・"cheer"・"duck"。"" ＝無し）。全員の画面へ、記録へも載る
 var body_pose := ""
 const BodyPose := preload("res://scripts/peep_pose.gd")
+# 穴（"pit" の役の物）：飛び込む場面（beat の "dive"）では、穴の物を通り抜けて中へ跳び込む。しゃがむ（"duck"）と、穴の中へ沈む
+const PIT_SHOW := 0.42        # 穴の中でしゃがんだとき、穴のふちから出る高さ（m）。頭と肩くらい
+const ACTOR_W := 1.0          # 役者の体の幅（m）。穴の口より大きければ、その分だけ縮む
+const DIVE_AT := 1.1          # 印まで、この距離になったら跳び込む
+var _dove: Array = []         # 通り抜けている穴の物
+var _dive_hop := false
+var _layer_before := -1       # 穴の中でしゃがむ間は、ほかの物に当たらない（転がる大岩が上を通れる）。その前の値
+# ぺちゃんこ：転がってきた重い物（大岩）に追いつかれると、平たくつぶれて、しばらくしてから、ぽんと戻る（漫画の理屈。けがはしない）。
+# つぶれている間は body_pose が "flat"（全員の画面・見返しにも載る）。大岩はその上を転がっていく
+const FLAT_SEC := 1.6
+const FLAT_SPEED := 1.5       # これより速く転がっている物に
+const FLAT_SPIN := 1.2
+const FLAT_MASS := 3.0        # これより重い物に追いつかれると、つぶれる
+var _flat_t := 0.0
 # キャラごとのあいさつの動き（台本のポーズ "greet"）。無いキャラは、手を振る
 const GREET := {"01": "GREETING", "02": "ON_DUTY", "03": "NOTES", "06": "ORDER"}
 var playback := false
@@ -117,6 +131,8 @@ func set_state(s: St) -> void:
 	# 待機中は印に付いて回るだけの幽霊にする（瞬間移動でセットを弾き飛ばさないため）
 	collision_layer = 0 if s == St.STANDBY or stand_in != null else 8
 	collision_mask = 0 if s == St.STANDBY or stand_in != null else 7     # 役者どうしは重なれる（頭の上に乗らないように）
+	if s != St.BEAT_HOLD:
+		_layer_before = -1          # 当たる層は、上で決め直した（穴の中でしゃがむ間の 0 は、もう無い）
 	st_t = 0.0
 	_stuck = 0.0
 	_spec_i = 0
@@ -156,6 +172,7 @@ func _face(target: Vector3, delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_sink(delta)
 	if playback:
 		return
 	if stand_in != null and not is_instance_valid(stand_in):
@@ -174,6 +191,16 @@ func _physics_process(delta: float) -> void:
 		return
 	if not multiplayer.is_server():
 		_follow_net(delta)
+		return
+	if _flat_t > 0.0:
+		_flat_t -= delta
+		velocity.x = 0.0
+		velocity.z = 0.0
+		_fall(delta, 12.0)
+		if _flat_t <= 0.0:
+			_unflat()
+		return
+	if _rolled_over():
 		return
 	st_t += delta
 	match st:
@@ -286,6 +313,7 @@ func _reunion_move(delta: float) -> void:
 
 # その場面の動きを始める（ホスト）。吹き飛ばされている最中なら、起き上がってから向かう
 func play_beat(spec: Dictionary) -> void:
+	_leave_pit()
 	beat = spec
 	_beat_leg = 0 if spec.has("back") else 1
 	_rookie_beat()
@@ -425,6 +453,8 @@ func _beat_go(delta: float) -> void:
 			return
 		set_state(St.BEAT_HOLD)
 		return
+	if _beat_leg == 1 and beat.get("dive", false):
+		_dive(dist, d / dist)
 	var gait: String = "run" if _beat_leg == 0 else str(beat.get("gait", "walk"))
 	var speed: float = RUN_SPEED if gait == "run" else WALK_SPEED
 	var dir := d / dist
@@ -483,7 +513,11 @@ func _beat_hold(delta: float) -> void:
 		"partner":
 			_face(partner.global_position, delta)
 	var pose := str(beat.get("pose", "idle"))
-	set_body_pose(pose if pose in ["bow", "hips", "wave", "point", "cheer"] else ("wave" if pose == "greet" and not GREET.has(vis.tag) else ""))
+	set_body_pose(pose if pose in ["bow", "hips", "wave", "point", "cheer", "duck"] else ("wave" if pose == "greet" and not GREET.has(vis.tag) else ""))
+	# 穴の中でしゃがんでいる間は、ほかの物に当たらない（大岩が頭の上を転がっていける）。床には立つ
+	if pose == "duck" and in_pit() != null and _layer_before < 0:
+		_layer_before = collision_layer
+		collision_layer = 0
 	match pose:
 		"greet":
 			# あいさつ：キャラの決めの動きを、くり返す
@@ -525,6 +559,149 @@ func apply_state(s: Array, immediate: bool = false) -> void:
 		set_body_pose(str(s[4]) if s.size() > 4 else "")
 	else:
 		_net = s
+
+
+# いま入っている穴の物（"pit" の役。足もとが、その物の外形の内側）。無ければ null
+func in_pit() -> Node3D:
+	var flow: Node = game.production if game != null else null
+	if flow == null:
+		return null
+	for pid: int in flow.casting:
+		if str(flow.casting[pid]) != "pit":
+			continue
+		var p: Node3D = game.props.get(pid)
+		if p == null or p.absent:
+			continue
+		var box := pit_box(p)
+		var at := global_position
+		if at.x > box.position.x - 0.15 and at.x < box.end.x + 0.15 and at.z > box.position.z - 0.15 and at.z < box.end.z + 0.15 and at.y > box.position.y - 0.6 and at.y < box.end.y + 0.6:
+			return p
+	return null
+
+
+# 穴の物の、世界の向きでの外形（寝かせた板・傾いた箱でも、上から見た広さと、ふちの高さが分かる）
+static func pit_box(p: Node3D) -> AABB:
+	var b: Basis = p.global_basis
+	var h: Vector3 = p.half
+	var ext := Vector3(
+		absf(b.x.x) * h.x + absf(b.y.x) * h.y + absf(b.z.x) * h.z,
+		absf(b.x.y) * h.x + absf(b.y.y) * h.y + absf(b.z.y) * h.z,
+		absf(b.x.z) * h.x + absf(b.y.z) * h.y + absf(b.z.z) * h.z)
+	return AABB(p.center_global() - ext, ext * 2.0)
+
+
+# つぶれているか（全員の画面で分かる）
+func is_flat() -> bool:
+	return body_pose == "flat"
+
+
+# 転がってくる大岩に追いつかれたら、ぺちゃんこになる（ホスト）。穴の中でしゃがんでいれば、上を通っていくだけ
+func _rolled_over() -> bool:
+	if st == St.STANDBY or (body_pose == "duck" and in_pit() != null):
+		return false
+	var me := global_position
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.mass < FLAT_MASS:
+			continue
+		# 大岩だけ（張りぼての大岩と、大岩に見立てた物）。倒れる怪獣などでは、つぶれない
+		if p.kind != "boulder" and (game.production == null or game.production.role_of(p) != "bigrock"):
+			continue
+		var v: Vector3 = p.linear_velocity
+		var flat_v := Vector3(v.x, 0.0, v.z)
+		if flat_v.length() < FLAT_SPEED or p.angular_velocity.length() < FLAT_SPIN:
+			continue
+		var c: Vector3 = p.center_global()
+		var to_me := Vector3(me.x - c.x, 0.0, me.z - c.z)
+		var r: float = maxf(p.half.x, maxf(p.half.y, p.half.z))
+		if to_me.length() > r + 0.3 or flat_v.dot(to_me) <= 0.0 or c.y - r > me.y + 1.0:
+			continue
+		_flat_t = FLAT_SEC
+		set_body_pose("flat")
+		collision_layer = 0
+		velocity = Vector3.ZERO
+		vis.play("flinch", 0.05, true)
+		game.host_ev("sfx", ["land", me])
+		return true
+	return false
+
+
+# ぽんと戻る（ホスト）：当たる層を戻して、さっきの続きをする
+func _unflat() -> void:
+	set_body_pose("")
+	set_state(st)
+	game.host_ev("sfx", ["whoosh_soft", global_position])
+
+
+# 穴へ跳び込む（ホスト）：印に近づいたら、近くの穴の物を通り抜けられるようにして、ひと跳び
+func _dive(dist: float, dir: Vector3) -> void:
+	if dist > DIVE_AT * 1.8:
+		return
+	var flow: Node = game.production
+	var target: Vector3 = beat.get("to", global_position)
+	for pid: int in flow.casting:
+		var p: Node3D = game.props.get(pid)
+		if str(flow.casting[pid]) != "pit" or p == null or p.absent or p in _dove:
+			continue
+		if Vector2(p.global_position.x - target.x, p.global_position.z - target.z).length() < maxf(p.half.x, p.half.z) + 0.6:
+			add_collision_exception_with(p)
+			_dove.append(p)
+	if not _dive_hop and dist < DIVE_AT and is_on_floor() and not _dove.is_empty():
+		_dive_hop = true
+		velocity.y = 4.2
+		velocity.x = dir.x * RUN_SPEED
+		velocity.z = dir.z * RUN_SPEED
+		vis.play("jump", 0.08, true)
+
+
+# 穴から出る：通り抜けを戻し、当たる層を戻す
+func _leave_pit() -> void:
+	for p: Variant in _dove:
+		if is_instance_valid(p):
+			remove_collision_exception_with(p)
+	_dove.clear()
+	_dive_hop = false
+	if _layer_before >= 0:
+		collision_layer = _layer_before
+		_layer_before = -1
+
+
+# 穴の中でしゃがむと、見た目を沈める（全員の画面。しゃがむかどうかは body_pose で届く。見返しも同じ）
+# 穴の中でしゃがむと、頭と肩だけが穴のふちから出る高さへ、見た目を下げる（全員の画面。しゃがむかどうかは body_pose で届く。見返しも同じ）。
+# 入れ物（バスタブ・箱）なら、ふちから頭が出る。平たい物（絵に描いた穴）なら、床の下へ沈んで頭だけ出る（アニメの「持ち運べる穴」）
+func _sink(delta: float) -> void:
+	if vis == null:
+		return
+	if body_pose == "flat":
+		# ぺちゃんこ：床に貼りつくように、平たく広がる
+		vis.position.y = 0.0
+		vis.scale = vis.scale.move_toward(Vector3(1.45, 0.12, 1.45), delta * 14.0)
+		return
+	var want := 0.0
+	var size := 1.0
+	var pit: Node3D = in_pit() if body_pose == "duck" else null
+	if pit != null:
+		size = _pit_fit(pit)
+		var box := pit_box(pit)
+		var rim: float = box.end.y
+		var tall: float = ((vis.head_pos().y - vis.global_position.y) / maxf(vis.scale.y, 0.01) + 0.15) * size
+		want = minf(rim - global_position.y + PIT_SHOW * size - tall, 0.0)
+		if box.size.y > 0.25:
+			# 入れ物：中の底（ふちから、高さの4分の3ほど下）より下へは沈めない（脚のある入れ物の下から、体が見えないように）
+			want = maxf(want, rim - box.size.y * 0.75 - global_position.y)
+	vis.position.y = move_toward(vis.position.y, want, delta * 4.0)
+	vis.scale = vis.scale.move_toward(Vector3.ONE * size, delta * (6.0 if vis.scale.y < 0.5 else 2.5))      # つぶれた後は、ぽんと早く戻る
+
+
+# 穴の口に収まる大きさ（1 ＝そのまま）。同じ穴に入っている人数で、長いほうの辺を分け合う。小さい穴ほど、身を縮める（漫画の理屈）
+func _pit_fit(pit: Node3D) -> float:
+	var n := 0
+	for a: Node in game.actors:
+		if a.present() and a.body_pose == "duck" and a.in_pit() == pit:
+			n += 1
+	var box := pit_box(pit)
+	var short: float = minf(box.size.x, box.size.z) * 0.9
+	var long: float = maxf(box.size.x, box.size.z) * 0.9 / float(maxi(n, 1))
+	return clampf(minf(short, long) / ACTOR_W, 0.5, 1.0)
 
 
 # 骨格に重ねるポーズを付ける・外す（"" で外す）

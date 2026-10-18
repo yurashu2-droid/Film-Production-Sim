@@ -17,7 +17,7 @@ const WORDS := {"城": ["castle", "ベニヤ板"], "怪獣": ["monster", "ただ
 	# 名場面のパロディの役（production_cast.gd の SCRIPT_ROLES）
 	"大岩": ["bigrock", "丸い何か"], "秘宝": ["relic", "何か光る物"], "玄関": ["door", "ベニヤ板"], "ツリー": ["xmas", "何か"],
 	"自転車": ["bike", "何か"], "船": ["ship", "木箱"], "屋上": ["roof", "倉庫"], "階段": ["steps", "箱"], "頂上": ["summit", "箱の上"],
-	"カップ麺": ["noodle", "丸い何か"], "車": ["car", "何か"]}
+	"カップ麺": ["noodle", "丸い何か"], "車": ["car", "何か"], "穴": ["pit", "穴"]}
 const SCRIPTS := [
 	# 0 月下の城と大爆発（結婚式の再現ビデオ）
 	{"scenes": [
@@ -162,7 +162,7 @@ const SCRIPTS := [
 			{"rule": "blast", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["shock", "shock"], "boom": true},
 			{"rule": "show", "close": true, "from": 1, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
 	# 9 転がる大岩・予告編（ベレー帽先生の新作。冒険映画の有名な冒頭のパロディ。4カット：
-	#   忍び足で奥へ（カメラも動く）→ 秘宝をすり替えると罠が作動（上から落ちる）→ 大岩に追われて逃げる → 間一髪で決め）
+	#   忍び足で奥へ（カメラも動く）→ 秘宝をすり替えると罠が作動（上から落ちる）→ 大岩に追われて逃げる → 間一髪、穴に飛び込んで大岩をよける）
 	{"cuts": true, "scenes": [
 		{"dir": "【遺跡の奥】探検家の二人が、忍び足で奥へ。カメラは二人と一緒に進む。",
 			"lines": [["A", "この奥に、黄金の像がある"], ["B", "どこかで見た話ですね"], ["A", "気のせいだ"]],
@@ -173,14 +173,14 @@ const SCRIPTS := [
 		{"dir": "【場転】奥から、大岩が転がってくる。二人は走って逃げる。",
 			"lines": [["A", "走れ！ {大岩}だ！"], ["（大岩）", "ゴロゴロゴロ"], ["B", "予算のわりに、大きい！"]],
 			"memo": "逃げる二人の後ろから、転がる物を迫らせる（押す・坂を下らせる・ロープで引く）。押す人は映さない。張りぼての大岩は、電話で借りられる"},
-		{"dir": "【場転】間一髪、外へ飛び出して、決めポーズ。",
-			"lines": [["二人", "今冬、公開未定！"]],
-			"memo": "カットの間に、カメラを二人へ寄せる。二人を、寄りで大きく映す"}],
+		{"dir": "【場転】逃げる先に、ちょうどいい{穴}。二人は飛び込み、大岩は頭の上を転がっていく。",
+			"lines": [["A", "飛び込め！"], ["（大岩）", "ゴロゴロゴロ……"], ["二人", "（穴から顔を出して）今冬、公開未定！"]],
+			"memo": "穴の役の物（バスタブ・箱・黒い穴を描いた板）を、逃げる先に置いて、二人の③の印をその中へ移す。二人が穴に入ってから、転がる物をそばに通す"}],
 		"beats": [
 			{"rule": "track", "from": 0, "to": 1, "gait": "walk", "pose": "idle", "look": "", "face": ["neutral", "happy"], "music": "music_tension"},
 			{"rule": "drop", "from": 1, "to": 1, "gait": "walk", "pose": "freeze", "look": "camera", "face": ["surprised", "shock"], "music": ""},
 			{"rule": "chase", "from": 1, "to": 2, "gait": "run", "pose": "idle", "look": "", "face": ["shock", "shock"], "music": "music_tension"},
-			{"rule": "show", "close": true, "from": 2, "to": 2, "gait": "walk", "pose": "cheer", "look": "camera", "face": ["happy", "happy"], "meet": true, "music": "music_reunion"}]},
+			{"rule": "pit", "from": 1, "to": 2, "gait": "run", "pose": "duck", "dive": true, "look": "camera", "face": ["shock", "happy"], "music": "music_tension"}]},
 	# 10 空き巣にご用心（クリスマスの留守番コメディのパロディ。防犯ビデオ）：振り子が当たる・炎がお尻に
 	{"cuts": true, "scenes": [
 		{"dir": "【玄関】泥棒の二人が、留守の家の前で手もみする。",

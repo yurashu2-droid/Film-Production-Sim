@@ -7,6 +7,7 @@ extends SkeletonModifier3D
 ##   "wave" ：右手を上げて、左右に振る
 ##   "point"：右手をまっすぐ前（カメラ）へ突き出して、指さす
 ##   "cheer"：両手を高く上げる（万歳）
+##   "duck" ：頭を両手で押さえて、身を縮める（穴に飛び込んで、大岩をよける。沈むのは actor.gd）
 ## ほかの人の画面にも同じ姿勢を出す（誰がのぞいているか＝誰が監督かが、見て分かる）。
 ## 向きは骨格のローカル空間で書く：+Z が正面、+Y が上、キャラの右手側が -X。
 
@@ -33,6 +34,8 @@ func _process_modification() -> void:
 			_point(s)
 		"cheer":
 			_cheer(s)
+		"duck":
+			_duck(s)
 
 
 func _bow(s: Skeleton3D) -> void:
@@ -80,6 +83,16 @@ func _cheer(s: Skeleton3D) -> void:
 		var out := 1.0 if side == "L" else -1.0
 		_aim(s, "UPPER_ARM." + side, "FOREARM." + side, Vector3(out * 0.45, 1.0, 0.1))
 		_aim(s, "FOREARM." + side, "HAND." + side, Vector3(out * (0.3 + bounce), 1.0, 0.15))
+
+
+func _duck(s: Skeleton3D) -> void:
+	var body := s.find_bone("BODY")
+	if body >= 0:
+		_turn(s, body, Vector3.RIGHT, 0.35)          # 少し前へ縮こまる
+	for side: String in ["L", "R"]:
+		var out := 1.0 if side == "L" else -1.0
+		_aim(s, "UPPER_ARM." + side, "FOREARM." + side, Vector3(out * 0.7, 0.75, 0.35))
+		_aim(s, "FOREARM." + side, "HAND." + side, Vector3(-out * 0.9, 0.35, 0.05))
 
 
 func _peep(s: Skeleton3D) -> void:

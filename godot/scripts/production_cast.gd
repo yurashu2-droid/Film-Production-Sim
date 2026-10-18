@@ -55,13 +55,16 @@ const ROLES := {
 	"kettle": {"name": "やかん", "likes": ["水まわり", "火", "機械"]},
 	"car": {"name": "車", "likes": ["乗り物", "機械"]},
 	"street": {"name": "街並み", "likes": ["街角", "光る", "建物"]},
+	# 転がる大岩・予告編の落ち（2026-10-18）：大岩をよけて飛び込む穴。入れ物（バスタブ・箱）ほどらしい。
+	# 平たい物（段ボール板）でもなれる：絵に描いた穴（cast_dress.gd が黒い穴を描く）。らしさは低い
+	"pit": {"name": "穴", "likes": ["入れ物", "水まわり"]},
 }
 # 台本ごとの役。怪獣映画の爆発は「怪獣の技」として撃ち出される
 const SCRIPT_ROLES := {
 	"castle": ["castle", "moon", "boom"],
 	"kaiju": ["monster", "city", "boom"],
 	# 名場面のパロディ（production_flow.gd の JOBS の "script"）。最初の役が、その場面の主役の物
-	"trap": ["bigrock", "relic", "ruins"],
+	"trap": ["bigrock", "relic", "ruins", "pit"],
 	"home_alone": ["door", "xmas"],
 	"moon_bike": ["moon", "bike", "woods"],
 	"ship": ["ship", "sea"],
@@ -102,19 +105,20 @@ const PROPS := {
 	"dragon_skull": {"attrs": ["生き物", "こわい", "火"], "role": "monster"},
 	"fx": {"attrs": ["火", "はで"], "role": "boom", "lock": true},
 	"boomflat": {"attrs": ["火"], "role": "boom"},
-	"carton": {"attrs": ["紙", "四角い"], "role": "city"},
+	"carton": {"attrs": ["紙", "四角い", "入れ物"], "role": "city"},
+	"cardboard": {"attrs": ["紙", "四角い"]},
 	"applebox": {"attrs": ["四角い"], "role": "city"},
 	# --- ジョーカー ---
 	"standin": {"attrs": ["ジョーカー"], "joker": true},
 	# --- 役の決まっていない物 ---
-	"witch_cauldron": {"attrs": ["火", "おとぎ話", "丸い"]},
+	"witch_cauldron": {"attrs": ["火", "おとぎ話", "丸い", "入れ物"]},
 	"riser": {"attrs": ["四角い"]},
 	"rock": {"attrs": ["石", "丸い", "自然"]},
 	"boulder": {"attrs": ["石", "丸い", "自然"]},
 	"partition": {"attrs": ["四角い", "背が高い"]},
 	"greenscreen": {"attrs": ["四角い"]},
 	"sandbag": {"attrs": []},
-	"basket": {"attrs": ["四角い"]},
+	"basket": {"attrs": ["四角い", "入れ物"]},
 	"rose": {"attrs": ["自然", "おとぎ話"]},
 	"letter": {"attrs": ["紙"]},
 	"crown": {"attrs": ["おとぎ話", "お宝"]},
@@ -150,7 +154,7 @@ const PROPS := {
 	"scrap_chicken": {"attrs": ["生き物", "食べ物"]},
 	"scrap_torch": {"attrs": ["火", "光る"]},
 	"scrap_idol": {"attrs": ["お宝", "生き物"]},
-	"scrap_tub": {"attrs": ["水まわり", "四角い"]},
+	"scrap_tub": {"attrs": ["水まわり", "四角い", "入れ物"]},
 	"scrap_fridge": {"attrs": ["食べ物", "機械", "四角い"]},
 	"scrap_vending": {"attrs": ["街角", "機械", "四角い"]},
 	"scrap_phone": {"attrs": ["街角", "建物", "背が高い"]},

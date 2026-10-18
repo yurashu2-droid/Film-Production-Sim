@@ -47,6 +47,8 @@ const NEED_TRACK := 0.8           # 動くカメラ（track）：歩く二人を
 const TRACK_SPEED := 0.2          # これより遅いカメラは、動いていないとみる（m/秒）
 const TRACK_JUMP := 0.12          # 1コマにこれより大きく動いたら、カメラの切り替え（数えない）
 const DROP_M := 1.0               # 上から落ちる（drop）：場面の間に、物がこれだけ下がったら「落ちた」
+const NEED_PIT := 0.4             # 穴（pit）：穴の中の二人のそばを、転がる物が通っている秒数（通るのは一瞬）
+const PIT_PASS := 2.2             # 穴の二人から、この距離までを転がっていけば「上を通った」（m）
 const NEED_CHASE := 0.6           # 大岩に追われる（chase）：逃げる二人と、後ろから転がって迫る物が映っている秒数（印の間が短いと、走るのは1秒ほど）
 const CHASE_SPEED := 0.9          # これより速く動いている物を「迫っている」とみる（m/秒）
 const CHASE_SPIN := 1.2           # これより速く回っていれば「転がっている」（滑っているだけではない。rad/秒）
@@ -91,6 +93,7 @@ const NO_REASON := {
 	"track": "カメラが動きながら、歩く二人を映す時間が足りなかった",
 	"drop": "二人のそばに、上から物が落ちてこなかった",
 	"chase": "逃げる二人と、後ろから転がって迫る物が、一緒に映る時間が足りなかった",
+	"pit": "穴の中の二人のそばを、転がる物が通るところが映らなかった",
 	"ring": "時計（ボタン）が鳴るところが映らなかった",
 	"cross": "月の前を横切るところが映らなかった",
 	"hit": "役者に物が当たるところが映らなかった",
@@ -537,7 +540,7 @@ func _enter(i: int, again: bool) -> void:
 			continue          # この場面に出ない役者は、その場で待つ
 		var pose := str((b.get("pose_by", {}) as Dictionary).get(str(a.aid), b.get("pose", "idle")))
 		var spec := {"to": targets[a.aid], "gait": str(b.get("gait", "walk")), "pose": pose,
-			"look": str(b.get("look", "")), "face_go": str(faces[0]), "face_hold": str(faces[1])}
+			"look": str(b.get("look", "")), "face_go": str(faces[0]), "face_hold": str(faces[1]), "dive": bool(b.get("dive", false))}
 		if again:
 			spec["back"] = mark(a.aid, int(b.get("from", 0))).global_position
 		a.play_beat(spec)
@@ -856,6 +859,8 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_drop(scene, f, dt, crew)
 		"chase":
 			_rule_chase(scene, f, dt, crew)
+		"pit":
+			_rule_pit(scene, f, dt, crew)
 		"ring":
 			_rule_ring(scene, f, dt, crew)
 		"cross":
@@ -1163,6 +1168,9 @@ func _rule_drop(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 # 大岩に追われる：走って逃げる二人の後ろから、転がる物（回りながら進む物）が迫ってくる。押す人・引く人が映ってはいけない。
 # 「後ろ」は二人の逃げる向きで決める（カメラの向きは問わない。正面から撮っても、横から撮ってもいい）
 func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if present().any(func(a: Node) -> bool: return a.is_flat()):
+		_note(i, ["大岩に追いつかれて、ぺちゃんこになった（もっと離して転がす）"], dt)
+		return
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
 		return
@@ -1210,6 +1218,48 @@ func _rule_chase(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if not chased:
 		r.append(miss)
 	_count(i, r, dt, NEED_CHASE)
+
+
+# 穴に飛び込んで、大岩をよける（転がる大岩・予告編の落ち）：二人が穴の役の物の中でしゃがみ、
+# そのそばを、転がる物が通る。穴の中なので、顔が隠れていても・小さくてもいい（画面に入っていればいい）
+func _rule_pit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	if present().any(func(a: Node) -> bool: return a.is_flat()):
+		_note(i, ["穴に入る前に、大岩にぺちゃんこにされた"], dt)
+		return
+	if _stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった（穴の役の物の中へ、③の印を移す）"], dt)
+		return
+	if not _all("beat_arrived"):
+		return
+	var r: Array = []
+	var acts: Array = f["actors"]
+	for a: Node3D in present():
+		if not acts[a.aid]["in"]:
+			r.append("%sが画面に入っていない" % a.label)
+		elif a.in_pit() == null:
+			r.append("%sが穴に入っていない（穴の役の物の中へ、③の印を移す）" % a.label)
+	if crew:
+		r.append("スタッフが映っていた（押す人・引く人は映さない）")
+	var mid: Vector3 = game.actors_mid()
+	var passing := false
+	var miss := "穴のそばを、転がる物が通らなかった"
+	for p: Node3D in game.props.values():
+		if p.absent or p.holder != 0 or p.kind in ["mark", "truck"] or (flow.casting.get(p.pid, "") == "pit"):
+			continue
+		var v: Vector3 = p.linear_velocity
+		if Vector3(v.x, 0.0, v.z).length() < CHASE_SPEED or p.angular_velocity.length() < CHASE_SPIN:
+			continue
+		var c: Vector3 = p.center_global()
+		if Vector2(c.x - mid.x, c.z - mid.z).length() > PIT_PASS:
+			continue
+		if not _shows(c, [p.get_rid()]):
+			miss = "穴のそばを転がる物が、映っていなかった"
+			continue
+		passing = true
+		break
+	if not passing:
+		r.append(miss)
+	_count(i, r, dt, NEED_PIT)
 
 
 # ---- 名場面のパロディ用の決まり（ring・cross・hit・scorch・high・wind・orbit・climb・pass） ----

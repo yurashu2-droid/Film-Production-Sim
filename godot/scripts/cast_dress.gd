@@ -65,6 +65,7 @@ func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit
 		"kettle": _kettle()
 		"car": _car()
 		"street": _street()
+		"pit": _pit()
 		_: _sign(r, _top(0, 0))
 
 
@@ -359,6 +360,40 @@ func _street() -> void:
 			_decal(_tex("window1"), Vector2(u * 0.6, u * 0.7), _front(0.4 * s, -0.15), 0.8)
 		else:
 			_put(_window(Vector2(u * 0.4, u * 0.5)), _front(0.4 * s, -0.15))
+
+
+# 穴：上の面に、黒い穴を描く（入れ物なら底が真っ暗になって深く見える。平たい板なら、絵に描いた穴）
+func _pit() -> void:
+	# 物の向きでなく、世界の上向きで「上の面」を探す（段ボール板を寝かせて床に置いても、上の面に穴を描く）
+	var up := _up_here()
+	_up0 = up
+	var ext := absf(up.x) * _h.x + absf(up.y) * _h.y + absf(up.z) * _h.z
+	var hit := _cast(_c + up * (ext + 0.6), _c - up * (ext + 0.6))
+	if hit.is_empty():
+		hit = [_c + up * ext, up]
+	# 穴の大きさ：上から見た、短いほうの辺くらい
+	var sizes := [_h.x, _h.y, _h.z]
+	if absf(up.x) > 0.7:
+		sizes = [_h.y, _h.z]
+	elif absf(up.y) > 0.7:
+		sizes = [_h.x, _h.z]
+	elif absf(up.z) > 0.7:
+		sizes = [_h.x, _h.y]
+	var r := minf(float(sizes[0]), float(sizes[1])) * 1.8
+	_decal(_tex("hole"), Vector2(r, r), hit)
+
+
+var _up0 := Vector3.UP
+
+
+# 飾りから見た、いまの世界の上向き
+func _up_here() -> Vector3:
+	return ((prop.global_basis * transform.basis).inverse() * Vector3.UP).normalized()
+
+
+# 作った時から、物が大きく向きを変えたか（穴は、寝かせ直したら描き直す。production_main.gd の _sync_cast_dress）
+func turned() -> bool:
+	return prop != null and _up_here().angle_to(_up0) > 0.6
 
 
 # ---- 部品 ----
@@ -670,6 +705,17 @@ static func _tex(key: String) -> Texture2D:
 					var v := maxf(1.0 - (dx / 60.0 + dy / 9.0), 1.0 - (dx / 9.0 + dy / 60.0))
 					if v > 0.0:
 						img.set_pixel(x, y, Color(1.0, 0.98, 0.8, clampf(v * 3.0, 0.0, 1.0)))
+		"hole":
+			# まん中ほど暗い楕円と、ふちの土の色
+			for y in n:
+				for x in n:
+					var q := Vector2((float(x) - 63.5) / 60.0, (float(y) - 63.5) / 60.0)
+					var dist := q.length()
+					if dist > 1.0:
+						continue
+					var rim := smoothstep(0.78, 0.98, dist)
+					var deep := Color(0.03, 0.025, 0.02).lerp(Color(0.36, 0.27, 0.18), rim)
+					img.set_pixel(x, y, Color(deep.r, deep.g, deep.b, clampf((1.0 - dist) * 25.0, 0.0, 1.0)))
 		"door":
 			var wood := Color(0.36, 0.24, 0.16)
 			_rect(img, Rect2(4, 4, 120, 6), wood)

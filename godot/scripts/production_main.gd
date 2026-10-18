@@ -800,7 +800,7 @@ func _sync_cast_dress() -> void:
 				want[pid] = role
 	for pid: int in _cast_dress.keys():
 		var dress: Node = _cast_dress[pid]
-		if not want.has(pid) or not is_instance_valid(dress) or dress.role != want[pid] or dress.grade != production.cast_fit(props[pid], want[pid]) or dress.face != int(production.cast_face.get(pid, 0)):
+		if not want.has(pid) or not is_instance_valid(dress) or dress.role != want[pid] or dress.grade != production.cast_fit(props[pid], want[pid]) or dress.face != int(production.cast_face.get(pid, 0)) or (want[pid] == "pit" and dress.turned()):
 			if is_instance_valid(dress):
 				dress.queue_free()
 			_cast_dress.erase(pid)
