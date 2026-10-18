@@ -4,11 +4,14 @@ extends Node3D
 ## 役との相性が悪い物（らしさ ★1）は、飾りが少し曲がって付く（数字は出さない。上映会で分かる）。
 ## 飾りの場所は、物の当たり判定の表面を光線で探す（外形の箱の面に貼ると、宙に浮くので）。
 ## 顔（目・顔・ライトなど、正面に付く物）は、役を付けた人が見ていた側に付ける（face：0 = 物の +z、1 = +x、2 = -z、3 = -x）。
+## fit = true（標準）：貼る場所を、狙った所のまわりを細かく光線で調べて、いちばん手前の面から選ぶ（格子のすき間・くぼみを避ける）。
+## 顔・窓・ひび・つた・きらきらのような平たい飾りは、デカール（物に投影して描く）にして、曲面に沿わせる。飛び出す飾り（角・旗・炎）は立体のまま。
 ## 物の子として付く（物と一緒に動き、箱に入れて隠れれば一緒に隠れる）。production_main.gd の _sync_cast_dress が付け外しする。
 
 var role := ""
 var grade := 2
 var face := 0
+var fit := true                  # 改良版（標準。場所を細かく選ぶ・平たい飾りはデカール）。false は前の方式（くらべる用。tests/cast_dress_compare.gd）
 var prop: Node3D
 var font: Font
 var u := 0.1                     # 飾りの大きさの単位（m）。物の大きさから決める
@@ -22,7 +25,8 @@ const PAPER := Color(0.78, 0.62, 0.42)     # 段ボール
 const INK := Color(0.12, 0.1, 0.1)
 
 
-func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0) -> void:
+func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit_style := true) -> void:
+	fit = fit_style
 	prop = p
 	role = r
 	grade = g
@@ -84,6 +88,9 @@ func _monster() -> void:
 
 # 月：にっこり顔と、ほっぺ
 func _moon() -> void:
+	if fit:
+		_decal(_tex("moon_face"), Vector2(f * 1.7, f * 1.7), _face(0, 0.1))
+		return
 	for s: float in [-1.0, 1.0]:
 		_put(_dot(f * 0.13, INK), _face(0.3 * s, 0.3))
 		_put(_dot(f * 0.17, Color(0.98, 0.6, 0.62)), _face(0.5 * s, 0.0))
@@ -103,6 +110,9 @@ func _castle() -> void:
 
 # 街：正面に、明かりのついた窓
 func _city() -> void:
+	if fit:
+		_decal(_tex("windows"), Vector2(_h.x * 1.5, _h.y * 1.5), _front(0, 0), 0.8)
+		return
 	for fy: float in [0.5, 0.0, -0.5]:
 		for fx: float in [-0.5, 0.0, 0.5]:
 			_put(_window(Vector2(u * 0.35, u * 0.45)), _front(fx, fy))
@@ -124,6 +134,12 @@ func _boom() -> void:
 
 # 遺跡：つたと、ひび
 func _ruins() -> void:
+	if fit:
+		for i in 3:
+			_decal(_tex("ivy"), Vector2(u * 1.9, u * 1.9), _front(_rng.randf_range(-0.6, 0.6), _rng.randf_range(-0.5, 0.7)))
+		for i in 2:
+			_decal(_tex("crack"), Vector2(u * 1.0, u * 1.0), _front(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.5, 0.5)))
+		return
 	for i in 7:
 		var leaf := _dot(u * _rng.randf_range(0.2, 0.32), Color(0.25, 0.5, 0.2).lerp(Color(0.4, 0.62, 0.25), _rng.randf()))
 		_put(leaf, _front(_rng.randf_range(-0.7, 0.7), _rng.randf_range(-0.6, 0.8)))
@@ -150,7 +166,10 @@ func _bigrock() -> void:
 		bump.add_child(lump)
 		_put(bump, _top(_rng.randf_range(-0.6, 0.6), _rng.randf_range(-0.6, 0.6)))
 	for i in 3:
-		_put(_crack(), _front(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.5, 0.5)))
+		if fit:
+			_decal(_tex("crack"), Vector2(u * 1.0, u * 1.0), _front(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.5, 0.5)))
+		else:
+			_put(_crack(), _front(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.5, 0.5)))
 
 
 # 玄関：ドアノブと、小窓と、表札
@@ -159,6 +178,9 @@ func _door() -> void:
 	knob.add_child(_along(_cyl(u * 0.06, u * 0.18), Color(0.8, 0.65, 0.25)))
 	knob.add_child(_mesh(_sphere(u * 0.18), Color(0.85, 0.7, 0.25), Vector3(0, 0, u * 0.22)))
 	_put(knob, _front(0.6, -0.05))
+	if fit:
+		_decal(_tex("door"), Vector2(_h.x * 1.7, _h.y * 1.8), _front(0, 0))
+		return
 	var glass := Node3D.new()
 	glass.add_child(_mesh(_box(Vector3(u * 0.95, u * 0.65, 0.006)), Color(0.35, 0.25, 0.18), Vector3(0, 0, 0.003)))
 	glass.add_child(_mesh(_box(Vector3(u * 0.8, u * 0.5, 0.006)), Color(0.7, 0.85, 0.95), Vector3(0, 0, 0.007)))
@@ -333,7 +355,10 @@ func _street() -> void:
 		slope.add_child(_mesh(_box(Vector3(u * 0.3, u * 0.5, 0.01)), Color(0.85, 0.15, 0.15) if i % 2 == 0 else Color(0.97, 0.95, 0.9), Vector3((float(i) - 2.0) * u * 0.3, -u * 0.25, 0.01)))
 	_put(awning, _front(0, 0.75))
 	for s: float in [-1.0, 1.0]:
-		_put(_window(Vector2(u * 0.4, u * 0.5)), _front(0.4 * s, -0.15))
+		if fit:
+			_decal(_tex("window1"), Vector2(u * 0.6, u * 0.7), _front(0.4 * s, -0.15), 0.8)
+		else:
+			_put(_window(Vector2(u * 0.4, u * 0.5)), _front(0.4 * s, -0.15))
 
 
 # ---- 部品 ----
@@ -437,6 +462,11 @@ func _label(text: String, width: float, col: Color, at: Vector3) -> Label3D:
 func _front(fx: float, fy: float) -> Array:
 	var c := _c
 	var h := _h
+	if fit:
+		var at := Vector3(c.x + h.x * fx, c.y + h.y * fy, c.z + h.z + 0.6)
+		var best := _probe(at, Vector3(0, 0, -(h.z * 2.0 + 1.2)), Vector3(h.x * 0.18, 0, 0), Vector3(0, h.y * 0.18, 0), Vector3.BACK)
+		if not best.is_empty():
+			return best
 	for k: float in [1.0, 0.6, 0.3]:
 		var p := Vector3(c.x + h.x * fx * k, c.y + h.y * fy * k, c.z + h.z + 0.6)
 		var hit := _cast(p, p - Vector3(0, 0, h.z * 2.0 + 1.2))
@@ -458,6 +488,11 @@ func _flat() -> bool:
 func _top(fx: float, fz: float) -> Array:
 	var c := _c
 	var h := _h
+	if fit:
+		var at := Vector3(c.x + h.x * fx, c.y + h.y + 0.6, c.z + h.z * fz)
+		var best := _probe(at, Vector3(0, -(h.y * 2.0 + 1.2), 0), Vector3(h.x * 0.18, 0, 0), Vector3(0, 0, h.z * 0.18), Vector3.UP)
+		if not best.is_empty():
+			return best
 	for k: float in [1.0, 0.6, 0.3, 0.0]:
 		var p := Vector3(c.x + h.x * fx * k, c.y + h.y + 0.6, c.z + h.z * fz * k)
 		var hit := _cast(p, p - Vector3(0, h.y * 2.0 + 1.2, 0))
@@ -470,6 +505,11 @@ func _top(fx: float, fz: float) -> Array:
 func _side(s: float, fy: float, fz: float) -> Array:
 	var c := _c
 	var h := _h
+	if fit:
+		var at := Vector3(c.x + s * (h.x + 0.6), c.y + h.y * fy, c.z + h.z * fz)
+		var best := _probe(at, Vector3(-s * (h.x * 2.0 + 1.2), 0, 0), Vector3(0, h.y * 0.18, 0), Vector3(0, 0, h.z * 0.18), Vector3(s, 0, 0))
+		if not best.is_empty():
+			return best
 	for k: float in [1.0, 0.6, 0.3]:
 		var p := Vector3(c.x + s * (h.x + 0.6), c.y + h.y * fy * k, c.z + h.z * fz * k)
 		var hit := _cast(p, p - Vector3(s * (h.x * 2.0 + 1.2), 0, 0))
@@ -489,6 +529,45 @@ func _around(a: float, fy: float) -> Array:
 	if not hit.is_empty():
 		return hit
 	return [Vector3(c.x + d.x * h.x, y, c.z + d.z * h.z), d]
+
+
+# 改良版の場所選び：狙った所のまわり（5×5）に光線を打つ。
+# 狙った所の点が、まわりと続いた面の上（上下左右のうち2つ以上が同じくらいの深さ）なら、そのまま使う（トイレのタンクのような段差で、手前の別の面へ飛ばない）。
+# 狙った所が、すき間（当たらない）や穴の奥なら、外向きの面のうち、いちばん手前の層から、狙った所にいちばん近い点を選ぶ。どれにも当たらなければ空
+func _probe(at: Vector3, ray: Vector3, a: Vector3, b: Vector3, out: Vector3) -> Array:
+	var hits: Array = []
+	var grid := {}
+	for i in range(-2, 3):
+		for j in range(-2, 3):
+			var p := at + a * float(i) + b * float(j)
+			var hit := _cast(p, p + ray)
+			if not hit.is_empty() and (hit[1] as Vector3).dot(out) > 0.45:
+				hits.append(hit)
+				grid[Vector2i(i, j)] = hit
+	if hits.is_empty():
+		return []
+	if grid.has(Vector2i.ZERO):
+		var depth: float = (grid[Vector2i.ZERO][0] as Vector3).dot(out)
+		var level := 0
+		for n: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if grid.has(n) and (grid[n][0] as Vector3).dot(out) <= depth + u * 0.25:
+				level += 1
+		if level >= 2:
+			return grid[Vector2i.ZERO]
+	var front := -INF
+	for hit: Array in hits:
+		front = maxf(front, (hit[0] as Vector3).dot(out))
+	var best: Array = []
+	var near := INF
+	for hit: Array in hits:
+		var pos: Vector3 = hit[0]
+		if pos.dot(out) < front - u * 0.35:
+			continue
+		var off := (pos - at) - out * (pos - at).dot(out)
+		if off.length() < near:
+			near = off.length()
+			best = hit
+	return best
 
 
 # 物の当たり判定にだけ当たる光線（ほかの物は、よけて先へ）。飾りから見た [位置, 面の向き]
@@ -522,6 +601,127 @@ func _put(piece: Node3D, hit: Array) -> void:
 		# 役に合わない物は、飾りが曲がって付く（あわてて貼った感じ）
 		piece.rotate_object_local(Vector3.BACK, _rng.randf_range(0.18, 0.35) * (1.0 if _rng.randf() < 0.5 else -1.0))
 	add_child(piece)
+
+
+# ---- デカール（改良版）：物に投影して描く。曲面に沿う。面に対して横向きの所（地面・横の面）には描かない ----
+
+func _decal(tex: Texture2D, size: Vector2, hit: Array, glow := 0.0) -> void:
+	var g := Node3D.new()
+	var d := Decal.new()
+	d.texture_albedo = tex
+	if glow > 0.0:
+		d.texture_emission = tex
+		d.emission_energy = glow
+	# 奥行き：面の凸凹を拾えるだけ（外側の空気の分は、隣の物に描かないよう短く）
+	d.size = Vector3(size.x, clampf(minf(_h.z, _h.x) * 1.2, 0.1, 0.8), size.y)
+	d.basis = Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))   # デカールの -y を、面の内向きへ
+	d.normal_fade = 0.45
+	d.upper_fade = 0.15
+	d.lower_fade = 0.15
+	g.add_child(d)
+	_put(g, hit)
+
+
+static var _textures := {}
+
+
+# 飾りの絵（透明の地に描く。一度描いたら使い回す）
+static func _tex(key: String) -> Texture2D:
+	if _textures.has(key):
+		return _textures[key]
+	var n := 128
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var ink := Color(0.12, 0.1, 0.1)
+	match key:
+		"moon_face":
+			_disc(img, Vector2(40, 50), 7, ink)
+			_disc(img, Vector2(88, 50), 7, ink)
+			for i in 8:
+				var a0 := deg_to_rad(25.0 + 130.0 * float(i) / 8.0)
+				var a1 := deg_to_rad(25.0 + 130.0 * float(i + 1) / 8.0)
+				_seg(img, Vector2(64, 58) + Vector2(cos(a0), sin(a0)) * 30.0, Vector2(64, 58) + Vector2(cos(a1), sin(a1)) * 30.0, 3.0, ink)
+			_disc(img, Vector2(26, 76), 11, Color(0.98, 0.55, 0.6, 0.75))
+			_disc(img, Vector2(102, 76), 11, Color(0.98, 0.55, 0.6, 0.75))
+		"windows":
+			for row in 3:
+				for col in 3:
+					_window_px(img, Rect2(10 + col * 39, 8 + row * 40, 30, 32))
+		"window1":
+			_window_px(img, Rect2(14, 10, 100, 108))
+		"ivy":
+			var pts := [Vector2(20, 120), Vector2(36, 90), Vector2(30, 62), Vector2(52, 40), Vector2(70, 18), Vector2(96, 10)]
+			for i in pts.size() - 1:
+				_seg(img, pts[i], pts[i + 1], 2.5, Color(0.22, 0.38, 0.15))
+			var leaves := [Vector2(26, 104), Vector2(46, 92), Vector2(22, 74), Vector2(44, 58), Vector2(64, 44), Vector2(56, 24), Vector2(82, 22), Vector2(100, 6), Vector2(34, 44)]
+			for i in leaves.size():
+				_disc(img, leaves[i], 9.0 + float(i % 3) * 2.0, Color(0.25, 0.5, 0.2).lerp(Color(0.42, 0.65, 0.26), float(i % 4) / 3.0))
+		"crack":
+			var line := [Vector2(14, 30), Vector2(40, 46), Vector2(52, 72), Vector2(80, 80), Vector2(96, 108), Vector2(118, 116)]
+			for i in line.size() - 1:
+				_seg(img, line[i], line[i + 1], 3.0, Color(0.13, 0.11, 0.1))
+			_seg(img, Vector2(52, 72), Vector2(44, 100), 2.0, Color(0.13, 0.11, 0.1))
+			_seg(img, Vector2(80, 80), Vector2(104, 62), 2.0, Color(0.13, 0.11, 0.1))
+		"kira":
+			for y in n:
+				for x in n:
+					var dx := absf(float(x) - 63.5)
+					var dy := absf(float(y) - 63.5)
+					var v := maxf(1.0 - (dx / 60.0 + dy / 9.0), 1.0 - (dx / 9.0 + dy / 60.0))
+					if v > 0.0:
+						img.set_pixel(x, y, Color(1.0, 0.98, 0.8, clampf(v * 3.0, 0.0, 1.0)))
+		"door":
+			var wood := Color(0.36, 0.24, 0.16)
+			_rect(img, Rect2(4, 4, 120, 6), wood)
+			_rect(img, Rect2(4, 118, 120, 6), wood)
+			_rect(img, Rect2(4, 4, 6, 120), wood)
+			_rect(img, Rect2(118, 4, 6, 120), wood)
+			_rect(img, Rect2(36, 16, 56, 34), wood)
+			_rect(img, Rect2(40, 20, 48, 26), Color(0.7, 0.85, 0.95))
+			_rect(img, Rect2(44, 58, 40, 12), Color(0.95, 0.93, 0.86))
+			_rect(img, Rect2(22, 80, 84, 3), wood)
+	var tex := ImageTexture.create_from_image(img)
+	_textures[key] = tex
+	return tex
+
+
+static func _window_px(img: Image, r: Rect2) -> void:
+	_rect(img, r, Color(0.22, 0.2, 0.22))
+	var pane := r.grow(-3.0)
+	_rect(img, pane, Color(1.0, 0.86, 0.45))
+	_rect(img, Rect2(pane.get_center().x - 1, pane.position.y, 2, pane.size.y), Color(0.22, 0.2, 0.22))
+	_rect(img, Rect2(pane.position.x, pane.get_center().y - 1, pane.size.x, 2), Color(0.22, 0.2, 0.22))
+
+
+static func _rect(img: Image, r: Rect2, col: Color) -> void:
+	for y in range(int(r.position.y), int(r.end.y)):
+		for x in range(int(r.position.x), int(r.end.x)):
+			if x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
+				img.set_pixel(x, y, col)
+
+
+static func _disc(img: Image, c: Vector2, r: float, col: Color) -> void:
+	_shape(img, Rect2(c - Vector2(r + 1, r + 1), Vector2(r * 2 + 2, r * 2 + 2)), func(q: Vector2) -> float: return r - q.distance_to(c), col)
+
+
+static func _seg(img: Image, a: Vector2, b: Vector2, w: float, col: Color) -> void:
+	var box := Rect2(a, Vector2.ZERO).expand(b).grow(w + 1.0)
+	_shape(img, box, func(q: Vector2) -> float:
+		var t := clampf((q - a).dot(b - a) / maxf((b - a).length_squared(), 0.001), 0.0, 1.0)
+		return w - q.distance_to(a.lerp(b, t)), col)
+
+
+# 形の内側までの距離（正なら内側）で、ふちをなめらかに塗り重ねる
+static func _shape(img: Image, box: Rect2, inside: Callable, col: Color) -> void:
+	for y in range(maxi(int(box.position.y), 0), mini(int(box.end.y) + 1, img.get_height())):
+		for x in range(maxi(int(box.position.x), 0), mini(int(box.end.x) + 1, img.get_width())):
+			var cover := clampf(float(inside.call(Vector2(x + 0.5, y + 0.5))) + 0.5, 0.0, 1.0) * col.a
+			if cover <= 0.0:
+				continue
+			var under := img.get_pixel(x, y)
+			var a := cover + under.a * (1.0 - cover)
+			var rgb := (Color(col.r, col.g, col.b) * cover + Color(under.r, under.g, under.b) * under.a * (1.0 - cover)) / maxf(a, 0.001)
+			img.set_pixel(x, y, Color(rgb.r, rgb.g, rgb.b, a))
 
 
 # ---- 形と色 ----

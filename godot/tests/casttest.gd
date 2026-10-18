@@ -126,6 +126,12 @@ func run() -> void:
 		for mi: Node in dress.find_children("*", "MeshInstance3D", true, false):
 			filmed = filmed and (mi as MeshInstance3D).layers == 1
 	check(filmed and dress.find_children("*", "Label3D", true, false).is_empty(), "the dressing is something the film camera sees, not words")
+	# 窓のような平たい飾りは、物に投影して描く（デカール。曲面に沿う）
+	var city: Node3D = game.CastDress.new()
+	monster.add_child(city)
+	city.build(monster, "city", 2, game.font, monster.pid, my_side)
+	check(city.find_children("*", "Decal", true, false).size() == 1 and city.find_children("*", "Label3D", true, false).is_empty(), "flat motifs like windows are painted on with a decal")
+	city.free()
 	flow.cast_set(monster.pid, "")
 	await frames(2)
 	check(not is_instance_valid(dress) and not game._cast_dress.has(monster.pid), "taking the role off takes the dressing off")
