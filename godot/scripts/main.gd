@@ -1806,6 +1806,7 @@ func _send_world() -> void:
 	var chunk := {}
 	var mounts := {}
 	var sent := false
+	var with_actors := true       # 役者の状態は、1回の送りの最初の1通にだけ付ける（通を軽くして、入った直後のまとめ送りで受け口があふれないように）
 	for pid: int in props:
 		var st: Array = props[pid].network_state() if props[pid].has_method("network_state") else props[pid].get_state()
 		var mount: Array = [props[pid].rider_of,props[pid].ride_local]
@@ -1822,14 +1823,15 @@ func _send_world() -> void:
 		_last_sent[pid] = packet
 		chunk[pid] = st
 		mounts[pid] = mount
-		# 1通は通信の上限（MTU 1392バイト）に収める。役者4人分の状態と一緒に送るので、物は6個まで
-		if chunk.size() >= 6:
-			rx_world.rpc(chunk, acts, mounts)
+		# 1通は通信の上限（MTU 1392バイト）に収める。最初の1通は役者4人分の状態も載るので、物は6個まで
+		if chunk.size() >= (6 if with_actors else 7):
+			rx_world.rpc(chunk, acts if with_actors else [], mounts)
+			with_actors = false
 			chunk = {}
 			mounts = {}
 			sent = true
 	if not chunk.is_empty() or not sent:
-		rx_world.rpc(chunk, acts, mounts)
+		rx_world.rpc(chunk, acts if with_actors else [], mounts)
 
 
 # 画面に出す3場面の名前と作品名（制作モードでは依頼ごとに変わる）

@@ -80,6 +80,7 @@ const STEPS := ["①", "②", "③"]
 # 場面ごとの、理由が1つも控えられなかったときの文
 const NO_REASON := {
 	"sign": "看板と役者が一緒に映る時間が足りなかった",
+	"roll": "一人ずつの寄りが、そろわなかった",
 	"stroll": "歩いている二人が映る時間が足りなかった",
 	"appear": "怪獣と二人が一緒に映る時間が足りなかった",
 	"attack": "爆発が起きなかった",
@@ -117,6 +118,11 @@ var next_scene := -1              # 場転のあと、1 で回し直したとき
 var _hold_in := -1.0              # 場面が撮れてから、カットするまでの残り（ホスト）
 
 var _acc: Array = []              # 場面ごとの、撮れている時間
+# 一人ずつ寄り（"roll"）：役ごとに、寄りで撮れたか（全員の画面。view に載る）。全員そろうと、その場面が撮れる
+var roll_done: Array = [false, false, false, false]
+var roll_holds := 0               # 一人ずつ寄りの途中で、フィルムを止めた回数（0 のまま撮り切ると、カメラを振って一続きに撮った）
+var roll_cut: Dictionary = {}     # 一人ずつ寄りで、頭が見切れたまま撮れた役（役の番号 → true）
+const ROLL_MIN := 0.55            # 一人ずつ寄り：その人の身長が、画面の高さに対してこれ以上（胸から上が大きく映る）
 var _entered: Array = []          # 本番で、その場面へ進んだか
 var _clock := 0.0                 # ホストの物理コマで数えた時計（続けて押した合図の間をはかる）
 var _step_at := -10.0
@@ -266,7 +272,38 @@ func present() -> Array:
 # その場面に出る役の番号（"who"。無ければ全員）
 func _who(i: int) -> Array:
 	var l := list()
+	if i >= 0 and i < l.size() and str((l[i] as Dictionary).get("rule", "")) == "roll":
+		var next := roll_target()
+		return [next] if next >= 0 else [-1]
 	return (l[i] as Dictionary).get("who", []) if i >= 0 and i < l.size() else []
+
+
+# 一人ずつ寄り：次に寄りで撮る役（出ている役のうち、まだ撮れていない最初の役。全員撮れていれば -1）
+func roll_target() -> int:
+	for a: CharacterBody3D in game.actors:
+		var aid := int(a.aid)
+		if aid < cast_count() and a.present() and not bool(roll_done[aid]):
+			return aid
+	return -1
+
+
+# 一人ずつ寄り：撮れた人数と、出ている人数
+func roll_count() -> Vector2i:
+	var done := 0
+	var here := 0
+	for a: CharacterBody3D in game.actors:
+		var aid := int(a.aid)
+		if aid < cast_count() and (a.present() or bool(roll_done[aid])):
+			here += 1
+			done += 1 if bool(roll_done[aid]) else 0
+	return Vector2i(done, here)
+
+
+# 役の呼び名（台本の "cast"。"社員" のように同じ名前が続くときは、役の記号を付ける）
+func role_name(aid: int) -> String:
+	var names: Array = Scripts.cast(flow.chosen_job) if active() else []
+	var name: String = str(names[aid]) if aid < names.size() else "役者%s" % ACTORS[aid]
+	return name if names.count(name) <= 1 else "%s%s" % [name, ACTORS[aid]]
 
 
 # 出ている役者が全員、そうなっているか（例：_all("beat_arrived")）。誰も出ていなければ false
@@ -435,9 +472,7 @@ func _sync_hold_sign(show: bool) -> void:
 	var cam: Node3D = game.program_camera()
 	if cam != null:
 		_hold_sign.global_position = cam.global_position + Vector3(0, 2.25, 0)
-	var titles: Array = flow.job()["scenes"]
-	var title: String = str(titles[next_scene]).get_slice("（", 0) if next_scene >= 0 and next_scene < titles.size() else ""
-	_hold_sign.text = "場転中（フィルム停止）\n次：%s　／　1 で回す" % title
+	_hold_sign.text = "場転中（フィルム停止）\n次：%s　／　1 で回す" % hold_title(next_scene).get_slice("（", 0)
 
 
 # ---- 場面を進める ----
@@ -573,6 +608,9 @@ func _enter(i: int, again: bool) -> void:
 func _start_hold(next: int) -> void:
 	_hold_in = -1.0
 	_boom_in = -1.0
+	# 一人ずつ寄りの途中で止めた（カメラを寄せ直す）
+	if scene >= 0 and scene < list().size() and str(list()[scene].get("rule", "")) == "roll" and scene < lit.size() and not bool(lit[scene]):
+		roll_holds += 1
 	next_scene = clampi(next, 0, list().size() - 1)
 	var b: Dictionary = list()[next_scene]
 	var who := _who(next_scene)
@@ -583,11 +621,22 @@ func _start_hold(next: int) -> void:
 			"look": "", "face_go": "neutral", "face_hold": "neutral"})
 	game.host_ev("music", [""])
 	game.host_ev("sfx", ["clap", null])
-	var titles: Array = flow.job()["scenes"]
-	var title: String = str(titles[next_scene]) if next_scene < titles.size() else ""
+	var title := hold_title(next_scene)
 	game.host_ev("toast", ["カット！ フィルムを止めた。場転：『%s』の用意ができたら、台本を読める人が 1 で回す" % title, 0])
 	holding = true          # 止めてから配る（止めた知らせは、見返しの記録に入らない）
 	_broadcast()
+
+
+# 場転の札・知らせに出す、次に撮る物の名前（一人ずつ寄りの途中なら、次に寄る人も）
+func hold_title(next: int) -> String:
+	var titles: Array = flow.job()["scenes"]
+	var title: String = str(titles[next]) if next >= 0 and next < titles.size() else ""
+	if next >= 0 and next < list().size() and str(list()[next].get("rule", "")) == "roll":
+		var aid := roll_target()
+		if aid >= 0:
+			var c := roll_count()
+			title = "%s・%sの寄り %d/%d" % [title.get_slice("（", 0), role_name(aid), c.x + 1, c.y]
+	return title
 
 
 # 回し直す（ホスト）：場転で用意した場面から、フィルムを回す
@@ -661,7 +710,7 @@ func _physics_process(delta: float) -> void:
 # ---- 通信 ----
 
 func view() -> Dictionary:
-	return {"scene": scene, "lit": lit.duplicate(), "rehearsal": rehearsal, "hold": holding, "next": next_scene}
+	return {"scene": scene, "lit": lit.duplicate(), "rehearsal": rehearsal, "hold": holding, "next": next_scene, "roll": roll_done.duplicate()}
 
 
 # 全員へ配る（ホスト）。本番中の合図は、見返しのために記録にも残る（production_main.gd の host_ev）
@@ -689,6 +738,7 @@ func _apply(data: Dictionary) -> void:
 	rehearsal = bool(data.get("rehearsal", false))
 	holding = bool(data.get("hold", false))
 	next_scene = int(data.get("next", -1))
+	roll_done = (data.get("roll", [false, false, false, false]) as Array).duplicate()
 
 
 # 見返しの始まりと終わり（ホスト）。見返しの間は記録どおりに見せ、終わったら今の様子へ戻す
@@ -720,6 +770,9 @@ func judge_reset() -> void:
 		_acc.append(0.0)
 		_entered.append(false)
 	_crew_t = -100.0
+	roll_done = [false, false, false, false]
+	roll_holds = 0
+	roll_cut = {}
 	_city_seen = {}
 	_lead = 0
 	_wide_sum = 0.0
@@ -872,6 +925,8 @@ func judge_tick(dt: float, f: Dictionary) -> void:
 			_rule_pass(scene, f, dt, crew)
 		"sign":
 			_rule_sign(scene, f, dt, crew)
+		"roll":
+			_rule_roll(scene, f, dt, crew)
 
 
 func _stuck() -> bool:
@@ -1445,6 +1500,53 @@ func _rule_sign(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if crew:
 		r.append("スタッフが映っていた")
 	_count(i, r, dt, NEED_SHOW)
+
+
+# 一人ずつ寄り（会社の紹介動画の社員紹介）：出ている役を一人ずつ、寄りで大きく映す（決めポーズ）。
+# 一人分が撮れたら、次の人の番。止めずにカメラを振って寄る（撮影技術の加算。features/camera_craft.gd）か、
+# 1 でフィルムを止めて、カメラを寄せ直してから回す。全員そろうと、場面が撮れる。
+# 頭が画面から切れていても（見切れ）撮れたことにするが、精算で少し引かれる。
+# 同じ人が、場転のたびに役を替えて（Y）全部を演じてもいい
+func _rule_roll(i: int, f: Dictionary, dt: float, crew: bool) -> void:
+	var aid := roll_target()
+	if aid < 0:
+		_met(i)
+		return
+	var who: CharacterBody3D = game.actors[aid]
+	if who.beat_stuck():
+		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
+		return
+	if not who.beat_arrived():
+		return
+	var r: Array = game.judge.problems(f)
+	var acts: Array = f["actors"]
+	if r.is_empty() and float(acts[aid]["h"]) < ROLL_MIN:
+		r.append("寄りが足りない（カメラを%sへ寄せて、胸から上を大きく映す）" % role_name(aid))
+	if crew:
+		r.append("スタッフが映っていた")
+	if not r.is_empty():
+		_note(i, r, dt)
+		return
+	_acc[i] = float(_acc[i]) + dt
+	if float(_acc[i]) < NEED_SHOW:
+		return
+	# 一人分、撮れた（頭が切れていれば、見切れとして控える）
+	_acc[i] = 0.0
+	roll_done[aid] = true
+	if not bool(acts[aid].get("head", true)):
+		roll_cut[aid] = true
+	var c := roll_count()
+	var next := roll_target()
+	if next < 0:
+		game.host_ev("toast", ["%sの寄り、OK！（%d/%d）　社員紹介、そろった" % [role_name(aid), c.x, c.y], 0])
+		_met(i)
+		return
+	game.host_ev("sfx", ["ui_ok", null])
+	if cut_mode() and game.state == game.S.TAKE:
+		game.host_ev("toast", ["%sの寄り、OK！（%d/%d）　次は%s：止めずにカメラを振って寄る（撮影技術）か、1 で止めて寄せ直す" % [role_name(aid), c.x, c.y, role_name(next)], 0])
+	else:
+		game.host_ev("toast", ["%sの寄り、OK！（%d/%d）　次は%s" % [role_name(aid), c.x, c.y, role_name(next)], 0])
+	_enter(i, false)
 
 
 # 走り抜ける：大きな物（車・バスの書割・台車に載せた物）が、画面の中を PASS_M 以上走る（役者は問わない）

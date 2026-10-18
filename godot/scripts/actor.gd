@@ -30,7 +30,7 @@ var st := St.STANDBY
 var st_t := 0.0
 var after_flinch := St.IDLE
 var special: Array = []       # 告白で使う固有モーション
-# 骨格に重ねるポーズ（peep_pose.gd の "bow"・"hips"・"wave"。"" ＝無し）。全員の画面へ、記録へも載る
+# 骨格に重ねるポーズ（peep_pose.gd の "bow"・"hips"・"wave"・"point"・"cheer"。"" ＝無し）。全員の画面へ、記録へも載る
 var body_pose := ""
 const BodyPose := preload("res://scripts/peep_pose.gd")
 # キャラごとのあいさつの動き（台本のポーズ "greet"）。無いキャラは、手を振る
@@ -483,7 +483,7 @@ func _beat_hold(delta: float) -> void:
 		"partner":
 			_face(partner.global_position, delta)
 	var pose := str(beat.get("pose", "idle"))
-	set_body_pose(pose if pose in ["bow", "hips", "wave"] else ("wave" if pose == "greet" and not GREET.has(vis.tag) else ""))
+	set_body_pose(pose if pose in ["bow", "hips", "wave", "point", "cheer"] else ("wave" if pose == "greet" and not GREET.has(vis.tag) else ""))
 	match pose:
 		"greet":
 			# あいさつ：キャラの決めの動きを、くり返す

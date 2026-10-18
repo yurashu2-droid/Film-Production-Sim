@@ -20,6 +20,13 @@ var _marks := {}                            # 役に入っている人・物 →
 var plan: Array = ["pro", "pro", "none", "none"]     # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
 
 
+# 役を決め直せる時：準備中と、カット割りの本番の場転（フィルムを止めている間。着替えて、次の役になる）
+func _may_cast() -> bool:
+	if game.state == game.S.PREP:
+		return true
+	return game.state == game.S.TAKE and game.get("beats") != null and bool(game.beats.holding)
+
+
 # この台本の役者の人数（役は A から順に、この数まで）
 func _cast_n() -> int:
 	return int(game.beats.cast_count()) if game.get("beats") != null else 2
@@ -29,7 +36,7 @@ func _cast_n() -> int:
 
 @rpc("any_peer", "call_local", "reliable")
 func h_cast_actor(kind: String, ref: int, role: int) -> void:
-	if not Net.is_host() or game.production == null or int(game.production.phase) not in [2, 4] or game.state != game.S.PREP:
+	if not Net.is_host() or game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
 		return
 	var who: int = Net.sender()
 	if kind == "player" and ref != who:
@@ -201,7 +208,7 @@ func _wear(body: Node3D, role: int) -> Array:
 func hook_key(event: InputEvent, me: Node) -> bool:
 	if not (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_Y):
 		return false
-	if game.production == null or int(game.production.phase) not in [2, 4] or game.state != game.S.PREP:
+	if game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
 		return false
 	var subject: Node = game.props.get(me.held) if me.held != 0 else me.target
 	if subject == null:
@@ -222,7 +229,7 @@ func hook_key(event: InputEvent, me: Node) -> bool:
 
 
 func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
-	if game.production == null or int(game.production.phase) not in [2, 4] or game.state != game.S.PREP:
+	if game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
 		return {}
 	if me.held == 0 and me.target == null:
 		var now: int = role_of("player", int(me.peer_id))

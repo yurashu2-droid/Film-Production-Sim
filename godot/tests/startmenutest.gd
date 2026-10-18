@@ -97,6 +97,11 @@ func _run() -> void:
 		return
 	await _wait(0.7)
 	var game: Node = menu.game_node
+	# 事務所へ移す知らせは、名簿と物の状態の一式のあとに届く（物が多いと、少しかかる）。着くまで待つ
+	elapsed = 0.0
+	while not (game.local_player().position.x > 60 and game.players[1].position.x > 60) and elapsed < 5.0:
+		await _wait(0.1)
+		elapsed += 0.1
 	_check(game.startup_complete and get_tree().multiplayer_poll, "joining resumes network only after game is ready")
 	var locals := 0
 	for player: Node in game.players.values():

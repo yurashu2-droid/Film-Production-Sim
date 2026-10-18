@@ -5,6 +5,8 @@ extends SkeletonModifier3D
 ##   "bow"  ：お辞儀（上体を前へ倒し、両手は体の横へ下ろす）。台本の役者のポーズ（actor.gd）
 ##   "hips" ：両手を腰に当てて、胸を張る（ドヤ顔）
 ##   "wave" ：右手を上げて、左右に振る
+##   "point"：右手をまっすぐ前（カメラ）へ突き出して、指さす
+##   "cheer"：両手を高く上げる（万歳）
 ## ほかの人の画面にも同じ姿勢を出す（誰がのぞいているか＝誰が監督かが、見て分かる）。
 ## 向きは骨格のローカル空間で書く：+Z が正面、+Y が上、キャラの右手側が -X。
 
@@ -27,6 +29,10 @@ func _process_modification() -> void:
 			_hips(s)
 		"wave":
 			_wave(s)
+		"point":
+			_point(s)
+		"cheer":
+			_cheer(s)
 
 
 func _bow(s: Skeleton3D) -> void:
@@ -61,6 +67,19 @@ func _wave(s: Skeleton3D) -> void:
 	var swing := sin(Time.get_ticks_msec() / 1000.0 * 7.0) * 0.45
 	_aim(s, "UPPER_ARM.R", "FOREARM.R", Vector3(-0.75, 0.65, 0.2))
 	_aim(s, "FOREARM.R", "HAND.R", Vector3(-0.15 + swing, 1.0, 0.1))
+
+
+func _point(s: Skeleton3D) -> void:
+	_aim(s, "UPPER_ARM.R", "FOREARM.R", Vector3(-0.25, 0.2, 1.0))
+	_aim(s, "FOREARM.R", "HAND.R", Vector3(-0.1, 0.12, 1.0))
+
+
+func _cheer(s: Skeleton3D) -> void:
+	var bounce := sin(Time.get_ticks_msec() / 1000.0 * 6.0) * 0.12
+	for side: String in ["L", "R"]:
+		var out := 1.0 if side == "L" else -1.0
+		_aim(s, "UPPER_ARM." + side, "FOREARM." + side, Vector3(out * 0.45, 1.0, 0.1))
+		_aim(s, "FOREARM." + side, "HAND." + side, Vector3(out * (0.3 + bounce), 1.0, 0.15))
 
 
 func _peep(s: Skeleton3D) -> void:

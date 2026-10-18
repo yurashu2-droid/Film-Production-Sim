@@ -25,6 +25,7 @@ const CARD_AT := Vector3(0.0, 2.05, 0.8)       # 手描きの看板（歩いて�
 const CASTLE_AT := Vector3(0.0, 0.0, -2.2)
 const FLAT_AT := Vector3(1.9, 0.0, -2.3)
 const SPOT_AT := [Vector3(-2.6, 0.0, 2.6), Vector3(2.6, 0.0, 2.6)]
+const PAN_AT := Vector3(0.0, 0.0, 0.5)         # 一人ずつ寄りを、首を振って撮るときのカメラの場所（四人の前の真ん中）
 const ME_AT := Vector3(3.0, 0.1, 6.0)          # カメラの後ろ（画面の外）
 
 
@@ -85,6 +86,35 @@ func wait_lit(i: int, sec: float) -> bool:
 		await physics_frame
 	dump("scene %d" % i)
 	return false
+
+
+# 一人ずつ寄り：その役の寄りが撮れるまで待つ（PR_SHOTS なら、撮れた瞬間の撮影カメラの絵を pr_1_<役>.png に）
+func wait_roll(aid: int, sec: float) -> bool:
+	for k in int(sec * 60.0):
+		if bool(beats.roll_done[aid]):
+			if OS.get_environment("PR_SHOTS") != "" and DisplayServer.get_name() != "headless":
+				await RenderingServer.frame_post_draw
+				DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/shots/tutorial/"))
+				game.film.view.get_texture().get_image().save_png("res://tests/shots/tutorial/pr_1_%s.png" % beats.ACTORS[aid])
+			return true
+		await physics_frame
+	dump("roll %d" % aid)
+	return false
+
+
+# 一人ずつ寄り：カメラを、その役の印①の正面へ寄せる（胸から上が大きく映る）
+func close_on(aid: int) -> void:
+	var at: Vector3 = flow.site_center() + MARKS[aid][0]
+	place(game.film, at + Vector3(0.0, 0.0, 1.7))
+	game._aim_camera(at + Vector3(0.0, 1.0, 0.0), 46.0)
+
+
+# 一人ずつ寄り：カメラは動かさずに、首を振って、その役を寄りで捉える（パン）。cut＝頭が切れるほど低く向ける（見切れ）
+func pan_to(aid: int, cut: bool = false) -> void:
+	var at: Vector3 = flow.site_center() + MARKS[aid][0]
+	if game.film.global_position.distance_to(flow.site_center() + PAN_AT) > 0.3:
+		place(game.film, flow.site_center() + PAN_AT)
+	game._aim_camera(at + Vector3(0.0, 0.45 if cut else 1.0, 0.0), 36.0)
 
 
 func wait_hold(sec: float) -> bool:
@@ -169,7 +199,7 @@ func shoot(debut: int, site: String) -> void:
 	for i in 2:
 		game._aim_spot(game.spots[i], O + Vector3(0.0, 1.3, -1.0))
 		game.spots[i].level = 3
-	game._aim_camera(O + AIM_WIDE, 56.0)
+	close_on(0)
 	game.h_standby()
 	await frames(30)
 	# ---- 本番 ----
@@ -179,8 +209,34 @@ func shoot(debut: int, site: String) -> void:
 			break
 		await physics_frame
 	check(game.state == S.TAKE and beats.scene == 0, "%s：カチンコで、1カット目が回る" % site)
-	check(await wait_lit(0, 8.0), "%s：1カット目：社員一同のあいさつが撮れた（四人とも映る）" % site)
+	# 社員紹介：一人ずつ寄り。一人撮れるたびにフィルムが止まり、カメラを次の人へ寄せて回す
+	check(beats.present().size() == 1 and beats.present()[0] == game.actors[0], "%s：社員紹介は、まず社長だけ" % site)
+	var poses := ["hips", "wave", "point", "cheer"]
+	for aid in 4:
+		check(await wait_roll(aid, 8.0), "%s：%sの寄りが撮れた" % [site, beats.role_name(aid)])
+		var body: Node = game.actors[aid].vis.skel.get_node_or_null("BeatPose")
+		check(body != null and str(body.mode) == poses[aid], "%s：%sの決めポーズ（%s）" % [site, beats.role_name(aid), poses[aid]])
+		if aid == 0:
+			# 社長のあとは、1 で止めて、カメラを社員Bの正面へ寄せ直してから回す
+			check(not beats.lit[0] and not beats.holding, "%s：一人撮れても、フィルムは回ったまま（止めるかは選べる）" % site)
+			game.h_beat(1)
+			check(await wait_hold(3.0) and beats.next_scene == 0, "%s：1 で止めると、同じ場面の続き（場転）" % site)
+			check(str(beats.hold_title(0)).contains(beats.role_name(1)), "%s：場転の札に、次に寄る人が出る（%s）" % [site, beats.hold_title(0)])
+			close_on(1)
+			await frames(30)
+			game.h_beat(1)
+			await frames(5)
+			check(not beats.holding and beats.present().size() == 1 and beats.present()[0] == game.actors[1], "%s：1 で回すと、次は%sだけ" % [site, beats.role_name(1)])
+		elif aid < 3:
+			# 社員B のあとは、止めずに、カメラの首を振って次の人へ（社員D は、わざと頭を切る）
+			check(beats.present().size() == 1 and beats.present()[0] == game.actors[aid + 1], "%s：止めずに、次は%sの番" % [site, beats.role_name(aid + 1)])
+			pan_to(aid + 1, aid + 1 == 3)
+	check(await wait_lit(0, 3.0), "%s：4人の寄りがそろって、社員紹介が撮れた" % site)
+	check(int(beats.roll_holds) == 1 and beats.roll_cut.has(3) and beats.roll_cut.size() == 1, "%s：止めたのは1回・見切れは社員Dだけ（%d回・%s）" % [site, int(beats.roll_holds), str(beats.roll_cut)])
 	check(await wait_hold(3.0) and beats.next_scene == 1, "%s：撮れたら、フィルムが止まる（場転）" % site)
+	# 場転：カメラを引いて、城と社長が入る所へ戻す
+	place(game.film, O + CAM_AT)
+	game._aim_camera(O + AIM_WIDE, 56.0)
 	await frames(90)
 	game.h_beat(1)
 	await frames(5)
@@ -203,15 +259,25 @@ func shoot(debut: int, site: String) -> void:
 	await frames(150)
 	game.h_beat(1)
 	await frames(5)
-	check(await wait_lit(3, 10.0), "%s：4カット目：看板の前で、四人がお辞儀" % site)
-	var bow: Node = game.actors[1].vis.skel.get_node_or_null("BeatPose")
-	check(bow != null and str(bow.mode) == "bow", "%s：お辞儀の姿勢になっている" % site)
+	check(await wait_lit(3, 10.0), "%s：4カット目：看板の前に四人が集まって、両手を上げる" % site)
+	var up: Node = game.actors[1].vis.skel.get_node_or_null("BeatPose")
+	check(up != null and str(up.mode) == "cheer", "%s：両手を上げた姿勢になっている" % site)
 	place(card, O + Vector3(4.0, 0.0, -6.0), 0.0)
 	for i in 400:
 		if game.state == S.RESULT:
 			break
 		await physics_frame
 	check(game.state == S.RESULT and not false in game.takes[0]["passed"], "%s：4カットそろって、テイクが終わる" % site)
+	# 撮り方の加算・減点（features/camera_craft.gd）：1回止めたので撮影技術の加算は無し。社員Dの見切れで少し引かれる
+	var craft: Node = game.hooks.feature("camera_craft")
+	var lines: Array = flow.fee_lines(0)
+	check(lines.any(func(l: Array) -> bool: return "見切れ" in str(l[0]) and int(l[1]) < 0) and not lines.any(func(l: Array) -> bool: return "撮影技術" in str(l[0])),
+		"%s：精算に、見切れの減点が入る（止めたので、撮影技術の加算は無し）%s" % [site, str(lines)])
+	beats.roll_holds = 0
+	craft.hook_take_cut()
+	check((flow.fee_lines(0) as Array).any(func(l: Array) -> bool: return "撮影技術" in str(l[0]) and int(l[1]) > 0), "%s：止めずに撮り切っていれば、撮影技術の加算が入る" % site)
+	beats.roll_holds = 1
+	craft.hook_take_cut()
 	print("PR_MEASURE %s：テイクの長さ（回していた分だけ）%.1f 秒" % [site, float(game.takes[0]["dur"]) if not game.takes.is_empty() else -1.0])
 	# ---- ネットに上げる（試写会のかわり）→ 電話 ----
 	if game.state == S.RESULT:

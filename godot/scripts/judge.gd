@@ -132,6 +132,7 @@ func look() -> Dictionary:
 			"seen": n_seen >= 2,
 			"size": size >= MIN_SIZE,
 			"lit": light >= MIN_LIGHT,
+			"head": _in_frame(cam, vs, head + Vector3(0, 0.12, 0)),     # 頭のてっぺんまで画面に入っている（入っていなければ、見切れ）
 			"depth": (a.chest_pos() - cam_pos).dot(fwd),
 			# 画面の高さに対する、身長の大きさ（寄りの見分けに使う。動きで頭が上下しても変わらない）
 			"h": absf(bottom.y - cam.unproject_position(a.global_position + Vector3(0, a.vis.height, 0)).y) / vs.y,

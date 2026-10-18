@@ -116,6 +116,8 @@ static func _fig(at: Vector2, s: float, pose: String, flip: bool = false, lean: 
 			arms = [[Vector2(0, -58), Vector2(-9, -46), Vector2(-13, -34)], [Vector2(0, -58), Vector2(14, -70), Vector2(18, -90)]]
 		"hips":
 			arms = [[Vector2(0, -58), Vector2(-16, -46), Vector2(-4, -34)], [Vector2(0, -58), Vector2(16, -46), Vector2(4, -34)]]
+		"point":
+			arms = [[Vector2(0, -58), Vector2(-16, -46), Vector2(-4, -34)], [Vector2(0, -58), Vector2(14, -60), Vector2(30, -64)]]
 	var parts := '<ellipse cx="0" cy="1" rx="19" ry="4.5" fill="%s"/>' % SHADE
 	var body := ""
 	if pose == "bow":
@@ -172,13 +174,25 @@ static func _signboard(c: Vector2, w: float, h: float) -> String:
 	return out
 
 
-# 1 社員一同ごあいさつ：社長と社員が並んで手を振る。足りない社員は、等身大パネル
+# 1 社員紹介：一人ずつ寄りで決めポーズ（4つの小さなコマ。社長・手を振る・指さす・パネル）
 static func _pr_1() -> String:
-	var out := _ground(238)
-	out += _fig(Vector2(110, 240), 0.95, "wave")
-	out += _fig(Vector2(196, 240), 1.05, "hips")
-	out += _fig(Vector2(282, 240), 0.95, "wave", true)
-	out += _panel(Vector2(366, 240), 1.15)
+	var out := ""
+	var poses := ["hips", "wave", "point", ""]
+	for k in 4:
+		var x := 22.0 + float(k % 2) * 222.0
+		var y := 14.0 + float(k / 2) * 122.0
+		# 小さなコマ：枠で切り抜いて、その中に大きく描く（胸から上）
+		out += '<clipPath id="pr1_%d"><rect x="%.1f" y="%.1f" width="214" height="114"/></clipPath>' % [k, x, y]
+		out += '<rect x="%.1f" y="%.1f" width="214" height="114" fill="%s"/>' % [x, y, PAPER]
+		out += '<g clip-path="url(#pr1_%d)"><g transform="translate(%.1f %.1f)">' % [k, x, y]
+		if poses[k] == "":
+			out += _panel(Vector2(107, 210), 1.9)
+		else:
+			out += _fig(Vector2(107, 210), 1.85, poses[k])
+		out += '<rect x="8" y="88" width="%d" height="18" fill="%s" stroke="%s" stroke-width="2"/>' % [86 if k == 0 else 64, PAPER, PENCIL]
+		out += '<rect x="8" y="88" width="6" height="18" fill="%s"/>' % (RED if k == 0 else SOFT)
+		out += '</g></g>'
+		out += '<rect x="%.1f" y="%.1f" width="214" height="114" fill="none" stroke="%s" stroke-width="3"/>' % [x, y, PENCIL]
 	return out
 
 
@@ -202,14 +216,14 @@ static func _pr_3() -> String:
 	return out
 
 
-# 4 ぜんぶ、格安で！：手描きの看板の前で、全員でお辞儀
+# 4 ぜんぶ、格安で！：手描きの看板の前に全員集合して、両手を上げる
 static func _pr_4() -> String:
 	var out := _ground(238)
-	out += _signboard(Vector2(240, 92), 300, 110)
-	out += _fig(Vector2(110, 240), 0.9, "bow")
-	out += _fig(Vector2(196, 240), 0.95, "bow")
-	out += _fig(Vector2(282, 240), 0.9, "bow")
-	out += _panel(Vector2(366, 240), 1.05)
+	out += _signboard(Vector2(240, 86), 300, 100)
+	out += _fig(Vector2(110, 242), 0.9, "cheer")
+	out += _fig(Vector2(196, 244), 0.95, "cheer")
+	out += _fig(Vector2(282, 244), 0.9, "cheer")
+	out += _panel(Vector2(366, 242), 1.0)
 	return out
 
 
