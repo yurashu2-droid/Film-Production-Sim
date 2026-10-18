@@ -35,9 +35,10 @@ var _blink := 2.0
 var _blinking := 0.0
 
 
-func setup(cast_tag: String) -> void:
+# model_path：別の場所の同じ作りのモデル（紹介動画の依頼主たち。godot/trailer/）。空なら assets/cast の castNN_game.glb
+func setup(cast_tag: String, model_path := "") -> void:
 	tag = cast_tag
-	var model: Node3D = (load("res://assets/cast/cast%s_game.glb" % tag) as PackedScene).instantiate()
+	var model: Node3D = (load(model_path if model_path != "" else "res://assets/cast/cast%s_game.glb" % tag) as PackedScene).instantiate()
 	_model = model
 	model.scale = Vector3.ONE * SCALE
 	add_child(model)

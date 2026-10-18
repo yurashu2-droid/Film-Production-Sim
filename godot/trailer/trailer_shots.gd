@@ -158,7 +158,9 @@ static func ease_io(t: float) -> float:
 func puppet(tag: String, at: Vector3, yaw: float) -> Node3D:
 	var v: Node3D = CastVisual.new()
 	game.add_child(v)
-	v.setup(tag)
+	# 依頼主たち（ランダム生成のキャラ。build_client_gen.py で作った castNN_game.glb）は godot/trailer/clients/ から
+	var client := "res://trailer/clients/cast%s_game.glb" % tag
+	v.setup(tag, client if ResourceLoader.exists(client) else "")
 	v.global_position = at
 	v.rotation.y = yaw
 	return v
@@ -898,3 +900,182 @@ func client_react() -> void:
 			who.set_face("surprised")
 		if t >= 0.55 and who.face != "happy":
 			who.set_face("happy"))
+
+
+# ---- 試写会：暗い試写室。スクリーンに本番の映像（撮ったテイク2のコマ）を流し、その前で班とお客（ゲームのモデル）が見て反応する ----
+const ROOM := Vector3(200.0, 0.0, 200.0)      # 町から離れた所に、試写室を組む
+var _screen_mat: StandardMaterial3D
+var _screen_frames: Array[String] = []
+var _audience: Array = []
+var _glow: OmniLight3D
+
+
+func _build_room() -> void:
+	# 町の日差しを消して、暗い部屋にする
+	for l: Node in game.find_children("*", "DirectionalLight3D", true, false):
+		(l as DirectionalLight3D).visible = false
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.01, 0.012, 0.018)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.1, 0.12, 0.2)
+	env.ambient_light_energy = 0.35
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.glow_enabled = true
+	env.glow_intensity = 0.6
+	env.glow_bloom = 0.15
+	cam.environment = env
+	# 床と、段々の客席（黒い台）
+	var floor_mi := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(30, 30)
+	floor_mi.mesh = plane
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.05, 0.045, 0.05)
+	floor_mi.material_override = dark
+	game.add_child(floor_mi)
+	floor_mi.global_position = ROOM
+	for r in 3:
+		var step := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(10, 0.3 * r + 0.01, 1.2)
+		step.mesh = b
+		step.material_override = dark
+		game.add_child(step)
+		step.global_position = ROOM + Vector3(0, (0.3 * r + 0.01) * 0.5, 3.2 + 1.2 * r)
+	# 壁（町が見えないように、部屋を囲う）
+	for w: Array in [[Vector3(0, 3, -1.2), Vector3(16, 6, 0.2)], [Vector3(-7, 3, 5), Vector3(0.2, 6, 14)], [Vector3(7, 3, 5), Vector3(0.2, 6, 14)], [Vector3(0, 6, 5), Vector3(16, 0.2, 14)]]:
+		var wall := MeshInstance3D.new()
+		var wb := BoxMesh.new()
+		wb.size = w[1]
+		wall.mesh = wb
+		wall.material_override = dark
+		game.add_child(wall)
+		wall.global_position = ROOM + (w[0] as Vector3)
+	# スクリーン（光る板）。コマは毎コマ差し替える
+	var scr := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	q.size = Vector2(5.6, 3.1)
+	scr.mesh = q
+	_screen_mat = StandardMaterial3D.new()
+	_screen_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_screen_mat.albedo_color = Color(1, 1, 1) * 0.95
+	scr.material_override = _screen_mat
+	game.add_child(scr)
+	scr.global_position = ROOM + Vector3(0, 2.3, -0.5)
+	# スクリーンの照り返し（客席を青白く照らす。映像に合わせてちらつく）
+	_glow = OmniLight3D.new()
+	_glow.light_color = Color(0.7, 0.8, 1.0)
+	_glow.omni_range = 12.0
+	_glow.light_energy = 2.2
+	game.add_child(_glow)
+	_glow.global_position = ROOM + Vector3(0, 2.2, 0.6)
+	# 映写機の光（後ろの上から）
+	var beam := SpotLight3D.new()
+	beam.light_color = Color(0.85, 0.9, 1.0)
+	beam.light_energy = 3.0
+	beam.spot_range = 14.0
+	beam.spot_angle = 14.0
+	game.add_child(beam)
+	beam.global_position = ROOM + Vector3(0, 3.6, 9.5)
+	beam.look_at(ROOM + Vector3(0, 2.3, -0.5))
+	# 映すコマ（撮ったテイク2）
+	var dir := ProjectSettings.globalize_path("res://").path_join("../tools/trailer/footage/take2")
+	for fn: String in DirAccess.get_files_at(dir):
+		if fn.ends_with(".jpg"):
+			_screen_frames.append(dir.path_join(fn))
+	_screen_frames.sort()
+	# 客席：前の列の真ん中は依頼主（ベレー帽先生）。ほかは班のみんなと、お客
+	# 依頼主たち（生成したキャラ）を中心に、班のみんなも混ぜる
+	var tags := ["31", "01", "35", "22", "38", "03", "36", "21", "40", "06", "33", "34", "23", "09", "37", "39", "32", "M02"]
+	var rows := [[-2.2, -1.1, 0.0, 1.1, 2.2], [-2.75, -1.65, -0.55, 0.55, 1.65, 2.75], [-2.2, -1.1, 0.0, 1.1, 2.2]]
+	var k := 0
+	for r in rows.size():
+		for x: float in rows[r]:
+			var tag: String = "04" if r == 0 and x == 0.0 else str(tags[k % tags.size()])
+			if tag != "04":
+				k += 1
+			var p := puppet(tag, ROOM + Vector3(x + randf_range(-0.08, 0.08), 0.3 * r, 3.2 + 1.2 * r), PI + randf_range(-0.12, 0.12))
+			p.set_face("neutral")
+			_audience.append(p)
+
+
+func _show_screen(i: int) -> void:
+	if _screen_frames.is_empty():
+		return
+	var img := Image.load_from_file(_screen_frames[clampi(i, 0, _screen_frames.size() - 1)])
+	if img != null:
+		_screen_mat.albedo_texture = ImageTexture.create_from_image(img)
+
+
+func _react(t: float, i: int) -> void:
+	# 0.0〜0.35：じっと見る / 0.35：大岩が来て、びくっ / 0.55〜：大喜び（万歳・跳ねる）
+	for n in _audience.size():
+		var p: Node3D = _audience[n]
+		var late := float(n % 4) * 0.025
+		if t > 0.35 + late and not K.has("f%d" % n):
+			K["f%d" % n] = true
+			p.set_face("surprised" if n % 2 == 0 else "shock")
+			p.play("flinch", 0.08, true)
+		if t > 0.58 + late and not K.has("h%d" % n):
+			K["h%d" % n] = true
+			p.set_face("happy")
+			if n % 3 != 1:
+				var pose := preload("res://scripts/peep_pose.gd").new()
+				pose.mode = "cheer"
+				pose.lean = 0.0
+				(p.skel as Skeleton3D).add_child(pose)
+		if K.has("h%d" % n) and (frame + n * 5) % 22 == 0 and n % 3 == 1:
+			p.play("jump", 0.1, true)
+	_glow.light_energy = 1.8 + 0.9 * absf(sin(float(i) * 0.7)) * absf(sin(float(i) * 0.23))
+
+
+# 後ろから：客席の頭ごしに、スクリーン
+func screening_back() -> void:
+	await _build_room()
+	await frames(10)
+	cam.fov = 50
+	var eye := ROOM + Vector3(0.3, 3.4, 8.4)
+	look(eye, ROOM + Vector3(0, 1.9, 0))
+	cam.attributes = null
+	await rec(4.2, func(t: float) -> void:
+		var i := 60 + int(t * 4.2 * FPS)
+		_show_screen(i)
+		_react(t, i)
+		cam.global_position = eye + Vector3(0, -0.1, -0.7) * ease_io(t)
+		cam.look_at(ROOM + Vector3(0, 1.9, 0)))
+
+
+# 前から（スクリーンの横から）：映像に照らされた顔が、驚いて、喜ぶ
+func screening_front() -> void:
+	await _build_room()
+	await frames(10)
+	cam.fov = 38
+	var eye := ROOM + Vector3(-1.2, 1.7, 0.6)
+	look(eye, ROOM + Vector3(0.2, 1.1, 4.0))
+	dof(7.0, 0.04)
+	await rec(4.2, func(t: float) -> void:
+		var i := 60 + int(t * 4.2 * FPS)
+		_show_screen(i)
+		_react(t, i)
+		cam.global_position = eye + Vector3(0.5, 0.0, 0.3) * ease_io(t)
+		cam.look_at(ROOM + Vector3(0.2, 1.1, 4.0)))
+
+
+# 依頼主（ベレー帽先生）の寄り：試写室の前の列の真ん中。スクリーンの光の中で、驚いて、喜ぶ
+func screening_client() -> void:
+	await _build_room()
+	await frames(10)
+	var who: Node3D = _audience[2]
+	var box: AABB = game.stage.merged_aabb(who)
+	var head := Vector3(who.global_position.x, box.end.y - 0.32, who.global_position.z)
+	cam.fov = 34
+	var eye := head + Vector3(0.2, 0.05, -1.75)
+	look(eye, head + Vector3(0, 0.05, 0))
+	dof(2.4, 0.12)
+	await rec(3.4, func(t: float) -> void:
+		var i := 60 + int(t * 4.2 * FPS)
+		_show_screen(i)
+		_react(t * 0.9, i)
+		cam.global_position = eye + Vector3(0, 0, 0.25) * ease_io(t)
+		cam.look_at(head + Vector3(0, 0.05, 0)))
