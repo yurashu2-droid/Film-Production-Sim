@@ -14,9 +14,9 @@ const MAX_TAKES := 6
 # UVI の音色で作った曲（tools/bgm/bgm.py → godot/tools/build_music.gd）。UVI の利用条件で、音そのものの再配布はできないので
 # 公開リポジトリには無い（.gitignore 済み）。無い環境では、その曲は鳴らない（合成音の曲だけになる）
 const LOCAL_MUSIC_DIR := "res://assets/audio/music_local/"
-const LOCAL_MUSIC := ["title"]       # music_<名前> として読む
+const LOCAL_MUSIC := ["title", "office", "prep"]       # music_<名前> として読む（事務所・準備の曲は features/place_music.gd が鳴らす）
 # 曲ごとの音量の補正（dB）。UVI の曲は合成の曲より大きく作ってあるので、ここで下げる
-const MUSIC_TRIM := {"music_title": -8.0}
+const MUSIC_TRIM := {"music_title": -8.0, "music_office": -7.0, "music_prep": -7.0}      # 遊んでいる間の曲は、会話と物の音の下に敷く
 const GameSettings := preload("res://scripts/game_settings.gd")
 # 無ければ代わりに鳴らす音（爆発の段階：大・超大 → ふつう）
 const ALIASES := {"explosion_big": "explosion", "explosion_huge": "explosion"}
