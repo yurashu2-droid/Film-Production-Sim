@@ -4,14 +4,13 @@ extends Node
 ##     はじめから2枚、段ボール置き場のとなりに置いてある
 ##   ・立てる：板はそのままだと倒れる。接着剤で箱馬などに貼ると、立ったままになる（接着は adhesive.gd）
 ##   ・スプレー缶（黒・赤）：持って F を押している間、狙った段ボール板の表に色を吹く（手描き。字はガタガタになる）
-##   ・会社の名前：はじめて板に吹くとき、何と書くかを入れる。それが会社の名前になり（production_flow.gd の company）、
-##     板には薄い鉛筆の下書きが出る。会社が呼ばれる所（作品の札・電話・事務所の建物の看板など）は、その名前になる
+##   ・字は打ち込まない。看板に何と書くかは、吹く人が手で書く（名前を聞く画面も、下書きも出さない）。
+##     会社が呼ばれる所（作品の札・電話・事務所の建物の看板など）は、production_flow.gd の company_name() のまま
 ##   ・描いた板は、カンペ・等身大パネルと同じ「描ける物」（cue_cards.gd の boards）。看板の判定（signboard.gd）にも、そのまま数える
-## 決めるのはホスト（たたむ・吹いた点・名前）。吹いた絵は cue_cards.gd の rx_draw で全員へ配る
+## 決めるのはホスト（たたむ・吹いた点）。吹いた絵は cue_cards.gd の rx_draw で全員へ配る
 const Sheet := preload("res://scripts/cardboard_sheet.gd")
 const Can := preload("res://scripts/spray_can.gd")
 const Boxes := preload("res://scripts/cargo_boxes.gd")
-const UI := preload("res://scripts/ui/ui_theme.gd")
 const SHOWN := 2                 # はじめから出ている板
 const SPARE := 4                 # たたむと出てくる板（地下にしまってある）
 const COLORS := [["黒", Color(0.08, 0.08, 0.09)], ["赤", Color(0.82, 0.13, 0.1)]]
@@ -19,8 +18,8 @@ const REACH := 3.0               # 板から、これより遠いと吹けない
 const SPREAD_NEAR := 4.5         # 吹いた跡の広がり（ガウスの幅。ピクセル）：缶の口が板に近い時
 const SPREAD_FAR := 22.0         # 　　　　　　　　　　　　　　　　　　　　　　：遠い時（1.5m 以上）
 const SEND_EVERY := 0.06
-const NAME_MAX := 14
 const FOLD_REACH := 4.0
+const HISS_DB := -22.0           # 吹いている間のシューッという音（小さめ。2026-10-20 大きすぎると言われた）
 
 var game: Node
 var sheets: Array = []           # 段ボール板（全部）
@@ -34,11 +33,6 @@ var _noise: NoiseTexture2D
 const CONE_SHADER := preload("res://shaders/spray_cone.gdshader")
 var _send_t := 0.0
 var _hiss_t := 0.0
-var _dialog: CanvasLayer
-var _edit: LineEdit
-var _ask_pid := 0                # 名前を聞いている間、吹こうとしていた板
-var _asked := false              # この画面で、もう名前を聞いた（聞いている）
-var _mouse_before := Input.MOUSE_MODE_CAPTURED
 
 
 func setup() -> void:
@@ -67,7 +61,6 @@ func setup() -> void:
 		game.production._home_layout[can.pid] = can.get_state()
 		cans.append(can)
 	_build_mist()
-	_build_dialog()
 	_show_name()
 
 
@@ -158,22 +151,19 @@ func _held_can(me: Node) -> RigidBody3D:
 func _process(delta: float) -> void:
 	var me: Node = game.local_player()
 	var can := _held_can(me)
-	var on: bool = can != null and not _dialog.visible and Input.is_action_pressed("operate") and not game.ui_blocking() \
+	var on: bool = can != null and Input.is_action_pressed("operate") and not game.ui_blocking() \
 		and game.state in [game.S.PREP, game.S.COUNTDOWN, game.S.TAKE] and not game.replaying
 	var now := Time.get_ticks_msec() / 1000.0
 	if on:
 		_hiss_t -= delta
 		if _hiss_t <= 0.0:
 			_hiss_t = 0.26
-			Sfx.play("spray_hiss", can.nozzle_global(), -6.0)
+			Sfx.play("spray_hiss", can.nozzle_global(), HISS_DB)
 		var hit := _aim(me)
 		var target: Vector3 = hit["at"] if not hit.is_empty() else can.nozzle_global() - me.cam.global_basis.z * 1.2
 		_mist_at(can, target, now + 0.08)
 		if not hit.is_empty():
 			var sheet: RigidBody3D = hit["sheet"]
-			if str(game.production.company) == "" and not _asked:
-				_ask_name(sheet.pid)
-				return
 			if _pending_pid != sheet.pid:
 				_flush(can)
 				_pending_pid = sheet.pid
@@ -362,136 +352,15 @@ func _update_mist(now: float) -> void:
 
 # ---- 会社の名前 ----
 
-func _build_dialog() -> void:
-	_dialog = CanvasLayer.new()
-	_dialog.name = "CompanyNameDialog"
-	_dialog.layer = 30
-	_dialog.visible = false
-	add_child(_dialog)
-	var box := PanelContainer.new()
-	box.add_theme_stylebox_override("panel", UI.box(UI.PAPER, UI.INK, 3, 10, 26, 18, Vector2(0, 4)))
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_dialog.add_child(box)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
-	box.add_child(col)
-	col.add_child(UI.label("看板に、何と書く？", 26, UI.INK, "bold"))
-	col.add_child(UI.label("これが会社の名前になります（電話や題名でも、この名前で呼ばれる）", 16, UI.INK, "body"))
-	_edit = LineEdit.new()
-	_edit.max_length = NAME_MAX
-	_edit.custom_minimum_size = Vector2(460, 48)
-	_edit.add_theme_font_size_override("font_size", 26)
-	_edit.text = game.production.DEFAULT_COMPANY
-	_edit.text_submitted.connect(func(_t: String) -> void: _submit())
-	col.add_child(_edit)
-	col.add_child(UI.label("Enter 決める　／　Esc やめる", 15, UI.INK, "body"))
-
-
-func _ask_name(pid: int) -> void:
-	_asked = true
-	_ask_pid = pid
-	_flush(null)
-	_dialog.visible = true
-	_mouse_before = Input.mouse_mode
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	game.input_locked = true
-	_edit.grab_focus()
-	_edit.select_all()
-
-
-func _close_dialog() -> void:
-	_dialog.visible = false
-	game.input_locked = false
-	Input.mouse_mode = _mouse_before
-
-
-func _submit() -> void:
-	var text := _edit.text.strip_edges()
-	_close_dialog()
-	if text == "":
-		_asked = false
-		return
-	h_name.rpc_id(1, text.substr(0, NAME_MAX), _ask_pid)
-
-
-func hook_input(event: InputEvent) -> bool:
-	if not _dialog.visible:
-		return false
-	if event is InputEventKey and event.pressed and (event as InputEventKey).keycode == KEY_ESCAPE:
-		_close_dialog()
-		_asked = false
-	return true
-
-
-@rpc("any_peer", "call_local", "reliable")
-func h_name(text: String, pid: int) -> void:
-	if not Net.is_host():
-		return
-	var flow: Node = game.production
-	var clean := text.strip_edges().replace("\n", " ").substr(0, NAME_MAX)
-	if clean == "" or str(flow.company) != "":
-		return
-	flow.company = clean
-	game.production_sync.rpc(flow.snapshot())
-	game.host_ev("company", [clean, pid])
-	game.host_ev("toast", ["会社の名前は『%s』。板に下書きを出した。スプレーでなぞろう" % clean, 0])
-
-
-func hook_events() -> Array:
-	return ["company"]
-
-
-func hook_event(_n: String, a: Array) -> void:
-	_show_name()
-	var sheet: Node = game.props.get(int(a[1]))
-	if sheet != null and sheet in sheets:
-		_draw_guide(sheet, str(a[0]))
-
-
 func hook_production_applied() -> void:
 	_show_name()
 
 
-# 事務所の建物の看板を、会社の名前に書き換える
+# 事務所の建物の看板を、会社の名前に書き換える（名前は打ち込まないので、ふつうは決まった名前のまま）
 func _show_name() -> void:
 	var sign: Label3D = game.find_child("CompanyNameSign", true, false) as Label3D
 	if sign != null:
 		sign.text = game.production.company_name()
-
-
-# 下書き：名前の字を、画面の外の小さな画面で描いて写し、板に薄く重ねる（画面の無い自動確認では、出さない）
-func _draw_guide(sheet: RigidBody3D, text: String) -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	var vp := SubViewport.new()
-	vp.size = Vector2i(1400, 320)
-	vp.transparent_bg = true
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_override("font", game.font)
-	l.add_theme_font_size_override("font_size", 200)
-	l.add_theme_color_override("font_color", Color.WHITE)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.size = Vector2(vp.size)
-	vp.add_child(l)
-	add_child(vp)
-	await RenderingServer.frame_post_draw
-	var img: Image = vp.get_texture().get_image()
-	vp.queue_free()
-	if is_instance_valid(sheet) and img != null:
-		sheet.put_guide(_crop(img))
-
-
-# 字のある所だけを切り出す
-static func _crop(img: Image) -> Image:
-	var used: Rect2i = img.get_used_rect()
-	if used.size.x <= 0 or used.size.y <= 0:
-		return img
-	return img.get_region(used.grow(8).intersection(Rect2i(Vector2i.ZERO, img.get_size())))
 
 
 # ---- 画面の案内 ----

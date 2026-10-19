@@ -1752,7 +1752,7 @@ func return_office() -> void:
 	if bankrupt:
 		# 倒産：新しい会社を立ち上げて、最初からやり直す
 		wallet = START_WALLET
-		company = ""          # 新しい会社。名前は、また看板に書くときに決める
+		company = ""          # 新しい会社（名前は打ち込まない。看板には手で書く）
 		for id: String in levels:
 			levels[id] = 0
 		day = 0

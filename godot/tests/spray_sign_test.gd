@@ -3,7 +3,7 @@ extends SceneTree
 #   ・段ボール板がはじめから2枚、スプレー缶が黒・赤の2本ある
 #   ・空の段ボール箱を Shift+F でたたむと、箱は奥へしまわれ、その場に段ボール板が出る
 #   ・缶を持って吹くと、狙った板に色が付く（持っていない人・遠い人は吹けない）
-#   ・はじめて吹くときに決めた名前が、会社の名前になる（事務所の建物の看板・紹介動画の題・看板への反応）
+#   ・名前は打ち込まない：吹いても、名前を聞く画面は出ない（手で書く）。会社が呼ばれる所は決まった名前のまま
 #   ・吹いた板を、表をカメラへ向けて立てると、看板として映っている（signboard.gd）
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/spray_sign_test.gd
 #   SPRAY_SHOTS=1 を付けて画面ありで流すと、tests/shots/spray/ に絵を残す
@@ -102,17 +102,8 @@ func run() -> void:
 	await frames(10)
 	check(can.holder == me.peer_id, "スプレー缶を持った")
 	check(str(kit.hook_hud(me, "", "").get("keys", "")).contains("スプレー"), "缶を持つと、吹き方の案内が出る")
-	# 名前を決める（はじめて吹くとき）
-	kit.h_name("ドタバタ映像社", sheet.pid)
-	await frames(5)
-	check(flow.company == "ドタバタ映像社" and flow.company_name() == "ドタバタ映像社", "決めた名前が、会社の名前になる")
 	var sign: Label3D = game.find_child("CompanyNameSign", true, false)
-	check(sign != null and sign.text == "ドタバタ映像社", "事務所の建物の看板も、その名前になる")
-	await frames(10)
-	await shot(cam, board_at + Vector3(-0.4, 1.0, 1.6), board_at + Vector3(0, 0.38, 0), "guide")
-	kit.h_name("別の名前", sheet.pid)
-	await frames(3)
-	check(flow.company == "ドタバタ映像社", "名前は、一度決めたら変わらない")
+	check(sign != null and sign.text == flow.company_name(), "事務所の建物の看板は、会社の名前（%s）" % (sign.text if sign != null else ""))
 	# 吹く：太い線を何本か
 	for row in 6:
 		var pts := PackedVector2Array()
@@ -150,6 +141,8 @@ func run() -> void:
 	Input.action_release("operate")
 	await frames(10)
 	check(int(sheet.revision) > rev0 + 3, "缶を持って F を押したまま狙うと、吹ける（絵の版 %d → %d）" % [rev0, int(sheet.revision)])
+	check(not game.input_locked and kit.find_children("*", "LineEdit", true, false).is_empty(), "はじめて吹いても、名前を打ち込む画面は出ない（手で書く）")
+	check(flow.company == "", "吹いても、会社の名前は打ち込まれない")
 	# 近いと細く濃い・遠いと太く薄い：同じ長さの線を、近い時と遠い時の広がりで吹き比べる
 	var near_sheet: RigidBody3D = kit.sheets[1]
 	near_sheet.restore([board_at + Vector3(1.4, 0.0, 0.0), Quaternion.IDENTITY, true])
@@ -205,10 +198,10 @@ func run() -> void:
 	signboard._by_take[99] = true
 	signboard._first_by_take[99] = 1.0
 	var cues: Array = signboard.hook_premiere_cues(99)
-	check(not cues.is_empty() and str(cues[0][1]).contains("ドタバタ映像社"), "看板への反応は、会社の名前で呼ぶ（%s）" % (str(cues[0][1]) if not cues.is_empty() else ""))
+	check(not cues.is_empty() and str(cues[0][1]).contains(flow.company_name()), "看板への反応は、会社の名前で呼ぶ（%s）" % (str(cues[0][1]) if not cues.is_empty() else ""))
 	flow.chosen_job = flow.debut_job()
 	flow.phase = 2
-	check(str(game.film_title()).contains("ドタバタ映像社"), "紹介動画の題も、会社の名前（%s）" % game.film_title())
+	check(str(game.film_title()) == str(flow.job()["title"]), "名前を打ち込まないので、紹介動画の題は依頼の題のまま（%s）" % game.film_title())
 	flow.phase = 0
 	await shot(cam, board_at + Vector3(-1.2, 1.4, 3.0), board_at + Vector3(0, 0.4, 0), "sign")
 	print("SPRAY_TEST_FAIL" if failed else "SPRAY_TEST_OK")

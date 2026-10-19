@@ -7,7 +7,6 @@ const SIZE := Vector2(1.1, 0.74)
 const THICK := 0.02
 const RESOLUTION := Vector2i(704, 474)
 const BASE := Color(0.72, 0.55, 0.36)        # 段ボールの地の色（スプレーの絵の下地）
-const GUIDE := Color(0.60, 0.46, 0.31)       # 会社名の下書き（鉛筆の薄い線。地より少し濃いだけ）
 
 
 func build() -> void:
@@ -158,7 +157,7 @@ func world_at(px: Vector2) -> Vector3:
 	return global_transform * local
 
 
-# スプレーで描いた所の割合（0〜1）。地の色と下書きは数えない（濃い色＝黒・赤・白で吹いた所だけ）
+# スプレーで描いた所の割合（0〜1）。地の色は数えない（濃い色＝黒・赤・白で吹いた所だけ）
 func painted() -> float:
 	if _painted < 0.0:
 		var hit := 0
@@ -173,30 +172,4 @@ func painted() -> float:
 
 
 static func _sprayed(c: Color) -> bool:
-	var off_base := absf(c.r - BASE.r) + absf(c.g - BASE.g) + absf(c.b - BASE.b)
-	var off_guide := absf(c.r - GUIDE.r) + absf(c.g - GUIDE.g) + absf(c.b - GUIDE.b)
-	return off_base > 0.25 and off_guide > 0.25
-
-
-# 会社名の下書き（鉛筆の薄い字）を、絵の真ん中に重ねる。picture は字の形（白い所が字。透明・黒は地のまま）
-func put_guide(picture: Image) -> void:
-	if picture == null or picture.is_empty():
-		return
-	var copy := picture.duplicate() as Image
-	if copy.is_compressed():
-		copy.decompress()
-	copy.convert(Image.FORMAT_RGBA8)
-	var w := int(res.x * 0.86)
-	var h := int(float(copy.get_height()) * float(w) / float(maxi(1, copy.get_width())))
-	h = mini(h, int(res.y * 0.6))
-	copy.resize(w, h, Image.INTERPOLATE_BILINEAR)
-	var x0 := (res.x - w) / 2
-	var y0 := (res.y - h) / 2
-	for y in h:
-		for x in w:
-			var a := copy.get_pixel(x, y)
-			if a.a * a.v > 0.45:
-				var here := ink.get_pixel(x0 + x, y0 + y)
-				if not _sprayed(here):
-					ink.set_pixel(x0 + x, y0 + y, GUIDE)
-	_refresh()
+	return absf(c.r - BASE.r) + absf(c.g - BASE.g) + absf(c.b - BASE.b) > 0.25
