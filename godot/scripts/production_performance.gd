@@ -172,9 +172,10 @@ func refresh_actions() -> void:
 func _update_hint() -> void:
 	var act_name: String = FACES.get(selected_animation.trim_prefix("face:"), "") if selected_animation.begins_with("face:") else ACTION_NAMES.get(selected_animation,"")
 	if in_premiere():
-		_hint.text = "Z 反応する：%s\nH 選ぶ" % act_name
+		_hint.text = "Z 反応する：%s（H 選ぶ）" % act_name
 		return
-	_hint.text = "Z 演技：%s\nX 効果：%s\nH 選ぶ ／ Ctrl しゃがむ" % [act_name,EFFECTS[selected_effect][0]]
+	# いつも出すのは1行だけ（効果・しゃがむは、H で開く選ぶ画面と、Tab のあそびかたにある）
+	_hint.text = "Z 演技：%s（H 選ぶ）" % act_name
 
 func set_open(on: bool) -> void:
 	if on == opened:

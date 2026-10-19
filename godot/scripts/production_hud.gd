@@ -262,9 +262,10 @@ func _build_strip() -> void:
 	row.add_child(_rent_div)
 	_rent = _label("", 15, UI.MUTED, "body")
 	row.add_child(_centered(_rent))
-	row.add_child(_divider())
+	# 人数は帯に出さない（いつも見る物ではない。Esc のメニューに「制作班 n / 4 人」がある）
 	_people = _label("", 17, UI.CLAP_WHITE, "body")
-	row.add_child(_centered(_people))
+	_people.visible = false
+	row.add_child(_people)
 	row.add_child(_divider())
 	_status = _label("", 17, UI.CLAP_WHITE, "bold")
 	row.add_child(_centered(_status))
@@ -767,7 +768,7 @@ func _refresh() -> void:
 		if me and game.is_action_prop(me.target):
 			legacy.target_label.text = me.target.label + "　[F] " + game.prop_action_hint(me.target)
 			line = "F " + game.prop_action_hint(me.target) + " ／ " + line
-		legacy.keys.text = line + "\nTab あそびかた ／ Esc メニュー"
+		legacy.keys.text = line + "\nTab あそびかた"
 	elif phase == 4:
 		var kw := minf(1400.0, vw - 40.0)
 		legacy._place(legacy.keys, Control.PRESET_CENTER_BOTTOM, Vector2(-kw * 0.5, -64), kw)

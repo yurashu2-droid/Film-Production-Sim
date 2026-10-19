@@ -896,10 +896,10 @@ func _process(delta: float) -> void:
 			k = "左クリックで持つ"
 			if me.target.kind in ["camera", "spot"]:
 				k += " ／ F で操作"
-		else:
-			k = "WASD 移動 ／ Shift 走る ／ Space ジャンプ"
+		# 何も持たず、何も狙っていない：いつも同じ操作（移動・ジャンプ・役者を戻す など）は出さない。Tab のあそびかたにある。
+		# 出すのは、次の一歩（本番の始め方・合図）と、あそびかたへの入口だけ
 		if st == S.PREP:
-			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル ／ B 役者を戻す ／ F9 見本を組む ／ Tab あそびかた"
+			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル ／ Tab あそびかた"
 		else:
 			k += "\n1・2・3 合図 ／ T かカチンコでカット"
 	keys.text = game.adhesive.hint() if me != null and me.held == game.adhesive.tool.pid else k
