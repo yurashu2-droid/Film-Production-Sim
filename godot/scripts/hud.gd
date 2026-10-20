@@ -718,7 +718,7 @@ func _fit_layout() -> void:
 
 
 func _layout_panel() -> void:
-	var w := RESULT_W if result_view.visible else PANEL_W
+	var w := RESULT_W if result_view != null and result_view.visible else PANEL_W
 	panel.custom_minimum_size.x = w
 	panel.offset_left = -w * 0.5
 	panel.offset_right = w * 0.5

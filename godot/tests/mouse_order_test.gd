@@ -48,7 +48,7 @@ func run() -> void:
 	game.open_menu("board")
 	for i in 20:
 		await process_frame
-	await click(center(game.production_hud._job_cards[0]))
+	await click(center(game.production_hud._wall.button_for(game.production.offered()[0])))
 	check(game.menu_open == "brief", "clicking a job card opens the briefing")
 	for i in 20:
 		await process_frame

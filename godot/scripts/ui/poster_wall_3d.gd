@@ -200,6 +200,14 @@ func show_jobs(indices: Array) -> bool:
 
 
 # 見て回る：dir ＝ −1（左へ）・+1（右へ）。端では止まる
+# 依頼 index のポスターに重ねた、押せる透明のボタン（無ければ null。自動確認でクリックする場所）
+func button_for(index: int) -> Control:
+	for p: Dictionary in _posters:
+		if int(p["index"]) == index:
+			return p["button"]
+	return null
+
+
 func pan(dir: int) -> void:
 	_first = clampi(_first + dir * VISIBLE, 0, maxi(0, _shown.size() - VISIBLE))
 
