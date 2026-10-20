@@ -67,21 +67,21 @@ static func label(text: String, px: int, color: Color, kind: String) -> Label:
 static func brush() -> ImageTexture:
 	if _brush != null:
 		return _brush
-	var img := Image.create(128, 64, false, Image.FORMAT_RGBA8)
+	var img := Image.create(512, 96, false, Image.FORMAT_RGBA8)
 	img.fill(Color(1, 1, 1, 0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20261020
-	for i in 70:
-		var x := rng.randf_range(0, 128)
+	for i in 260:
+		var x := rng.randf_range(0, 512)
 		var w := rng.randf_range(1.0, 4.0)
 		var a := rng.randf_range(0.03, 0.09)
 		var light := rng.randf() < 0.5
-		var slant := rng.randf_range(-0.12, 0.12)
-		for y in 64:
+		var slant := rng.randf_range(-0.05, 0.05)
+		for y in 96:
 			var xx := x + slant * float(y)
 			for dx in int(ceil(w)):
 				var px := int(xx) + dx
-				if px >= 0 and px < 128:
+				if px >= 0 and px < 512:
 					var c := img.get_pixel(px, y)
 					var add := Color(1, 1, 1, a) if light else Color(0, 0, 0, a)
 					img.set_pixel(px, y, c.blend(add))
@@ -191,6 +191,188 @@ class CardStyle extends StyleBox:
 			PackedColorArray([Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.04), Color(0, 0, 0, 0.12), Color(0, 0, 0, 0.05)]))
 
 
+# ---- Esc のメニュー：クリップボードに挟んだ紙 ----
+class ClipboardStyle extends StyleBox:
+	func _init() -> void:
+		content_margin_left = 40
+		content_margin_right = 40
+		content_margin_top = 62
+		content_margin_bottom = 34
+
+	func _draw(item: RID, r: Rect2) -> void:
+		FilmSet._shadow(item, r, 9.0, 0.5)
+		# 板（茶色のハードボード）
+		RenderingServer.canvas_item_add_rect(item, r, Color("8a5d36"))
+		RenderingServer.canvas_item_add_rect(item, r.grow(-3), Color("a06f43"))
+		RenderingServer.canvas_item_add_texture_rect(item, r.grow(-3), FilmSet.brush().get_rid(), false)
+		# 紙
+		var paper := Rect2(r.position + Vector2(16, 30), r.size - Vector2(32, 44))
+		RenderingServer.canvas_item_add_rect(item, Rect2(paper.position + Vector2(2, 3), paper.size), Color(0, 0, 0, 0.25))
+		RenderingServer.canvas_item_add_rect(item, paper, Color("f8f5ec"))
+		# 金具（上のまん中）
+		var cw := minf(150.0, r.size.x * 0.4)
+		var clip := Rect2(Vector2(r.get_center().x - cw * 0.5, r.position.y + 8), Vector2(cw, 34))
+		RenderingServer.canvas_item_add_rect(item, Rect2(clip.position + Vector2(0, 3), clip.size), Color(0, 0, 0, 0.35))
+		RenderingServer.canvas_item_add_rect(item, clip, Color("b9bec3"))
+		RenderingServer.canvas_item_add_rect(item, Rect2(clip.position + Vector2(0, clip.size.y - 6), Vector2(cw, 6)), Color("8d9399"))
+		RenderingServer.canvas_item_add_rect(item, Rect2(clip.position + Vector2(cw * 0.35, -8), Vector2(cw * 0.3, 10)), Color("9aa1a8"))
+
+
+# ボタンを、色を塗った段ボールの札にする（Esc のメニューなど）。乗せると少し明るく、押すと沈む
+static func style_sign_button(b: Button, paint_name: String, px: int = 20, tall: int = 46) -> void:
+	var paint: Array = PAINTS[paint_name]
+	var normal := CardStyle.new(paint[0])
+	var hover := CardStyle.new((paint[0] as Color).lightened(0.12))
+	var press := CardStyle.new((paint[0] as Color).darkened(0.12))
+	for s: StyleBox in [normal, hover, press]:
+		s.content_margin_left = 16
+		s.content_margin_right = 16
+		s.content_margin_top = 6
+		s.content_margin_bottom = 8
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", press)
+	b.add_theme_stylebox_override("hover_pressed", press)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("disabled", normal)
+	b.add_theme_font_override("font", font("marker"))
+	b.add_theme_font_size_override("font_size", px)
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(key, paint[1])
+	b.custom_minimum_size.y = tall
+
+
+# ---- Tab の撮影の手引き：1画面に収める（流れ＝フィルムのコマ、操作＝段ボールの札、コツ＝カンペ） ----
+const HELP_FLOW := [
+	["依頼を選ぶ", "事務所の掲示板で F"],
+	["廃材を集める", "使えそうな物を探す"],
+	["見立てる", "Y で役を決める"],
+	["軽トラに積む", "荷台のそばで F"],
+	["現場で組む", "仕掛けを組んで練習"],
+	["本番・試写会", "カチンコで本番"],
+]
+const HELP_KEYS := ["WASD 移動", "Shift 走る", "Space ジャンプ", "左クリック 持つ・置く", "ホイール 持つ距離", "Q・E 回す",
+	"F 使う・開く", "Y 役を決める", "Z 演技", "H 演技を選ぶ", "1・2・3 合図", "T カット", "C キャラクター", "F2 視点", "Esc メニュー"]
+const HELP_TIPS := [
+	"物の〔属性〕が役に合うほど、ギャラが増える",
+	"同じ属性の物を別の役に使うと、コンボ",
+	"依頼主の好みは、机ののぞき箱でわかる",
+	"借り物は制作費から。余りは会社の貯金に",
+	"3本ごとに家賃。払えないと倒産",
+	"荷台に積みすぎると、道中で落ちる",
+]
+
+
+static func help_board() -> VBoxContainer:
+	var board := VBoxContainer.new()
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board.add_theme_constant_override("separation", 18)
+	# 題と、閉じ方
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board.add_child(head)
+	var title := label("撮影の手引き", 40, Color("fbf3e2"), "marker")
+	title.add_theme_constant_override("outline_size", 6)
+	title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
+	head.add_child(title)
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(fill)
+	var close := PanelContainer.new()
+	close.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close.add_theme_stylebox_override("panel", CardStyle.new(PAINTS["cream"][0]))
+	close.add_child(_sign_content("Tab 閉じる", PAINTS["cream"][1], 16))
+	head.add_child(close)
+	# 流れ：フィルムのコマ
+	var film := PanelContainer.new()
+	film.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	film.add_theme_stylebox_override("panel", FilmStyle.new())
+	board.add_child(film)
+	var frames := HBoxContainer.new()
+	frames.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frames.add_theme_constant_override("separation", 10)
+	film.add_child(frames)
+	for i in HELP_FLOW.size():
+		var frame := PanelContainer.new()
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var fs := StyleBoxFlat.new()
+		fs.bg_color = Color("2e2318")
+		fs.border_color = Color(0.96, 0.91, 0.81, 0.45)
+		fs.set_border_width_all(2)
+		fs.set_corner_radius_all(6)
+		fs.content_margin_left = 12
+		fs.content_margin_right = 12
+		fs.content_margin_top = 10
+		fs.content_margin_bottom = 12
+		frame.add_theme_stylebox_override("panel", fs)
+		frame.custom_minimum_size.x = 168
+		frames.add_child(frame)
+		var col := VBoxContainer.new()
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_theme_constant_override("separation", 4)
+		frame.add_child(col)
+		var top := HBoxContainer.new()
+		top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		top.add_theme_constant_override("separation", 8)
+		col.add_child(top)
+		top.add_child(label(str(i + 1), 18, Color("ffd66b"), "mono"))
+		top.add_child(label(HELP_FLOW[i][0], 19, Color("fff4dc"), "mincho"))
+		var note := label(HELP_FLOW[i][1], 14, Color("d8c8a4"), "marker")
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size.x = 144
+		col.add_child(note)
+	# 下の段：操作（札）と、コツ（カンペ）
+	var lower := HBoxContainer.new()
+	lower.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lower.add_theme_constant_override("separation", 30)
+	board.add_child(lower)
+	var keys := VBoxContainer.new()
+	keys.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keys.add_theme_constant_override("separation", 12)
+	lower.add_child(keys)
+	var kt := label("操作", 24, Color("fbf3e2"), "marker")
+	kt.add_theme_constant_override("outline_size", 5)
+	kt.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.5))
+	keys.add_child(kt)
+	var grid := GridContainer.new()
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	keys.add_child(grid)
+	var last := ""
+	for i in HELP_KEYS.size():
+		var seg: String = HELP_KEYS[i]
+		var name := paint_for(seg, i)
+		if name == last:
+			name = ["teal", "mustard", "tomato", "sky", "cream"][(["teal", "mustard", "tomato", "sky", "cream"].find(name) + 1) % 5]
+		last = name
+		var card := PanelContainer.new()
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.add_theme_stylebox_override("panel", CardStyle.new(PAINTS[name][0]))
+		card.add_child(_sign_content(seg, PAINTS[name][1], 16))
+		grid.add_child(card)
+	var tips := PanelContainer.new()
+	tips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tips.add_theme_stylebox_override("panel", KanpeStyle.new())
+	tips.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tips.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	lower.add_child(tips)
+	var tl := VBoxContainer.new()
+	tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tl.add_theme_constant_override("separation", 6)
+	tips.add_child(tl)
+	tl.add_child(label("コツ", 24, MARKER_RED, "marker"))
+	for line: String in HELP_TIPS:
+		var l := label("・" + line, 17, MARKER_INK, "marker")
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size.x = 380
+		tl.add_child(l)
+	return board
+
+
 # ---- お金：コインのマーク（金色の丸、ふちと内側の輪） ----
 class CoinMark extends Control:
 	func _init() -> void:
@@ -281,6 +463,8 @@ static func _key_of(word: String) -> String:
 		return "左"
 	if word == "右クリック":
 		return "右"
+	if word == "ホイール":
+		return "ホイール"
 	if UI.is_key_token(word):
 		return word.trim_prefix("[").trim_suffix("]")
 	return ""

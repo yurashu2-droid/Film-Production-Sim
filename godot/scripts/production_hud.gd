@@ -161,6 +161,7 @@ Space で撮り直す、Enter で納品。
 期限が切れたら、撮れたテイクを納品して事務所へ帰ろう。"""
 	# Windows の複数行文字列の CR は、Label で余分な行になってしまう。
 	game.hud.help.get_child(0).text = game.hud.help.get_child(0).text.replace("\r", "")
+	_build_help_board()
 
 	_build_strip()
 	# キャラの特技：段ボール頭の頭の中身（枠3つ）
@@ -330,23 +331,26 @@ func _centered(c: Control) -> Control:
 
 # 一時メニュー（Esc）：つづける・キャラクター・あそびかた・会社を閉じる
 func _build_lobby(menu: Node) -> void:
-	_lobby = _panel("slate", Control.PRESET_TOP_LEFT, Vector2.ZERO, 420, 0.0, true, 24, 20)
-	_center(_lobby, 420)
-	var lobby_rows := _rows(_lobby, 10)
-	lobby_rows.add_child(UI.overline("MENU"))
-	_lobby_status = _label("", 24, UI.CLAP_WHITE, "display")
+	_lobby = _panel("slate", Control.PRESET_TOP_LEFT, Vector2.ZERO, 440, 0.0, true, 24, 20)
+	_center(_lobby, 440)
+	# クリップボードに挟んだ紙（ui/film_set.gd）。字はペン、ボタンは色を塗った段ボールの札
+	(_lobby as UI.TapedPanel).sb = null
+	_lobby.add_theme_stylebox_override("panel", FilmSet.ClipboardStyle.new())
+	var lobby_rows := _rows(_lobby, 12)
+	lobby_rows.add_child(FilmSet.label("ひと休み", 18, FilmSet.MARKER_RED, "marker"))
+	_lobby_status = FilmSet.label("", 30, FilmSet.MARKER_INK, "marker")
 	lobby_rows.add_child(_lobby_status)
-	_lobby_sub = _label("", 15, UI.MUTED, "body")
+	_lobby_sub = FilmSet.label("", 16, Color("5d5850"), "marker")
 	lobby_rows.add_child(_lobby_sub)
 	var can_leave: bool = menu != null and menu.has_method("return_to_menu")
 	if Net.mode == "host" and can_leave:
 		_addresses = menu.host_addresses()
-		lobby_rows.add_child(UI.hairline())
-		lobby_rows.add_child(_label("同じネットワークの友達へ", 13, UI.MUTED, "bold"))
+		lobby_rows.add_child(UI.hairline(false, Color(0, 0, 0, 0.15)))
+		lobby_rows.add_child(FilmSet.label("同じネットワークの友達へ", 14, Color("5d5850"), "marker"))
 		var ip_row := HBoxContainer.new()
 		ip_row.add_theme_constant_override("separation", 12)
 		lobby_rows.add_child(ip_row)
-		var ip := _label("IP：" + (" / ".join(_addresses) if not _addresses.is_empty() else "見つかりませんでした"), 17, UI.CLAP_WHITE, "bold")
+		var ip := FilmSet.label("IP：" + (" / ".join(_addresses) if not _addresses.is_empty() else "見つかりませんでした"), 17, FilmSet.MARKER_INK, "mono")
 		ip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		ip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -354,17 +358,18 @@ func _build_lobby(menu: Node) -> void:
 		ip_row.add_child(ip)
 		if not _addresses.is_empty():
 			var copy_button := _button("コピー", "slate", 15, 34)
+			FilmSet.style_sign_button(copy_button, "cream", 15, 34)
 			copy_button.pressed.connect(func():
 				if DisplayServer.get_name() != "headless": DisplayServer.clipboard_set(_addresses[0])
 				game.hud.show_toast("IPをコピーしました。友達の参加画面へ", game.hud.YELLOW))
 			ip_row.add_child(copy_button)
-	lobby_rows.add_child(UI.hairline())
+	lobby_rows.add_child(UI.hairline(false, Color(0, 0, 0, 0.15)))
 	# マウスの感度（つまみ。左がゆっくり、右が速い）
 	game.Player.load_settings()
 	var sens_row := VBoxContainer.new()
 	sens_row.add_theme_constant_override("separation", 4)
 	lobby_rows.add_child(sens_row)
-	sens_row.add_child(_label("マウスの感度（左：ゆっくり　右：速い）", 15, UI.CLAP_WHITE, "bold"))
+	sens_row.add_child(FilmSet.label("マウスの感度（左：ゆっくり　右：速い）", 16, FilmSet.MARKER_INK, "marker"))
 	var sens := HSlider.new()
 	sens.name = "MouseSens"
 	sens.min_value = 0.2
@@ -376,7 +381,7 @@ func _build_lobby(menu: Node) -> void:
 	sens.custom_minimum_size = Vector2(360, 28)
 	# つまみの通り道が背景に溶けて見えないので、色を付ける
 	var sens_track := StyleBoxFlat.new()
-	sens_track.bg_color = Color(1, 1, 1, 0.22)
+	sens_track.bg_color = Color(0, 0, 0, 0.22)          # 紙の上の、鉛筆の線のような通り道
 	sens_track.set_corner_radius_all(3)
 	sens_track.content_margin_top = 3
 	sens_track.content_margin_bottom = 3
@@ -384,14 +389,17 @@ func _build_lobby(menu: Node) -> void:
 	sens.value_changed.connect(func(value: float): game.Player.set_sens(value))
 	sens_row.add_child(sens)
 	var resume := _button("つづける", "tape", 20, 52)
+	FilmSet.style_sign_button(resume, "mustard", 24, 54)
 	resume.pressed.connect(func(): game.close_menu())
 	lobby_rows.add_child(resume)
 	var cast := _button("キャラクターを選ぶ", "slate", 17, 44)
+	FilmSet.style_sign_button(cast, "teal", 19, 46)
 	cast.pressed.connect(func():
 		game.close_menu()
 		game.set_character_menu(true))
 	lobby_rows.add_child(cast)
 	var how := _button("あそびかた", "slate", 17, 44)
+	FilmSet.style_sign_button(how, "cream", 19, 46)
 	how.pressed.connect(func():
 		game.close_menu()
 		game.help_open = true)
@@ -399,8 +407,19 @@ func _build_lobby(menu: Node) -> void:
 	if can_leave:
 		var leave_button := _button("会社を閉じる" if Net.mode in ["solo", "host"] else "会社を出る", "slate", 17, 44)
 		leave_button.tooltip_text = "現在の会社の残金と撮影は終了します。"
+		FilmSet.style_sign_button(leave_button, "tomato", 19, 46)
 		leave_button.pressed.connect(func(): menu.return_to_menu())
 		lobby_rows.add_child(leave_button)
+
+
+# Tab の撮影の手引き：流れ（フィルムのコマ）・操作（段ボールの札）・コツ（カンペ）を、はみ出さずに1画面へ
+func _build_help_board() -> void:
+	var legacy: Node = game.hud
+	var help: PanelContainer = legacy.help
+	(help as UI.TapedPanel).sb = null
+	help.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	legacy.help_sheet.visible = false
+	help.add_child(FilmSet.help_board())
 
 
 func _center(p: Control, width: float) -> void:
