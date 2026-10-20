@@ -16,6 +16,12 @@ const GRAVITY := 9.0              # 落ちる速さ（m/秒²。画面の上の�
 const LINE_Y := 0.33              # 板の上の端から、横の罫線まで
 const FILM_PX := 120              # 題名の字の大きさ（長い題名は、板の幅に入るように小さくする）
 const PX := 0.0012                # 字の1ピクセルの大きさ（m）
+# 本番中の上下の黒い帯（映画の横長の画面）。カチンコが落ち始めたら閉じてきて、カットで開く。
+# 太さは、上のカメラの枠の帯と、下の操作の札が、ちょうど中に収まる太さ
+const BARS := 0.11                # 画面の高さに対する、帯1本の太さ
+const BARS_DELAY := 0.19          # 本番になってから閉じ始めるまで（カチンの反動のぶん）
+const BARS_IN := 0.35
+const BARS_OUT := 0.3
 
 var game: Node
 var mode := ""
@@ -27,6 +33,8 @@ var _box: SubViewportContainer
 var _rig: Node3D
 var _stick: Node3D
 var _labels := {}
+var _rolling_t := 0.0             # 本番になってからの秒（帯の出し入れ）
+var _bars := 0.0                  # 0＝帯なし、1＝閉じきった
 
 
 func _ready() -> void:
@@ -172,6 +180,7 @@ func start(m: String, n: int) -> void:
 
 
 func _process(delta: float) -> void:
+	_update_bars(delta)
 	if mode == "":
 		return
 	t += delta
@@ -239,6 +248,29 @@ func _enter_pose(k: float, aspect: float) -> Array:
 	var e := _ease_out_back(k)
 	var from := Vector3(-2.3 * aspect / 1.78, -2.1, 0.3)
 	return [from.lerp(Vector3.ZERO, e), Vector3(lerpf(-0.75, 0.0, e), lerpf(0.95, 0.0, e), lerpf(0.55, 0.0, e))]
+
+
+func _update_bars(delta: float) -> void:
+	var rolling: bool = game != null and "state" in game and game.state == game.S.TAKE and not game.replaying
+	var before := _bars
+	if rolling:
+		_rolling_t += delta
+		_bars = minf(1.0, maxf(_bars, (_rolling_t - BARS_DELAY) / BARS_IN)) if _rolling_t > BARS_DELAY else _bars
+	else:
+		_rolling_t = 0.0
+		_bars = maxf(0.0, _bars - delta / BARS_OUT)
+	if _bars != before:
+		queue_redraw()
+
+
+# 帯はカチンコ（子の3D）より奥に描かれる。上の帯の中にカメラの枠の帯、下の帯の中に操作の札が来る
+func _draw() -> void:
+	if _bars <= 0.0:
+		return
+	var e := _bars * _bars * (3.0 - 2.0 * _bars)
+	var h := size.y * BARS * e
+	draw_rect(Rect2(0, 0, size.x, h), Color.BLACK)
+	draw_rect(Rect2(0, size.y - h, size.x, h), Color.BLACK)
 
 
 func _set_right(caption: String, big: String, col: Color) -> void:

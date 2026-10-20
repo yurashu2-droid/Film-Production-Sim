@@ -32,6 +32,8 @@ func run() -> void:
 	print("CLAPPER_MOVIE_START ", Engine.get_frames_drawn())
 	await frames(12)
 	game._take_or_cut(1)
-	await frames(180)
+	await frames(130)
+	game._take_or_cut(1)          # カット（上下の黒い帯が開いて戻る）
+	await frames(70)
 	print("CLAPPER_MOVIE_END ", Engine.get_frames_drawn())
 	quit()
