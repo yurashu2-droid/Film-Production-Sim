@@ -18,6 +18,7 @@ var rows: Array = []            # カードごとの部品（hud._opt_rows と�
 var confirm: Button
 
 var _panel: PanelContainer
+var _scroll: ScrollContainer      # レンタルと備品のカードの欄（画面に入りきらないと、中で流す）
 var _title: Label
 var _sub: Label
 var _wallet: Label
@@ -165,8 +166,13 @@ func build(owner_game: Node) -> void:
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 12)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	body.add_child(left)
-	body.move_child(left, 0)
+	# 品数が多いと、画面の下からはみ出す。カードの欄だけを、画面に入る高さで流せるようにする（_fit）
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(left)
+	body.add_child(_scroll)
+	body.move_child(_scroll, 0)
 	left.add_child(_grid)
 	_gear = VBoxContainer.new()
 	_gear.visible = false
@@ -179,10 +185,16 @@ func build(owner_game: Node) -> void:
 
 # 画面の広さに合わせて板の幅を決める（狭い画面ではカードを細くする）
 func _fit() -> void:
-	var w := clampf(size.x - 48.0, 960.0, 1180.0)
+	var w := clampf(size.x - 48.0, 960.0, minf(1180.0, size.x - 24.0))
 	_panel.custom_minimum_size.x = w
 	_panel.offset_left = -w * 0.5
 	_panel.offset_right = w * 0.5
+	# 縦：見出しと余白のぶんを引いた高さまで（それより長い一覧は、中で流す）
+	if _scroll != null and size.y > 0.0:
+		var need: float = (_scroll.get_child(0) as Control).get_combined_minimum_size().y
+		_scroll.custom_minimum_size.y = minf(need, maxf(240.0, size.y - 250.0))
+	_panel.offset_top = 0
+	_panel.offset_bottom = 0
 
 
 func _card(i: int) -> Control:
@@ -421,6 +433,8 @@ func _close() -> void:
 
 
 func sync(prod: Node) -> void:
+	if visible:
+		_fit.call_deferred()                     # 備品の行の出し入れで高さが変わる
 	var used: int = game.order_cost()            # 制作費から払う分（借りる物・火薬）
 	var paid: int = game.savings_cost()          # 会社の貯金から払う分（買う物）
 	var limit: int = game.BUDGET

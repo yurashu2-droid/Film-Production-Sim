@@ -390,6 +390,154 @@ static func help_board() -> VBoxContainer:
 	return board
 
 
+# ---- 開いて使う画面を、紙にする（依頼の掲示板・発注・積み込み確認・テイク確認・精算・キャラ選び など） ----
+# 元は暗い板の上に白い字で作ってある画面を、あとから紙に塗り替える：
+#   板 → 紙（PaperStyle：上の角にマスキングテープ）／ 白い字 → ペンの黒 ／ 灰色の字 → 薄い墨 ／ 黄の字 → 濃い黄土
+#   暗い札（中の小さな板・カード）→ 薄い紙の札 ／ ボタン → 段ボールの札（黄＝主、赤＝警告、ほか＝クリーム）
+# あとから足される行（作り直す一覧など）も、足された時に塗り替える（paperize で登録した画面の中だけ）
+class PaperStyle extends StyleBox:
+	func _init() -> void:
+		content_margin_left = 34
+		content_margin_right = 34
+		content_margin_top = 30
+		content_margin_bottom = 26
+
+	func _draw(item: RID, r: Rect2) -> void:
+		FilmSet._shadow(item, r, 8.0, 0.45)
+		RenderingServer.canvas_item_add_rect(item, r, Color("f7f3e9"))
+		RenderingServer.canvas_item_add_texture_rect_region(item, r, FilmSet.brush().get_rid(), FilmSet.paint_region(r), Color(1, 1, 1, 0.35))
+		# 上の左右の角を、マスキングテープで留める
+		for side: float in [-1.0, 1.0]:
+			var c := Vector2(r.position.x + 30.0 if side < 0.0 else r.end.x - 30.0, r.position.y + 2.0)
+			var w := 86.0
+			var h := 24.0
+			var ang: float = -0.6 * side
+			var xs := Vector2(cos(ang), sin(ang))
+			var ys := Vector2(-sin(ang), cos(ang))
+			var pts := PackedVector2Array([c - xs * w * 0.5 - ys * h * 0.5, c + xs * w * 0.5 - ys * h * 0.5, c + xs * w * 0.5 + ys * h * 0.5, c - xs * w * 0.5 + ys * h * 0.5])
+			RenderingServer.canvas_item_add_polygon(item, pts, PackedColorArray([Color(0.91, 0.86, 0.74, 0.88)]))
+
+const PAPER_INK_SOFT := Color("5d5850")
+static var _paper_roots: Array = []
+static var _watching := false
+
+
+static func paperize(root: Control) -> void:
+	if root == null:
+		return
+	if root is PanelContainer:
+		if "sb" in root:
+			root.set("sb", null)
+		root.add_theme_stylebox_override("panel", PaperStyle.new())
+	_paper_roots.append(root)
+	_ink_tree(root, root)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null and not _watching:
+		_watching = true
+		tree.node_added.connect(_on_node_added)
+
+
+static func _on_node_added(n: Node) -> void:
+	if not (n is Control):
+		return
+	_paper_roots = _paper_roots.filter(func(r: Variant) -> bool: return is_instance_valid(r))
+	for r: Control in _paper_roots:
+		if r.is_ancestor_of(n):
+			_ink_node.call_deferred(n, r)       # 作った側が色や文字を入れ終わってから
+			return
+
+
+static func _ink_tree(n: Node, root: Control) -> void:
+	_ink_node(n, root)
+	for c in n.get_children():
+		_ink_tree(c, root)
+
+
+static func _paper_card(border_alpha: float = 0.18) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color("efe8d8")
+	s.border_color = Color(0.1, 0.08, 0.05, border_alpha)
+	s.set_border_width_all(1)
+	s.set_corner_radius_all(4)
+	s.content_margin_left = 10
+	s.content_margin_right = 10
+	s.content_margin_top = 8
+	s.content_margin_bottom = 8
+	return s
+
+
+static func _paper_color(c: Color) -> Color:
+	if c.a < 0.05:
+		return c
+	if c.s < 0.25 and c.v > 0.75:
+		return MARKER_INK                       # 白い字
+	if c.s < 0.25 and c.v > 0.45:
+		return PAPER_INK_SOFT                   # 灰色の字
+	if c.s >= 0.4 and c.h > 0.09 and c.h < 0.2:
+		return Color("a8740c")                  # 黄の字
+	if c.s >= 0.4 and c.h > 0.25 and c.h < 0.5:
+		return Color("1e8a4a")                  # 緑の字
+	return c
+
+
+static func _ink_node(n: Node, root: Control) -> void:
+	if not is_instance_valid(n) or n.has_meta("papered"):
+		return
+	n.set_meta("papered", true)
+	if n is Label:
+		var l := n as Label
+		l.add_theme_color_override("font_color", _paper_color(l.get_theme_color("font_color")))
+		l.add_theme_constant_override("outline_size", 0)
+		if l.get_theme_font_size("font_size") >= 26:
+			l.add_theme_font_override("font", font("marker"))
+	elif n is RichTextLabel:
+		(n as RichTextLabel).add_theme_color_override("default_color", MARKER_INK)
+	elif n is Button:
+		var b := n as Button
+		var px := b.get_theme_font_size("font_size")
+		var tall := int(maxf(b.custom_minimum_size.y, 36.0))
+		var sb := b.get_theme_stylebox("normal")
+		var paint := "cream"
+		if sb is StyleBoxFlat:
+			var c: Color = (sb as StyleBoxFlat).bg_color
+			if c.s > 0.5 and c.h > 0.09 and c.h < 0.2:
+				paint = "mustard"
+			elif c.s > 0.5 and (c.h < 0.05 or c.h > 0.95):
+				paint = "tomato"
+		style_sign_button(b, paint, px, tall)
+	elif n.has_method("set_styles"):
+		# 押せるカード（UI.ClickBox）
+		var normal := _paper_card()
+		var hover := _paper_card(0.35)
+		hover.bg_color = Color("f6efdc")
+		var chosen := _paper_card(1.0)
+		chosen.border_color = MARKER_INK
+		chosen.set_border_width_all(2)
+		chosen.bg_color = Color("fff6d6")
+		n.call("set_styles", normal, hover, chosen)
+	elif n is PanelContainer and n != root:
+		if "sb" in n:
+			n.set("sb", null)
+		var old := (n as PanelContainer).get_theme_stylebox("panel")
+		var card := _paper_card()
+		if old != null:
+			card.content_margin_left = old.content_margin_left
+			card.content_margin_right = old.content_margin_right
+			card.content_margin_top = old.content_margin_top
+			card.content_margin_bottom = old.content_margin_bottom
+		(n as PanelContainer).add_theme_stylebox_override("panel", card)
+	elif n is ColorRect and n != root:
+		var cr := n as ColorRect
+		if (cr.size.x <= 2.0 or cr.size.y <= 2.0 or cr.custom_minimum_size.x <= 2.0 or cr.custom_minimum_size.y <= 2.0) and cr.color.v > 0.5:
+			cr.color = Color(0, 0, 0, 0.15)                 # 細い区切りの線
+	if "ink" in n and n.get("ink") is Color:
+		n.set("ink", MARKER_INK)
+	if "line" in n and n.get("line") is Color:
+		n.set("line", Color(0, 0, 0, 0.35))
+	if n is CanvasItem:
+		(n as CanvasItem).queue_redraw()
+
+
 # ---- お金：コインのマーク（金色の丸、ふちと内側の輪） ----
 class CoinMark extends Control:
 	func _init() -> void:

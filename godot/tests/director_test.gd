@@ -228,7 +228,9 @@ func test_company_screens() -> void:
 	await frames(4)
 	var catalog: Control = game.hud.catalog
 	var order_words: Array = words_in(catalog)
-	check(catalog.visible and catalog.find_children("*", "TextureRect", true, false).size() == game.OPTIONS.size(), "the order screen shows photos of the rental items only, not of today's scrap")
+	# 写真の数で見る（カードの欄を流すスクロールが内部に持つ絵は、数えない）
+	var photos: Array = catalog.find_children("*", "TextureRect", true, false).filter(func(r: Node) -> bool: return not (r.get_parent() is ScrollContainer))
+	check(catalog.visible and photos.size() == game.OPTIONS.size(), "the order screen shows photos of the rental items only, not of today's scrap")
 	check(not order_words.any(func(text: String) -> bool: return "今日の廃材" in text or "配役" in text or "怪獣役" in text or str(scenes[0]) in text or str(scenes[2]) in text), "it has no scrap list, no casting sheet and no scene list")
 	check(order_words.has("注文票") and "注文する" in str(catalog.confirm.text) and (catalog.rows as Array).all(func(row: Dictionary) -> bool: return (row["pic"] as TextureRect).texture != null), "the order slip, the prices and the item photos stay")
 	game.h_order_confirm()

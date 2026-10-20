@@ -76,6 +76,9 @@ static func label(text: String, size: int, color: Color = CLAP_WHITE, kind: Stri
 
 
 static func recolor(l: Label, color: Color) -> void:
+	# 紙にした画面（FilmSet.paperize）の字は、紙の上で読める色に読み替える（白→黒、灰→薄墨、黄→黄土）
+	if l.has_meta("papered"):
+		color = FilmSet._paper_color(color)
 	l.add_theme_color_override("font_color", color)
 
 

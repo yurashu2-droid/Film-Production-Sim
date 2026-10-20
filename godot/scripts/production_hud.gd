@@ -46,6 +46,7 @@ var _lobby_status: Label
 var _addresses: Array[String] = []
 # 見た目の追加分
 var _job_cards: Array[Control] = []
+var _office_scroll: ScrollContainer
 var _job_keys: Array = []          # 依頼の札の番号（見えている順に振り直す）
 var _packing_rows: VBoxContainer
 var _packing_sig := ""
@@ -201,6 +202,14 @@ Space で撮り直す、Enter で納品。
 	_build_packing()
 	_build_travel()
 	_build_settled()
+	# 開いて使う画面は、暗い板ではなく紙に（ui/film_set.gd の paperize。あとから足す行も紙の色になる）
+	var legacy: Node = game.hud
+	var sheets: Array = [_office, _upgrade, _packing, _growth, _settled, briefing._panel, legacy.panel, legacy.catalog._panel]
+	for c in legacy.character_picker.get_children():
+		if c is PanelContainer:
+			sheets.append(c)
+	for p: Control in sheets:
+		FilmSet.paperize(p)
 
 	_warning = _label("", 17, UI.CLAP_WHITE, "bold")
 	_warning.add_theme_stylebox_override("normal", _bar_style(UI.STAMP_RED))
@@ -456,6 +465,7 @@ func _build_office() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var rows_n := ceili(jobs.size() / 2.0)
 	scroll.custom_minimum_size = Vector2(0, mini(470, rows_n * 121 + maxi(rows_n - 1, 0) * 12))
+	_office_scroll = scroll
 	office_rows.add_child(scroll)
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -650,7 +660,7 @@ func _build_travel() -> void:
 
 # 精算：興行収入
 func _build_settled() -> void:
-	_growth = _panel("slate", Control.PRESET_TOP_LEFT, Vector2(24, 140), 480, 0.0, true, 24, 20)
+	_growth = _panel("slate", Control.PRESET_TOP_LEFT, Vector2(24, 250), 480, 0.0, true, 24, 20)     # 上の知らせ（カンペ）と重ならない高さ
 	var growth_rows := _rows(_growth, 14)
 	growth_rows.add_child(_label("今回のスタッフ成長", 24, UI.CLAP_WHITE, "display"))
 	growth_rows.add_child(UI.hairline())
@@ -913,6 +923,10 @@ func _refresh() -> void:
 					_job_keys[index].text = number
 					_job_keys[index].queue_redraw()
 		_office_head.text = "初仕事" if production.day <= 1 else "%d日目の一本" % production.day
+		# 板の高さは、きょう出ている依頼の数に合わせる（全部の依頼の数で取ると、空いた所ばかりになる）
+		var shown_rows := ceili(offered.size() / 2.0)
+		_office_scroll.custom_minimum_size.y = mini(470, shown_rows * 121 + maxi(shown_rows - 1, 0) * 12)
+		_office.reset_size()
 	if _lobby:
 		_lobby.visible = menu == "pause" and not picker_open and not game.help_open
 		if not _lobby.visible and _settings_sheet != null and _settings_sheet.visible:
