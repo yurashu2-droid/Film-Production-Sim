@@ -10,6 +10,7 @@ const Scripts := preload("res://scripts/production_script.gd")
 const Briefing := preload("res://scripts/ui/briefing.gd")
 const ScriptPage := preload("res://scripts/ui/script_page.gd")
 const TalentSlots := preload("res://scripts/ui/talent_slots.gd")
+const PosterWall := preload("res://scripts/ui/poster_wall_3d.gd")
 const SettingsSheet := preload("res://scripts/ui/settings_sheet.gd")
 const PHASE_NAMES := ["事務所", "機材を借りる", "トラックに積む", "現場へ移動", "撮影現場", "今回の精算"]
 
@@ -47,7 +48,9 @@ var _addresses: Array[String] = []
 # 見た目の追加分
 var _job_cards: Array[Control] = []
 var _office_scroll: ScrollContainer
-var _office_grid: GridContainer
+var _wall: Control               # 依頼の掲示板の壁（3D の布とポスター）
+var _wall_prev: Button
+var _wall_next: Button
 var _job_keys: Array = []          # 依頼の札の番号（見えている順に振り直す）
 var _packing_rows: VBoxContainer
 var _packing_sig := ""
@@ -477,28 +480,31 @@ func _build_office() -> void:
 		for i in 3:
 			var bulb := UI.Dot.new().setup(Color("ffe49a"), 6.0)
 			bulbs.add_child(bulb)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, POSTER_H + 24.0)
-	office_rows.add_child(scroll)
-	_office_scroll = scroll
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 26)
-	grid.add_theme_constant_override("v_separation", 22)
-	scroll.add_child(grid)
-	_office_grid = grid
-	for index in jobs.size():
-		var card := _job_card(index, jobs[index])
-		grid.add_child(card)
-		_job_cards.append(card)
+	# 赤いビロードの布（3D）に、ポスターを上の一辺だけ留めて吊るす（ui/poster_wall_3d.gd）。下ほど、ぴらぴら揺れる
+	_wall = PosterWall.new()
+	_wall.custom_minimum_size = Vector2(1000, 540)
+	_wall.make_poster = func(index: int) -> Control: return _poster_face(index, jobs[index])
+	_wall.picked.connect(func(index: int): game.open_brief(index))
+	office_rows.add_child(_wall)
 	var foot := HBoxContainer.new()
 	office_rows.add_child(foot)
 	var office_character := UI.KeyButton.new().setup("キャラクターを選ぶ", "C", "slate", 15, 36)
 	office_character.pressed.connect(func(): game.set_character_menu(true))
 	FilmSet.style_sign_button(office_character, "cream", 16, 36)
 	foot.add_child(office_character)
+	# 壁を見て回る札（ポスターが4枚より多い日。ホイールでも動く）
+	_wall_prev = Button.new()
+	_wall_prev.text = "◀ 前の依頼"
+	_wall_prev.focus_mode = Control.FOCUS_NONE
+	FilmSet.style_sign_button(_wall_prev, "mustard", 16, 36)
+	_wall_prev.pressed.connect(func(): _wall.pan(-1))
+	foot.add_child(_wall_prev)
+	_wall_next = Button.new()
+	_wall_next.text = "次の依頼 ▶"
+	_wall_next.focus_mode = Control.FOCUS_NONE
+	FilmSet.style_sign_button(_wall_next, "mustard", 16, 36)
+	_wall_next.pressed.connect(func(): _wall.pan(1))
+	foot.add_child(_wall_next)
 	var office_close := FilmSet.label("ポスターを押すと、依頼主との打ち合わせ　／　右クリック・Esc で閉じる", 14, Color("f3d9b0"), "marker")
 	office_close.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	office_close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -510,15 +516,14 @@ const POSTER_W := 236.0
 const POSTER_H := 372.0
 
 
-# 依頼のポスター：上に絵（依頼の種類ごと）、題名、ひとこと、下の小さな字のクレジット（場所・場面・追加の注文・制作費）
-func _job_card(index: int, job: Dictionary) -> Control:
-	var card := UI.ClickBox.new()
+# 依頼のポスターの絵（2D。3D の壁が小さな画面に描いて、吊るす板に貼る）：上に絵（依頼の種類ごと）、題名、ひとこと、
+# 下の小さな字のクレジット（場所・場面・追加の注文）と制作費。左上に、数字キーで開ける番号
+func _poster_face(index: int, job: Dictionary) -> Control:
+	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(POSTER_W, POSTER_H)
-	card.tooltip_text = str(job.get("description", ""))
-	card.set_styles(FilmSet.frame_style(false), FilmSet.frame_style(true))
-	card.pressed.connect(func(): game.open_brief(index))
-	card.mouse_entered.connect(func(): card.z_index = 1)
-	card.mouse_exited.connect(func(): card.z_index = 0)
+	var face := FilmSet.frame_style(false)
+	face.shadow_size = 0
+	card.add_theme_stylebox_override("panel", face)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)
 	card.add_child(col)
@@ -526,11 +531,11 @@ func _job_card(index: int, job: Dictionary) -> Control:
 	art.kind = "debut" if bool(job.get("debut", false)) else str(job.get("script", "castle"))
 	art.variant = index
 	col.add_child(art)
-	# 数字キーで開ける印（左上の小さな札）
-	var key: Control = UI.KeyCap.new().setup(str(index + 1), 13, Color(1, 1, 1, 0.6))
+	# 数字キーで開ける印（左上の小さな札）。番号は、きょう出ている順
+	var offered: Array = game.production.offered()
+	var key: Control = UI.KeyCap.new().setup(str(offered.find(index) + 1), 13, Color(1, 1, 1, 0.6))
 	key.position = Vector2(8, 8)
 	art.add_child(key)
-	_job_keys.append(key)
 	var text := VBoxContainer.new()
 	text.add_theme_constant_override("separation", 4)
 	col.add_child(text)
@@ -565,7 +570,6 @@ func _job_card(index: int, job: Dictionary) -> Control:
 	inner.add_child(billing)
 	var fee := FilmSet.label("制作費 %d" % int(job.get("budget", 600)), 15, Color("ffd43b"), "mono")
 	inner.add_child(fee)
-	UI.ignore_mouse(card)
 	return card
 
 
@@ -955,12 +959,14 @@ func _refresh() -> void:
 					_job_keys[index].text = number
 					_job_keys[index].queue_redraw()
 		_office_head.text = "近日撮影 ・ " + ("初仕事" if production.day <= 1 else "%d日目" % production.day)
-		# ポスターの列は、きょう出ている依頼の数に合わせる（4枚まで横に並べる。それより多ければ、下へ流す）
-		var cols := clampi(offered.size(), 1, 4)
-		if _office_grid.columns != cols:
-			_office_grid.columns = cols
-			_center(_office, cols * (POSTER_W + 26.0) + 46.0)
+		# 壁に吊るすポスターは、きょう出ている依頼だけ。壁の幅も、その数に合わせる
+		if _wall.show_jobs(offered):
+			var w := clampf(float(mini(offered.size(), 4)) * 300.0 + 160.0, 760.0, 1240.0)
+			_wall.custom_minimum_size.x = w - 72.0
+			_center(_office, w)
 			_office.reset_size()
+		_wall_prev.visible = _wall.can_pan(-1)
+		_wall_next.visible = _wall.can_pan(1)
 	if _lobby:
 		_lobby.visible = menu == "pause" and not picker_open and not game.help_open
 		if not _lobby.visible and _settings_sheet != null and _settings_sheet.visible:
