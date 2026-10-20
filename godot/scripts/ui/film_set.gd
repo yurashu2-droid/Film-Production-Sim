@@ -63,30 +63,40 @@ static func label(text: String, px: int, color: Color, kind: String) -> Label:
 	return l
 
 
-# 塗りのむら（筆の跡）：縦に近い薄い筋。札の上に重ねて、のっぺりさせない（継ぎ目の出ない大きさで1枚）
+# 塗りむら：ペンキをローラーで塗ったような、ぼんやりした濃淡（線は入れない）。継ぎ目の出ない1枚を作り、
+# 札ごとに、その一部を切り出して使う（paint_region）。同じ柄が並ばないように
 static func brush() -> ImageTexture:
 	if _brush != null:
 		return _brush
-	var img := Image.create(512, 96, false, Image.FORMAT_RGBA8)
-	img.fill(Color(1, 1, 1, 0))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 20261020
-	for i in 260:
-		var x := rng.randf_range(0, 512)
-		var w := rng.randf_range(1.0, 4.0)
-		var a := rng.randf_range(0.03, 0.09)
-		var light := rng.randf() < 0.5
-		var slant := rng.randf_range(-0.05, 0.05)
-		for y in 96:
-			var xx := x + slant * float(y)
-			for dx in int(ceil(w)):
-				var px := int(xx) + dx
-				if px >= 0 and px < 512:
-					var c := img.get_pixel(px, y)
-					var add := Color(1, 1, 1, a) if light else Color(0, 0, 0, a)
-					img.set_pixel(px, y, c.blend(add))
+	var size := 512
+	var big := FastNoiseLite.new()
+	big.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	big.frequency = 0.008
+	big.fractal_octaves = 3
+	big.seed = 20261021
+	var fine := FastNoiseLite.new()
+	fine.noise_type = FastNoiseLite.TYPE_SIMPLEX
+	fine.frequency = 0.09
+	fine.seed = 7
+	var a: Image = big.get_seamless_image(size, size)
+	var b: Image = fine.get_seamless_image(size, size)
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	for y in size:
+		for x in size:
+			# 大きなむら（塗りの厚い・薄い）と、細かいざらつき（段ボールの地の凸凹）
+			var v := (a.get_pixel(x, y).r - 0.5) * 0.9 + (b.get_pixel(x, y).r - 0.5) * 0.25
+			img.set_pixel(x, y, Color(1, 1, 1, v * 0.22) if v > 0.0 else Color(0, 0, 0, -v * 0.22))
 	_brush = ImageTexture.create_from_image(img)
 	return _brush
+
+
+# 札ごとに違う切り出し位置（札の場所と大きさから決める。毎コマ同じなので、ちらつかない）
+static func paint_region(r: Rect2) -> Rect2:
+	var h := absi(hash(Vector2i(int(r.position.x), int(r.position.y)) + Vector2i(int(r.size.x), int(r.size.y)) * 7))
+	var size := 512.0
+	var w := minf(r.size.x, size * 0.9)
+	var hh := minf(r.size.y, size * 0.9)
+	return Rect2(Vector2(float(h % 397) / 397.0 * (size - w), float((h / 397) % 389) / 389.0 * (size - hh)), Vector2(w, hh))
 
 
 static func _shadow(item: RID, r: Rect2, drop: float, alpha: float) -> void:
@@ -185,7 +195,7 @@ class CardStyle extends StyleBox:
 		RenderingServer.canvas_item_add_rect(item, Rect2(r.position + Vector2(0, r.size.y - 3.0), Vector2(r.size.x, 3.0)), Color("a57946"))
 		var face := r.grow(-3.0)
 		RenderingServer.canvas_item_add_rect(item, face, paint)
-		RenderingServer.canvas_item_add_texture_rect(item, face, FilmSet.brush().get_rid(), false)
+		RenderingServer.canvas_item_add_texture_rect_region(item, face, FilmSet.brush().get_rid(), FilmSet.paint_region(face))
 		var a := face.position
 		RenderingServer.canvas_item_add_polygon(item, PackedVector2Array([a, a + Vector2(face.size.x, 0), face.end, a + Vector2(0, face.size.y)]),
 			PackedColorArray([Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.04), Color(0, 0, 0, 0.12), Color(0, 0, 0, 0.05)]))
@@ -204,7 +214,7 @@ class ClipboardStyle extends StyleBox:
 		# 板（茶色のハードボード）
 		RenderingServer.canvas_item_add_rect(item, r, Color("8a5d36"))
 		RenderingServer.canvas_item_add_rect(item, r.grow(-3), Color("a06f43"))
-		RenderingServer.canvas_item_add_texture_rect(item, r.grow(-3), FilmSet.brush().get_rid(), false)
+		RenderingServer.canvas_item_add_texture_rect_region(item, r.grow(-3), FilmSet.brush().get_rid(), FilmSet.paint_region(r))
 		# 紙
 		var paper := Rect2(r.position + Vector2(16, 30), r.size - Vector2(32, 44))
 		RenderingServer.canvas_item_add_rect(item, Rect2(paper.position + Vector2(2, 3), paper.size), Color(0, 0, 0, 0.25))
