@@ -6,6 +6,7 @@ const TitleSet := preload("res://scripts/title_set.gd")
 const StartTransition := preload("res://scripts/start_transition.gd")
 const GameSettings := preload("res://scripts/game_settings.gd")
 const Player := preload("res://scripts/player.gd")
+const SettingsSheet := preload("res://scripts/ui/settings_sheet.gd")
 var _transition: CanvasLayer
 const StartupResources := preload("res://scripts/startup_resources.gd")
 var _startup_resources: Node
@@ -22,6 +23,7 @@ var quit_button: Button
 const MIXER_RECT := Rect2(LEFT + CASE_W + 26.0, 738, 176, 128)
 const EXIT_RECT := Rect2(LEFT + CASE_W + 226.0, 752, 150, 74)
 var _settings_layer: Control      # 設定の板（暗幕ごと）。開いている間だけ見せる
+var _settings_sheet: Control      # 設定の紙の中身（感度・音量・全画面・キー設定）
 var _canvas: CanvasLayer
 var _stage: Control
 var _diorama: SubViewportContainer
@@ -182,45 +184,25 @@ func _build_settings(root: Control) -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_settings_layer.add_child(center)
-	var panel := UI.panel("slate", 1.0, true, 32, 26)
-	panel.custom_minimum_size = Vector2(480, 0)
+	# 遊んでいる途中の Esc → 設定と同じ紙（ui/settings_sheet.gd）を、クリップボードに挟む
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", FilmSet.ClipboardStyle.new())
+	panel.custom_minimum_size = Vector2(SettingsSheet.NARROW, 0)
 	center.add_child(panel)
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 16)
-	panel.add_child(rows)
-	rows.add_child(UI.label("設定", 30, UI.CLAP_WHITE, "display"))
-	rows.add_child(GameSettings.build_rows())
-	rows.add_child(UI.hairline())
-	# マウスの感度（遊んでいる途中の一時メニューのつまみと同じ値）
-	Player.load_settings()
-	rows.add_child(UI.label("マウスの感度（左：ゆっくり　右：速い）", 16, UI.CLAP_WHITE, "bold"))
-	var sens := HSlider.new()
-	sens.name = "MouseSens"
-	sens.min_value = 0.2
-	sens.max_value = 3.0
-	sens.step = 0.05
-	sens.value = Player.sens_scale
-	sens.custom_minimum_size = Vector2(380, 28)
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color(1, 1, 1, 0.22)
-	track.set_corner_radius_all(3)
-	track.content_margin_top = 3
-	track.content_margin_bottom = 3
-	sens.add_theme_stylebox_override("slider", track)
-	sens.value_changed.connect(func(v: float): Player.set_sens(v))
-	rows.add_child(sens)
-	var close := Button.new()
-	close.name = "Close"
-	close.text = "閉じる"
-	UI.style_button(close, "tape", 20, 50)
-	close.pressed.connect(close_settings)
-	rows.add_child(close)
+	_settings_sheet = SettingsSheet.new()
+	_settings_sheet.close_text = "閉じる"
+	panel.add_child(_settings_sheet)
+	_settings_sheet.closed.connect(close_settings)
+	_settings_sheet.width_wanted.connect(func(w: float):
+		panel.custom_minimum_size.x = w
+		panel.reset_size())
 
 
 func open_settings() -> void:
 	if _busy or _settings_layer.visible:
 		return
 	_settings_layer.visible = true
+	_settings_sheet.show_main()
 	_film_set.enabled = false
 	UI.pop(_settings_layer)
 
@@ -233,7 +215,7 @@ func close_settings() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _settings_layer != null and _settings_layer.visible and event.is_action_pressed("ui_cancel"):
+	if _settings_layer != null and _settings_layer.visible and event.is_action_pressed("ui_cancel") and not _settings_sheet.rebinding():
 		close_settings()
 		get_viewport().set_input_as_handled()
 

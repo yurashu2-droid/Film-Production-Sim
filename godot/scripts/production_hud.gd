@@ -10,7 +10,7 @@ const Scripts := preload("res://scripts/production_script.gd")
 const Briefing := preload("res://scripts/ui/briefing.gd")
 const ScriptPage := preload("res://scripts/ui/script_page.gd")
 const TalentSlots := preload("res://scripts/ui/talent_slots.gd")
-const GameSettings := preload("res://scripts/game_settings.gd")
+const SettingsSheet := preload("res://scripts/ui/settings_sheet.gd")
 const PHASE_NAMES := ["事務所", "機材を借りる", "トラックに積む", "現場へ移動", "撮影現場", "今回の精算"]
 
 var game: Node
@@ -72,12 +72,7 @@ var _take_divider: Control
 var _wallet_box: Control
 var _wallet_div: Control
 var _status_div: Control
-var _settings_page: VBoxContainer
-var _settings_sens: HSlider
-var _keys_page: VBoxContainer
-var _keys_note: Label
-var _key_buttons := {}           # アクション → 今のキーの札
-var _rebinding := ""             # 新しいキーを待っている操作
+var _settings_sheet: Control     # Esc → 設定の紙（ui/settings_sheet.gd）
 var _rec_dot: Label               # 上の帯（カメラの枠）の録画ランプ。本番中だけ赤く点滅して REC
 var _rec_text: Label
 var _last_wallet := -1
@@ -415,152 +410,22 @@ func _build_help_board() -> void:
 	(board.find_child("Close", true, false) as Button).pressed.connect(func(): game.help_open = false)
 
 
-# Esc のメニューの「設定」の紙：マウスの感度・音量（全体・BGM・効果音）・全画面。設定は game_settings.gd と player.gd が保存する
-func _build_settings_page() -> void:
-	_settings_page = VBoxContainer.new()
-	_settings_page.add_theme_constant_override("separation", 12)
-	_settings_page.visible = false
-	_lobby.add_child(_settings_page)
-	_settings_page.add_child(FilmSet.label("設定", 30, FilmSet.MARKER_INK, "marker"))
-	var sens_label := FilmSet.label("マウスの感度（左：ゆっくり　右：速い）", 16, FilmSet.MARKER_INK, "marker")
-	_settings_page.add_child(sens_label)
-	var sens := HSlider.new()
-	sens.name = "MouseSensSettings"
-	sens.min_value = 0.2
-	sens.max_value = 3.0
-	sens.step = 0.05
-	sens.custom_minimum_size = Vector2(360, 28)
-	sens.value_changed.connect(func(value: float): game.Player.set_sens(value))
-	_settings_page.add_child(sens)
-	_settings_sens = sens
-	var rows: VBoxContainer = GameSettings.build_rows()
-	_settings_page.add_child(rows)
-	# 紙の上の見た目に直す（作った物は暗い板の上の色なので）
-	for n: Node in [sens] + rows.find_children("*", "", true, false):
-		if n is Label:
-			(n as Label).add_theme_font_override("font", FilmSet.font("marker"))
-			(n as Label).add_theme_color_override("font_color", FilmSet.MARKER_INK)
-		elif n is HSlider:
-			var track := StyleBoxFlat.new()
-			track.bg_color = Color(0, 0, 0, 0.22)
-			track.set_corner_radius_all(3)
-			track.content_margin_top = 3
-			track.content_margin_bottom = 3
-			(n as HSlider).add_theme_stylebox_override("slider", track)
-			# 今の値まで、ペンで塗った線（紙の上では、つまみの白い丸が見えないので）
-			var fill := StyleBoxFlat.new()
-			fill.bg_color = FilmSet.MARKER_INK
-			fill.set_corner_radius_all(3)
-			fill.content_margin_top = 3
-			fill.content_margin_bottom = 3
-			(n as HSlider).add_theme_stylebox_override("grabber_area", fill)
-			(n as HSlider).add_theme_stylebox_override("grabber_area_highlight", fill)
-		elif n is Button:
-			FilmSet.style_sign_button(n as Button, "cream", 17, 40)
-	var keys_button := _button("キー設定", "slate", 17, 44)
-	FilmSet.style_sign_button(keys_button, "sky", 19, 46)
-	keys_button.pressed.connect(func(): _show_keys(true))
-	_settings_page.add_child(keys_button)
-	var back := _button("もどる", "slate", 17, 44)
-	FilmSet.style_sign_button(back, "mustard", 20, 48)
-	back.pressed.connect(func(): _show_settings(false))
-	_settings_page.add_child(back)
-
-
-# 設定の紙の「キー設定」：操作ごとに今のキーの札。札を押して、新しいキーを押すと替わる（keybinds.gd。使っていた操作とは入れ替え）
-func _build_keys_page() -> void:
-	_keys_page = VBoxContainer.new()
-	_keys_page.add_theme_constant_override("separation", 12)
-	_keys_page.visible = false
-	_lobby.add_child(_keys_page)
-	_keys_page.add_child(FilmSet.label("キー設定", 30, FilmSet.MARKER_INK, "marker"))
-	_keys_note = FilmSet.label("替えたい操作の札を押して、新しいキーを押す", 15, Color("5d5850"), "marker")
-	_keys_page.add_child(_keys_note)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 26)
-	grid.add_theme_constant_override("v_separation", 6)
-	_keys_page.add_child(grid)
-	for a: Array in Keybinds.ACTIONS:
-		var id: String = a[0]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		grid.add_child(row)
-		var name := FilmSet.label(str(a[1]), 16, FilmSet.MARKER_INK, "marker")
-		name.custom_minimum_size.x = 130
-		name.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(name)
-		var key := _button("", "slate", 15, 32)
-		FilmSet.style_sign_button(key, "cream", 16, 32)
-		key.custom_minimum_size.x = 120
-		key.pressed.connect(func(): _start_rebind(id))
-		row.add_child(key)
-		_key_buttons[id] = key
-	var bottom := HBoxContainer.new()
-	bottom.add_theme_constant_override("separation", 12)
-	_keys_page.add_child(bottom)
-	var reset := _button("初期に戻す", "slate", 17, 44)
-	FilmSet.style_sign_button(reset, "tomato", 18, 46)
-	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reset.pressed.connect(func():
-		Keybinds.reset()
-		_rebinding = ""
-		_sync_keys())
-	bottom.add_child(reset)
-	var back := _button("もどる", "slate", 17, 44)
-	FilmSet.style_sign_button(back, "mustard", 20, 46)
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	back.pressed.connect(func(): _show_keys(false))
-	bottom.add_child(back)
-
-
-func _show_keys(on: bool) -> void:
-	if _keys_page == null:
-		_build_keys_page()
-	_rebinding = ""
-	_settings_page.visible = not on
-	_keys_page.visible = on
-	_center(_lobby, 680.0 if on else 440.0)      # 2列の一覧が入る幅
-	_lobby.reset_size()
-	_sync_keys()
-
-
-func _start_rebind(id: String) -> void:
-	_rebinding = id
-	_sync_keys()
-
-
-func _sync_keys() -> void:
-	for id: String in _key_buttons:
-		var b: Button = _key_buttons[id]
-		b.text = "キーを押す…" if id == _rebinding else Keybinds.label(id)
-	_keys_note.text = "Esc でやめる" if _rebinding != "" else "替えたい操作の札を押して、新しいキーを押す"
-	# 画面下の操作の案内も、今のキー名で作り直す
-	game.hud._key_sig = ""
-
-
-# 新しいキーを受ける（キー設定の札を押したあと）。Esc でやめる。マウスのボタンは受けない
-func _input(event: InputEvent) -> void:
-	if _rebinding == "" or not (event is InputEventKey) or not event.pressed or event.echo:
-		return
-	get_viewport().set_input_as_handled()
-	var code: int = (event as InputEventKey).physical_keycode
-	if code != KEY_ESCAPE:
-		Keybinds.rebind(_rebinding, code)
-	_rebinding = ""
-	_sync_keys()
-
-
+# Esc のメニューの「設定」：同じクリップボードの紙を、設定の紙（ui/settings_sheet.gd。タイトル画面の設定と同じ物）に替える
 func _show_settings(on: bool) -> void:
-	if _settings_page == null:
-		_build_settings_page()
-	game.Player.load_settings()
-	_settings_sens.value = game.Player.sens_scale
+	if _settings_sheet == null:
+		_settings_sheet = SettingsSheet.new()
+		_settings_sheet.close_text = "もどる"
+		_settings_sheet.visible = false
+		_lobby.add_child(_settings_sheet)
+		_settings_sheet.closed.connect(func(): _show_settings(false))
+		_settings_sheet.width_wanted.connect(func(w: float):
+			_center(_lobby, w)
+			_lobby.reset_size())
 	_lobby.get_child(0).visible = not on
-	_settings_page.visible = on
-	if _keys_page != null and _keys_page.visible:
-		_keys_page.visible = false
-		_rebinding = ""
+	_settings_sheet.visible = on
+	if on:
+		_settings_sheet.show_main()
+	else:
 		_center(_lobby, 440.0)
 		_lobby.reset_size()
 
@@ -1050,7 +915,7 @@ func _refresh() -> void:
 		_office_head.text = "初仕事" if production.day <= 1 else "%d日目の一本" % production.day
 	if _lobby:
 		_lobby.visible = menu == "pause" and not picker_open and not game.help_open
-		if not _lobby.visible and _settings_page != null and (_settings_page.visible or (_keys_page != null and _keys_page.visible)):
+		if not _lobby.visible and _settings_sheet != null and _settings_sheet.visible:
 			_show_settings(false)            # 閉じたら、次に開くときはメニューの紙から
 		_lobby_status.text = "制作班 %d / 4 人" % game.players.size()
 		_lobby_sub.text = "会社を開いています" if Net.mode == "host" else "友達の会社" if Net.mode == "client" else "ひとりで準備中"
