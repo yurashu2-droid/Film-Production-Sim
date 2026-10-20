@@ -66,6 +66,9 @@ var _wallet_num: Label
 var _wallet_unit: Label
 var _people: Label
 var _clock_div: Control
+var _take_parts: Array = []      # 本番中だけ出す（秒数と合図）
+var _place_parts: Array = []     # 本番中は隠す（お金・場所・借り時間）
+var _take_divider: Control
 var _rec_dot: Label               # 上の帯（カメラの枠）の録画ランプ。本番中だけ赤く点滅して REC
 var _rec_text: Label
 var _last_wallet := -1
@@ -291,6 +294,26 @@ func _build_strip() -> void:
 		l.add_theme_font_override("font", FilmSet.font("mono"))
 	for l: Label in [_wallet_num, _wallet_unit, _rent, _status, _clock]:
 		_cam_outline(l)
+	# 本番中の秒数と3つの合図（hud.gd が作って、毎コマ書き換える）を、この帯の中へ移す。録画のランプは帯の物を使う
+	var legacy: Node = game.hud
+	var take_row: HBoxContainer = legacy.take_row
+	take_row.get_parent().remove_child(take_row)
+	take_row.get_node("RecDot").visible = false
+	row.add_child(take_row)
+	_take_parts = [take_row]
+	legacy.take_secs.add_theme_font_override("font", FilmSet.font("mono"))
+	legacy.take_secs.add_theme_font_size_override("font_size", 26)
+	_cam_outline(legacy.take_secs)
+	for l: Label in legacy.cue_names_labels:
+		_cam_outline(l)
+	_place_parts = [wallet, _rent_div, _rent, _status, _clock_div, _clock]
+	for i in row.get_child_count():
+		var c := row.get_child(i)
+		if c is MarginContainer and c != _rent_div and c != _clock_div:
+			_place_parts.append(c)          # 区切りの線
+	_take_divider = _divider()
+	row.add_child(_take_divider)
+	row.move_child(_take_divider, row.get_children().find(take_row))
 
 
 func _cam_outline(l: Label) -> void:
@@ -892,6 +915,14 @@ func _refresh() -> void:
 	# 場面の列を持つ依頼の本番中は、秒を刻む時計を画面に出さない（時計は、カメラのリールとモニターの枠の目盛り）
 	_clock.visible = phase in [1, 2, 4] and not game.hides_take_clock()
 	_clock_div.visible = _clock.visible
+	# 本番中（秒数と合図が出ている間）は、お金・場所・借り時間を隠して、帯を1段のままにする
+	var take_on: bool = (game.hud.take_row as Control).visible
+	for c: Control in _place_parts:
+		if c == _rent or c == _rent_div or c == _clock or c == _clock_div:
+			c.visible = c.visible and not take_on
+		else:
+			c.visible = not take_on
+	_take_divider.visible = take_on
 	var seconds := maxi(0, ceili(production.lease_left))
 	_clock.text = "残り %d:%02d" % [seconds / 60, seconds % 60]
 	_clock_urgent = seconds < 60

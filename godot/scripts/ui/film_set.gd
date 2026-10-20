@@ -151,8 +151,7 @@ class CamStyle extends StyleBox:
 		content_margin_bottom = 10
 
 	func _draw(item: RID, r: Rect2) -> void:
-		# 枠の中を少しだけ暗く（明るい景色の上でも白い字が読めるように）
-		RenderingServer.canvas_item_add_rect(item, r.grow(-4), Color(0.04, 0.05, 0.06, 0.32))
+		# 枠の中は塗らない（字には黒いふちを付けて読めるようにする）
 		var L := 18.0
 		var t := 3.0
 		var c := Color(1, 1, 1, 0.95)

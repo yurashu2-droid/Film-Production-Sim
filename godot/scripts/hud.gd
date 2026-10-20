@@ -15,6 +15,7 @@ const DEFAULT_SCENES := ["告白（高低差・城・明るさ）", "背後で�
 const DEFAULT_FILM := "月下の城と大爆発"
 const Catalog := preload("res://scripts/ui/order_catalog.gd")
 const MonitorMarks := preload("res://scripts/ui/monitor_marks.gd")
+const ClapperOverlay := preload("res://scripts/ui/clapper_overlay.gd")
 const PANEL_W := 672.0
 const NOTE_FREE := "無料：カメラ・ライト2台・カチンコは荷台に載っている。廃材置き場に出ている物も自由に使える。"
 var character_picker: Control
@@ -129,7 +130,7 @@ func build() -> void:
 	vf_frame.visible = false
 	root.add_child(vf_frame)
 
-	slate = _Slate.new()
+	slate = ClapperOverlay.new()          # 本番の合図のカチンコ（3D。左下から開きながら入ってきて、カチンと閉じる）
 	slate.game = game
 	slate.set_anchors_preset(Control.PRESET_FULL_RECT)
 	slate.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -424,9 +425,8 @@ func _build_take_bar() -> void:
 func _cue_style(next: bool) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.draw_center = false
-	s.border_color = UI.TAPE if next else Color(1, 1, 1, 0.14)
-	s.set_border_width_all(1)
-	s.set_corner_radius_all(6)
+	s.border_color = UI.TAPE if next else Color(1, 1, 1, 0)
+	s.border_width_bottom = 3
 	s.content_margin_left = 12
 	s.content_margin_right = 12
 	s.content_margin_top = 4
@@ -839,7 +839,7 @@ func _process(delta: float) -> void:
 		cam_hint = "　".join(hl.slice(0, 3))
 	take_hint.text = cam_hint
 	take_hint.visible = cam_hint != ""
-	take_bar.visible = take_row.visible or replay_row.visible or take_hint.visible
+	take_bar.visible = (take_row.visible and take_bar.is_ancestor_of(take_row)) or replay_row.visible or take_hint.visible     # 制作モードでは、秒数と合図は上の帯の中
 
 	# 照準と対象
 	var play: bool = st == S.PREP or st == S.TAKE or st == S.COUNTDOWN
