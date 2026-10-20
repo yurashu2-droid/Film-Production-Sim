@@ -576,6 +576,12 @@ func _viewport_size() -> Vector2:
 	return Vector2(1600, 900)
 
 
+# 初日（チュートリアルの日）か。あそびかたの札は、この日だけ出す
+func first_day() -> bool:
+	var flow: Node = _production()
+	return flow == null or int(flow.get("day")) <= 1
+
+
 func _production() -> Node:
 	if game != null and "production" in game and game.production != null:
 		return game.production
@@ -893,7 +899,7 @@ func _process(delta: float) -> void:
 		# 何も持たず、何も狙っていない：いつも同じ操作（移動・ジャンプ・役者を戻す など）は出さない。Tab のあそびかたにある。
 		# 出すのは、次の一歩（本番の始め方・合図）と、あそびかたへの入口だけ
 		if st == S.PREP:
-			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル ／ Tab あそびかた"
+			k += "\nカチンコを持って F で本番開始 ／ 1・2・3 合図のリハーサル" + (" ／ Tab あそびかた" if first_day() else "")
 		else:
 			k += "\n1・2・3 合図 ／ T かカチンコでカット"
 	keys.text = game.adhesive.hint() if me != null and me.held == game.adhesive.tool.pid else k

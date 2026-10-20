@@ -10,6 +10,7 @@ const Scripts := preload("res://scripts/production_script.gd")
 const Briefing := preload("res://scripts/ui/briefing.gd")
 const ScriptPage := preload("res://scripts/ui/script_page.gd")
 const TalentSlots := preload("res://scripts/ui/talent_slots.gd")
+const GameSettings := preload("res://scripts/game_settings.gd")
 const PHASE_NAMES := ["事務所", "機材を借りる", "トラックに積む", "現場へ移動", "撮影現場", "今回の精算"]
 
 var game: Node
@@ -71,6 +72,8 @@ var _take_divider: Control
 var _wallet_box: Control
 var _wallet_div: Control
 var _status_div: Control
+var _settings_page: VBoxContainer
+var _settings_sens: HSlider
 var _rec_dot: Label               # 上の帯（カメラの枠）の録画ランプ。本番中だけ赤く点滅して REC
 var _rec_text: Label
 var _last_wallet := -1
@@ -316,7 +319,10 @@ func _build_strip() -> void:
 		_cam_outline(l)
 	_take_divider = _divider()
 	row.add_child(_take_divider)
-	row.move_child(_take_divider, row.get_children().find(take_row))
+	var order: Array = [_rec_dot, _rec_text, _status_div, _status, _clock_div, _clock, _take_divider, take_row,
+		_wallet_div, _wallet_box, _rent_div, _rent, _people]
+	for i in order.size():
+		row.move_child(order[i], i)
 
 
 func _cam_outline(l: Label) -> void:
@@ -363,31 +369,8 @@ func _build_lobby(menu: Node) -> void:
 				if DisplayServer.get_name() != "headless": DisplayServer.clipboard_set(_addresses[0])
 				game.hud.show_toast("IPをコピーしました。友達の参加画面へ", game.hud.YELLOW))
 			ip_row.add_child(copy_button)
+	# マウスの感度・音量は「設定」の紙へ（メニューの紙には、つづける・キャラ・あそびかた・設定だけ）
 	lobby_rows.add_child(UI.hairline(false, Color(0, 0, 0, 0.15)))
-	# マウスの感度（つまみ。左がゆっくり、右が速い）
-	game.Player.load_settings()
-	var sens_row := VBoxContainer.new()
-	sens_row.add_theme_constant_override("separation", 4)
-	lobby_rows.add_child(sens_row)
-	sens_row.add_child(FilmSet.label("マウスの感度（左：ゆっくり　右：速い）", 16, FilmSet.MARKER_INK, "marker"))
-	var sens := HSlider.new()
-	sens.name = "MouseSens"
-	sens.min_value = 0.2
-	sens.max_value = 3.0
-	sens.step = 0.05
-	sens.value = game.Player.sens_scale
-	sens.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sens.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	sens.custom_minimum_size = Vector2(360, 28)
-	# つまみの通り道が背景に溶けて見えないので、色を付ける
-	var sens_track := StyleBoxFlat.new()
-	sens_track.bg_color = Color(0, 0, 0, 0.22)          # 紙の上の、鉛筆の線のような通り道
-	sens_track.set_corner_radius_all(3)
-	sens_track.content_margin_top = 3
-	sens_track.content_margin_bottom = 3
-	sens.add_theme_stylebox_override("slider", sens_track)
-	sens.value_changed.connect(func(value: float): game.Player.set_sens(value))
-	sens_row.add_child(sens)
 	var resume := _button("つづける", "tape", 20, 52)
 	FilmSet.style_sign_button(resume, "mustard", 24, 54)
 	resume.pressed.connect(func(): game.close_menu())
@@ -398,12 +381,16 @@ func _build_lobby(menu: Node) -> void:
 		game.close_menu()
 		game.set_character_menu(true))
 	lobby_rows.add_child(cast)
+	var settings := _button("設定", "slate", 17, 44)
+	FilmSet.style_sign_button(settings, "sky", 19, 46)
+	settings.pressed.connect(func(): _show_settings(true))
 	var how := _button("あそびかた", "slate", 17, 44)
 	FilmSet.style_sign_button(how, "cream", 19, 46)
 	how.pressed.connect(func():
 		game.close_menu()
 		game.help_open = true)
 	lobby_rows.add_child(how)
+	lobby_rows.add_child(settings)
 	if can_leave:
 		var leave_button := _button("会社を閉じる" if Net.mode in ["solo", "host"] else "会社を出る", "slate", 17, 44)
 		leave_button.tooltip_text = "現在の会社の残金と撮影は終了します。"
@@ -420,6 +407,63 @@ func _build_help_board() -> void:
 	help.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	legacy.help_sheet.visible = false
 	help.add_child(FilmSet.help_board())
+
+
+# Esc のメニューの「設定」の紙：マウスの感度・音量（全体・BGM・効果音）・全画面。設定は game_settings.gd と player.gd が保存する
+func _build_settings_page() -> void:
+	_settings_page = VBoxContainer.new()
+	_settings_page.add_theme_constant_override("separation", 12)
+	_settings_page.visible = false
+	_lobby.add_child(_settings_page)
+	_settings_page.add_child(FilmSet.label("設定", 30, FilmSet.MARKER_INK, "marker"))
+	var sens_label := FilmSet.label("マウスの感度（左：ゆっくり　右：速い）", 16, FilmSet.MARKER_INK, "marker")
+	_settings_page.add_child(sens_label)
+	var sens := HSlider.new()
+	sens.name = "MouseSensSettings"
+	sens.min_value = 0.2
+	sens.max_value = 3.0
+	sens.step = 0.05
+	sens.custom_minimum_size = Vector2(360, 28)
+	sens.value_changed.connect(func(value: float): game.Player.set_sens(value))
+	_settings_page.add_child(sens)
+	_settings_sens = sens
+	var rows: VBoxContainer = GameSettings.build_rows()
+	_settings_page.add_child(rows)
+	# 紙の上の見た目に直す（作った物は暗い板の上の色なので）
+	for n: Node in [sens] + rows.find_children("*", "", true, false):
+		if n is Label:
+			(n as Label).add_theme_font_override("font", FilmSet.font("marker"))
+			(n as Label).add_theme_color_override("font_color", FilmSet.MARKER_INK)
+		elif n is HSlider:
+			var track := StyleBoxFlat.new()
+			track.bg_color = Color(0, 0, 0, 0.22)
+			track.set_corner_radius_all(3)
+			track.content_margin_top = 3
+			track.content_margin_bottom = 3
+			(n as HSlider).add_theme_stylebox_override("slider", track)
+			# 今の値まで、ペンで塗った線（紙の上では、つまみの白い丸が見えないので）
+			var fill := StyleBoxFlat.new()
+			fill.bg_color = FilmSet.MARKER_INK
+			fill.set_corner_radius_all(3)
+			fill.content_margin_top = 3
+			fill.content_margin_bottom = 3
+			(n as HSlider).add_theme_stylebox_override("grabber_area", fill)
+			(n as HSlider).add_theme_stylebox_override("grabber_area_highlight", fill)
+		elif n is Button:
+			FilmSet.style_sign_button(n as Button, "cream", 17, 40)
+	var back := _button("もどる", "slate", 17, 44)
+	FilmSet.style_sign_button(back, "mustard", 20, 48)
+	back.pressed.connect(func(): _show_settings(false))
+	_settings_page.add_child(back)
+
+
+func _show_settings(on: bool) -> void:
+	if _settings_page == null:
+		_build_settings_page()
+	game.Player.load_settings()
+	_settings_sens.value = game.Player.sens_scale
+	_lobby.get_child(0).visible = not on
+	_settings_page.visible = on
 
 
 func _center(p: Control, width: float) -> void:
@@ -834,7 +878,7 @@ func _refresh() -> void:
 		if me and game.is_action_prop(me.target):
 			legacy.target_label.text = me.target.label + "　[F] " + game.prop_action_hint(me.target)
 			line = "F " + game.prop_action_hint(me.target) + " ／ " + line
-		legacy.keys.text = line + "\nTab あそびかた"
+		legacy.keys.text = line + ("\nTab あそびかた" if legacy.first_day() else "")
 	elif phase == 4:
 		var kw := minf(1400.0, vw - 40.0)
 		legacy._place(legacy.keys, Control.PRESET_CENTER_BOTTOM, Vector2(-kw * 0.5, -64), kw)
@@ -906,6 +950,8 @@ func _refresh() -> void:
 		_office_head.text = "初仕事" if production.day <= 1 else "%d日目の一本" % production.day
 	if _lobby:
 		_lobby.visible = menu == "pause" and not picker_open and not game.help_open
+		if not _lobby.visible and _settings_page != null and _settings_page.visible:
+			_show_settings(false)            # 閉じたら、次に開くときはメニューの紙から
 		_lobby_status.text = "制作班 %d / 4 人" % game.players.size()
 		_lobby_sub.text = "会社を開いています" if Net.mode == "host" else "友達の会社" if Net.mode == "client" else "ひとりで準備中"
 	_packing.visible = menu == "packing" and not picker_open and not game.help_open
