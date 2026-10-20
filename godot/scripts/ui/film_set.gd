@@ -390,6 +390,134 @@ static func help_board() -> VBoxContainer:
 	return board
 
 
+# ---- 依頼の掲示板：映画館のロビーの「近日撮影」の壁。依頼1件が額縁入りのポスター1枚 ----
+# 壁：赤いビロード。上に電球の並んだ看板の帯（文字は、作る側が載せる）
+class WallStyle extends StyleBox:
+	func _init() -> void:
+		content_margin_left = 36
+		content_margin_right = 36
+		content_margin_top = 26
+		content_margin_bottom = 26
+
+	func _draw(item: RID, r: Rect2) -> void:
+		FilmSet._shadow(item, r, 10.0, 0.55)
+		var a := r.position
+		var w := r.size.x
+		var h := r.size.y
+		RenderingServer.canvas_item_add_polygon(item, PackedVector2Array([a, a + Vector2(w, 0), a + Vector2(w, h), a + Vector2(0, h)]),
+			PackedColorArray([Color("5e1b1e"), Color("5e1b1e"), Color("2f0c0e"), Color("2f0c0e")]))
+		# ビロードのひだ（縦の、ゆるい濃淡）
+		var x := 0.0
+		var k := 0
+		while x < w:
+			var fold := 26.0 + float((k * 37) % 19)
+			RenderingServer.canvas_item_add_rect(item, Rect2(a + Vector2(x, 0), Vector2(fold * 0.5, h)), Color(0, 0, 0, 0.12 if k % 2 == 0 else 0.0))
+			x += fold
+			k += 1
+		# 金の縁
+		RenderingServer.canvas_item_add_rect(item, Rect2(a, Vector2(w, 4)), Color("c99c43"))
+		RenderingServer.canvas_item_add_rect(item, Rect2(a + Vector2(0, h - 4), Vector2(w, 4)), Color("8a6a24"))
+
+
+# ポスターの絵（依頼の種類ごと）。台本の種類：castle＝月夜の城、kaiju＝街に立つ怪獣、trap＝転がる大岩、debut＝会社の紹介（星）
+class PosterArt extends Control:
+	var kind := "castle"
+	var variant := 0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size_flags_vertical = Control.SIZE_EXPAND_FILL
+		custom_minimum_size = Vector2(0, 150)
+
+	func _draw() -> void:
+		var s := size
+		var hue := float(variant % 5) * 0.035
+		match kind:
+			"debut":
+				draw_rect(Rect2(Vector2.ZERO, s), Color("1f1f1f"))
+				draw_colored_polygon(PackedVector2Array([Vector2.ZERO, Vector2(s.x, 0), Vector2(s.x, s.y * 0.38), Vector2(0, s.y * 0.72)]), Color("ffd43b"))
+				_star(Vector2(s.x * 0.72, s.y * 0.24), s.x * 0.16, Color("e2352b"))
+				for i in 3:
+					draw_rect(Rect2(Vector2(s.x * (0.12 + 0.26 * i), s.y * 0.66), Vector2(s.x * 0.16, s.y * 0.34)), Color(0.08, 0.08, 0.08))
+					draw_circle(Vector2(s.x * (0.2 + 0.26 * i), s.y * 0.62), s.x * 0.07, Color(0.08, 0.08, 0.08))
+			"kaiju":
+				_sky(Color.from_hsv(0.36 + hue, 0.35, 0.28), Color.from_hsv(0.12 + hue, 0.3, 0.72))
+				var m := PackedVector2Array()
+				for p: Vector2 in [Vector2(0.3, 1.0), Vector2(0.26, 0.6), Vector2(0.1, 0.5), Vector2(0.2, 0.38), Vector2(0.34, 0.34), Vector2(0.36, 0.12),
+						Vector2(0.52, 0.02), Vector2(0.6, 0.14), Vector2(0.62, 0.3), Vector2(0.8, 0.4), Vector2(0.72, 0.52), Vector2(0.66, 0.6), Vector2(0.7, 1.0)]:
+					m.append(Vector2(s.x * (0.12 + p.x * 0.76), s.y * (0.12 + p.y * 0.88)))
+				draw_colored_polygon(m, Color("10170f"))
+				draw_circle(Vector2(s.x * 0.53, s.y * 0.2), s.x * 0.022, Color("ffd43b"))
+				_town(Color("0b0f0a"))
+			"trap":
+				_sky(Color.from_hsv(0.08 + hue, 0.55, 0.32), Color.from_hsv(0.1 + hue, 0.45, 0.82))
+				draw_colored_polygon(PackedVector2Array([Vector2(0, s.y * 0.7), Vector2(s.x, s.y * 0.52), Vector2(s.x, s.y), Vector2(0, s.y)]), Color("2b1a0e"))
+				draw_circle(Vector2(s.x * 0.62, s.y * 0.48), s.x * 0.26, Color("3a2a1c"))
+				draw_arc(Vector2(s.x * 0.62, s.y * 0.48), s.x * 0.18, 0.6, 2.2, 12, Color(0, 0, 0, 0.35), s.x * 0.03)
+				for i in 3:
+					draw_line(Vector2(s.x * (0.25 - i * 0.05), s.y * (0.38 + i * 0.1)), Vector2(s.x * (0.05 - i * 0.03), s.y * (0.38 + i * 0.1)), Color(1, 1, 1, 0.5), 2.0)
+				draw_circle(Vector2(s.x * 0.18, s.y * 0.66), s.x * 0.05, Color("1a0f08"))
+			_:
+				# 同じ城の映画でも、ポスターごとに空の色・月の位置・城の形を変える（並べたときに見分けられるように）
+				var skies := [[Color("0f1d3a"), Color("f08a2e")], [Color("2a1240"), Color("e86a8a")], [Color("0d3438"), Color("e8c84a")], [Color("1b1530"), Color("7fb3e8")]]
+				var sky: Array = skies[variant % skies.size()]
+				_sky(sky[0], sky[1])
+				var mx: float = [0.5, 0.28, 0.72, 0.38][variant % 4]
+				var mr: float = [0.13, 0.1, 0.16, 0.12][variant % 4]
+				draw_circle(Vector2(s.x * mx, s.y * 0.22), s.x * mr * 1.3, Color(1, 0.95, 0.75, 0.15))
+				draw_circle(Vector2(s.x * mx, s.y * 0.22), s.x * mr, Color("fff4cf"))
+				var shapes := [
+					[Vector2(0, 1), Vector2(0, 0.4), Vector2(0.14, 0.4), Vector2(0.14, 0.2), Vector2(0.24, 0.2), Vector2(0.24, 0.45), Vector2(0.4, 0.45),
+						Vector2(0.4, 0.1), Vector2(0.52, 0.1), Vector2(0.52, 0.45), Vector2(0.7, 0.45), Vector2(0.7, 0.25), Vector2(0.82, 0.25), Vector2(0.82, 0.5), Vector2(1, 0.5), Vector2(1, 1)],
+					[Vector2(0, 1), Vector2(0, 0.55), Vector2(0.2, 0.55), Vector2(0.2, 0.3), Vector2(0.28, 0.12), Vector2(0.36, 0.3), Vector2(0.36, 0.55), Vector2(0.64, 0.55),
+						Vector2(0.64, 0.3), Vector2(0.72, 0.12), Vector2(0.8, 0.3), Vector2(0.8, 0.55), Vector2(1, 0.55), Vector2(1, 1)],
+					[Vector2(0, 1), Vector2(0.1, 0.62), Vector2(0.3, 0.6), Vector2(0.38, 0.35), Vector2(0.38, 0.05), Vector2(0.46, 0.0), Vector2(0.54, 0.05), Vector2(0.54, 0.35),
+						Vector2(0.62, 0.6), Vector2(0.9, 0.62), Vector2(1, 1)],
+				]
+				var c := PackedVector2Array()
+				for p: Vector2 in shapes[variant % shapes.size()]:
+					c.append(Vector2(s.x * (0.12 + p.x * 0.76), s.y * (0.58 + p.y * 0.42)))
+				draw_colored_polygon(c, Color("0b0a10"))
+
+	func _sky(top: Color, bottom: Color) -> void:
+		var s := size
+		draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(s.x, 0), Vector2(s.x, s.y), Vector2(0, s.y)]), PackedColorArray([top, top, bottom, bottom]))
+
+	func _town(col: Color) -> void:
+		var s := size
+		var x := 0.0
+		var i := 0
+		while x < s.x:
+			var bw := s.x * (0.09 + float((i * 7) % 5) * 0.02)
+			var bh := s.y * (0.1 + float((i * 11) % 7) * 0.025)
+			draw_rect(Rect2(Vector2(x, s.y - bh), Vector2(bw, bh)), col)
+			x += bw + 2.0
+			i += 1
+
+	func _star(c: Vector2, r: float, col: Color) -> void:
+		var pts := PackedVector2Array()
+		for i in 10:
+			var ang := -PI * 0.5 + float(i) * PI / 5.0
+			pts.append(c + Vector2(cos(ang), sin(ang)) * (r if i % 2 == 0 else r * 0.45))
+		draw_colored_polygon(pts, col)
+
+
+# ポスターの額縁（金）。乗せると、額縁が光る
+static func frame_style(lit: bool) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = Color("161214")
+	s.border_color = Color("ffe7a8") if lit else Color("b38a3a")
+	s.set_border_width_all(6 if lit else 7)
+	s.shadow_color = Color(1.0, 0.82, 0.45, 0.55) if lit else Color(0, 0, 0, 0.55)
+	s.shadow_size = 18 if lit else 8
+	s.shadow_offset = Vector2.ZERO if lit else Vector2(0, 6)
+	s.content_margin_left = 7
+	s.content_margin_right = 7
+	s.content_margin_top = 7
+	s.content_margin_bottom = 7
+	return s
+
+
 # ---- 開いて使う画面を、紙にする（依頼の掲示板・発注・積み込み確認・テイク確認・精算・キャラ選び など） ----
 # 元は暗い板の上に白い字で作ってある画面を、あとから紙に塗り替える：
 #   板 → 紙（PaperStyle：上の角にマスキングテープ）／ 白い字 → ペンの黒 ／ 灰色の字 → 薄い墨 ／ 黄の字 → 濃い黄土
