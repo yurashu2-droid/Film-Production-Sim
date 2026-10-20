@@ -125,8 +125,8 @@ func handle_input(event: InputEvent) -> bool:
 			match event.keycode:
 				KEY_ESCAPE: set_open(false)
 				KEY_1,KEY_2,KEY_3: game.h_camera_cut.rpc_id(1,event.keycode-KEY_1)
-				KEY_T:
-					if game.state == game.S.TAKE: game.h_monitor_stop.rpc_id(1)
+				_:
+					if event.physical_keycode == Keybinds.code("cut") and game.state == game.S.TAKE: game.h_monitor_stop.rpc_id(1)
 		return true
 	return event is InputEventMouseMotion
 

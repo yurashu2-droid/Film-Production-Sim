@@ -294,7 +294,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # F2：三人称 ⇄ 一人称 ／ F3：押している間、表情の頭が並ぶ。離すと決まる
 func _handle_view_keys(key: InputEventKey) -> bool:
-	if key.physical_keycode == KEY_F2:
+	if key.physical_keycode == Keybinds.code("view"):
 		if key.pressed:
 			set_first_person(not first_person)
 		return true

@@ -211,15 +211,8 @@ func _parse_args() -> void:
 
 
 func _setup_input() -> void:
-	var keys := {"move_left": KEY_A, "move_right": KEY_D, "move_forward": KEY_W, "move_back": KEY_S,
-		"run": KEY_SHIFT, "jump": KEY_SPACE, "crouch": KEY_CTRL, "operate": KEY_F, "rot_left": KEY_Q, "rot_right": KEY_E,
-		"hold_upright": KEY_R, "hold_pull": KEY_G, "hold_lift": KEY_L, "talent": KEY_K}
-	for n: String in keys:
-		if not InputMap.has_action(n):
-			InputMap.add_action(n)
-			var e := InputEventKey.new()
-			e.physical_keycode = keys[n]
-			InputMap.action_add_event(n, e)
+	# キーの割り当ては keybinds.gd（遊ぶ人が設定の紙で替えられる。保存した割り当てを読む）
+	Keybinds.apply_saved()
 
 
 func _grab_mouse(on: bool) -> void:
@@ -520,10 +513,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.character_picker.handle_key(key)
 		get_viewport().set_input_as_handled()
 		return
-	if key == KEY_C:
+	if key == Keybinds.code("character"):
 		set_character_menu(true)
 		return
-	if key == KEY_TAB:
+	if key == Keybinds.code("help"):
 		help_open = not help_open
 		return
 	if help_open:
@@ -564,24 +557,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key in [KEY_ESCAPE, KEY_ENTER, KEY_SPACE, KEY_R]:
 			h_stop_replay.rpc_id(1)
 	else:
-		match key:
-			KEY_T:
-				if state == S.TAKE:
-					h_take.rpc_id(1)
-				else:
-					hud.show_toast("カチンコを持って F で本番開始", Hud.YELLOW)
-			KEY_1:
-				h_cue.rpc_id(1, 1)
-			KEY_2:
-				h_cue.rpc_id(1, 2)
-			KEY_3:
-				h_cue.rpc_id(1, 3)
-			KEY_B:
-				h_standby.rpc_id(1)
-			KEY_F9:
-				h_sample.rpc_id(1)
-			KEY_ESCAPE:
-				_grab_mouse(false)
+		# 遊びのキーは、遊ぶ人が替えられる（keybinds.gd）
+		if key == Keybinds.code("cut"):
+			if state == S.TAKE:
+				h_take.rpc_id(1)
+			else:
+				hud.show_toast("カチンコを持って %s で本番開始" % Keybinds.label("operate"), Hud.YELLOW)
+		elif key == Keybinds.code("cue_1"):
+			h_cue.rpc_id(1, 1)
+		elif key == Keybinds.code("cue_2"):
+			h_cue.rpc_id(1, 2)
+		elif key == Keybinds.code("cue_3"):
+			h_cue.rpc_id(1, 3)
+		elif key == Keybinds.code("reset_actors"):
+			h_standby.rpc_id(1)
+		elif key == KEY_F9:
+			h_sample.rpc_id(1)
+		elif key == KEY_ESCAPE:
+			_grab_mouse(false)
 
 
 # ---- ホストの処理：物を持つ・積む・機材 ----

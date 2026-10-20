@@ -399,7 +399,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if menu_open != "":
-			var by_key: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F
+			var by_key: bool = Keybinds.pressed(event, "operate")
 			var by_mouse: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT
 			if menu_open == "brief" and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER]:
 				var picked := brief_job
@@ -424,7 +424,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if production != null and not ui_blocking() and local_player() != null:
-		var ping_key: bool = event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_V
+		var ping_key: bool = Keybinds.pressed(event, "ping")
 		var ping_mouse: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_MIDDLE
 		if (ping_key or ping_mouse) and _ping_phase_allowed():
 			var now := Time.get_ticks_msec()/1000.0
@@ -444,7 +444,7 @@ func _input(event: InputEvent) -> void:
 		# 仕組みの、自分のキー（K＝キャラの特技。cast_talent.gd の hook_key）
 		get_viewport().set_input_as_handled()
 		return
-	if event.physical_keycode == KEY_Y and production.phase in [2, 4] and state == S.PREP:
+	if event.physical_keycode == Keybinds.code("cast_role") and production.phase in [2, 4] and state == S.PREP:
 		# 見立て：狙っている物（持っている物）の役を、らしい順に切り替える
 		var subject: Node = props.get(me.held) if me.held != 0 else me.target
 		if subject != null and Flow.Cast.castable(subject.kind) and not Flow.Cast.locked(subject.kind):
@@ -453,12 +453,12 @@ func _input(event: InputEvent) -> void:
 			hud.show_toast("%s には役を付けられない" % subject.label, Hud.YELLOW)
 		get_viewport().set_input_as_handled()
 		return
-	if event.physical_keycode == KEY_F and hooks.first("hook_f", [me]):
+	if event.physical_keycode == Keybinds.code("operate") and hooks.first("hook_f", [me]):
 		# 仕組みの F（各仕組みの hook_f）。最初に使った仕組みで止まる。順番は feature_hooks.gd の ORDERS["hook_f"]：
 		#   机の物（のぞき箱・発注の電話）→ 仲間の頭の道具箱 → つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
 		get_viewport().set_input_as_handled()
 		return
-	if event.physical_keycode == KEY_F:
+	if event.physical_keycode == Keybinds.code("operate"):
 		if production.phase == 2 and me.held != 0 and me.global_position.distance_to(Flow.HOME_TRUCK) < 4.5:
 			h_load_truck.rpc_id(1,me.held)
 			get_viewport().set_input_as_handled()
@@ -1376,16 +1376,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			open_brief(int(offered[pick]))
 			return
 	# 場面の列を持つ依頼：1＝次の場面へ / 2＝今の場面をもう一度（3 は使わない）。進められるのは、台本を読める人だけ（ホストが確かめる）
-	if production and beats != null and beats.active() and production.phase == 4 and state in [S.PREP, S.TAKE] and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_1, KEY_2, KEY_3] and not ui_blocking():
-		if event.physical_keycode != KEY_3:
-			h_beat.rpc_id(1, 1 if event.physical_keycode == KEY_1 else 2)
+	if production and beats != null and beats.active() and production.phase == 4 and state in [S.PREP, S.TAKE] and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [Keybinds.code("cue_1"), Keybinds.code("cue_2"), Keybinds.code("cue_3")] and not ui_blocking():
+		if event.physical_keycode != Keybinds.code("cue_3"):
+			h_beat.rpc_id(1, 1 if event.physical_keycode == Keybinds.code("cue_1") else 2)
 		return
 	# 確認の画面の Enter（納品）：試写会を通す（request_deliver）
 	if production and state == S.RESULT and not character_open and not help_open and not input_locked and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		request_deliver(selected)
 		return
 	# 爆弾は合図キーでは鳴らない（そばで F を押して点火する）
-	if production and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_2 and state in [S.PREP, S.TAKE] and not ui_blocking() and bomb_armed():
+	if production and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == Keybinds.code("cue_2") and state in [S.PREP, S.TAKE] and not ui_blocking() and bomb_armed():
 		hud.show_toast("爆弾は合図では鳴らない。導火線の先を見て F で火を付ける", Hud.YELLOW)
 		return
 	super._unhandled_input(event)

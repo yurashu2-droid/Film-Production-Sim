@@ -814,7 +814,7 @@ func _process(delta: float) -> void:
 	var me: Node = game.local_player()
 	# 自分が注いでいる間：F を離したら（袋を手放したら）止める
 	if _pouring_local != 0:
-		if me == null or me.held != _pouring_local or not Input.is_physical_key_pressed(KEY_F) or game.ui_blocking():
+		if me == null or me.held != _pouring_local or not Input.is_action_pressed("operate") or game.ui_blocking():
 			_pouring_local = 0
 			h_pour.rpc_id(1, false)
 	# はさみで切る場所・火を付ける先の目印

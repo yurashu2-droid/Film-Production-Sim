@@ -196,28 +196,31 @@ func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	var code: int = event.physical_keycode
-	if code == KEY_H or (opened and code == KEY_ESCAPE):
-		set_open(not opened if code == KEY_H else false)
+	var k_menu := Keybinds.code("act_menu")
+	var k_act := Keybinds.code("act")
+	var k_fx := Keybinds.code("effect")
+	if code == k_menu or (opened and code == KEY_ESCAPE):
+		set_open(not opened if code == k_menu else false)
 		get_viewport().set_input_as_handled()
 		return
 	if opened:
-		if code in [KEY_Z,KEY_X]:
+		if code in [k_act, k_fx]:
 			set_open(false)
-			if code == KEY_Z:
+			if code == k_act:
 				request_act()
 			elif not in_premiere():
 				request_fx()
-		elif code in [KEY_C,KEY_TAB]:
+		elif code in [Keybinds.code("character"), Keybinds.code("help")]:
 			set_open(false)
 			return
 		get_viewport().set_input_as_handled()
 		return
 	if not allowed() or game.ui_blocking():
 		return
-	if code == KEY_Z:
+	if code == k_act:
 		request_act()
 		get_viewport().set_input_as_handled()
-	elif code == KEY_X and not in_premiere():
+	elif code == k_fx and not in_premiere():
 		request_fx()
 		get_viewport().set_input_as_handled()
 

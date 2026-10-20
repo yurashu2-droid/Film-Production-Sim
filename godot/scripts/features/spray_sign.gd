@@ -67,7 +67,7 @@ func setup() -> void:
 # ---- たたむ（Shift+F） ----
 
 func hook_key(event: InputEvent, me: Node) -> bool:
-	if not (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F):
+	if not Keybinds.pressed(event, "operate"):
 		return false
 	if _held_can(me) != null:
 		return true                  # 缶を持っている間の F は、吹く（_process で見る）。ほかの F の使い道へは回さない

@@ -866,7 +866,7 @@ func _process(delta: float) -> void:
 				tl += "（固定中）"
 			if t.holder != 0:
 				tl += "（誰かが持っている）"
-	target_label.text = (tl if slate.mode == "" else "").replace("[F] ", "F：")
+	target_label.text = Keybinds.translate((tl if slate.mode == "" else "").replace("[F] ", "F："))
 	# 持っている物の名前は、画面のまん中に出さない（視界のじゃまになる）。下の操作の案内のすぐ上へ下げる。
 	# 狙っているだけの物の名前は、今までどおり照準のすぐ下
 	var label_drop: float = get_viewport().get_visible_rect().size.y * 0.5 - 132.0 if play and me != null and me.held != 0 else 28.0

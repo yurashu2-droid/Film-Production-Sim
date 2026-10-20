@@ -466,7 +466,7 @@ static func _key_of(word: String) -> String:
 	if word == "ホイール":
 		return "ホイール"
 	if UI.is_key_token(word):
-		return word.trim_prefix("[").trim_suffix("]")
+		return Keybinds.shown(word.trim_prefix("[").trim_suffix("]"))
 	return ""
 
 
@@ -492,7 +492,7 @@ static func _chip(key: String, px: int) -> PanelContainer:
 # 札の色：最初のキーで決める（決まっていないキーは、順に回す）
 static func paint_for(segment: String, index: int) -> String:
 	for word: String in segment.split(" ", false):
-		var key := _key_of(word)
+		var key := word if UI.is_key_token(word) else _key_of(word)     # 色は、初期のキー名で決める（キーを替えても色は同じ）
 		if KEY_PAINT.has(key):
 			return KEY_PAINT[key]
 	return ["sky", "tomato", "mustard", "teal"][index % 4]

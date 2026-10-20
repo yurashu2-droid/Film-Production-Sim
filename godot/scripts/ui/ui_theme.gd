@@ -628,7 +628,7 @@ static func key_item(segment: String, px: int = 15, outline: bool = false) -> Co
 			if not run.is_empty():
 				row.add_child(_key_text(" ".join(run), px, outline))
 				run.clear()
-			row.add_child(KeyCap.new().setup(word.trim_prefix("[").trim_suffix("]")))
+			row.add_child(KeyCap.new().setup(Keybinds.shown(word.trim_prefix("[").trim_suffix("]"))))
 		else:
 			run.append(word)
 	if not run.is_empty():

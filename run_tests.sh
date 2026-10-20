@@ -243,6 +243,7 @@ script_case hand-hold 90 'HAND_TEST_OK' hand_hold_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 script_case music-title 60 'MUSIC_TITLE_OK' music_title_test.gd --fixed-fps 60
 script_case place-music 90 'MUSIC_TEST_OK' place_music_test.gd --fixed-fps 60
+script_case keybinds 30 'KEYS_TEST_OK' keybinds_test.gd
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
 run_pair cuts-net 160 'CUTS_NET_TEST_OK' 'CUTS_NET_TEST_OK'

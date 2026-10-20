@@ -195,7 +195,7 @@ func _wear(body: Node3D, role: int) -> Array:
 # ---- 自分の操作：Y ----
 
 func hook_key(event: InputEvent, me: Node) -> bool:
-	if not (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_Y):
+	if not Keybinds.pressed(event, "cast_role"):
 		return false
 	if game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
 		return false
