@@ -234,9 +234,12 @@ static func style_sign_button(b: Button, paint_name: String, px: int = 20, tall:
 	var normal := CardStyle.new(paint[0])
 	var hover := CardStyle.new((paint[0] as Color).lightened(0.12))
 	var press := CardStyle.new((paint[0] as Color).darkened(0.12))
+	# キーの札（UI.KeyButton の cap）が右端に付く札は、その分だけ右を空ける
+	var cap: Variant = b.get("cap")
+	var right := 16.0 + ((cap as Control).custom_minimum_size.x + 10.0 if cap is Control else 0.0)
 	for s: StyleBox in [normal, hover, press]:
 		s.content_margin_left = 16
-		s.content_margin_right = 16
+		s.content_margin_right = right
 		s.content_margin_top = 6
 		s.content_margin_bottom = 8
 	b.add_theme_stylebox_override("normal", normal)
@@ -520,7 +523,7 @@ static func frame_style(lit: bool) -> StyleBoxFlat:
 
 # ---- 開いて使う画面を、紙にする（依頼の掲示板・発注・積み込み確認・テイク確認・精算・キャラ選び など） ----
 # 元は暗い板の上に白い字で作ってある画面を、あとから紙に塗り替える：
-#   板 → 紙（PaperStyle：上の角にマスキングテープ）／ 白い字 → ペンの黒 ／ 灰色の字 → 薄い墨 ／ 黄の字 → 濃い黄土
+#   板 → 紙（PaperStyle）／ 白い字 → ペンの黒 ／ 灰色の字 → 薄い墨 ／ 黄の字 → 濃い黄土
 #   暗い札（中の小さな板・カード）→ 薄い紙の札 ／ ボタン → 段ボールの札（黄＝主、赤＝警告、ほか＝クリーム）
 # あとから足される行（作り直す一覧など）も、足された時に塗り替える（paperize で登録した画面の中だけ）
 class PaperStyle extends StyleBox:
@@ -534,16 +537,6 @@ class PaperStyle extends StyleBox:
 		FilmSet._shadow(item, r, 8.0, 0.45)
 		RenderingServer.canvas_item_add_rect(item, r, Color("f7f3e9"))
 		RenderingServer.canvas_item_add_texture_rect_region(item, r, FilmSet.brush().get_rid(), FilmSet.paint_region(r), Color(1, 1, 1, 0.35))
-		# 上の左右の角を、マスキングテープで留める
-		for side: float in [-1.0, 1.0]:
-			var c := Vector2(r.position.x + 30.0 if side < 0.0 else r.end.x - 30.0, r.position.y + 2.0)
-			var w := 86.0
-			var h := 24.0
-			var ang: float = -0.6 * side
-			var xs := Vector2(cos(ang), sin(ang))
-			var ys := Vector2(-sin(ang), cos(ang))
-			var pts := PackedVector2Array([c - xs * w * 0.5 - ys * h * 0.5, c + xs * w * 0.5 - ys * h * 0.5, c + xs * w * 0.5 + ys * h * 0.5, c - xs * w * 0.5 + ys * h * 0.5])
-			RenderingServer.canvas_item_add_polygon(item, pts, PackedColorArray([Color(0.91, 0.86, 0.74, 0.88)]))
 
 const PAPER_INK_SOFT := Color("5d5850")
 static var _paper_roots: Array = []

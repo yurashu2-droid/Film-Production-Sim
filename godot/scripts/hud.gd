@@ -17,6 +17,7 @@ const Catalog := preload("res://scripts/ui/order_catalog.gd")
 const MonitorMarks := preload("res://scripts/ui/monitor_marks.gd")
 const ClapperOverlay := preload("res://scripts/ui/clapper_overlay.gd")
 const PANEL_W := 672.0
+const EditDesk := preload("res://scripts/ui/edit_desk.gd")
 const NOTE_FREE := "無料：カメラ・ライト2台・カチンコは荷台に載っている。廃材置き場に出ている物も自由に使える。"
 var character_picker: Control
 var character_button: Button
@@ -717,7 +718,8 @@ func _fit_layout() -> void:
 
 
 func _layout_panel() -> void:
-	var w := PANEL_W
+	var w := RESULT_W if result_view.visible else PANEL_W
+	panel.custom_minimum_size.x = w
 	panel.offset_left = -w * 0.5
 	panel.offset_right = w * 0.5
 	var y := clampf((_viewport_size().y - panel.size.y) * 0.5, 76.0, 240.0)
@@ -729,6 +731,8 @@ func _process(delta: float) -> void:
 	if game == null or root == null:
 		return
 	_fit_layout()
+	if "live" in game:
+		_capture_take(delta)
 	if _toast_t > 0.0:
 		_toast_t -= delta
 		if _toast_t < 0.3:
@@ -915,6 +919,8 @@ func _process(delta: float) -> void:
 	if st == S.RESULT and game.takes.is_empty():
 		want_panel = false
 	panel.visible = want_panel
+	if _result_dim != null:
+		_result_dim.visible = want_panel and st == S.RESULT
 	# 発注の画面：撮影だけモードでは全員に、制作モードでは発注を開いた人の画面にだけ出す（game.ordering()）
 	var ordering: bool = game.ordering()
 	catalog.visible = ordering and not game.help_open and not game.character_open
@@ -1000,6 +1006,7 @@ func _sync_panel(st: int) -> void:
 	order_view.visible = st == S.ORDER
 	result_view.visible = st == S.RESULT
 	delivered_view.visible = st == S.DELIVERED
+	_bare_panel(st == S.RESULT)
 	panel_aside.text = ""
 	panel_sub.visible = false
 	if st == S.ORDER:
@@ -1008,6 +1015,27 @@ func _sync_panel(st: int) -> void:
 		_sync_result()
 	else:
 		_sync_delivered()
+
+
+var _panel_paper: StyleBox
+var _result_dim: ColorRect
+
+
+func _bare_panel(on: bool) -> void:
+	var pv: Node = panel.get_child(0)
+	(pv.get_child(0) as Control).visible = not on       # 見出し
+	(pv.get_child(1) as Control).visible = not on       # 見出しの下の線
+	if _panel_paper == null:
+		_panel_paper = panel.get_theme_stylebox("panel")
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new() if on else _panel_paper)
+	if _result_dim == null:
+		_result_dim = ColorRect.new()
+		_result_dim.color = Color(0.03, 0.03, 0.05, 0.62)
+		_result_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(_result_dim)
+		root.move_child(_result_dim, panel.get_index())
+		_result_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_result_dim.visible = on and panel.visible
 
 
 func _legacy_mode() -> bool:
@@ -1111,80 +1139,129 @@ func _result_row(r: Dictionary) -> Control:
 	return row
 
 
+# テイク確認：撮影カメラの映像から撮ったコマを、フィルムに並べる（ui/edit_desk.gd）。
+# コマの下に場面ごとのひとこと。枠・紙・台で包まず、暗くした景色の上にじかに置く
+const RESULT_W := 1040.0
+
+
 func _build_result(t: Dictionary, sel: int, prod: Node, saved: String) -> void:
 	_clear(result_view)
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 8)
-	result_view.add_child(rows)
-	for r: Dictionary in t["results"]:
-		rows.add_child(_result_row(r))
+	result_view.theme = EditDesk.outlined_theme()
+	# 見出し：テイク確認・テイクの札（押して選ぶ）・尺
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	result_view.add_child(top)
+	var name_l := FilmSet.label("テイク確認", 28, Color.WHITE, "stencil")
+	name_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(name_l)
+	top.add_child(UI.gap(10))
+	for i in game.takes.size():
+		var tab := Button.new()
+		tab.text = "テイク%d" % (i + 1)
+		tab.focus_mode = Control.FOCUS_NONE
+		FilmSet.style_sign_button(tab, "mustard" if i == sel else "cream", 15, 34)
+		tab.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		tab.pressed.connect(func() -> void: game.h_select.rpc_id(1, i))
+		top.add_child(tab)
+	var fill := Control.new()
+	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(fill)
+	var dur_l := FilmSet.label("撮影 %.0f 秒　あと %d 回撮れる" % [float(t.get("dur", 0.0)), maxi(game.MAX_TAKES - game.takes.size(), 0)], 15, Color(1, 1, 1, 0.85), "mono")
+	dur_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	top.add_child(dur_l)
+	# フィルム：場面ごとの1コマ。下に場面の名前と、ひとこと
+	var results: Array = t["results"]
+	var stills: Array = _stills_for(sel, results.size(), float(t.get("dur", 0.0)))
+	var film := HBoxContainer.new()
+	film.add_theme_constant_override("separation", 0)
+	film.alignment = BoxContainer.ALIGNMENT_CENTER
+	result_view.add_child(film)
+	var cell_w := minf(320.0, floorf(RESULT_W / float(maxi(results.size(), 1))))
+	for i in results.size():
+		var r: Dictionary = results[i]
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 4)
+		col.custom_minimum_size.x = cell_w
+		film.add_child(col)
+		col.add_child(EditDesk.Cell.new().setup(stills[i] if i < stills.size() else null, bool(r["ok"]), i + 1, cell_w))
+		var title := FilmSet.label("%d　%s" % [i + 1, str(r["title"])], 16, Color.WHITE, "marker")
+		title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		title.custom_minimum_size.x = cell_w - 16
+		var pad := MarginContainer.new()
+		pad.add_theme_constant_override("margin_left", 8)
+		pad.add_theme_constant_override("margin_right", 8)
+		col.add_child(pad)
+		var words := VBoxContainer.new()
+		words.add_theme_constant_override("separation", 2)
+		pad.add_child(words)
+		words.add_child(title)
+		var detail := _label(str(r["detail"]), 14, Color(1, 1, 1, 0.85), "body")
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		detail.custom_minimum_size.x = cell_w - 16
+		words.add_child(detail)
+	# 見立て・NG日誌・追加の注文・成長予定（あるものだけ、短く）
 	if prod != null:
-		# 見立て：何を何の役に使ったかと、らしさ・コンボのコイン
 		var cast_lines: Array = prod.Cast.lines((t.get("extras", {}) as Dictionary).get("cast", {}))
-		if not cast_lines.is_empty():
-			result_view.add_child(UI.hairline())
-			var cb := VBoxContainer.new()
-			cb.add_theme_constant_override("separation", 2)
-			result_view.add_child(cb)
-			cb.add_child(UI.overline("見立て"))
-			for line: Array in cast_lines:
-				cb.add_child(_coin_row(str(line[0]), int(line[1])))
 		var comments: Array = prod.notes.observations(t.get("extras", {}))
-		if not comments.is_empty():
-			result_view.add_child(UI.hairline())
-			var nb := VBoxContainer.new()
-			nb.add_theme_constant_override("separation", 4)
-			result_view.add_child(nb)
-			nb.add_child(UI.overline("NG日誌"))
-			for c: Variant in comments:
-				var cl := _label(str(c), 15, UI.CLAP_WHITE, "body")
-				cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-				cl.custom_minimum_size.x = 600
-				nb.add_child(cl)
+		if not cast_lines.is_empty() or not comments.is_empty():
+			var cols := HBoxContainer.new()
+			cols.add_theme_constant_override("separation", 40)
+			result_view.add_child(cols)
+			if not cast_lines.is_empty():
+				var cb := VBoxContainer.new()
+				cb.add_theme_constant_override("separation", 2)
+				cb.custom_minimum_size.x = 440
+				cols.add_child(cb)
+				cb.add_child(FilmSet.label("見立て", 16, Color("ffe08a"), "stencil"))
+				for line: Array in cast_lines:
+					cb.add_child(_coin_row(str(line[0]), int(line[1])))
+			if not comments.is_empty():
+				var nb := VBoxContainer.new()
+				nb.add_theme_constant_override("separation", 2)
+				nb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				cols.add_child(nb)
+				nb.add_child(FilmSet.label("NG日誌", 16, Color("ffe08a"), "stencil"))
+				for c: Variant in comments:
+					var cl := _label(str(c), 14, Color.WHITE, "body")
+					cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					cl.custom_minimum_size.x = 440
+					nb.add_child(cl)
 		result_view.add_child(_bonus_result_row(str(prod.bonus_status())))
 		if game.get("crew_skills") != null:
 			var growth: Dictionary = game.crew_skills.preview
 			var amounts: Array[String] = []
 			for role: String in ["actor", "camera", "backstage"]:
 				amounts.append("%s +%d" % [game.crew_skills.Profile.NAMES[role], int(growth.get(role, {}).get("gained", 0))])
-			result_view.add_child(_label("成長予定　%s XP\nNGも含め、納品時に確定します。" % " / ".join(amounts), 15, UI.CLAP_WHITE))
-	result_view.add_child(UI.hairline())
-	# テイクの選び（1つ1枚の札・三つの小さな成否の点）
-	var sel_row := HBoxContainer.new()
-	sel_row.add_theme_constant_override("separation", 8)
-	result_view.add_child(sel_row)
-	for i in game.takes.size():
-		sel_row.add_child(_take_chip(i, i == sel))
-	var fill := Control.new()
-	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sel_row.add_child(fill)
-	if game.takes.size() > 1:
-		sel_row.add_child(_hint_pair("←→", "テイクを選ぶ"))
-	# 操作
-	var sub := HBoxContainer.new()
-	sub.add_theme_constant_override("separation", 8)
-	result_view.add_child(sub)
-	var replay_button := UI.KeyButton.new().setup("見返す", "R", "slate", 15, 36)
-	replay_button.pressed.connect(func() -> void: game.h_replay.rpc_id(1, game.selected))
-	sub.add_child(replay_button)
-	if prod != null and game.production_export != null:
-		var save_button := UI.KeyButton.new().setup("8コマ保存", "P", "slate", 15, 36)
-		save_button.tooltip_text = "見返して8コマをPNGで保存する。保存先：ユーザーデータの film_stills フォルダ"
-		save_button.pressed.connect(func() -> void: game.production_export.begin())
-		sub.add_child(save_button)
-		if saved != "":
-			var open_button := UI.KeyButton.new().setup("フォルダを開く", "O", "slate", 15, 36)
-			open_button.tooltip_text = saved
-			open_button.pressed.connect(func() -> void: game.production_export.open_saved())
-			sub.add_child(open_button)
+			result_view.add_child(_label("成長予定　%s XP（NGも含め、納品時に確定）" % " / ".join(amounts), 14, Color(1, 1, 1, 0.75)))
+	# 札：見返す・8コマ保存 ／ 撮り直す・納品
 	var main_row := HBoxContainer.new()
 	main_row.add_theme_constant_override("separation", 12)
 	result_view.add_child(main_row)
+	var replay_button := UI.KeyButton.new().setup("▶ 見返す", "R", "slate", 16, 44)
+	replay_button.pressed.connect(func() -> void: game.h_replay.rpc_id(1, game.selected))
+	FilmSet.style_sign_button(replay_button, "teal", 16, 44)
+	main_row.add_child(replay_button)
+	if prod != null and game.production_export != null:
+		var save_button := UI.KeyButton.new().setup("8コマ保存", "P", "slate", 15, 44)
+		save_button.tooltip_text = "見返して8コマをPNGで保存する。保存先：ユーザーデータの film_stills フォルダ"
+		save_button.pressed.connect(func() -> void: game.production_export.begin())
+		FilmSet.style_sign_button(save_button, "cream", 15, 44)
+		main_row.add_child(save_button)
+		if saved != "":
+			var open_button := UI.KeyButton.new().setup("フォルダを開く", "O", "slate", 15, 44)
+			open_button.tooltip_text = saved
+			open_button.pressed.connect(func() -> void: game.production_export.open_saved())
+			FilmSet.style_sign_button(open_button, "cream", 15, 44)
+			main_row.add_child(open_button)
+	var fill2 := Control.new()
+	fill2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fill2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_row.add_child(fill2)
 	var left_takes: int = game.MAX_TAKES - game.takes.size()
 	var expired: bool = prod != null and prod.expired
 	var can_retake := left_takes > 0 and not expired
-	var retake_text := "撮り直す　あと%d回" % left_takes
+	var retake_text := "撮り直す"
 	if expired:
 		retake_text = "借り時間終了"
 	elif left_takes <= 0:
@@ -1192,18 +1269,82 @@ func _build_result(t: Dictionary, sel: int, prod: Node, saved: String) -> void:
 	var retake := UI.KeyButton.new().setup(retake_text, "Space", "slate", 17, 48)
 	retake.set_enabled(can_retake)
 	retake.pressed.connect(func() -> void: game.h_retake.rpc_id(1))
+	FilmSet.style_sign_button(retake, "cream", 17, 48)
 	main_row.add_child(retake)
-	var fill2 := Control.new()
-	fill2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fill2.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	main_row.add_child(fill2)
 	var deliver := UI.KeyButton.new().setup("このテイクを納品", "Enter", "tape", 17, 48)
 	deliver.pressed.connect(func() -> void:
 		if game.has_method("request_deliver"):
 			game.request_deliver(game.selected)      # 制作モード：試写会を通す
 		else:
 			game.h_deliver.rpc_id(1, game.selected))
+	FilmSet.style_sign_button(deliver, "mustard", 18, 48)
 	main_row.add_child(deliver)
+	_keep_ink(result_view)
+
+
+# 紙の色への塗り替え（panel は発注の画面のために紙にしてある）から、テイク確認の中身を外す
+func _keep_ink(n: Node) -> void:
+	n.set_meta("papered", true)
+	for c in n.get_children():
+		_keep_ink(c)
+
+
+# ---- 撮影中に、撮影カメラの映像からコマを控える（テイク確認のフィルムに使う。各自の画面だけ） ----
+var _cap_frames: Array = []      # [秒, 絵]
+var _cap_passed := {}            # 場面の番号 → 成立した瞬間の絵
+var _cap_t := 0.0
+var _cap_next := 0.0
+var _cap_on := false
+var _cap_done: Dictionary = {}   # 撮り終えたテイクの {frames, passed}（テイク確認で場面ごとに分ける）
+var _stills := {}                # テイクの番号 → 場面ごとの絵
+
+
+func _capture_take(delta: float) -> void:
+	var S: Dictionary = game.S
+	var on: bool = game.state == S.TAKE and not game.replaying
+	if on and not _cap_on:
+		_cap_frames.clear()
+		_cap_passed.clear()
+		_cap_t = 0.0
+		_cap_next = 0.0
+		if game.takes.is_empty():
+			_stills.clear()
+	if on:
+		_cap_t += delta
+		if _cap_t >= _cap_next:
+			_cap_next = _cap_t + 0.5
+			var tex := _grab_frame()
+			if tex != null:
+				_cap_frames.append([_cap_t, tex])
+		var passed: Array = game.live.get("passed", [])
+		for i in passed.size():
+			if bool(passed[i]) and not _cap_passed.has(i):
+				var shot := _grab_frame()
+				if shot != null:
+					_cap_passed[i] = shot
+	elif _cap_on:
+		_cap_done = {"frames": _cap_frames.duplicate(), "passed": _cap_passed.duplicate(), "index": game.takes.size()}
+	_cap_on = on
+
+
+func _grab_frame() -> Texture2D:
+	if DisplayServer.get_name() == "headless":
+		return null
+	var camera: Node = game.program_camera()
+	if camera == null or not (camera.get("view") is SubViewport):
+		return null
+	var img: Image = (camera.view as SubViewport).get_texture().get_image()
+	if img == null or img.is_empty():
+		return null
+	img.resize(320, 180, Image.INTERPOLATE_BILINEAR)
+	return ImageTexture.create_from_image(img)
+
+
+func _stills_for(sel: int, scenes: int, dur: float) -> Array:
+	if not _stills.has(sel) and not _cap_done.is_empty() and sel == game.takes.size() - 1:
+		_stills[sel] = EditDesk.pick_stills(_cap_done["frames"], _cap_done["passed"], scenes, dur)
+		_cap_done = {}
+	return _stills.get(sel, [])
 
 
 # 「文　　+60」の1行（増えるなら緑、減るなら赤、変わらないなら薄く）

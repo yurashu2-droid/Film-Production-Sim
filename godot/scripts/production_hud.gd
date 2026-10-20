@@ -12,6 +12,7 @@ const ScriptPage := preload("res://scripts/ui/script_page.gd")
 const TalentSlots := preload("res://scripts/ui/talent_slots.gd")
 const PosterWall := preload("res://scripts/ui/poster_wall_3d.gd")
 const SettingsSheet := preload("res://scripts/ui/settings_sheet.gd")
+const BoxOffice := preload("res://scripts/ui/box_office.gd")
 const PHASE_NAMES := ["事務所", "機材を借りる", "トラックに積む", "現場へ移動", "撮影現場", "今回の精算"]
 
 var game: Node
@@ -57,6 +58,9 @@ var _packing_sig := ""
 var _packing_aside: Label
 var _packing_sub: Label
 var _packing_scroll: ScrollContainer
+var _pack_cam: Camera3D            # 積み込み確認の、真上からのカメラ
+var _pack_prev: Camera3D
+var _pack_character: Button        # 積み込み確認の「キャラクターを選ぶ」
 var _settled_notes: Label
 var _settled_expense: Label
 var _settled_wallet: Label
@@ -64,6 +68,8 @@ var _settled_bought: Label
 var _settled_rent: Label
 var _settled_next: Label
 var _settled_head: Label
+var _envelope: Control             # 精算の給料袋
+var _tiles: Array = []            # 精算のボードの数字の札
 var _settled_return: Button
 var _rent: Label
 var _rent_div: Control
@@ -206,13 +212,10 @@ Space で撮り直す、Enter で納品。
 	_build_packing()
 	_build_travel()
 	_build_settled()
-	# 開いて使う画面は、暗い板ではなく紙に（ui/film_set.gd の paperize。あとから足す行も紙の色になる）
+	# 古い作りの画面（発注の案内など）は、暗い板ではなく紙に（ui/film_set.gd の paperize）。
+	# 打ち合わせ・レンタル・積み込み・精算・キャラ選びは、画面全体を紙で包まない：物（テーブル・チラシ・カメラ・ボード・ラック）を、じかに置く
 	var legacy: Node = game.hud
-	var sheets: Array = [_upgrade, _packing, _growth, _settled, briefing._panel, legacy.panel, legacy.catalog._panel]
-	for c in legacy.character_picker.get_children():
-		if c is PanelContainer:
-			sheets.append(c)
-	for p: Control in sheets:
+	for p: Control in [_upgrade, legacy.panel]:
 		FilmSet.paperize(p)
 
 	_warning = _label("", 17, UI.CLAP_WHITE, "bold")
@@ -619,18 +622,55 @@ func _sync_upgrade(production: Node) -> void:
 	pass
 
 
-# 積み込み確認：チェック欄つきのリスト
+# 積み込み確認：左に、本物の軽トラを真上から映すカメラ。右に、積んだ物の名前の一覧
 func _build_packing() -> void:
-	_packing = _panel("slate", Control.PRESET_TOP_LEFT, Vector2.ZERO, 640, 0.0, true, 28, 22)
-	_center(_packing, 640)
-	var packing_rows := _rows(_packing, 12)
+	# 枠も紙も無し：画面ぜんたいが軽トラの真上からの眺めに切り替わり、右に文字をじかに書く
+	_packing = PanelContainer.new()
+	_packing.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	_packing.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_packing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(_packing)
+	var stage := Control.new()
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_packing.add_child(stage)
+	# 文字を書く右側だけ、景色をふんわり暗くする（枠ではなく、かげ）
+	var shade := TextureRect.new()
+	var grad := GradientTexture2D.new()
+	grad.gradient = Gradient.new()
+	grad.gradient.set_color(0, Color(0, 0, 0, 0))
+	grad.gradient.set_color(1, Color(0, 0, 0, 0.62))
+	grad.fill_from = Vector2(0.0, 0.5)
+	grad.fill_to = Vector2(0.45, 0.5)
+	shade.texture = grad
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(shade)
+	shade.anchor_left = 0.42
+	shade.anchor_right = 1.0
+	shade.anchor_bottom = 1.0
+	var packing_rows := VBoxContainer.new()
+	packing_rows.add_theme_constant_override("separation", 10)
+	packing_rows.theme = _outlined_theme()
+	stage.add_child(packing_rows)
+	packing_rows.anchor_left = 0.5
+	packing_rows.anchor_right = 0.5
+	packing_rows.anchor_top = 0.56
+	packing_rows.anchor_bottom = 0.56
+	packing_rows.offset_left = 40
+	packing_rows.offset_right = 40 + LIST_W
+	packing_rows.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_pack_cam = Camera3D.new()
+	_pack_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_pack_cam.near = 0.05
+	_pack_cam.far = 60.0
+	add_child(_pack_cam)
+	_packing.visibility_changed.connect(_on_packing_shown)
 	var head := VBoxContainer.new()
 	head.add_theme_constant_override("separation", 4)
 	packing_rows.add_child(head)
-	head.add_child(UI.overline("PACKING"))
 	var title_row := HBoxContainer.new()
 	head.add_child(title_row)
-	var title := _label("積み込み確認", 24, UI.CLAP_WHITE, "display")
+	var title := FilmSet.label("積み込み確認", 30, UI.CLAP_WHITE, "stencil")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title)
 	_packing_aside = _label("", 15, UI.MUTED, "body")
@@ -640,32 +680,82 @@ func _build_packing() -> void:
 	_packing_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_packing_sub.custom_minimum_size.x = 300
 	head.add_child(_packing_sub)
-	packing_rows.add_child(UI.hairline())
 	_packing_scroll = ScrollContainer.new()
-	_packing_scroll.custom_minimum_size.y = 240
+	_packing_scroll.custom_minimum_size = Vector2(LIST_W, 240)
 	_packing_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	packing_rows.add_child(_packing_scroll)
 	_packing_rows = VBoxContainer.new()
-	_packing_rows.add_theme_constant_override("separation", 8)
+	_packing_rows.add_theme_constant_override("separation", 4)
 	_packing_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_packing_scroll.add_child(_packing_rows)
 	_packing_text = _label("", 15, UI.MUTED)
 	_packing_text.visible = false
 	_packing_rows.add_child(_packing_text)
-	packing_rows.add_child(UI.hairline())
-	_crew = _label("", 17, UI.CLAP_WHITE, "bold")
+	_crew = _label("", 18, Color("ffe08a"), "bold")
 	packing_rows.add_child(_crew)
-	var note := _label("廃材は無料。荷台に積んだ物と手に持った物、それに会社の機材が現場へ行く。足りない機材は、事務所の机の電話か「機材レンタル」で発注する。", 15, UI.MUTED, "body")
+	var note := _label("荷台に積んだ物と手に持った物、それに会社の機材が現場へ行く。廃材は無料。", 14, Color(1, 1, 1, 0.8), "body")
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size.x = 560
+	note.custom_minimum_size.x = LIST_W
 	packing_rows.add_child(note)
+	packing_rows.add_child(UI.gap(4))
 	_depart = _button("全員そろったら出発", "tape", 20, 52)
 	_depart.pressed.connect(func(): game.rpc_id(1, "h_depart"))
+	FilmSet.style_sign_button(_depart, "tomato", 18, 50)
 	packing_rows.add_child(_depart)
 	var packing_character := UI.KeyButton.new().setup("キャラクターを選ぶ", "C", "slate", 15, 36)
 	packing_character.pressed.connect(func(): game.set_character_menu(true))
+	FilmSet.style_sign_button(packing_character, "cream", 15, 36)
 	packing_character.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	packing_rows.add_child(packing_character)
+	_pack_character = packing_character
+
+
+const LIST_W := 400.0
+
+
+# 景色の上にじかに書く字：黒い縁取りで読めるように
+func _outlined_theme() -> Theme:
+	var th := Theme.new()
+	th.set_constant("outline_size", "Label", 7)
+	th.set_color("font_outline_color", "Label", Color(0, 0, 0, 0.8))
+	th.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.45))
+	th.set_constant("shadow_offset_y", "Label", 2)
+	return th
+
+
+# 積み込み確認を開いたら、画面のカメラを軽トラの真上へ。閉じたら元のカメラへ戻す
+func _on_packing_shown() -> void:
+	if _packing.visible:
+		var now := get_viewport().get_camera_3d()
+		if now != _pack_cam:
+			_pack_prev = now
+		_aim_bed_camera()
+		_pack_cam.make_current()
+	elif _pack_cam.current:
+		if _pack_prev != null and is_instance_valid(_pack_prev) and _pack_prev.is_inside_tree():
+			_pack_prev.make_current()
+		else:
+			var me: Node = game.local_player()
+			if me != null and me.get("cam") is Camera3D:
+				(me.cam as Camera3D).make_current()
+
+
+# 軽トラの真上へカメラを置く。運転席が画面の上。軽トラは画面の左寄り（右に一覧を書く場所を空ける）
+func _aim_bed_camera() -> void:
+	var truck: Node3D = game.get("truck")
+	if truck == null or _pack_cam == null:
+		return
+	var deck_c: Vector2 = truck.get("deck_c")
+	var deck_half: Vector2 = truck.get("deck_half")
+	var top: float = float(truck.get("deck_top"))
+	var tr := truck.global_transform
+	var center: Vector3 = tr * Vector3(deck_c.x, top, deck_c.y + deck_half.y * 0.75)
+	_pack_cam.size = deck_half.y * 2.0 * 2.7
+	var fwd: Vector3 = tr.basis.z.normalized()
+	_pack_cam.look_at_from_position(center + Vector3.UP * 14.0, center, fwd)
+	var vp := get_viewport().get_visible_rect().size
+	var wide: float = _pack_cam.size * vp.x / maxf(vp.y, 1.0)
+	_pack_cam.global_position += _pack_cam.global_basis.x * wide * 0.2
 
 
 # 移動：見出しと、細い進み具合の線だけ
@@ -694,81 +784,145 @@ func _build_travel() -> void:
 	travel_rows.add_child(_travel_bar)
 
 
-# 精算：興行収入
+# 精算：映画館の上の「興行成績」のボード（数字の札がパタパタ入れ替わって決まる）、左下に給料袋、右下にスタッフのエンドロール。
+# 紙の枠では包まない（物を画面にじかに置く。ui/box_office.gd）
 func _build_settled() -> void:
-	_growth = _panel("slate", Control.PRESET_TOP_LEFT, Vector2(24, 250), 480, 0.0, true, 24, 20)     # 上の知らせ（カンペ）と重ならない高さ
-	var growth_rows := _rows(_growth, 14)
-	growth_rows.add_child(_label("今回のスタッフ成長", 24, UI.CLAP_WHITE, "display"))
-	growth_rows.add_child(UI.hairline())
-	_growth_text = _label("", 16, UI.CLAP_WHITE)
+	_settled = PanelContainer.new()
+	_settled.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	_settled.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settled.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(_settled)
+	var stage := Control.new()
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settled.add_child(stage)
+	# ボード
+	var board := PanelContainer.new()
+	board.add_theme_stylebox_override("panel", BoxOffice.Marquee.new())
+	stage.add_child(board)
+	board.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	board.custom_minimum_size.x = 640
+	board.offset_left = -320
+	board.offset_right = 320
+	board.offset_top = 74
+	board.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 8)
+	board.add_child(rows)
+	var title := FilmSet.label("興 行 成 績", 30, Color("ffe7a8"), "stencil")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rows.add_child(title)
+	_settled_pay = _ledger_row(rows, "ギャラ（出来に応じて）", true, 0.0)
+	_settled_expense = _ledger_row(rows, "浮かせた制作費", false, 0.35)
+	_settled_bought = _ledger_row(rows, "買った物（貯金から。支払い済み）", false, 0.7)
+	_settled_rent = _ledger_row(rows, "家賃", false, 1.05)
+	var line := ColorRect.new()
+	line.color = Color(1, 1, 1, 0.18)
+	line.custom_minimum_size.y = 2
+	rows.add_child(line)
+	_settled_wallet = _ledger_row(rows, "会社の貯金", true, 1.5)
+	_settled_next = FilmSet.label("", 14, Color(1, 1, 1, 0.6), "body")
+	_settled_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rows.add_child(_settled_next)
+	# 給料袋（左下。少し傾けて置く）
+	_envelope = BoxOffice.Envelope.new()
+	stage.add_child(_envelope)
+	_envelope.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_envelope.offset_left = 56
+	_envelope.offset_top = -260
+	_envelope.offset_right = 356
+	_envelope.offset_bottom = -60
+	_envelope.pivot_offset = Vector2(150, 100)
+	_envelope.rotation = deg_to_rad(-6.0)
+	_settled_head = FilmSet.label("", 1, Color.WHITE, "body")
+	_settled_head.visible = false
+	stage.add_child(_settled_head)
+	# スタッフのエンドロール（右下。黒地に白い字）
+	_growth = PanelContainer.new()
+	var credits := StyleBoxFlat.new()
+	credits.bg_color = Color("0c0c0c")
+	credits.set_content_margin_all(22)
+	credits.content_margin_top = 18
+	credits.shadow_color = Color(0, 0, 0, 0.45)
+	credits.shadow_size = 10
+	_growth.add_theme_stylebox_override("panel", credits)
+	stage.add_child(_growth)
+	_growth.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_growth.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_growth.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_growth.offset_right = -40
+	_growth.offset_bottom = -36
+	_growth.offset_left = -40
+	_growth.offset_top = -36
+	var growth_rows := VBoxContainer.new()
+	growth_rows.add_theme_constant_override("separation", 8)
+	_growth.add_child(growth_rows)
+	var staff := FilmSet.label("STAFF", 20, Color("ffe7a8"), "stencil")
+	staff.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	growth_rows.add_child(staff)
+	_growth_text = FilmSet.label("", 15, Color("e9e4d8"), "body")
 	_growth_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_growth_text.custom_minimum_size.x = 432
+	_growth_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_growth_text.custom_minimum_size.x = 380
 	growth_rows.add_child(_growth_text)
-	growth_rows.add_child(_label("H → スタッフスキルで確認・装備\nキャラや会社が変わっても成長は引き継ぎます。", 14, UI.MUTED))
-	_settled = _panel("slate", Control.PRESET_BOTTOM_RIGHT, Vector2(-504, -470), 480, 0.0, true, 24, 20)
-	var settled_rows := _rows(_settled, 12)
-	var head := VBoxContainer.new()
-	head.add_theme_constant_override("separation", 4)
-	settled_rows.add_child(head)
-	head.add_child(UI.overline("BOX OFFICE"))
-	_settled_head = _label("おつかれさま、制作班！", 24, UI.CLAP_WHITE, "display")
-	head.add_child(_settled_head)
-	settled_rows.add_child(UI.hairline())
-	var hero := VBoxContainer.new()
-	hero.add_theme_constant_override("separation", 0)
-	settled_rows.add_child(hero)
-	hero.add_child(_label("ギャラ（出来に応じて）", 15, UI.MUTED, "body"))
-	var hero_row := HBoxContainer.new()
-	hero_row.add_theme_constant_override("separation", 10)
-	hero.add_child(hero_row)
-	_settled_pay = _label("", 48, UI.CLAP_WHITE, "display")
-	hero_row.add_child(_settled_pay)
-	var unit_box := MarginContainer.new()
-	unit_box.add_theme_constant_override("margin_bottom", 12)
-	unit_box.size_flags_vertical = Control.SIZE_SHRINK_END
-	unit_box.add_child(_label("コイン", 17, UI.MUTED, "body"))
-	hero_row.add_child(unit_box)
-	var ledger := VBoxContainer.new()
-	ledger.add_theme_constant_override("separation", 0)
-	settled_rows.add_child(ledger)
-	_settled_expense = _ledger_row(ledger, "浮かせた制作費", false)
-	_settled_bought = _ledger_row(ledger, "買った物（貯金から。支払い済み）", false)
-	_settled_rent = _ledger_row(ledger, "家賃", false)
-	ledger.add_child(UI.hairline())
-	_settled_wallet = _ledger_row(ledger, "会社の貯金", true)
-	_settled_next = _label("", 14, UI.MUTED, "body")
-	ledger.add_child(_settled_next)
-	settled_rows.add_child(UI.hairline())
 	_settled_note_box = VBoxContainer.new()
-	(_settled_note_box as VBoxContainer).add_theme_constant_override("separation", 6)
-	settled_rows.add_child(_settled_note_box)
-	_settled_note_box.add_child(UI.overline("こぼれ話"))
-	_settled_notes = _label("", 15, UI.CLAP_WHITE, "body")
+	(_settled_note_box as VBoxContainer).add_theme_constant_override("separation", 4)
+	growth_rows.add_child(_settled_note_box)
+	var talk := FilmSet.label("こぼれ話", 15, Color("ffe7a8"), "mincho")
+	talk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settled_note_box.add_child(talk)
+	_settled_notes = FilmSet.label("", 14, Color("e9e4d8"), "body")
 	_settled_notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_settled_notes.custom_minimum_size.x = 432
+	_settled_notes.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_settled_notes.custom_minimum_size.x = 380
 	_settled_note_box.add_child(_settled_notes)
+	var hint := FilmSet.label("H でスタッフスキル（キャラや会社が変わっても引き継ぐ）", 12, Color(1, 1, 1, 0.5), "body")
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	growth_rows.add_child(hint)
+	# 下の真ん中：次の一本へ（と、保存した8コマ）
+	var foot := VBoxContainer.new()
+	foot.add_theme_constant_override("separation", 10)
+	foot.alignment = BoxContainer.ALIGNMENT_END
+	stage.add_child(foot)
+	foot.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	foot.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	foot.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	foot.offset_bottom = -40
+	foot.offset_top = -40
 	_settled_folder = UI.KeyButton.new().setup("保存した8コマのフォルダを開く", "O", "slate", 15, 36)
 	_settled_folder.pressed.connect(func(): game.production_export.open_saved())
-	_settled_folder.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	settled_rows.add_child(_settled_folder)
+	FilmSet.style_sign_button(_settled_folder, "cream", 15, 36)
+	_settled_folder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	foot.add_child(_settled_folder)
 	var return_button := _button("事務所へ戻って、次の一本", "tape", 20, 52)
 	return_button.pressed.connect(func(): game.rpc_id(1, "h_return_office"))
-	settled_rows.add_child(return_button)
+	FilmSet.style_sign_button(return_button, "mustard", 20, 52)
+	foot.add_child(return_button)
 	_settled_return = return_button
+	# 開くたびに、札を回し直す
+	_settled.visibility_changed.connect(func() -> void:
+		if _settled.visible:
+			for tiles: Control in _tiles:
+				tiles.restart())
+	_settled.visible = false
 
 
-func _ledger_row(parent: Control, caption: String, strong: bool) -> Label:
+# ボードの1行：左に字、右に数字の札。数字は見えない label が持ち、札がそれを読んで回る
+# （1つ目の子が字、行ごと隠せる。精算の更新は label.text と行の visible を書くだけ）
+func _ledger_row(parent: Control, caption: String, strong: bool, delay: float = 0.0) -> Label:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size.y = 36
+	row.add_theme_constant_override("separation", 10)
+	row.custom_minimum_size.y = 50 if strong else 44
 	parent.add_child(row)
-	var cap := _label(caption, 15, UI.MUTED, "body")
+	var cap := FilmSet.label(caption, 18 if strong else 16, Color("e9e4d8"), "body")
 	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(cap)
-	var value := _label("", 17, UI.CLAP_WHITE, "bold" if strong else "body")
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var value := _label("", 17, UI.CLAP_WHITE, "bold")
+	value.visible = false
 	row.add_child(value)
+	var tiles: Control = BoxOffice.Tiles.new().setup(value, delay, strong)
+	row.add_child(tiles)
+	_tiles.append(tiles)
 	return value
 
 
@@ -1032,6 +1186,7 @@ func _refresh() -> void:
 		_packing_sub.text = str(production.job().get("title", "今日の撮影"))
 		_packing_text.text = "%s\n借り物  %dコイン\n\n%s" % [production.job().get("title", "今日の撮影"), production.expenses, production.loadout_status()]
 		_rebuild_packing(production.loadout())
+		_aim_bed_camera()
 		_crew.text = production.crew_ready()
 		_depart.disabled = not production.can_depart()
 	if phase == 3:
@@ -1056,6 +1211,9 @@ func _refresh() -> void:
 		UI.recolor(_settled_rent, UI.STAMP_RED.lightened(0.25) if production.bankrupt else UI.CLAP_WHITE)
 		_settled_wallet.text = "%d コイン" % production.wallet
 		_settled_head.text = "家賃が払えない。倒産…" if production.bankrupt else "おつかれさま、制作班！"
+		_envelope.note = _settled_head.text
+		_envelope.empty = production.bankrupt or production.last_payment <= 0
+		_envelope.queue_redraw()
 		_settled_return.text = "新しい会社を立ち上げる" if production.bankrupt else "事務所へ戻って、次の一本"
 		_settled_next.visible = production.hazards and not production.bankrupt
 		if _settled_next.visible:
@@ -1226,62 +1384,66 @@ func _rebuild_packing(data: Dictionary) -> void:
 			_packing_rows.remove_child(c)
 			c.queue_free()
 	# 会社の機材：積まなくても、出発するといっしょに運ばれる
-	var gear_head := HBoxContainer.new()
-	var gear_title := UI.overline("会社の機材")
-	gear_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gear_head.add_child(gear_title)
-	gear_head.add_child(_label("積まなくていい。出発すると、いっしょに運ばれる", 14, UI.GREEN_LIGHT, "bold"))
-	_packing_rows.add_child(gear_head)
-	var gear_grid := GridContainer.new()
-	gear_grid.columns = 7
-	gear_grid.add_theme_constant_override("h_separation", 10)
-	gear_grid.add_theme_constant_override("v_separation", 10)
-	_packing_rows.add_child(gear_grid)
+	_packing_rows.add_child(_pack_head("会社の機材", "積まなくても、いっしょに運ばれる", UI.GREEN_LIGHT))
 	for g: Array in data["gear"]:
-		gear_grid.add_child(Catalog.tile(str(g[0]), str(g[1]), int(g[2]), 72.0, true))
-	_packing_rows.add_child(UI.gap(2))
-	_packing_rows.add_child(UI.hairline())
-	# 荷台：台本（1冊だけ。持つか積むかしないと、置いていく）と、積んだ物を写真で並べる
-	var bed_head := HBoxContainer.new()
-	var bed_title := UI.overline("荷台")
-	bed_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bed_head.add_child(bed_title)
+		_packing_rows.add_child(_pack_line("✓", str(g[1]), int(g[2]), ""))
+	_packing_rows.add_child(UI.gap(6))
+	# 荷台：台本（1冊だけ。持つか積むかしないと、置いていく）と、積んだ物の名前
 	var over: bool = int(data["used"]) > int(data["cap"])
-	bed_head.add_child(_label("積んだ量 %d / %d" % [data["used"], data["cap"]], 14, UI.STAMP_RED.lightened(0.25) if over else UI.MUTED, "bold"))
-	_packing_rows.add_child(bed_head)
-	var gauge := UI.ThinBar.new()
-	gauge.set_value(float(data["used"]), float(data["cap"]), UI.STAMP_RED if over else UI.CLAP_WHITE)
-	_packing_rows.add_child(gauge)
-	var bed := GridContainer.new()
-	bed.columns = 7
-	bed.add_theme_constant_override("h_separation", 10)
-	bed.add_theme_constant_override("v_separation", 10)
-	_packing_rows.add_child(bed)
+	_packing_rows.add_child(_pack_head("荷台", "積んだ量 %d ／ %d" % [data["used"], data["cap"]], UI.STAMP_RED.lightened(0.25) if over else UI.MUTED))
 	var book: Array = data["script"]
 	if not book.is_empty():
-		bed.add_child(Catalog.tile(str(book[0]), str(book[1]) if book[2] else "積み忘れ", 1, 72.0, true, not book[2]))
+		_packing_rows.add_child(_pack_line("✓" if book[2] else "□", str(book[1]), 1, "" if book[2] else "積み忘れ"))
 	for item: Array in data["items"]:
 		# ロープを掛けたかどうかは、ここには出さない（荷台を見て判断する）
-		var bed_tile: Control = Catalog.tile(str(item[0]), str(item[1]), int(item[2]), 72.0, true, false, "落ちそう" if int(item[3]) > 0 else "")
-		bed.add_child(bed_tile)
+		_packing_rows.add_child(_pack_line("✓", str(item[1]), int(item[2]), "落ちそう" if int(item[3]) > 0 else ""))
 	if (data["items"] as Array).is_empty():
-		var empty := _label("廃材や借りた物は、まだ何も積んでいない。", 14, UI.MUTED, "body")
-		_packing_rows.add_child(empty)
+		_packing_rows.add_child(_label("廃材や借りた物は、まだ何も積んでいない。", 14, UI.MUTED, "body"))
 	elif over:
 		var warn := _label("はみ出した物は、道中の段差で落ちるかもしれない。降ろすか、ロープでしばろう（ロープは段ボール置き場）。", 14, UI.STAMP_RED.lightened(0.25), "body")
 		warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		warn.custom_minimum_size.x = 560
+		warn.custom_minimum_size.x = LIST_W - 10
 		_packing_rows.add_child(warn)
 	# 配役表は、ここには出さない（何を何の役に使うかは、台本を持っている人だけが見られる。ほかの人は声で聞く）
 	_fit_packing.call_deferred()
 
 
-# 中身の高さに合わせて、画面に収まる範囲でリストの高さを決める（並べ終わってから測る）
+# 一覧の見出し（左に名前、右に小さな添え書き）
+func _pack_head(title: String, aside: String, aside_color: Color) -> Control:
+	var row := HBoxContainer.new()
+	var t := FilmSet.label(title, 19, Color("ffe08a"), "stencil")
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(t)
+	var a := _label(aside, 14, aside_color, "bold")
+	a.size_flags_vertical = Control.SIZE_SHRINK_END
+	row.add_child(a)
+	return row
+
+
+# 一覧の1行：赤ペンの印、名前、数、添え書き（落ちそう・積み忘れ）
+func _pack_line(mark: String, name_text: String, count: int, warn: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var m := FilmSet.label(mark, 18, Color("7be08f") if mark == "✓" else Color(1, 1, 1, 0.7), "marker")
+	m.custom_minimum_size.x = 18
+	row.add_child(m)
+	var n := FilmSet.label(name_text + ("　×%d" % count if count > 1 else ""), 16, UI.CLAP_WHITE, "marker")
+	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	n.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	row.add_child(n)
+	if warn != "":
+		var w := _label(warn, 14, Color("ff8a7a"), "bold")
+		w.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(w)
+	return row
+
+
+# 一覧の高さは、カメラの高さに合わせる（多ければ一覧の中で流す）
 func _fit_packing() -> void:
 	await get_tree().process_frame
-	var avail: float = game.get_viewport().get_visible_rect().size.y - 24.0 - 16.0 - 490.0
 	var content: float = _packing_rows.get_combined_minimum_size().y
-	_packing_scroll.custom_minimum_size.y = clampf(content + 4.0, 120.0, maxf(avail, 170.0))
+	var avail: float = game.get_viewport().get_visible_rect().size.y - 340.0
+	_packing_scroll.custom_minimum_size.y = clampf(content + 4.0, 120.0, maxf(avail, 160.0))
 
 
 func _panel(kind: String, anchor: int, position_at: Vector2, width: float, stripe: float = 0.0, taped: bool = true, mx: int = 18, my: int = 14) -> PanelContainer:

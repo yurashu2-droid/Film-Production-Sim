@@ -70,7 +70,7 @@ func run() -> void:
 	game.open_menu("packing")
 	await frames(3)
 	check(game.production_hud._packing.visible and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE, "opening the checklist shows the cursor without pressing Esc")
-	var character_button: Control = game.production_hud._packing.get_child(0).get_child(game.production_hud._packing.get_child(0).get_child_count()-1)
+	var character_button: Control = game.production_hud._pack_character
 	mouse_button(character_button.get_global_rect().get_center())
 	check(game.character_open, "checklist button opens character picker with the mouse")
 	game.close_menu()
