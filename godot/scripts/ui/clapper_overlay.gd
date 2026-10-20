@@ -10,6 +10,9 @@ const BOARD := Vector2(1.9, 1.12)
 const STICK_H := 0.17
 const OPEN := 0.27                # 拍子木の開き（ラジアン）
 const ENTER := 0.5                # 入ってくる時間
+const RECOIL_UP := 0.2            # カチンの反動で跳ねる高さ（m）
+const RECOIL_SEC := 0.14          # 跳ね上がる時間
+const GRAVITY := 9.0              # 落ちる速さ（m/秒²。画面の上の大きさに合わせた値）
 const LINE_Y := 0.33              # 板の上の端から、横の罫線まで
 const FILM_PX := 120              # 題名の字の大きさ（長い題名は、板の幅に入るように小さくする）
 const PX := 0.0012                # 字の1ピクセルの大きさ（m）
@@ -19,7 +22,6 @@ var mode := ""
 var take := 1
 var t := 0.0
 var _placed := false              # ready で入ってきて、止まっている
-var _shake := 0.0
 var _view: SubViewport
 var _box: SubViewportContainer
 var _rig: Node3D
@@ -176,64 +178,67 @@ func _process(delta: float) -> void:
 	var vp := get_viewport_rect().size
 	var aspect := vp.x / maxf(1.0, vp.y)
 	var off := Vector3.ZERO           # 止まる場所からのずれ
-	var rz := 0.0
-	var ry := 0.0
+	var rot := Vector3.ZERO           # x＝前後に倒れる・y＝左右に振れる（奥行きの回転）・z＝画面の中での傾き
 	var angle := OPEN
 	var done := false
-	var enter_from := Vector3(-2.3 * aspect / 1.78, -2.1, 0.3)
 	match mode:
 		"ready":
 			var k := clampf(t / ENTER, 0.0, 1.0)
-			var e := _ease_out_back(k)
-			off = enter_from.lerp(Vector3.ZERO, e)
-			rz = lerpf(0.55, 0.0, e)
-			ry = lerpf(0.4, 0.0, e)
+			var pose := _enter_pose(k, aspect)
+			off = pose[0]
+			rot = pose[1]
 			angle = lerpf(0.0, OPEN, _ease_out(k))
 			if k >= 1.0:
 				_placed = true
-				# ため：数字が減るほど、拍子木を少しずつ高く上げる
+				# ため：数字が減るほど、拍子木を少しずつ高く上げる。板はゆっくり奥行きの方向に揺れる（3D の板だと分かるように）
 				var left := float(game.countdown_t) if game != null and "countdown_t" in game else 1.0
 				angle = OPEN + 0.07 * (1.0 - clampf(left / 3.0, 0.0, 1.0)) + 0.015 * sin(t * 9.0)
+				rot += Vector3(0.025 * sin(t * 2.3), 0.04 * sin(t * 1.7), 0.0)
 			_set_right("本番まで", str(int(ceil(float(game.countdown_t)))) if game != null and "countdown_t" in game else "", UI.TAPE)
 		"clap", "cut_clap", "cut":
 			var lead := 0.0 if mode == "clap" else 0.32
 			if lead > 0.0:
 				var k2 := clampf(t / lead, 0.0, 1.0)
-				var e2 := _ease_out_back(k2)
-				off = enter_from.lerp(Vector3.ZERO, e2)
-				rz = lerpf(0.55, 0.0, e2)
-				ry = lerpf(0.4, 0.0, e2)
+				var pose2 := _enter_pose(k2, aspect)
+				off = pose2[0]
+				rot = pose2[1]
 				angle = lerpf(0.0, OPEN, _ease_out(k2))
 			var shut := lead + (0.12 if mode != "clap" else 0.0)
 			if t >= shut:
 				var s := clampf((t - shut) / 0.05, 0.0, 1.0)
 				angle = lerpf(OPEN + 0.07, 0.0, s * s)
-				if s >= 1.0 and _shake <= 0.0 and t < shut + 0.06:
-					_shake = 1.0
-			var leave := shut + 0.5
-			if t > leave:
-				var q := clampf((t - leave) / 0.32, 0.0, 1.0)
-				off += Vector3(0.0, -2.6 * q * q, 0.0)
-				rz += -0.25 * q * q
-				done = q >= 1.0
+			# カチンの反動：閉じた勢いで、板が少し上へ跳ねる（上の端が奥へ倒れる）。跳ね切ったら、そこから自由落下
+			var hit := shut + 0.05
+			if t >= hit:
+				var k3 := clampf((t - hit) / RECOIL_SEC, 0.0, 1.0)
+				off.y += RECOIL_UP * _ease_out(k3)
+				rot.x += -0.2 * sin(k3 * PI * 0.5)
+				if k3 >= 1.0:
+					var ft := t - hit - RECOIL_SEC          # 落ち始めてからの秒。頂点なので、はじめの速さは 0
+					off.y -= 0.5 * GRAVITY * ft * ft
+					off.x += 0.3 * ft
+					rot += Vector3(1.5 * ft, 0.8 * ft, -0.4 * ft)   # 落ちながら、前へ倒れて回る
+					done = off.y < -2.9
 			if mode == "cut":
 				_set_right("", "カット", UI.TAPE)
 			else:
 				_set_right("", "本番", UI.STAMP_RED)
-	# 閉じた瞬間の揺れ
-	if _shake > 0.0:
-		_shake = maxf(0.0, _shake - delta * 4.5)
-		off += Vector3(sin(t * 70.0) * 0.03, cos(t * 55.0) * 0.025, 0) * _shake
-		rz += sin(t * 60.0) * 0.012 * _shake
 	_rig.position = Vector3(0, -0.17, 0) + off
 	_rig.scale = Vector3.ONE * 0.92          # 拍子木を開いても、上の帯にかからない大きさ
-	_rig.rotation = Vector3(0, ry, rz)
+	_rig.rotation = rot
 	_stick.rotation.z = angle
 	if done:
 		mode = ""
 		_placed = false
 		_box.visible = false
 		_view.render_target_update_mode = SubViewport.UPDATE_DISABLED
+
+
+# 入ってくるときの位置と向き（k：0＝画面の左下の外、1＝止まる所）。奥へ寝た板が、起き上がりながら手前へ回ってくる
+func _enter_pose(k: float, aspect: float) -> Array:
+	var e := _ease_out_back(k)
+	var from := Vector3(-2.3 * aspect / 1.78, -2.1, 0.3)
+	return [from.lerp(Vector3.ZERO, e), Vector3(lerpf(-0.75, 0.0, e), lerpf(0.95, 0.0, e), lerpf(0.55, 0.0, e))]
 
 
 func _set_right(caption: String, big: String, col: Color) -> void:
