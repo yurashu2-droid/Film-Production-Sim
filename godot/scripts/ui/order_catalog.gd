@@ -1,23 +1,32 @@
 extends Control
-# 機材レンタルのカタログ（発注画面）。左に写真つきの商品カード、右に注文票。
+# 機材レンタルのカタログ（発注画面）。激安レンタル屋の折り込みチラシと、右の切り取りの注文票。
+#   ・暗くした画面の上に、チラシ（黄色い安い紙・赤と黒の2色刷り）と注文票の紙をじかに置く（外側の枠は無い）
 #   ・写真は tools/render_catalog.gd が実物の3Dモデルから撮ったもの（assets/ui/catalog）
-#   ・カードをクリックで入れる／外す。火薬の袋だけは −／＋ で数を決める
-#   ・くり返し使える物は、カードの下で「借りる（制作費から）／買う（会社の貯金から）」を選ぶ。
+#   ・品物をクリックで入れる／外す。入れた品物は赤ペンで丸く囲む。火薬の袋だけは −／＋ で数を決める
+#   ・くり返し使える物は、品物の下で「借りる（制作費から）／買う（会社の貯金から）」を選ぶ。
 #     買った物は会社の持ち物になり、次からは「持っている」と出て、注文の対象から外れる
 #   ・右は注文票と値段だけ。配役表・今日の廃材の一覧・場面の並びは出さない（発注する人は、現物の一覧を見られない。
 #     廃材置き場に何が在るかは、集めに行った人に聞く）
+#   ・飾りの星・丸は、品物の情報から言える事だけ（いちばん安い・1袋ずつ・説明の一言）
 const UI := preload("res://scripts/ui/ui_theme.gd")
 const Cast := preload("res://scripts/production_cast.gd")
 const THUMBS := "res://assets/ui/catalog/"
 const PHOTO := {"balcony": "set_balcony", "fx": "fx", "refill": "fx_powder", "fuse": "fx_fuse", "dolly": "dolly", "fix": "sandbag", "rose": "rose"}
 const PAPER_TILE := Color("e4e1d8")
-const SLIP_W := 336.0
+const SLIP_W := 300.0
+# 飾り（品物の説明から言える一言だけ）。いちばん安い品物には、ほかに「最安」の星が付く
+const BADGES := {"balcony": ["star", "置くだけで\n城！"], "refill": ["round", "1袋\nずつ"]}
+const RED := Color("d63a26")
+const INK := Color("1c1a17")
+const SOFT := Color("4a453d")
 
 var game: Node
 var rows: Array = []            # カードごとの部品（hud._opt_rows と同じ並び）
 var confirm: Button
 
-var _panel: PanelContainer
+var _panel: Control               # チラシと注文票を並べる置き場（地は透明）
+var _flyer: PanelContainer
+var _head: Control
 var _scroll: ScrollContainer      # レンタルと備品のカードの欄（画面に入りきらないと、中で流す）
 var _title: Label
 var _sub: Label
@@ -92,171 +101,276 @@ static func tile(kind: String, label: String, count: int = 1, px: float = 42.0, 
 	return col
 
 
+# 字（色はここで決める。紙の色への塗り替え：FilmSet.paperize は、この画面には要らない）
+static func _ink(text: String, px: int, color: Color, kind: String) -> Label:
+	var l: Label
+	if kind in ["marker", "stencil", "mincho", "mono"]:
+		l = FilmSet.label(text, px, color, kind)
+	else:
+		l = UI.label(text, px, color, kind)
+	return l
+
+
+static func _paint(l: Label, color: Color) -> void:
+	l.add_theme_color_override("font_color", color)
+
+
 func build(owner_game: Node) -> void:
 	game = owner_game
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.58)
+	dim.color = Color(0, 0, 0, 0.62)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
-	_panel = UI.panel("slate", 0.0, true, 28, 22)
+	# 置き場：チラシ（左）と注文票（右）。置き場そのものは描かない
+	var holder := HBoxContainer.new()
+	holder.add_theme_constant_override("separation", 18)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel = holder
 	add_child(_panel)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 14)
-	_panel.add_child(col)
 
-	# 見出し：左に題、右に会社の残金
+	# ---- チラシ ----
+	_flyer = PanelContainer.new()
+	_flyer.add_theme_stylebox_override("panel", FlyerStyle.new())
+	_flyer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_flyer.mouse_filter = Control.MOUSE_FILTER_PASS
+	holder.add_child(_flyer)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	_flyer.add_child(col)
+
+	# 見出し：左に店の名前と、いまの画面の札。右に財布（制作費と会社の貯金）
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 24)
+	head.add_theme_constant_override("separation", 18)
 	col.add_child(head)
+	_head = head
 	var head_l := VBoxContainer.new()
 	head_l.add_theme_constant_override("separation", 2)
 	head_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(head_l)
-	head_l.add_child(UI.overline("RENTAL"))
-	_title = UI.label("機材レンタル", 28, UI.CLAP_WHITE, "display")
-	head_l.add_child(_title)
-	_sub = UI.label("", 15, UI.MUTED, "body")
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 16)
+	head_l.add_child(name_row)
+	var shop := _ink("格安レンタル", 50, RED, "stencil")
+	shop.add_theme_color_override("font_shadow_color", INK)
+	shop.add_theme_constant_override("shadow_offset_x", 3)
+	shop.add_theme_constant_override("shadow_offset_y", 3)
+	name_row.add_child(shop)
+	_title = _ink("機材レンタル", 18, Color("ffd43b"), "stencil")
+	var tag := StyleBoxFlat.new()
+	tag.bg_color = INK
+	tag.content_margin_left = 10
+	tag.content_margin_right = 10
+	tag.content_margin_top = 2
+	tag.content_margin_bottom = 4
+	_title.add_theme_stylebox_override("normal", tag)
+	_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(_title)
+	_sub = _ink("", 14, INK, "mincho")
+	_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sub.custom_minimum_size.x = 360
 	head_l.add_child(_sub)
-	# 財布は2つ：会社の貯金（買う物）と、この依頼の制作費（借りる物・火薬）
-	var head_s := VBoxContainer.new()
-	head_s.add_theme_constant_override("separation", 0)
-	head_s.size_flags_vertical = Control.SIZE_SHRINK_END
-	head.add_child(head_s)
-	var savings_cap := UI.overline("会社の貯金（買う物）")
-	savings_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	head_s.add_child(savings_cap)
-	_savings = UI.label("", 30, UI.CLAP_WHITE, "display")
-	_savings.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	head_s.add_child(_savings)
-	_savings_box = head_s
-	var head_r := VBoxContainer.new()
-	head_r.add_theme_constant_override("separation", 0)
-	head_r.size_flags_vertical = Control.SIZE_SHRINK_END
-	head.add_child(head_r)
-	_wallet_cap = UI.overline("会社の残金")
-	_wallet_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	head_r.add_child(_wallet_cap)
-	_wallet = UI.label("", 30, UI.CLAP_WHITE, "display")
+	# 財布は2つ：会社の貯金（買う物）と、この依頼の制作費（借りる物・火薬）。黒い枠の囲みに
+	var purse := PanelContainer.new()
+	var pb := StyleBoxFlat.new()
+	pb.bg_color = Color(1, 1, 1, 0.55)
+	pb.border_color = INK
+	pb.set_border_width_all(2)
+	pb.content_margin_left = 12
+	pb.content_margin_right = 12
+	pb.content_margin_top = 6
+	pb.content_margin_bottom = 6
+	purse.add_theme_stylebox_override("panel", pb)
+	purse.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	purse.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_child(purse)
+	var purse_col := VBoxContainer.new()
+	purse_col.add_theme_constant_override("separation", 0)
+	purse.add_child(purse_col)
+	var wallet_row := HBoxContainer.new()
+	wallet_row.add_theme_constant_override("separation", 10)
+	purse_col.add_child(wallet_row)
+	_wallet_cap = _ink("会社の残金", 14, INK, "mincho")
+	_wallet_cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wallet_cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	wallet_row.add_child(_wallet_cap)
+	_wallet = _ink("", 26, RED, "stencil")
 	_wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	head_r.add_child(_wallet)
-	col.add_child(UI.hairline())
+	wallet_row.add_child(_wallet)
+	var savings_row := HBoxContainer.new()
+	savings_row.add_theme_constant_override("separation", 10)
+	purse_col.add_child(savings_row)
+	var savings_cap := _ink("会社の貯金（買う物）", 14, INK, "mincho")
+	savings_cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	savings_cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	savings_row.add_child(savings_cap)
+	_savings = _ink("", 26, INK, "stencil")
+	_savings.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	savings_row.add_child(_savings)
+	_savings_box = savings_row
+	col.add_child(DoubleRule.new())
 
-	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 24)
-	col.add_child(body)
-	_grid = GridContainer.new()
-	# 品数が6つまでは3列。それより多ければ4列にして、2段に収める
-	_grid.columns = 3 if game.OPTIONS.size() <= 6 else 4
-	_grid.add_theme_constant_override("h_separation", 12)
-	_grid.add_theme_constant_override("v_separation", 12)
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(_grid)
-	for i in game.OPTIONS.size():
-		_grid.add_child(_card(i))
-	body.add_child(UI.hairline(true))
-	# 左の列：上にレンタルのカード、下に備品（買い切り）
-	body.remove_child(_grid)
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 12)
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# 品数が多いと、画面の下からはみ出す。カードの欄だけを、画面に入る高さで流せるようにする（_fit）
+	# 品物の欄。品数が多いと、画面の下からはみ出す。この欄だけを、画面に入る高さで流せるようにする（_fit）
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(left)
-	body.add_child(_scroll)
-	body.move_child(_scroll, 0)
+	_style_scroll(_scroll)
+	col.add_child(_scroll)
+	var pad := MarginContainer.new()               # 赤ペンの丸と飾りの星が、流す欄の端で切れないように
+	pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for side: String in ["left", "right", "top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, 12)
+	_scroll.add_child(pad)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 12)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_child(left)
+	_grid = GridContainer.new()
+	# 品数が6つまでは2列、9つまでは3列、それより多ければ4列
+	_grid.columns = 2 if game.OPTIONS.size() <= 4 else (3 if game.OPTIONS.size() <= 9 else 4)
+	_grid.add_theme_constant_override("h_separation", 18)
+	_grid.add_theme_constant_override("v_separation", 16)
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.add_child(_grid)
+	var cheapest := ""
+	var low := 1 << 30
+	for o: Dictionary in game.OPTIONS:
+		if int(o["cost"]) < low:
+			low = int(o["cost"])
+			cheapest = str(o["id"])
+	for i in game.OPTIONS.size():
+		_grid.add_child(_card(i, str(game.OPTIONS[i]["id"]) == cheapest))
 	_gear = VBoxContainer.new()
 	_gear.visible = false
 	left.add_child(_gear)
-	body.add_child(_slip())
+
+	# ---- 注文票（切り取り線で囲んだ、白い紙） ----
+	holder.add_child(_slip())
+	_seal(self)
 	visible = false
 	resized.connect(_fit)
 	_fit()
 
 
-# 画面の広さに合わせて板の幅を決める（狭い画面ではカードを細くする）
+# この画面の字と紙の色は、ここで決めてある。あとから紙の塗り替え（FilmSet.paperize）が掛かっても変えない
+func _seal(n: Node) -> void:
+	n.set_meta("papered", true)
+	for c in n.get_children(true):
+		_seal(c)
+
+
+func _style_scroll(s: ScrollContainer) -> void:
+	var bar := s.get_v_scroll_bar()
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(0, 0, 0, 0.08)
+	track.content_margin_left = 5
+	track.content_margin_right = 5
+	var grab := StyleBoxFlat.new()
+	grab.bg_color = Color(INK, 0.6)
+	grab.content_margin_left = 5
+	grab.content_margin_right = 5
+	bar.add_theme_stylebox_override("scroll", track)
+	bar.add_theme_stylebox_override("grabber", grab)
+	bar.add_theme_stylebox_override("grabber_highlight", grab)
+	bar.add_theme_stylebox_override("grabber_pressed", grab)
+
+
+# 画面の広さに合わせて、チラシと注文票の幅を決める（狭い画面では品物を細くする）
 func _fit() -> void:
-	var w := clampf(size.x - 48.0, 960.0, minf(1180.0, size.x - 24.0))
+	var w := clampf(size.x - 60.0, 980.0, minf(1340.0, size.x - 24.0))
 	_panel.custom_minimum_size.x = w
 	_panel.offset_left = -w * 0.5
 	_panel.offset_right = w * 0.5
 	# 縦：見出しと余白のぶんを引いた高さまで（それより長い一覧は、中で流す）
 	if _scroll != null and size.y > 0.0:
 		var need: float = (_scroll.get_child(0) as Control).get_combined_minimum_size().y
-		_scroll.custom_minimum_size.y = minf(need, maxf(240.0, size.y - 250.0))
-	_panel.offset_top = 0
-	_panel.offset_bottom = 0
+		var paper := _flyer.get_theme_stylebox("panel")
+		var fixed: float = _head.get_combined_minimum_size().y + 8.0 * 2.0 + 10.0 + paper.content_margin_top + paper.content_margin_bottom
+		# 上下には、上の帯（撮影カメラの枠）と重ならない余白を残す
+		_scroll.custom_minimum_size.y = minf(need, maxf(240.0, size.y - 120.0 - fixed))
+	_panel.offset_top = 18
+	_panel.offset_bottom = 18
 
 
-func _card(i: int) -> Control:
+func _card(i: int, cheapest: bool) -> Control:
 	var o: Dictionary = game.OPTIONS[i]
 	var many: bool = int(o["max"]) > 1
 	var cb := UI.ClickBox.new()
 	cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cb.custom_minimum_size = Vector2(228 if game.OPTIONS.size() <= 6 else 168, 0)
-	var normal := UI.box(Color(1, 1, 1, 0.035), UI.LINE, 1, 6, 10, 10)
-	var hover := UI.box(Color(1, 1, 1, 0.07), Color(1, 1, 1, 0.22), 1, 6, 10, 10)
-	var chosen := UI.box(Color(1, 1, 1, 0.09), UI.CLAP_WHITE, 2, 6, 9, 9)
-	cb.set_styles(normal, hover, chosen)
+	cb.custom_minimum_size = Vector2(200, 0)
+	cb.set_styles(_card_box(Color(0, 0, 0, 0)), _card_box(Color(1, 1, 1, 0.32)), _card_box(Color(1, 1, 1, 0.2)))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
+	v.add_theme_constant_override("separation", 5)
 	cb.add_child(v)
 
-	# 写真：明るい紙の上に実物を置く
+	# 写真：白い地に実物（チラシの商品写真）
 	var photo := PanelContainer.new()
-	photo.custom_minimum_size.y = 88
+	photo.custom_minimum_size.y = 84
 	photo.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	photo.add_theme_stylebox_override("panel", UI.box(PAPER_TILE, Color(0, 0, 0, 0), 0, 4, 10, 10))
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color("fffdf4")
+	ps.border_color = Color(INK, 0.55)
+	ps.set_border_width_all(1)
+	ps.content_margin_left = 6
+	ps.content_margin_right = 6
+	ps.content_margin_top = 6
+	ps.content_margin_bottom = 6
+	photo.add_theme_stylebox_override("panel", ps)
 	v.add_child(photo)
 	var pic := TextureRect.new()
 	pic.texture = thumb(str(PHOTO.get(o["id"], o["id"])))
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	photo.add_child(pic)
-	var corner := MarginContainer.new()
-	photo.add_child(corner)
-	var mark := UI.ShotBox.new()
-	mark.size_flags_horizontal = Control.SIZE_SHRINK_END
-	mark.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	mark.visible = false
-	corner.add_child(mark)
+	# 飾りの星・丸（写真の左上の角にかける。置き場はただの Control なので、傾けたまま置ける）
+	var deco: Array = BADGES.get(o["id"], ["star", "最安"] if cheapest else [])
+	if not deco.is_empty():
+		var slot := Control.new()
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		photo.add_child(slot)
+		var round: bool = deco[0] == "round"
+		var long: bool = str(deco[1]).length() > 4
+		var badge := CatalogPrint.Badge.new().setup(str(deco[1]), str(deco[0]), (92.0 if long else 76.0) if not round else 66.0, 16 if long else 20,
+			Color("ffd43b") if not round else RED, RED if not round else Color("fff6dc"), -12.0 if not round else 8.0)
+		badge.face = UI.fnt("display")
+		badge.position = Vector2(-24, -12)
+		slot.add_child(badge)
 
 	var name_row := HBoxContainer.new()
-	name_row.add_theme_constant_override("separation", 8)
+	name_row.add_theme_constant_override("separation", 4)
 	v.add_child(name_row)
-	# 4列のときはカードが細いので、長い名前は2行に折り返す
-	var compact: bool = game.OPTIONS.size() > 6
-	var name_label := UI.label(str(o["name"]).trim_prefix("借りる"), 15 if compact else 16, UI.CLAP_WHITE, "bold")
+	var name_label := _ink(str(o["name"]).trim_prefix("借りる"), 17, INK, "bold")
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_END
 	name_label.custom_minimum_size.x = 60
-	if compact:
-		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	else:
-		name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_row.add_child(name_label)
-	var price := UI.label(str(o["cost"]), 17, UI.CLAP_WHITE, "bold")
+	var price := _ink(str(o["cost"]), 30, RED, "stencil")
+	price.size_flags_vertical = Control.SIZE_SHRINK_END
 	name_row.add_child(price)
-	var desc := UI.label(str(o["desc"]), 13, UI.MUTED, "body")
+	var unit := _ink("コイン", 12, INK, "mincho")
+	unit.size_flags_vertical = Control.SIZE_SHRINK_END
+	name_row.add_child(unit)
+	var desc := _ink(str(o["desc"]), 12, SOFT, "mincho")
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(120, 40)
+	desc.custom_minimum_size = Vector2(120, 30)
+	desc.max_lines_visible = 2
+	desc.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	desc.tooltip_text = str(o["desc"])
 	v.add_child(desc)
 
 	# いちばん下の1行：いまの状態。充填だけは数を選ぶ
 	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 8)
+	foot.add_theme_constant_override("separation", 6)
 	foot.custom_minimum_size.y = 28
 	v.add_child(foot)
-	var state := UI.label("", 13, UI.MUTED, "bold")
+	var state := _ink("", 13, SOFT, "bold")
 	state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	state.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	# 文の長さでカードの幅が変わらないようにする（列の幅をそろえる）
@@ -283,21 +397,73 @@ func _card(i: int) -> Control:
 		foot.add_child(buy)
 		rent.pressed.connect(func() -> void: _toggle(i))
 		buy.pressed.connect(func() -> void: _buy(i))
-	# 会社がもう持っている物：ボタンの代わりに、緑の札を出す
+	# 会社がもう持っている物：ボタンの代わりに、赤い枠の札を出す
 	var own := PanelContainer.new()
-	own.add_theme_stylebox_override("panel", UI.box(Color(UI.OK_GREEN, 0.16), UI.OK_GREEN, 1, 4, 6, 0))
+	var os := StyleBoxFlat.new()
+	os.bg_color = Color(1, 1, 1, 0.4)
+	os.border_color = RED
+	os.set_border_width_all(2)
+	os.content_margin_left = 6
+	os.content_margin_right = 6
+	own.add_theme_stylebox_override("panel", os)
 	own.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	own.custom_minimum_size.y = 28
 	own.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	own.visible = false
-	var own_text := UI.label("持っている", 13, UI.GREEN_LIGHT, "bold")
+	var own_text := _ink("持っている", 14, RED, "bold")
 	own_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	own.add_child(own_text)
 	foot.add_child(own)
+	# 入れた品物を囲む赤ペンの丸（カードのいちばん上に重ねる）
+	var mark := CatalogPrint.PenRing.new()
+	mark.seed = 11 + i * 37
+	mark.pad = Vector2(12, 10)
+	mark.width = 3.2
+	cb.add_child(mark)
 	cb.hovered.connect(func() -> void: game.order_cursor = i)
 	cb.pressed.connect(func() -> void: _toggle(i))
-	rows.append({"box": cb, "mark": mark, "state": state, "price": price, "minus": minus, "plus": plus, "pic": pic, "rent": rent, "buy": buy, "own": own})
+	rows.append({"box": cb, "mark": mark, "state": state, "price": price, "unit": unit, "minus": minus, "plus": plus, "pic": pic, "rent": rent, "buy": buy, "own": own})
 	return cb
+
+
+func _card_box(bg: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = Color(INK, 0.28)
+	s.border_width_bottom = 1
+	s.content_margin_left = 8
+	s.content_margin_right = 8
+	s.content_margin_top = 8
+	s.content_margin_bottom = 10
+	return s
+
+
+# 刷った小さな枠のボタン。on：赤く塗る / 足りない：赤い字で、押せない
+func _print_button(b: Button, on: bool, px: int = 13) -> void:
+	var mk := func(bg: Color, border: Color) -> StyleBoxFlat:
+		var s := StyleBoxFlat.new()
+		s.bg_color = bg
+		s.border_color = border
+		s.set_border_width_all(2 if not on else 0)
+		s.content_margin_left = 6
+		s.content_margin_right = 6
+		s.content_margin_top = 2
+		s.content_margin_bottom = 3
+		return s
+	var base := RED if on else Color(1, 1, 1, 0.35)
+	b.add_theme_stylebox_override("normal", mk.call(base, INK))
+	b.add_theme_stylebox_override("hover", mk.call(RED.lightened(0.12) if on else Color(1, 1, 1, 0.8), RED))
+	b.add_theme_stylebox_override("pressed", mk.call(RED.darkened(0.15) if on else Color(1, 1, 1, 0.6), INK))
+	b.add_theme_stylebox_override("hover_pressed", mk.call(RED.darkened(0.15), INK))
+	b.add_theme_stylebox_override("disabled", mk.call(Color(1, 1, 1, 0.15), Color(INK, 0.25)))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var ink := Color("fff6dc") if on else INK
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(key, ink)
+	b.add_theme_color_override("font_disabled_color", Color(RED, 0.75))
+	b.add_theme_font_override("font", UI.fnt("bold"))
+	b.add_theme_font_size_override("font_size", px)
+	b.custom_minimum_size.y = 28
 
 
 # 「借りる」「買う」のボタン
@@ -312,90 +478,126 @@ func _pick(text: String, tip: String) -> Button:
 	return b
 
 
-# on：選んである（黄色）/ short：お金が足りない（赤い字で、押せない）
+# on：選んである（赤く塗る）/ short：お金が足りない（赤い字で、押せない）
 func _set_pick(b: Button, on: bool, short: bool) -> void:
 	var look := "on" if on else ("short" if short else "off")
 	if b.has_meta("look") and str(b.get_meta("look")) == look:
 		return
 	b.set_meta("look", look)
-	UI.style_button(b, "tape" if on else "slate", 13, 28)
-	for part: String in ["normal", "hover", "pressed", "disabled"]:
-		var sb := b.get_theme_stylebox(part) as StyleBoxFlat
-		if sb != null:
-			sb.content_margin_left = 6
-			sb.content_margin_right = 6
+	_print_button(b, on)
 	b.disabled = short and not on
-	b.add_theme_color_override("font_disabled_color", UI.STAMP_RED.lightened(0.25))
 
 
 func _step(text: String) -> Button:
 	var b := Button.new()
 	b.text = text
-	UI.style_button(b, "slate", 15, 28)
-	b.custom_minimum_size = Vector2(34, 28)
+	_print_button(b, false, 15)
+	b.custom_minimum_size = Vector2(32, 28)
 	b.focus_mode = Control.FOCUS_NONE
 	return b
 
 
 func _slip() -> Control:
+	var paper := PanelContainer.new()
+	paper.add_theme_stylebox_override("panel", SlipStyle.new())
+	paper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	paper.mouse_filter = Control.MOUSE_FILTER_PASS
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
+	v.add_theme_constant_override("separation", 6)
 	v.custom_minimum_size.x = SLIP_W
-	v.add_child(UI.overline("今日の一本"))
-	_job_title = UI.label("", 18, UI.CLAP_WHITE, "bold")
+	paper.add_child(v)
+	var title := _ink("注文票", 30, RED, "mincho")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	v.add_child(_ink("今日の一本", 13, RED, "mincho"))
+	_job_title = _ink("", 21, INK, "marker")
 	_job_title.custom_minimum_size.x = SLIP_W
 	_job_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	v.add_child(_job_title)
-	_job_sub = UI.label("", 13, UI.MUTED, "body")
+	_job_sub = _ink("", 14, SOFT, "marker")
 	_job_sub.custom_minimum_size.x = SLIP_W
 	_job_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_job_sub)
 	# 発注する人（監督）への一言。現物の一覧は、ここには出さない
-	_ask = UI.label("廃材置き場に何が在るかは、ここからは見えない。集めに行った人に、声で聞こう。", 13, UI.MUTED, "body")
+	_ask = _ink("廃材置き場に何が在るかは、ここからは見えない。集めに行った人に、声で聞こう。", 13, SOFT, "mincho")
 	_ask.custom_minimum_size.x = SLIP_W
 	_ask.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_ask)
-	var fill := Control.new()
-	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(fill)
-	v.add_child(UI.hairline())
-	v.add_child(UI.overline("注文票"))
+	v.add_child(UI.gap(4))
+	var items_cap := _ink("品名　　　　　　　　　　　金額", 13, RED, "mincho")
+	v.add_child(items_cap)
 	_lines = VBoxContainer.new()
 	_lines.add_theme_constant_override("separation", 2)
+	_lines.custom_minimum_size.y = 120
 	v.add_child(_lines)
-	v.add_child(UI.hairline())
-	var total_row := _pair("合計", 17, "bold")
+	var total_row := _pair("合計", 20, "bold")
 	_total = total_row[1]
 	_total_cap = total_row[2]
 	v.add_child(total_row[0])
-	var paid_row := _pair("貯金から（買う物）", 14, "body")
+	var paid_row := _pair("貯金から（買う物）", 15, "body")
 	_paid = paid_row[1]
 	_paid_row = paid_row[0]
 	_paid_row.visible = false
 	v.add_child(_paid_row)
-	var after_row := _pair("支払い後の残金", 14, "body")
+	var after_row := _pair("支払い後の残金", 15, "body")
 	_after_cap = after_row[2]
 	_after = after_row[1]
 	v.add_child(after_row[0])
-	v.add_child(UI.gap(2))
-	confirm = UI.KeyButton.new().setup("この内容で借りる", "Enter", "tape", 17, 48)
+	v.add_child(UI.gap(6))
+	confirm = UI.KeyButton.new().setup("この内容で借りる", "Enter", "slate", 18, 48)
+	_style_main(confirm as UI.KeyButton)
 	confirm.pressed.connect(func() -> void: game.h_order_confirm.rpc_id(1))
 	v.add_child(confirm)
 	# 決めずに閉じる（制作モードだけ）。選びかけの注文は、前に決めた注文へ戻る
 	_skip = UI.KeyButton.new().setup("閉じる（注文は変えない）", "Esc", "slate", 15, 36)
+	_print_button(_skip, false, 15)
+	_fit_cap(_skip as UI.KeyButton, INK)
 	_skip.pressed.connect(_close)
 	v.add_child(_skip)
-	return v
+	return paper
 
 
-# 左に名前、右に数字の1行。[行, 数字, 名前]
+# 注文するボタン：赤く刷った四角に、白い字
+func _style_main(b: UI.KeyButton) -> void:
+	for part: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var s := StyleBoxFlat.new()
+		s.bg_color = {"normal": RED, "hover": RED.lightened(0.1), "pressed": RED.darkened(0.15), "hover_pressed": RED.darkened(0.15), "disabled": Color(RED, 0.4)}[part]
+		s.border_color = INK
+		s.border_width_bottom = 3
+		s.content_margin_left = 16
+		s.content_margin_top = 6
+		s.content_margin_bottom = 8
+		b.add_theme_stylebox_override(part, s)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(key, Color("fff6dc"))
+	b.add_theme_font_override("font", UI.fnt("display"))
+	_fit_cap(b, Color("fff6dc"))
+
+
+# キーの印（Enter・Esc）のぶん、右の余白をあけ直す。印の色も紙に合わせる
+func _fit_cap(b: UI.KeyButton, ink: Color) -> void:
+	if b.cap == null:
+		return
+	b.cap.ink = ink
+	b.cap.line = Color(ink, 0.6)
+	for part: String in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		var s := b.get_theme_stylebox(part)
+		if s != null:
+			s.content_margin_left = 16
+			s.content_margin_right = 16 + b.cap.custom_minimum_size.x + 8.0
+
+
+# 左に名前、右に数字の1行（下に罫線）。[行, 数字, 名前]
 func _pair(text: String, px: int, kind: String) -> Array:
-	var row := HBoxContainer.new()
-	var cap := UI.label(text, px, UI.CLAP_WHITE if kind == "bold" else UI.MUTED, kind)
+	var row := CatalogPrint.RuledRow.new()
+	row.dotted = kind != "bold"
+	row.line = Color(RED, 0.55)
+	var cap := _ink(text, px - 2 if kind == "bold" else px - 1, RED if kind == "bold" else SOFT, "mincho")
 	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cap.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(cap)
-	var num := UI.label("", px, UI.CLAP_WHITE, "bold")
+	var num := _ink("", px + 2, INK, "marker")
 	row.add_child(num)
 	return [row, num, cap]
 
@@ -470,7 +672,7 @@ func sync(prod: Node) -> void:
 	_total.text = "%d" % used
 	_paid_row.visible = paid > 0
 	_paid.text = "%d（残り %d）" % [paid, purse - paid]
-	UI.recolor(_after, UI.STAMP_RED.lightened(0.25) if limit - used < 0 else UI.CLAP_WHITE)
+	_paint(_after, RED if limit - used < 0 else INK)
 
 	var has_bomb: bool = int(game.order.get("fx", 0)) > 0 or game.buying.has("fx") or game.owns("fx")
 	for i in rows.size():
@@ -488,13 +690,13 @@ func sync(prod: Node) -> void:
 		var picked: bool = n > 0 or buy_on
 		var cb: UI.ClickBox = r["box"]
 		cb.set_active(picked)
-		cb.modulate.a = 1.0 if usable else 0.45
-		(r["mark"] as UI.ShotBox).visible = picked
-		(r["mark"] as UI.ShotBox).set_on(picked)
+		cb.modulate.a = 1.0 if usable else 0.5
+		(r["mark"] as CatalogPrint.PenRing).set_on(picked)
 		var state: Label = r["state"]
 		state.visible = not choice and not own
 		(r["own"] as Control).visible = own
 		(r["price"] as Label).visible = not choice and not own
+		(r["unit"] as Label).visible = not choice and not own
 		if r["rent"] != null:
 			(r["rent"] as Button).visible = choice
 			(r["buy"] as Button).visible = choice
@@ -510,16 +712,14 @@ func sync(prod: Node) -> void:
 			state.text = "%s　×%d" % [str(o.get("unit", "買う")), n]      # unit：数え方（役者は「雇う」）
 		else:
 			state.text = "注文に入れた" if n > 0 else "クリックで入れる"
-		if own:
-			UI.recolor(state, UI.GREEN_LIGHT)
-		else:
-			UI.recolor(state, UI.CLAP_WHITE if n > 0 else (UI.STAMP_RED.lightened(0.25) if short and usable else UI.MUTED))
-		UI.recolor(r["price"], UI.MUTED if short else UI.CLAP_WHITE)
+		_paint(state, INK if n > 0 else (RED if short and usable else SOFT))
+		# 制作費が足りない値段は、少し薄く
+		(r["price"] as Label).modulate.a = 0.4 if short else 1.0
 		if many:
 			(r["minus"] as Button).disabled = n <= 0
 			(r["plus"] as Button).disabled = n >= int(game.order_max(o)) or not usable
 
-	# 注文票の行（中身が変わったときだけ組み直す）
+	# 注文票の行（中身が変わったときだけ組み直す）。品名と金額は、手書きで
 	var sig := str(game.order) + str(game.buying) + str(prod != null)
 	if sig != _sig:
 		_sig = sig
@@ -533,10 +733,102 @@ func sync(prod: Node) -> void:
 				continue
 			any = true
 			var item := str(o["name"]).trim_prefix("借りる")
-			var row := _pair(item + "（買う）" if bought else item + ("　×%d" % n if n > 1 else ""), 14, "body")
-			UI.recolor(row[2], UI.CLAP_WHITE)
+			var row := _pair(item + "（買う）" if bought else item + ("　×%d" % n if n > 1 else ""), 15, "body")
+			var cap: Label = row[2]
+			cap.add_theme_font_override("font", FilmSet.font("marker"))
+			cap.add_theme_font_size_override("font_size", 17)
+			_paint(cap, INK)
+			cap.clip_text = true
+			cap.custom_minimum_size.x = 120
 			(row[1] as Label).text = "貯金 %d" % int(game.buy_price(o)) if bought else "%d" % (int(o["cost"]) * n)
 			_lines.add_child(row[0])
+			_seal(row[0])
 		if not any:
-			_lines.add_child(UI.label("まだ何も注文していない", 14, UI.MUTED, "body"))
+			var none := _ink("まだ何も注文していない", 15, SOFT, "marker")
+			_lines.add_child(none)
+			_seal(none)
 
+
+# ---- チラシの紙：黄色い安い紙、赤い二重の縁、見出しの右に赤い網点 ----
+class FlyerStyle extends StyleBox:
+	func _init() -> void:
+		content_margin_left = 30
+		content_margin_right = 30
+		content_margin_top = 24
+		content_margin_bottom = 22
+
+	func _draw(item: RID, r: Rect2) -> void:
+		for k in 3:
+			var grow := float(k) * 2.0
+			RenderingServer.canvas_item_add_rect(item, Rect2(r.position + Vector2(-grow + 4, 8 - grow * 0.5), r.size + Vector2(grow * 2.0, grow * 2.0)), Color(0, 0, 0, 0.3 / (k + 1.5)))
+		RenderingServer.canvas_item_add_rect(item, r, Color("f8e98f"))
+		RenderingServer.canvas_item_add_texture_rect_region(item, r, FilmSet.brush().get_rid(), FilmSet.paint_region(r), Color(1, 1, 1, 0.28))
+		# 見出しの右の、赤い網点（右ほど大きい）
+		var red := Color("d63a26")
+		var x0 := r.position.x + r.size.x * 0.42
+		var step := 11.0
+		var y := r.position.y + 14.0
+		while y < r.position.y + 96.0:
+			var x := x0
+			while x < r.end.x - 14.0:
+				var t := (x - x0) / (r.end.x - 14.0 - x0)
+				RenderingServer.canvas_item_add_circle(item, Vector2(x, y), 0.6 + 3.2 * t, Color(red, 0.22))
+				x += step
+			y += step
+		# 赤い二重の縁
+		var outer := r.grow(-8.0)
+		var inner := r.grow(-13.0)
+		for e: Array in [[outer, 3.0], [inner, 1.0]]:
+			var b: Rect2 = e[0]
+			var w: float = e[1]
+			RenderingServer.canvas_item_add_rect(item, Rect2(b.position, Vector2(b.size.x, w)), red)
+			RenderingServer.canvas_item_add_rect(item, Rect2(Vector2(b.position.x, b.end.y - w), Vector2(b.size.x, w)), red)
+			RenderingServer.canvas_item_add_rect(item, Rect2(b.position, Vector2(w, b.size.y)), red)
+			RenderingServer.canvas_item_add_rect(item, Rect2(Vector2(b.end.x - w, b.position.y), Vector2(w, b.size.y)), red)
+
+
+# ---- 注文票の紙：白い紙を、切り取り線（点線）で囲む。左上にはさみの印 ----
+class SlipStyle extends StyleBox:
+	func _init() -> void:
+		content_margin_left = 26
+		content_margin_right = 26
+		content_margin_top = 22
+		content_margin_bottom = 22
+
+	func _draw(item: RID, r: Rect2) -> void:
+		for k in 3:
+			var grow := float(k) * 2.0
+			RenderingServer.canvas_item_add_rect(item, Rect2(r.position + Vector2(-grow + 4, 8 - grow * 0.5), r.size + Vector2(grow * 2.0, grow * 2.0)), Color(0, 0, 0, 0.3 / (k + 1.5)))
+		RenderingServer.canvas_item_add_rect(item, r, Color("fffdf6"))
+		RenderingServer.canvas_item_add_texture_rect_region(item, r, FilmSet.brush().get_rid(), FilmSet.paint_region(r), Color(1, 1, 1, 0.18))
+		var b := r.grow(-9.0)
+		var ink := Color(0.11, 0.1, 0.09, 0.55)
+		var pts := [b.position, Vector2(b.end.x, b.position.y), b.end, Vector2(b.position.x, b.end.y), b.position]
+		for i in 4:
+			var a: Vector2 = pts[i]
+			var c: Vector2 = pts[i + 1]
+			var len := a.distance_to(c)
+			var d := (c - a) / len
+			var t := 0.0
+			while t < len:
+				RenderingServer.canvas_item_add_line(item, a + d * t, a + d * minf(t + 8.0, len), ink, 1.5)
+				t += 14.0
+		# はさみ（2つの輪と、交わる刃）
+		var s := b.position + Vector2(22, 0)
+		RenderingServer.canvas_item_add_rect(item, Rect2(s - Vector2(14, 8), Vector2(28, 16)), Color("fffdf6"))
+		for side: float in [-1.0, 1.0]:
+			var ring := s + Vector2(-8, 4.5 * side)
+			RenderingServer.canvas_item_add_circle(item, ring, 4.2, ink)
+			RenderingServer.canvas_item_add_circle(item, ring, 2.4, Color("fffdf6"))
+			RenderingServer.canvas_item_add_line(item, s + Vector2(-4, 2.5 * side), s + Vector2(12, -2.5 * side), ink, 2.0)
+
+
+# ---- 見出しの下の、黒い二重線 ----
+class DoubleRule extends Control:
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 8)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2(0, 1), Vector2(size.x, 3)), Color("1c1a17"))
+		draw_rect(Rect2(Vector2(0, 6), Vector2(size.x, 1)), Color("1c1a17"))
