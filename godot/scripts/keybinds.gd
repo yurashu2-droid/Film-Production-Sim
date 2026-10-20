@@ -9,8 +9,9 @@ const FILE := "user://settings.cfg"
 const ACTIONS := [
 	["move_forward", "前へ", KEY_W], ["move_back", "後ろへ", KEY_S], ["move_left", "左へ", KEY_A], ["move_right", "右へ", KEY_D],
 	["run", "走る", KEY_SHIFT], ["jump", "ジャンプ", KEY_SPACE], ["crouch", "しゃがむ", KEY_CTRL],
-	["operate", "使う・開く", KEY_F], ["rot_left", "左に回す", KEY_Q], ["rot_right", "右に回す", KEY_E],
-	["hold_upright", "立てて持つ", KEY_R], ["hold_pull", "手で持つ", KEY_G], ["hold_lift", "持ち上げる", KEY_L],
+	["operate", "使う・開く", KEY_F], ["rot_left", "左に傾ける", KEY_Q], ["rot_right", "右に傾ける", KEY_E],
+	["hold_upright", "起こす", KEY_R], ["hold_pull", "起こして手元へ", KEY_G], ["hold_lift", "持ち上げる（台車）", KEY_L],
+	["limp", "力を抜く", KEY_N],
 	["talent", "特技", KEY_K], ["cast_role", "役を決める", KEY_Y],
 	["act", "演技", KEY_Z], ["effect", "効果", KEY_X], ["act_menu", "演技を選ぶ", KEY_H],
 	["cue_1", "合図 1", KEY_1], ["cue_2", "合図 2", KEY_2], ["cue_3", "合図 3", KEY_3], ["cut", "カット", KEY_T],

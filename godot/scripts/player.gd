@@ -510,7 +510,7 @@ func _physics_process(delta: float) -> void:
 			vis.set_face("neutral")
 	if is_local and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		# N：力を抜く・入れるの切り替え。物を持ち直すと、力を入れた状態に戻る
-		var limp_key: bool = Input.is_physical_key_pressed(KEY_N) and not game.ui_blocking()
+		var limp_key: bool = Input.is_action_pressed("limp") and not game.ui_blocking()
 		if limp_key and not _limp_key and held != 0:
 			hold_limp = not hold_limp
 			var rolling: bool = game.props.has(held) and game.props[held].rolls

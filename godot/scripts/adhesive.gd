@@ -594,7 +594,88 @@ func _peer_left(who: int) -> void:
 		rx_state.rpc(snapshot())
 
 
+# ---- はがす：素手で接着剤の点（黄＝付けただけ・緑＝くっついている）を狙って F。組の点なら、組ごと消えて離れる ----
+const PEEL_REACH := 3.0           # 体からこの距離までの点をはがせる（m。視点は後ろからなので、目からではなく体から測る）
+const PEEL_AIM := 0.09            # 視線から点までがこれ以内なら、狙っている（点の半径 4.5cm に少し足す）
+
+# 視線の先の接着剤の点。{"first": 付けた人} か {"pair": 組の番号}。無ければ空
+func dot_on_ray(origin: Vector3, direction: Vector3, body := Vector3.INF) -> Dictionary:
+	var dir := direction.normalized()
+	var best := {}
+	var best_t := INF
+	var spots: Array = []
+	for who: int in first:
+		spots.append([{"first": who}, first[who][0], first[who][1]])
+	for i in pairs.size():
+		spots.append([{"pair": i}, pairs[i].a, pairs[i].pa])
+		spots.append([{"pair": i}, pairs[i].b, pairs[i].pb])
+	for s: Array in spots:
+		var prop: Node3D = game.props.get(s[1])
+		if prop == null or prop.absent:
+			continue
+		var at: Vector3 = prop.global_transform * (s[2] as Vector3)
+		var t := (at - origin).dot(dir)
+		if t < 0.0 or t > 12.0 or t >= best_t:
+			continue
+		if body != Vector3.INF and at.distance_to(body) > PEEL_REACH:
+			continue
+		if (origin + dir * t).distance_to(at) <= PEEL_AIM:
+			best = s[0]
+			best_t = t
+	return best
+
+
+func _peelable(me: Node) -> bool:
+	return me != null and me.held == 0 and me.operating == 0 and not game.replaying and game.state in [game.S.PREP, game.S.COUNTDOWN, game.S.TAKE]
+
+
+@rpc("any_peer", "call_local", "reliable")
+func h_peel(origin: Vector3, direction: Vector3) -> void:
+	if not Net.is_host():
+		return
+	var who := Net.sender()
+	var me: Node3D = game.players.get(who)
+	if not _peelable(me) or origin.distance_to(me.global_position) > 8.0:
+		return
+	var dot := dot_on_ray(origin, direction, me.global_position + Vector3.UP)
+	if dot.is_empty():
+		return
+	var marks: Dictionary = first.duplicate(true)
+	var kept: Array = pairs.duplicate(true)
+	var was_joined := false
+	if dot.has("first"):
+		marks.erase(dot["first"])
+	else:
+		was_joined = bool(kept[dot["pair"]].joined)
+		kept.remove_at(dot["pair"])
+	restore({"first": marks, "pairs": kept})
+	game.ev.rpc_id(who, "toast", ["接着をはがした。くっついていた物は離れる" if was_joined else "接着剤の点をはがした", 0])
+	game.host_ev("sfx", ["unfix", me.global_position])
+
+
 # ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
+
+# F（素手）：接着剤の点を狙っていれば、はがす
+func hook_f(me: Node) -> bool:
+	if not _peelable(me):
+		return false
+	var origin: Vector3 = me.cam.global_position
+	var direction: Vector3 = -me.cam.global_basis.z
+	if dot_on_ray(origin, direction, me.global_position + Vector3.UP).is_empty():
+		return false
+	h_peel.rpc_id(1, origin, direction)
+	return true
+
+
+# 狙った物の名前の欄：接着剤の点を狙っている間は「接着剤の点　F はがす」
+func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	if not _peelable(me):
+		return {}
+	var dot := dot_on_ray(me.cam.global_position, -me.cam.global_basis.z, me.global_position + Vector3.UP)
+	if dot.is_empty():
+		return {}
+	var joined: bool = dot.has("pair") and bool(pairs[dot["pair"]].joined)
+	return {"label": "接着剤の点（%s）　[F] はがす" % ("くっついている" if joined else "まだ付けただけ"), "keys_all": "F 接着をはがす"}
 
 # 接着剤を塗っている間のキー
 func hook_input(event: InputEvent) -> bool:

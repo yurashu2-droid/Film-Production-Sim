@@ -190,11 +190,11 @@ func run() -> void:
 
 	# 順番：決めたとおり（変えるときは、feature_hooks.gd の表と、ここの両方を直す）
 	var orders := {
-		"hook_f": ["director", "talent", "rope_grab", "bomb_kit", "cargo_kit", "cue_cards"],
+		"hook_f": ["director", "talent", "adhesive", "rope_grab", "bomb_kit", "cargo_kit", "cue_cards"],
 		"hook_click": ["rope_grab"],
 		"hook_key": ["talent"],
 		"hook_input": ["director", "adhesive", "cue_cards"],
-		"hook_hud": ["bomb_kit", "cargo_kit", "rope_grab"],
+		"hook_hud": ["bomb_kit", "cargo_kit", "rope_grab", "adhesive"],
 		"hook_sync": ["cargo_kit", "bomb_kit", "beats", "rope_grab"],
 		"hook_core_event": ["bomb_kit", "talent"],
 		"hook_take_ready": ["cargo_kit", "beats"],

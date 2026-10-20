@@ -299,14 +299,14 @@ func _absent_kinds() -> Array:
 	return gone
 
 
-# 画面が開いている間だけマウスを出す。Esc で切り替える必要はない
+# 画面が開いている間だけマウスを出す（あそびかたも。マウスで閉じられる）。Esc で切り替える必要はない
 func wants_cursor() -> bool:
 	if cue_cards != null and cue_cards.editor.opened: return true
 	if production == null:
 		return false
 	if monitor_popup != null and monitor_popup.opened:
 		return true
-	return menu_open != "" or character_open or ordering() or state in [S.ORDER, S.RESULT, S.DELIVERED] or production.phase == 5 or (performance != null and performance.opened)
+	return menu_open != "" or character_open or help_open or ordering() or state in [S.ORDER, S.RESULT, S.DELIVERED] or production.phase == 5 or (performance != null and performance.opened)
 
 
 func _grab_mouse(on: bool) -> void:
@@ -455,7 +455,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.physical_keycode == Keybinds.code("operate") and hooks.first("hook_f", [me]):
 		# 仕組みの F（各仕組みの hook_f）。最初に使った仕組みで止まる。順番は feature_hooks.gd の ORDERS["hook_f"]：
-		#   机の物（のぞき箱・発注の電話）→ 仲間の頭の道具箱 → つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
+		#   机の物（のぞき箱・発注の電話）→ 仲間の頭の道具箱 → 接着剤の点（素手ではがす）→ つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
 		get_viewport().set_input_as_handled()
 		return
 	if event.physical_keycode == Keybinds.code("operate"):

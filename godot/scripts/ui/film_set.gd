@@ -261,8 +261,13 @@ const HELP_FLOW := [
 	["現場で組む", "仕掛けを組んで練習"],
 	["本番・試写会", "カチンコで本番"],
 ]
-const HELP_KEYS := ["WASD 移動", "Shift 走る", "Space ジャンプ", "左クリック 持つ・置く", "ホイール 持つ距離", "Q・E 回す",
-	"F 使う・開く", "Y 役を決める", "Z 演技", "H 演技を選ぶ", "1・2・3 合図", "T カット", "C キャラクター", "F2 視点", "Esc メニュー"]
+const HELP_KEYS := ["WASD 移動", "Shift 走る", "Space ジャンプ",
+	"左クリック 持つ・置く", "右クリック 押したまま回す", "ホイール 持つ距離",
+	"Q・E 傾ける", "R 起こす", "G 手元へ",
+	"N 力を抜く", "F 使う・開く", "Y 役を決める",
+	"Z 演技", "H 演技を選ぶ", "1・2・3 合図",
+	"T カット", "右クリック 画面を閉じる", "Esc メニュー",
+	"C キャラクター", "F2 視点", "右クリック モニターを開く"]
 const HELP_TIPS := [
 	"物の〔属性〕が役に合うほど、ギャラが増える",
 	"同じ属性の物を別の役に使うと、コンボ",
@@ -289,11 +294,13 @@ static func help_board() -> VBoxContainer:
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(fill)
-	var close := PanelContainer.new()
-	close.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 閉じる札（マウスで押せる。Tab でも閉じる）。押した時の動きは、作った側（production_hud.gd）がつなぐ
+	var close := Button.new()
+	close.name = "Close"
+	close.text = "閉じる（%s）" % Keybinds.label("help")
+	close.focus_mode = Control.FOCUS_NONE
 	close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	close.add_theme_stylebox_override("panel", CardStyle.new(PAINTS["cream"][0]))
-	close.add_child(_sign_content("Tab 閉じる", PAINTS["cream"][1], 16))
+	style_sign_button(close, "cream", 18, 40)
 	head.add_child(close)
 	# 流れ：フィルムのコマ
 	var film := PanelContainer.new()

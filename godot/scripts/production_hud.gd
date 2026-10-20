@@ -410,7 +410,9 @@ func _build_help_board() -> void:
 	(help as UI.TapedPanel).sb = null
 	help.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	legacy.help_sheet.visible = false
-	help.add_child(FilmSet.help_board())
+	var board := FilmSet.help_board()
+	help.add_child(board)
+	(board.find_child("Close", true, false) as Button).pressed.connect(func(): game.help_open = false)
 
 
 # Esc のメニューの「設定」の紙：マウスの感度・音量（全体・BGM・効果音）・全画面。設定は game_settings.gd と player.gd が保存する
