@@ -66,6 +66,8 @@ var _wallet_num: Label
 var _wallet_unit: Label
 var _people: Label
 var _clock_div: Control
+var _rec_dot: Label               # 上の帯（カメラの枠）の録画ランプ。本番中だけ赤く点滅して REC
+var _rec_text: Label
 var _last_wallet := -1
 var wallet_shown := -1            # 0 以上なら、貯金の数字をこの値で見せる（数字がくるくる動く演出。features/delivery_box.gd）
 var _clock_urgent := false
@@ -244,9 +246,19 @@ func _build_strip() -> void:
 	_strip.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_strip.custom_minimum_size.x = 0
 	_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 板は描かず、撮影カメラの画面の四隅の枠にする（ui/film_set.gd）。準備中は STBY、本番中は REC
+	(_strip as UI.TapedPanel).sb = null
+	_strip.add_theme_stylebox_override("panel", FilmSet.CamStyle.new())
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 0)
 	_strip.add_child(row)
+	_rec_dot = FilmSet.label("●", 15, UI.STAMP_RED, "mono")
+	_cam_outline(_rec_dot)
+	row.add_child(_centered(_rec_dot))
+	_rec_text = FilmSet.label("STBY", 13, UI.CLAP_WHITE, "mono")
+	_cam_outline(_rec_text)
+	row.add_child(_centered(_rec_text))
+	row.add_child(_divider())
 	var wallet := HBoxContainer.new()
 	wallet.add_theme_constant_override("separation", 6)
 	row.add_child(wallet)
@@ -274,6 +286,16 @@ func _build_strip() -> void:
 	_clock = _label("", 17, UI.CLAP_WHITE, "bold")
 	_clock.custom_minimum_size.x = 124
 	row.add_child(_centered(_clock))
+	# 数字はカメラの表示と同じ等幅の字。明るい景色の上でも読めるように、黒いふちを付ける
+	for l: Label in [_wallet_num, _clock]:
+		l.add_theme_font_override("font", FilmSet.font("mono"))
+	for l: Label in [_wallet_num, _wallet_unit, _rent, _status, _clock]:
+		_cam_outline(l)
+
+
+func _cam_outline(l: Label) -> void:
+	l.add_theme_constant_override("outline_size", 4)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
 
 
 func _centered(c: Control) -> Control:
@@ -759,7 +781,7 @@ func _refresh() -> void:
 		var desk: String = game.director.aimed() if game.director != null else ""
 		if desk != "":
 			legacy.target_label.text = game.director.thing_label(desk)
-			legacy._tone(legacy.target_label, "on", UI.box(Color(UI.BOARD, 0.88), UI.LINE, 1, 6, 14, 6))
+			legacy._tone(legacy.target_label, "on", FilmSet.tag_style())
 			var desk_keys: String = game.director.thing_keys(desk)
 			if me != null and me.held != 0:
 				line = desk_keys + " ／ " + line if desk_keys != "" else line
@@ -858,6 +880,9 @@ func _refresh() -> void:
 	if _rent.visible:
 		_rent.text = "家賃 %d・あと%d本" % [production.rent_amount(), production.rent_in()]
 	_people.text = "%d人" % game.players.size()
+	var rolling: bool = game.state in [game.S.COUNTDOWN, game.S.TAKE]
+	_rec_text.text = "REC" if rolling else "STBY"
+	_rec_dot.modulate.a = (1.0 if fmod(Time.get_ticks_msec() / 600.0, 2.0) < 1.0 else 0.15) if rolling else 0.35
 	# 会社の前で撮る依頼は、軽トラに積まない（準備の段階の名前を替える）
 	_status.text = "撮影の準備" if phase == 2 and production.shoots_home() else PHASE_NAMES[clampi(phase, 0, 5)]
 	if production.wallet != _last_wallet:
@@ -1046,7 +1071,7 @@ func _sync_talent(phase: int) -> void:
 	if str(hint["target"]) != "":
 		# 仲間の頭を見ている：狙った相手の名前として出す
 		legacy.target_label.text = str(hint["target"])
-		legacy._tone(legacy.target_label, "on", UI.box(Color(UI.BOARD, 0.88), UI.LINE, 1, 6, 14, 6))
+		legacy._tone(legacy.target_label, "on", FilmSet.tag_style())
 	elif str(hint["label"]) != "" and legacy.target_label.text != "" and not _on_desk():
 		legacy.target_label.text += str(hint["label"])
 	if str(hint["keys"]) != "":

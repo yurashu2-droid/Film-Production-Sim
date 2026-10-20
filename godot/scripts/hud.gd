@@ -146,7 +146,7 @@ func build() -> void:
 	cross.position = Vector2(-10, -10)
 	cross.size = Vector2(20, 20)
 	root.add_child(cross)
-	target_label = _label("", 17, UI.CLAP_WHITE, "bold")
+	target_label = FilmSet.label("", 17, FilmSet.MARKER_INK, "marker")     # 黄色い付箋に手書き（features の文も、この上に出る）
 	target_label.set_anchors_preset(Control.PRESET_CENTER)
 	target_label.offset_left = 0
 	target_label.offset_right = 0
@@ -203,6 +203,8 @@ func _build_order_panel() -> void:
 	# 左上：依頼とショットリスト
 	var order := UI.panel("slate", 0.0, true, 20, 16)
 	order.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	order.sb = null                                         # 板は描かず、フィルムの切れ端にする（ui/film_set.gd）
+	order.add_theme_stylebox_override("panel", FilmSet.FilmStyle.new())
 	order.position = Vector2(18, 18)
 	order.custom_minimum_size = Vector2(340, 0)
 	root.add_child(order)
@@ -212,6 +214,7 @@ func _build_order_panel() -> void:
 	order.add_child(ov)
 	ov.add_child(UI.overline("依頼"))
 	order_title = _label(_film_title(), 20, UI.CLAP_WHITE, "bold")
+	order_title.add_theme_font_override("font", FilmSet.font("mincho"))
 	order_title.custom_minimum_size.x = 300
 	order_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	ov.add_child(order_title)
@@ -445,7 +448,7 @@ func _build_toast() -> void:
 	toast.resized.connect(func() -> void:
 		toast.offset_left = -toast.size.x * 0.5
 		toast.offset_right = toast.size.x * 0.5)
-	toast_label = _label("", 20, UI.CLAP_WHITE, "bold")
+	toast_label = FilmSet.label("", 21, FilmSet.MARKER_INK, "marker")       # AD のカンペ（スケッチブックに油性ペン）
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_label.max_lines_visible = 2
 	toast_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -453,18 +456,8 @@ func _build_toast() -> void:
 	toast.visible = false
 
 
-func _toast_style(bar: Color) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color(UI.BOARD, 0.94)
-	s.border_color = bar
-	s.border_width_left = 4
-	s.set_corner_radius_all(6)
-	s.content_margin_left = 20
-	s.content_margin_right = 24
-	s.content_margin_top = 12
-	s.content_margin_bottom = 12
-	s.anti_aliasing = true
-	return s
+func _toast_style(_bar: Color) -> StyleBox:
+	return FilmSet.KanpeStyle.new()
 
 
 # 確認パネル（注文表・テイク確認・納品）の外枠。中身は状態ごとに作る
@@ -634,12 +627,13 @@ func show_toast(text: String, col: Color = YELLOW, sec: float = 2.6) -> void:
 	elif col.is_equal_approx(GREEN):
 		bar = UI.OK_GREEN
 	var max_w := _toast_max_width()
-	var text_w := UI.fnt("bold").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+	var text_w := FilmSet.font("marker").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
 	toast_label.text = text
+	toast_label.add_theme_color_override("font_color", FilmSet.MARKER_RED if bar == UI.STAMP_RED else FilmSet.MARKER_INK)
 	# 2行になるときは、行の長さを揃える（1文字だけ次の行へ落ちないように）
 	var label_w := text_w + 2.0
-	if label_w > max_w - 48.0:
-		label_w = minf(max_w - 48.0, label_w * 0.5 + 60.0)
+	if label_w > max_w - 56.0:
+		label_w = minf(max_w - 56.0, label_w * 0.5 + 60.0)
 	toast_label.custom_minimum_size.x = label_w
 	toast.add_theme_stylebox_override("panel", _toast_style(bar))
 	toast.reset_size()
@@ -872,7 +866,7 @@ func _process(delta: float) -> void:
 	var label_drop: float = get_viewport().get_visible_rect().size.y * 0.5 - 132.0 if play and me != null and me.held != 0 else 28.0
 	target_label.offset_top = label_drop
 	target_label.offset_bottom = label_drop
-	_tone(target_label, "on" if target_label.text != "" else "", UI.box(Color(UI.BOARD, 0.88), UI.LINE, 1, 6, 14, 6))
+	_tone(target_label, "on" if target_label.text != "" else "", FilmSet.tag_style())
 
 	# 操作の案内
 	var k := ""
@@ -966,8 +960,8 @@ func _sync_key_help() -> void:
 	key_help.anchor_bottom = 1.0
 	key_help.offset_left = keys.offset_left
 	key_help.offset_right = keys.offset_right
-	key_help.offset_top = -16.0
-	key_help.offset_bottom = -16.0
+	key_help.offset_top = 0.0
+	key_help.offset_bottom = 0.0            # 札の角材は、画面の下の端まで
 	var align := keys.horizontal_alignment
 	var sig := "%s|%d|%d" % [keys.text, align, int(keys.offset_right - keys.offset_left)]
 	if sig == _key_sig:
@@ -976,17 +970,21 @@ func _sync_key_help() -> void:
 	for c in key_help.get_children():
 		key_help.remove_child(c)
 		c.queue_free()
+	# 2行（いまの操作 ／ 次の一歩とあそびかた）を、1列の札に並べる。あそびかたの札は小さく
 	var lines := keys.text.split("\n", false)
+	var segments: Array = []
+	var small: Array = []
 	for li in mini(lines.size(), 2):
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", 20)
-		flow.add_theme_constant_override("v_separation", 4)
-		flow.alignment = FlowContainer.ALIGNMENT_BEGIN if align == HORIZONTAL_ALIGNMENT_LEFT else FlowContainer.ALIGNMENT_CENTER
-		flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		key_help.add_child(flow)
 		for segment in lines[li].split("／", false):
-			if segment.strip_edges() != "":
-				flow.add_child(UI.key_item(segment.strip_edges(), 15, true))
+			var s := segment.strip_edges()
+			if s != "" and s not in segments:
+				segments.append(s)
+				if s.begins_with("Tab"):
+					small.append(s)
+	var row := FilmSet.signs(segments, small, 17)
+	if align == HORIZONTAL_ALIGNMENT_LEFT:
+		row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	key_help.add_child(row)
 
 
 # ---- 確認パネル ----
