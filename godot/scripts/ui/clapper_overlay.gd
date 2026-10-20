@@ -10,6 +10,9 @@ const BOARD := Vector2(1.9, 1.12)
 const STICK_H := 0.17
 const OPEN := 0.27                # 拍子木の開き（ラジアン）
 const ENTER := 0.5                # 入ってくる時間
+const LINE_Y := 0.33              # 板の上の端から、横の罫線まで
+const FILM_PX := 120              # 題名の字の大きさ（長い題名は、板の幅に入るように小さくする）
+const PX := 0.0012                # 字の1ピクセルの大きさ（m）
 
 var game: Node
 var mode := ""
@@ -72,8 +75,8 @@ func _build() -> void:
 	var top := BOARD.y * 0.5 - 0.1
 	_box_mesh(_rig, Vector3(BOARD.x, BOARD.y, 0.06), Vector3(0, -0.1, 0), black)
 	# 板のチョークの罫線
-	_box_mesh(_rig, Vector3(BOARD.x - 0.08, 0.008, 0.002), Vector3(0, top - 0.42, 0.031), chalk)
-	_box_mesh(_rig, Vector3(0.008, BOARD.y - 0.46, 0.002), Vector3(0, top - 0.42 - (BOARD.y - 0.46) * 0.5, 0.031), chalk)
+	_box_mesh(_rig, Vector3(BOARD.x - 0.08, 0.008, 0.002), Vector3(0, top - LINE_Y, 0.031), chalk)
+	_box_mesh(_rig, Vector3(0.008, BOARD.y - LINE_Y - 0.04, 0.002), Vector3(0, top - LINE_Y - (BOARD.y - LINE_Y - 0.04) * 0.5, 0.031), chalk)
 	# 下の拍子木（板に付いている）と、上の拍子木（左端の蝶番で開く）
 	_box_mesh(_rig, Vector3(BOARD.x, STICK_H, 0.07), Vector3(0, top + STICK_H * 0.5, 0), stripes)
 	_stick = Node3D.new()
@@ -92,12 +95,12 @@ func _build() -> void:
 	_rig.add_child(hinge)
 	# チョークの字
 	var x0 := -BOARD.x * 0.5 + 0.09
-	_labels["company"] = _text("格安アクション映画制作班", Vector3(x0, top - 0.1, 0.034), 30, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
-	_labels["film"] = _text("", Vector3(x0, top - 0.27, 0.034), 52, Color(0.97, 0.97, 0.93), HORIZONTAL_ALIGNMENT_LEFT)
-	_labels["take_cap"] = _text("TAKE", Vector3(x0, top - 0.52, 0.034), 30, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
-	_labels["take"] = _text("1", Vector3(-BOARD.x * 0.25, top - 0.62, 0.034), 190, Color(0.97, 0.97, 0.93), HORIZONTAL_ALIGNMENT_CENTER)
-	_labels["right_cap"] = _text("", Vector3(0.09, top - 0.52, 0.034), 30, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
-	_labels["right"] = _text("", Vector3(BOARD.x * 0.25, top - 0.64, 0.034), 150, UI.TAPE, HORIZONTAL_ALIGNMENT_CENTER)
+	_labels["company"] = _text("格安アクション映画制作班", Vector3(x0, top - 0.05, 0.034), 60, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
+	_labels["film"] = _text("", Vector3(x0, top - 0.135, 0.034), FILM_PX, Color(0.97, 0.97, 0.93), HORIZONTAL_ALIGNMENT_LEFT)
+	_labels["take_cap"] = _text("TAKE", Vector3(x0, top - LINE_Y - 0.035, 0.034), 58, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
+	_labels["take"] = _text("1", Vector3(-BOARD.x * 0.25, top - LINE_Y - 0.1, 0.034), 380, Color(0.97, 0.97, 0.93), HORIZONTAL_ALIGNMENT_CENTER)
+	_labels["right_cap"] = _text("", Vector3(0.09, top - LINE_Y - 0.035, 0.034), 58, Color(0.85, 0.85, 0.8, 0.85), HORIZONTAL_ALIGNMENT_LEFT)
+	_labels["right"] = _text("", Vector3(BOARD.x * 0.25, top - LINE_Y - 0.12, 0.034), 300, UI.TAPE, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _mat(col: Color, rough: float, metallic: float = 0.0) -> StandardMaterial3D:
@@ -125,7 +128,7 @@ func _text(s: String, at: Vector3, px: int, col: Color, align: int) -> Label3D:
 	l.text = s
 	l.font = FilmSet.font("marker")
 	l.font_size = px
-	l.pixel_size = 0.0012
+	l.pixel_size = PX
 	l.modulate = col
 	l.outline_size = 0
 	l.shaded = false
@@ -158,7 +161,9 @@ func start(m: String, n: int) -> void:
 	t = 0.0
 	if m == "ready":
 		_placed = false
-	_labels["film"].text = str(game.film_title()) if game != null and game.has_method("film_title") else "月下の城と大爆発"
+	var film: String = str(game.film_title()) if game != null and game.has_method("film_title") else "月下の城と大爆発"
+	_labels["film"].text = film
+	_labels["film"].font_size = mini(FILM_PX, int((BOARD.x - 0.2) / PX / maxf(1.0, float(film.length()))))
 	_labels["take"].text = str(take)
 	_box.visible = true
 	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -238,7 +243,7 @@ func _set_right(caption: String, big: String, col: Color) -> void:
 		cap.text = caption
 	if r.text != big:
 		r.text = big
-		r.font_size = 150 if big.length() <= 1 else 120
+		r.font_size = 300 if big.length() <= 1 else (230 if big.length() == 2 else 190)
 	r.modulate = col
 
 

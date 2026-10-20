@@ -67,8 +67,10 @@ var _wallet_unit: Label
 var _people: Label
 var _clock_div: Control
 var _take_parts: Array = []      # 本番中だけ出す（秒数と合図）
-var _place_parts: Array = []     # 本番中は隠す（お金・場所・借り時間）
 var _take_divider: Control
+var _wallet_box: Control
+var _wallet_div: Control
+var _status_div: Control
 var _rec_dot: Label               # 上の帯（カメラの枠）の録画ランプ。本番中だけ赤く点滅して REC
 var _rec_text: Label
 var _last_wallet := -1
@@ -261,17 +263,21 @@ func _build_strip() -> void:
 	_rec_text = FilmSet.label("STBY", 13, UI.CLAP_WHITE, "mono")
 	_cam_outline(_rec_text)
 	row.add_child(_centered(_rec_text))
-	row.add_child(_divider())
+	_wallet_div = _divider()
+	row.add_child(_wallet_div)
+	# お金は、コインのマークと数だけ（「貯金」「コイン」の字は出さない）
 	var wallet := HBoxContainer.new()
 	wallet.add_theme_constant_override("separation", 6)
 	row.add_child(wallet)
-	wallet.add_child(_centered(_label("貯金", 15, UI.MUTED, "body")))
+	_wallet_box = wallet
+	wallet.add_child(_centered(FilmSet.CoinMark.new()))
 	_wallet_num = _label("", 20, UI.CLAP_WHITE, "bold")
 	_wallet_num.custom_minimum_size.x = 38
 	_wallet_num.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	wallet.add_child(_centered(_wallet_num))
 	_wallet_unit = _label("コイン", 15, UI.MUTED, "body")
 	wallet.add_child(_centered(_wallet_unit))
+	_wallet_unit.visible = false
 	# 家賃：次に払う額と、あと何本か（事務所にいる間だけ出す）
 	_rent_div = _divider()
 	row.add_child(_rent_div)
@@ -281,7 +287,8 @@ func _build_strip() -> void:
 	_people = _label("", 17, UI.CLAP_WHITE, "body")
 	_people.visible = false
 	row.add_child(_people)
-	row.add_child(_divider())
+	_status_div = _divider()
+	row.add_child(_status_div)
 	_status = _label("", 17, UI.CLAP_WHITE, "bold")
 	row.add_child(_centered(_status))
 	_clock_div = _divider()
@@ -306,11 +313,6 @@ func _build_strip() -> void:
 	_cam_outline(legacy.take_secs)
 	for l: Label in legacy.cue_names_labels:
 		_cam_outline(l)
-	_place_parts = [wallet, _rent_div, _rent, _status, _clock_div, _clock]
-	for i in row.get_child_count():
-		var c := row.get_child(i)
-		if c is MarginContainer and c != _rent_div and c != _clock_div:
-			_place_parts.append(c)          # 区切りの線
 	_take_divider = _divider()
 	row.add_child(_take_divider)
 	row.move_child(_take_divider, row.get_children().find(take_row))
@@ -915,13 +917,20 @@ func _refresh() -> void:
 	# 場面の列を持つ依頼の本番中は、秒を刻む時計を画面に出さない（時計は、カメラのリールとモニターの枠の目盛り）
 	_clock.visible = phase in [1, 2, 4] and not game.hides_take_clock()
 	_clock_div.visible = _clock.visible
-	# 本番中（秒数と合図が出ている間）は、お金・場所・借り時間を隠して、帯を1段のままにする
+	# 出す物を絞る（必要以上に情報を増やさない）：
+	#   撮影現場では、お金と場所の名前は出さない（そこでは使わない・見れば分かる）。残り時間だけ
+	#   本番中（秒数と合図が出ている間）は、残り時間も隠して、帯を1段のままにする
 	var take_on: bool = (game.hud.take_row as Control).visible
-	for c: Control in _place_parts:
-		if c == _rent or c == _rent_div or c == _clock or c == _clock_div:
-			c.visible = c.visible and not take_on
-		else:
-			c.visible = not take_on
+	var at_site: bool = phase == 4
+	_wallet_box.visible = not take_on and not at_site
+	_rent.visible = _rent.visible and _wallet_box.visible
+	_status.visible = not take_on and not at_site
+	_clock.visible = _clock.visible and not take_on
+	# 区切りの線は、見えている物の前にだけ（先頭は録画のランプ）
+	_wallet_div.visible = _wallet_box.visible
+	_rent_div.visible = _rent.visible
+	_status_div.visible = _status.visible
+	_clock_div.visible = _clock.visible
 	_take_divider.visible = take_on
 	var seconds := maxi(0, ceili(production.lease_left))
 	_clock.text = "残り %d:%02d" % [seconds / 60, seconds % 60]

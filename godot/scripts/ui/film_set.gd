@@ -191,6 +191,22 @@ class CardStyle extends StyleBox:
 			PackedColorArray([Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.04), Color(0, 0, 0, 0.12), Color(0, 0, 0, 0.05)]))
 
 
+# ---- お金：コインのマーク（金色の丸、ふちと内側の輪） ----
+class CoinMark extends Control:
+	func _init() -> void:
+		custom_minimum_size = Vector2(20, 20)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5 - 1.0
+		draw_circle(c + Vector2(1, 1.5), r, Color(0, 0, 0, 0.45))
+		draw_circle(c, r, Color("b8860b"))
+		draw_circle(c, r - 1.6, Color("f2c230"))
+		draw_arc(c, r * 0.58, 0.0, TAU, 20, Color("c9971a"), 1.6, true)
+		draw_arc(c, r - 2.6, PI * 1.05, PI * 1.6, 8, Color(1, 1, 1, 0.6), 1.4, true)
+
+
 # ---- 狙った物の名前：黄色い付箋 ----
 static func tag_style() -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
