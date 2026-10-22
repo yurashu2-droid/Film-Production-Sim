@@ -189,7 +189,7 @@ func run() -> void:
 	game.h_return_office()
 	await frames(5)
 	check(flow.phase == 0 and flow.day == 4 and flow.rent_in() == 3, "returning starts the next day")
-	check(flow.offered().size() == flow.JOBS.size() - 1 and flow.debut_job() not in flow.offered(), "later days offer every job but the commercial")
+	check(flow.offered().size() == 3 and flow.debut_job() not in flow.offered(), "later days offer three jobs (local, regular, big) but not the commercial")
 	check(shown().size() == flow.DAILY_COUNT, "next day's stock is the same size")
 	await frames(90)
 	check(not (yard.get_node("GateBlock").get_child(0) as CollisionShape3D).disabled, "gate shuts again at the office")

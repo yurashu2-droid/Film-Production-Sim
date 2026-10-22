@@ -69,6 +69,7 @@ var _settled_rent: Label
 var _settled_next: Label
 var _settled_head: Label
 var _envelope: Control             # 精算の給料袋
+var _settled_rep: Label            # 精算の、評判の増減といまの格
 var _tiles: Array = []            # 精算のボードの数字の札
 var _settled_return: Button
 var _rent: Label
@@ -539,6 +540,24 @@ func _poster_face(index: int, job: Dictionary) -> Control:
 	var key: Control = UI.KeyCap.new().setup(str(offered.find(index) + 1), 13, Color(1, 1, 1, 0.6))
 	key.position = Vector2(8, 8)
 	art.add_child(key)
+	# 枠の帯（右上）：地元の仕事・いつもの仕事・大仕事。大仕事は赤
+	var slot: String = game.production.slot_of(index)
+	if slot != "":
+		var band := Label.new()
+		band.text = str(game.production.SLOT_NAMES[slot])
+		band.add_theme_font_override("font", FilmSet.font("stencil"))
+		band.add_theme_font_size_override("font_size", 15 if slot == "big" else 13)
+		band.add_theme_color_override("font_color", Color("fff4e4") if slot == "big" else Color("1d1a14"))
+		var bs := StyleBoxFlat.new()
+		bs.bg_color = {"local": Color("8fc79a"), "regular": Color("f1e8d4"), "big": Color("d23a2a")}[slot]
+		bs.content_margin_left = 10
+		bs.content_margin_right = 10
+		bs.content_margin_top = 3
+		bs.content_margin_bottom = 4
+		band.add_theme_stylebox_override("normal", bs)
+		art.add_child(band)
+		band.position = Vector2(POSTER_W - 12, 10)
+		band.resized.connect(func() -> void: band.position.x = POSTER_W - band.size.x - 8)
 	var text := VBoxContainer.new()
 	text.add_theme_constant_override("separation", 4)
 	col.add_child(text)
@@ -820,6 +839,9 @@ func _build_settled() -> void:
 	line.custom_minimum_size.y = 2
 	rows.add_child(line)
 	_settled_wallet = _ledger_row(rows, "会社の貯金", true, 1.5)
+	_settled_rep = FilmSet.label("", 17, Color("ffe7a8"), "body")
+	_settled_rep.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rows.add_child(_settled_rep)
 	_settled_next = FilmSet.label("", 14, Color(1, 1, 1, 0.6), "body")
 	_settled_next.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rows.add_child(_settled_next)
@@ -1112,7 +1134,7 @@ func _refresh() -> void:
 				if _job_keys[index].text != number:
 					_job_keys[index].text = number
 					_job_keys[index].queue_redraw()
-		_office_head.text = "近日撮影 ・ " + ("初仕事" if production.day <= 1 else "%d日目" % production.day)
+		_office_head.text = "近日撮影 ・ " + ("初仕事" if production.day <= 1 else "%d日目　%s" % [production.day, production.rank_name()])
 		# 壁に吊るすポスターは、きょう出ている依頼だけ。壁の幅も、その数に合わせる
 		if _wall.show_jobs(offered):
 			var w := clampf(float(mini(offered.size(), 4)) * 300.0 + 160.0, 760.0, 1240.0)
@@ -1212,6 +1234,9 @@ func _refresh() -> void:
 		_settled_wallet.text = "%d コイン" % production.wallet
 		_settled_head.text = "家賃が払えない。倒産…" if production.bankrupt else "おつかれさま、制作班！"
 		_envelope.note = _settled_head.text
+		var step: int = production.rep_to_next()
+		_settled_rep.text = "評判 %s　いまの格：%s%s" % [("%+d" % production.rep_change) if production.rep_change != 0 else "±0", production.rank_name(), ("（次の格まで あと %d）" % step) if step > 0 else ""]
+		UI.recolor(_settled_rep, Color("ff8a7a") if production.rep_change < 0 else Color("ffe7a8"))
 		_envelope.empty = production.bankrupt or production.last_payment <= 0
 		_envelope.queue_redraw()
 		_settled_return.text = "新しい会社を立ち上げる" if production.bankrupt else "事務所へ戻って、次の一本"

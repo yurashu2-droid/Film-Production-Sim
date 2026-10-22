@@ -241,7 +241,8 @@ func test_office() -> void:
 	check(old_jobs == 5, "the five earlier jobs keep their three scenes")
 	check(flow.offered() == [flow.debut_job()], "on the first day only the company commercial is offered")
 	flow.day = 2
-	check(job in flow.offered(), "from the second day the complete edition is offered")
+	flow.all_jobs = true
+	check(job in flow.offered(), "from the second day the complete edition is offered (all jobs, as with --day2)")
 	check(not beats.active() and game.judge.beats == null and of_kind("mark").size() == 2, "before the job: two marks, and the old judge")
 	check(game.take_limit() == game.TAKE_SEC and not game.hides_take_clock(), "the old jobs keep their sixty-second take and its clock")
 	check(not film.film_shown and (game.camera_switcher.monitor.lamps_shown as Array).is_empty(), "no reel on the camera and no lamps on the monitor for the old jobs")

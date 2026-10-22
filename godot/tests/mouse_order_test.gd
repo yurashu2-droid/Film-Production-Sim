@@ -45,12 +45,12 @@ func run() -> void:
 	for i in 40:
 		await physics_frame
 	# 掲示板の依頼カード → 打ち合わせ → 受ける、までをマウスだけで
-	# 2日目にして、制作費 500 の依頼（0番）を掲示板に出す（1日目の会社紹介は制作費 300 で、爆弾が借りられない）
+	# 2日目にして、大仕事（格2。制作費 450 以上）を受ける（1日目の会社紹介は制作費 300 で、爆弾が借りられない）
 	game.production.day = 2
 	game.open_menu("board")
 	for i in 20:
 		await process_frame
-	await click(center(game.production_hud._wall.button_for(0)))
+	await click(center(game.production_hud._wall.button_for(game.production.offered()[2])))
 	check(game.menu_open == "brief", "clicking a job card opens the briefing")
 	for i in 20:
 		await process_frame

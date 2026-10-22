@@ -247,6 +247,7 @@ script_case keybinds 30 'KEYS_TEST_OK' keybinds_test.gd
 script_case adhesive-peel 60 'PEEL_TEST_OK' adhesive_peel_test.gd --fixed-fps 60
 script_case settings-sheet 40 'SHEET_TEST_OK' settings_sheet_test.gd
 PAIR_HOST=(res://tests/cuts_net_test.tscn -- --cuts-net-test-host)
+script_case career 40 'CAREER_TEST_OK' career_test.gd
 PAIR_CLIENT=(res://tests/cuts_net_test.tscn -- --cuts-net-test-client)
 run_pair cuts-net 160 'CUTS_NET_TEST_OK' 'CUTS_NET_TEST_OK'
 PAIR_HOST=(res://tests/rope_grab_net_test.tscn -- --rope-grab-net-test-host)

@@ -39,79 +39,84 @@ const STUDIO_SITES := [2, 0, 1]
 # site: 現場（0=倉庫 1=室内スタジオ 2=野外） / script: 脚本 / bonus: 追加注文の種類 / scenes: 場面の短い名前（ふつうは3つ）
 # budget: 依頼主が出す制作費。借り物はこの中からしか払えず、使い残しは会社の儲けになる
 const JOBS := [
-	{"title":"月下の城と大爆発", "budget":500, "location":"倉庫", "site":0, "script":"castle", "bonus":"first_take", "bonus_title":"一発OKで撮り切る",
+	{"title":"月下の城と大爆発", "rank":4, "budget":500, "location":"倉庫", "site":0, "script":"castle", "bonus":"first_take", "bonus_title":"一発OKで撮り切る",
 		"scenes":["告白（高低差・城・明るさ）", "背後で大爆発", "爆発のあと再会"],
 		"description":"廃材で城を作り、告白 → 背後の爆発 → 再会を撮る。見えない裏側は節約していい。"},
-	{"title":"わが城と大爆発", "budget":450, "location":"室内スタジオ", "site":1, "script":"castle", "bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内",
+	{"title":"わが城と大爆発", "rank":2, "budget":450, "location":"室内スタジオ", "site":1, "script":"castle", "bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内",
 		"scenes":["告白（高低差・城・明るさ）", "背後で大爆発", "爆発のあと再会"],
 		"description":"手放した城を、あったことにする。光と構図を工夫しよう。"},
-	{"title":"月が主役の夜の城", "budget":480, "location":"野外", "site":2, "script":"castle", "bonus":"moon", "bonus_title":"月を合計2秒映す",
+	{"title":"月が主役の夜の城", "rank":3, "budget":480, "location":"野外", "site":2, "script":"castle", "bonus":"moon", "bonus_title":"月を合計2秒映す",
 		"scenes":["告白（高低差・城・明るさ）", "背後で大爆発", "爆発のあと再会"],
 		"description":"月を主役に、夜の城を撮る。画角の外がどうであれ、映れば映画だ。"},
-	{"title":"怪獣、段ボールの街に現る", "budget":600, "location":"野外", "site":2, "script":"kaiju", "bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内",
+	{"title":"怪獣、段ボールの街に現る", "rank":2, "budget":600, "location":"野外", "site":2, "script":"kaiju", "bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内",
 		"scenes":["怪獣が街より大きく映る", "逃げる二人の背後で大爆発", "倒れた怪獣の前で勝利"],
 		"description":"小さな怪獣をカメラの手前に置けば巨大に見える。段ボールの街を襲わせ、爆発のあとは誰かがこっそり倒そう。"},
-	{"title":"お嬢様の大怪獣", "budget":380, "location":"倉庫", "site":0, "script":"kaiju", "bonus":"first_take", "bonus_title":"一発OKで撮り切る",
+	{"title":"お嬢様の大怪獣", "rank":1, "budget":380, "location":"倉庫", "site":0, "script":"kaiju", "bonus":"first_take", "bonus_title":"一発OKで撮り切る",
 		"scenes":["怪獣が街より大きく映る", "逃げる二人の背後で大爆発", "倒れた怪獣の前で勝利"],
 		"description":"遠近法と段ボールだけで、街ひとつ壊してみせよう。"},
 	# 場面の列（production_script.gd の beats）を持つ依頼：5場面を、フィルム1本のテイクで撮り切る。2日目から出る。
 	#   board：絵コンテの組（無ければ script と同じ）/ fee_all：全部の場面がそろったときの上乗せ（無ければ 300）
 	#   cast_at：見立てを数える場面 [怪獣と街が映った場面, 爆発が映った場面]（無ければ [0, 1]）
-	{"title":"怪獣、段ボールの街に現る・完全版", "budget":700, "location":"野外", "site":2, "script":"kaiju", "board":"kaiju5",
+	{"title":"怪獣、段ボールの街に現る・完全版", "rank":4, "budget":700, "location":"野外", "site":2, "script":"kaiju", "board":"kaiju5",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"5場面を、フィルム1本で止めずに撮る。怪獣は出番まで映さず、技で街だけを倒し、最後は寄りで万歳。場面は、台本を読める人が進める。"},
 	# カット割りの依頼（production_script.gd の cuts）：同じ5場面を、場面ごとにフィルムを止めて撮る。止めている間に、次の場面の用意（場転）
-	{"title":"怪獣ドラマ 第1話", "budget":650, "location":"室内スタジオ", "site":1, "script":"kaiju", "board":"kaiju5",
+	{"title":"怪獣ドラマ 第1話", "rank":4, "budget":650, "location":"室内スタジオ", "site":1, "script":"kaiju", "board":"kaiju5",
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
 		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
 	# 最初の一本（debut）：会社の紹介動画。1日目は、これだけが来る。ネットに上げたあと、2日目から依頼の電話が来る
-	{"title":"わが社の紹介動画（ネット用・30秒）", "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
+	{"title":"わが社の紹介動画（ネット用・30秒）", "rank":1, "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300,
 		"scenes":["社員紹介（一人ずつ寄り）", "お城も建てます", "爆発も、します", "ぜんぶ、格安で！（全員集合）"],
 		"description":"会社の紹介動画を、会社の前（事務所の正面）で撮る。情報商材の「バズる黄金の4カット」：一人ずつ寄りで社員紹介 → お城も建てます → 爆発も、します → 看板の前に全員集合。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
 	# 場所が変わるカット割り：城の門 → 月夜の丘（城を片づけて月を出す）→ 爆発 → 寄りで決め
-	{"title":"旅する二人", "budget":520, "location":"倉庫", "site":0, "script":"castle", "board":"travel",
+	{"title":"旅する二人", "rank":3, "budget":520, "location":"倉庫", "site":0, "script":"castle", "board":"travel",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":350, "cast_at":[1, 2],
 		"scenes":["城の門", "月夜の丘（城は映さない）", "月の下で大爆発", "寄りで決めポーズ"],
 		"description":"場所が変わる4カット。城の前で出発 → 城を片づけて、月夜の丘 → 爆発 → 寄りで決め。場転のたびに、片づける・出す・寄せる・照らし直す。"},
 	# 名場面のパロディ（冒険映画の有名な冒頭）。仕掛けの見せ場（features/contraptions.gd）：動くカメラ・上から落ちる罠・転がる大岩・寄り。
 	# 役者を自分たちで演じると、カメラを押す人も罠を落とす人も大岩を押す人もいない。仕掛けに任せるか、人を雇うか
-	{"title":"転がる大岩・予告編", "budget":560, "location":"倉庫", "site":0, "script":"trap", "board":"trap", "props":["scrap_treasure_pedestal"],
+	{"title":"転がる大岩・予告編", "rank":3, "budget":560, "location":"倉庫", "site":0, "script":"trap", "board":"trap", "props":["scrap_treasure_pedestal"],
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":450, "cast_at":[2, 2],
 		"scenes":["遺跡に踏み込む（カメラが動く）", "罠が作動（上から落ちてくる）", "大岩に追われて逃げる", "穴に飛び込んで、大岩をよける"],
 		"description":"冒険映画の有名な冒頭のパロディを、予告編の4カットで。忍び足で奥へ（カメラも動く）→ 秘宝をすり替えると、上から物が落ちる → 転がる大岩に追われて逃げる → 間一髪、穴に飛び込むと、大岩が上を転がっていく。穴は、バスタブや箱に見立てるか、板に描く。押す人・落とす人は、映ってはいけない。"},
 	# ---- 名場面のパロディ（10〜16）。実在の題名・名前は出さず、誰でも分かる状況で寄せる ----
 	# props：依頼主が用意する物（features/job_props.gd が、その日の廃材置き場に出しておく）
-	{"title":"空き巣にご用心", "budget":520, "location":"室内スタジオ", "site":1, "script":"home_alone", "board":"home_alone", "props":["scrap_hinged_door_wall", "scrap_layered_pine"],
+	{"title":"空き巣にご用心", "rank":1, "budget":520, "location":"室内スタジオ", "site":1, "script":"home_alone", "board":"home_alone", "props":["scrap_hinged_door_wall", "scrap_layered_pine"],
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":450, "cast_at":[1, 2],
 		"scenes":["玄関の前の泥棒", "振り子が当たる", "炎がお尻に", "寄りでぐったり"],
 		"description":"クリスマスの留守番コメディのパロディで、防犯ビデオ。泥棒の二人が、罠に次々かかる：振り子が当たる → 足元のボタンでトーチの炎がお尻に → ぐったり。最初は玄関の前（玄関の役の物を映す）。玄関のドアとモミの木は、廃材置き場に出してある。罠を仕掛ける人は、映ってはいけない。"},
-	{"title":"月夜の自転車", "budget":480, "location":"野外", "site":2, "script":"moon_bike", "board":"moon_bike", "props":["scrap_cardboard_bicycle"],
+	{"title":"月夜の自転車", "rank":2, "budget":480, "location":"野外", "site":2, "script":"moon_bike", "board":"moon_bike", "props":["scrap_cardboard_bicycle"],
 		"bonus":"moon", "bonus_title":"月を合計2秒映す", "fee_all":400, "cast_at":[0, 1],
 		"scenes":["満月を見上げる", "満月の前を横切る", "寄りで決めポーズ"],
 		"description":"宇宙から来た友だちの映画のパロディ。満月を見上げる二人 → 自転車で満月の前を横切るシルエット → 着地して決め。画面の上で、月に重ねて横切らせる。"},
-	{"title":"沈まない船の舳先で", "budget":520, "location":"野外", "site":2, "script":"ship", "board":"ship", "props":["scrap_fan", "scrap_rowboat_shell"],
+	{"title":"沈まない船の舳先で", "rank":3, "budget":520, "location":"野外", "site":2, "script":"ship", "board":"ship", "props":["scrap_fan", "scrap_rowboat_shell"],
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":400, "cast_at":[0, 1],
 		"scenes":["高い舳先に立つ", "風を受けて両手を広げる", "寄りで見つめ合う"],
 		"description":"豪華客船の恋愛映画のパロディ。高い所（舳先）に立つ二人 → 送風機の風を正面から受けて、両手を広げる → 寄りで見つめ合う。送風機と張りぼてのボートは、廃材置き場に出してある。"},
-	{"title":"弾をよける男", "budget":540, "location":"倉庫", "site":0, "script":"dodge", "board":"dodge", "props":["scrap_brick_parapet"],
+	{"title":"弾をよける男", "rank":3, "budget":540, "location":"倉庫", "site":0, "script":"dodge", "board":"dodge", "props":["scrap_brick_parapet"],
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":450, "cast_at":[0, 1],
 		"scenes":["向き合う二人", "のけぞる二人とカメラの回り込み", "寄りで決め"],
 		"description":"仮想世界のアクション映画のパロディ。向き合う二人 → 弾をよけてのけぞったまま、カメラだけが二人のまわりを回り込む（60度くらい）→ 寄りで決め。カメラを押す人は、映ってはいけない。"},
-	{"title":"階段を駆け上がれ", "budget":500, "location":"室内スタジオ", "site":1, "script":"stairs", "board":"stairs", "props":["scrap_straight_stair", "scrap_paper_mountain"],
+	{"title":"階段を駆け上がれ", "rank":2, "budget":500, "location":"室内スタジオ", "site":1, "script":"stairs", "board":"stairs", "props":["scrap_straight_stair", "scrap_paper_mountain"],
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":400, "cast_at":[0, 1],
 		"scenes":["並んで走る（カメラも動く）", "駆け上がる", "頂上で万歳"],
 		"description":"ボクサーの朝の映画のパロディ。走る二人と並んでカメラも動く → 高い所へ一気に駆け上がる → 頂上で万歳。上の印は、高い所に置く。階段と張りぼての山は、廃材置き場に出してある。"},
-	{"title":"カップ麺の3分（CM）", "budget":320, "location":"会社の前", "site":1, "script":"noodle", "board":"noodle", "home":true, "props":["scrap_teapot"],
+	{"title":"カップ麺の3分（CM）", "rank":1, "budget":320, "location":"会社の前", "site":1, "script":"noodle", "board":"noodle", "home":true, "props":["scrap_teapot"],
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300, "cast_at":[0, 1],
 		"scenes":["お湯を注ぐ", "タイマーがチン", "寄りでうまい！"],
 		"description":"カップ麺のCMのパロディを、会社の前で。お湯を注ぐ二人 → 映っている所でタイマー（目覚まし時計・押しボタン）がチン → 寄りで、うまい！"},
-	{"title":"髪がなびく車のCM", "budget":380, "location":"会社の前", "site":1, "script":"car_cm", "board":"car_cm", "home":true, "props":["scrap_fan", "scrap_car_front_shell"],
+	{"title":"髪がなびく車のCM", "rank":1, "budget":380, "location":"会社の前", "site":1, "script":"car_cm", "board":"car_cm", "home":true, "props":["scrap_fan", "scrap_car_front_shell"],
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":350, "cast_at":[0, 1],
 		"scenes":["風を受ける二人", "車が走り抜ける", "寄りで決め"],
 		"description":"車のCMのパロディを、会社の前で。送風機の風で髪がなびく二人 → 大きな物（車の正面の書割）がカメラの前を走り抜ける → 寄りで決め。送風機と車の正面は、廃材置き場に出してある。"},
+	# 最後の一本（finale）：ハリウッドの監督からの依頼。格4の「大仕事」の枠にだけ出る。全部の場面がそろえば、エンディング
+	{"title":"ハリウッド監督の新作・大怪獣", "rank":5, "finale":true, "budget":900, "location":"野外", "site":2, "script":"kaiju", "board":"kaiju5",
+		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":1500, "cast_at":[1, 2],
+		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
+		"description":"ハリウッドの監督から FAX。『あなたたちの怪獣映画を見た。私の新作の怪獣の場面を、あなたたちのやり方で撮ってほしい』。5場面を、フィルム1本で止めずに撮る。これが撮れれば、ハリウッドだ。"},
 ]
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
@@ -162,6 +167,20 @@ var saved := 0                   # 今回、使わずに浮かせた制作費
 var rent_no := 0                 # これまでに家賃を払った回数
 var rent_paid := 0               # 今回の精算で払った家賃（0＝支払いの回ではない）
 var bankrupt := false            # 家賃が払えず倒産した（事務所へ戻ると、新しい会社でやり直す）
+# 評判と格：納品の出来で評判が上下し、評判で格（1〜4）が決まる。格で、掲示板に来る依頼主が変わる。倒産すると 0 から
+const RANK_AT := [0, 4, 9, 15]   # 格1〜4になる評判
+const RANK_NAMES := ["町内の制作会社", "地方で評判の制作会社", "映画会社の下請け", "大作も任される制作会社"]
+# 格が上がったときに、新しい依頼主から来る電話
+const RANK_CALLS := ["", "地方テレビ局『評判、聞いてますよ。うちの番組の仕事、お願いできますか』", "映画会社『下請けを探していまして。予算は出します』",
+	"大手の制作部『うちの大作、撮ってみませんか』　──その夜、海外から FAX が一枚。『ハリウッドの監督です。あなたたちの映画を見ました』"]
+# 毎日3枚：地元の仕事（1つ下の格。易しい・少ない）／いつもの仕事（今の格）／大仕事（1つ上の格。大きい報酬、失敗すると評判が大きく下がる）
+const SLOTS := ["local", "regular", "big"]
+const SLOT_NAMES := {"local": "地元の仕事", "regular": "いつもの仕事", "big": "大仕事"}
+var reputation := 0
+var rep_change := 0              # 今回の精算での評判の増減
+var chosen_slot := ""            # 受けた依頼の枠（SLOTS のどれか。初日の一本は ""）
+var finale_done := false         # ハリウッドの一本を撮り切った（事務所へ戻ると、エンディング）
+var all_jobs := false            # 遊んで確かめる用：2日目から全部の依頼を出す（features/start_day.gd の --day2）
 var owned := {}                  # 買って会社の持ち物になった物（発注の id → true）。次の依頼からも最初から在る。倒産すると無くなる
 var bought_now: Array = []       # この依頼の間に買った物（発注の id）
 var bought := 0                  # この依頼の間に、買い物で貯金から払った額（精算の内訳に出す）
@@ -558,7 +577,7 @@ func rent_in() -> int:
 	return RENT_EVERY - ((day - 1) % RENT_EVERY)
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"cast_face":cast_face,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"cast_face":cast_face,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company,"reputation":reputation,"rep_change":rep_change,"chosen_slot":chosen_slot,"finale_done":finale_done,"all_jobs":all_jobs}
 
 func apply(data: Dictionary) -> void:
 	game._crew_epoch = maxi(game._crew_epoch,int(data.get("crew_epoch",0)))
@@ -586,6 +605,11 @@ func apply(data: Dictionary) -> void:
 	rent_no = int(data.get("rent_no",rent_no))
 	rent_paid = int(data.get("rent_paid",rent_paid))
 	bankrupt = bool(data.get("bankrupt",bankrupt))
+	reputation = int(data.get("reputation",reputation))
+	rep_change = int(data.get("rep_change",rep_change))
+	chosen_slot = str(data.get("chosen_slot",chosen_slot))
+	finale_done = bool(data.get("finale_done",finale_done))
+	all_jobs = bool(data.get("all_jobs",all_jobs))
 	casting = data.get("casting",casting)
 	cast_face = data.get("cast_face",cast_face)
 	owned = data.get("owned",owned)
@@ -611,13 +635,88 @@ func apply(data: Dictionary) -> void:
 	if old != phase:
 		game._grab_mouse(phase in [2,4])
 
-# きょう掲示板に出る依頼。初日は1件だけ
+# きょう掲示板に出る依頼。初日は会社のCMだけ。2日目からは3枚（地元の仕事・いつもの仕事・大仕事の順）
 func offered() -> Array:
-	# 1日目は、会社のCM（debut）だけ。CMが流れた2日目からは、ほかの依頼が全部来る
+	return offers().map(func(o: Array) -> int: return int(o[1]))
+
+
+# きょうの依頼 [[枠, 依頼の番号], ...]。日と評判だけで決まる（ホストと参加者で同じになる）
+func offers() -> Array:
 	var debut := debut_job()
 	if day <= 1:
-		return [debut] if debut >= 0 else [0]
-	return range(JOBS.size()).filter(func(i: int) -> bool: return i != debut)
+		return [["", debut if debut >= 0 else 0]]
+	if all_jobs:
+		return range(JOBS.size()).filter(func(i: int) -> bool: return i != debut).map(func(i: int) -> Array: return ["", i])
+	var out: Array = []
+	var taken: Array = []
+	for slot: String in SLOTS:
+		var pick := _pick(slot, taken)
+		if pick >= 0:
+			out.append([slot, pick])
+			taken.append(pick)
+	return out
+
+
+# その依頼の、きょうの枠（"local"・"regular"・"big"。出ていなければ ""）
+func slot_of(index: int) -> String:
+	for o: Array in offers():
+		if int(o[1]) == index:
+			return str(o[0])
+	return ""
+
+
+func _pick(slot: String, taken: Array) -> int:
+	var r := rank()
+	var want: int = {"local": maxi(1, r - 1), "regular": r, "big": r + 1}[slot]
+	var pool: Array = range(JOBS.size()).filter(func(i: int) -> bool:
+		return job_rank(i) == want and i != debut_job() and i not in taken)
+	if pool.is_empty():
+		return -1
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%d|%s|%d" % [day, slot, reputation])
+	return int(pool[rng.randi_range(0, pool.size() - 1)])
+
+
+func job_rank(index: int) -> int:
+	return int(JOBS[index].get("rank", 1))
+
+
+# いまの格（1〜4）
+func rank() -> int:
+	var r := 1
+	for i in RANK_AT.size():
+		if reputation >= int(RANK_AT[i]):
+			r = i + 1
+	return r
+
+
+func rank_name() -> String:
+	return str(RANK_NAMES[rank() - 1])
+
+
+# 次の格まで、あと何点か（いちばん上なら -1）
+func rep_to_next() -> int:
+	var r := rank()
+	return int(RANK_AT[r]) - reputation if r < RANK_AT.size() else -1
+
+
+# 評判の増減：場面が全部そろえば +2（追加の注文も達成で +1）、半分以上で +1、半分に届かなければ −1、ひとつも撮れなければ −2。
+# 大仕事は増えるのも減るのも2倍。地元の仕事は、増えても +1 まで
+static func rep_delta(count: int, total: int, bonus_ok: bool, slot: String) -> int:
+	var d := 0
+	if total > 0 and count == total:
+		d = 2 + (1 if bonus_ok else 0)
+	elif count * 2 >= total and count > 0:
+		d = 1
+	elif count > 0:
+		d = -1
+	else:
+		d = -2
+	if slot == "big":
+		d *= 2
+	elif slot == "local":
+		d = mini(d, 1)
+	return d
 
 
 # 最初の一本（会社のCM）の番号（無ければ -1）
@@ -632,6 +731,7 @@ func debut_job() -> int:
 func accept(index: int) -> void:
 	if phase != 0 or index < 0 or index >= JOBS.size():
 		return
+	chosen_slot = slot_of(index)
 	chosen_job = index
 	game.judge.story = str(job()["script"])
 	expired = false
@@ -1621,7 +1721,19 @@ func settle(index: int) -> void:
 			rent_no += 1
 		else:
 			bankrupt = true
+	# 評判：出来で上下する。格が変わったら、新しい依頼主から電話が来る
+	var rank_before := rank()
+	rep_change = rep_delta(count, passed.size(), bool(extras.get("bonus_ok",false)), chosen_slot)
+	reputation = maxi(0, reputation + rep_change)
+	if bool(job().get("finale", false)) and count == passed.size() and not bankrupt:
+		finale_done = true
 	last_flubs.clear()
+	if finale_done:
+		last_flubs.append("ハリウッド監督『ブラボー！ この予算で、この画。次はハリウッドで会おう』")
+	elif rank() > rank_before:
+		last_flubs.append(str(RANK_CALLS[rank() - 1]))
+	elif rank() < rank_before:
+		last_flubs.append("評判が落ちた。大きな依頼主からの電話が、しばらく来なくなりそうだ")
 	last_flubs.append("追加注文『%s』：%s" % [job()["bonus_title"],"達成！ +150コイン" if extras.get("bonus_ok",false) else "今回は未達"])
 	last_flubs.append_array(notes.observations(extras))
 	# 見立て：むりやりな役と、コンボへのひとこと
@@ -1749,8 +1861,14 @@ func return_office() -> void:
 		if prop.kind != "mark" and not prop.absent and prop.rider_of == 0 and not is_owned(prop):
 			_move(prop, _home_layout[pid][0])
 	_bring_home()
-	if bankrupt:
+	if finale_done:
+		# エンディング：ハリウッドへ。会社は次の世代へ（最初から、もう一度）
+		game.host_ev("toast", ["エンディング：%s は、ハリウッドへ旅立った。事務所には、新しい制作班がやって来る" % company_name(), 0])
+	if bankrupt or finale_done:
 		# 倒産：新しい会社を立ち上げて、最初からやり直す
+		reputation = 0
+		finale_done = false
+		chosen_slot = ""
 		wallet = START_WALLET
 		company = ""          # 新しい会社（名前は打ち込まない。看板には手で書く）
 		for id: String in levels:
@@ -1761,6 +1879,7 @@ func return_office() -> void:
 		game.host_ev("toast", ["新しい会社を立ち上げた。貯金 %d コインからやり直し" % START_WALLET, 0])
 	saved = 0
 	rent_paid = 0
+	rep_change = 0
 	casting = {}
 	cast_face = {}
 	slides = {}

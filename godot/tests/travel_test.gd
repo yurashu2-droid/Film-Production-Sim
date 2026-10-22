@@ -95,7 +95,8 @@ func run() -> void:
 			job = i
 	check(job >= 0 and beats.Scripts.cuts(job) and (beats.Scripts.beats(job) as Array).size() == 4, "場所が変わる4カットの依頼がある")
 	flow.day = 2
-	check(job in flow.offered(), "2日目から来る")
+	flow.all_jobs = true
+	check(job in flow.offered(), "2日目から来る（--day2 と同じく、全部出す）")
 	await shoot(job, str(flow.JOBS[job]["location"]))
 	print("TRAVEL_TEST_FAIL" if failed else "TRAVEL_TEST_OK")
 	root.get_node("Sfx").silence_all()
