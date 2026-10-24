@@ -18,6 +18,7 @@ func configure() -> void:
 	# 見た目の拡大率に合わせて、当たり判定も同じ比率で大きくする
 	var k: float = visual.scale.x / BASE_SCALE
 	empty_mass = mass
+	fix_tear(visual)
 	for side: String in ["Front", "Right", "Back", "Left"]:
 		flaps.append(visual.find_child("Flap" + side, true, false) as Node3D)
 	# Keep the interior empty when open; closing adds a surface across the top.
@@ -35,6 +36,7 @@ func configure() -> void:
 static func closed_model(size_scale: float) -> Node3D:
 	var model: Node3D = (load("res://assets/gear/carton.glb") as PackedScene).instantiate()
 	model.scale = Vector3.ONE * size_scale
+	fix_tear(model)
 	var sides := ["Front", "Right", "Back", "Left"]
 	for i in sides.size():
 		var flap := model.find_child("Flap" + String(sides[i]), true, false) as Node3D
@@ -45,6 +47,60 @@ static func closed_model(size_scale: float) -> Node3D:
 		else:
 			flap.rotation.z = CLOSED[i]
 	return model
+
+
+# 前のふたの先にある破れ（はがれた表紙と、のぞく中芯）が、carton.glb では本体（Body）の一部になっていて、
+# ふたを閉じても開いた位置に浮いて残る。本体の面のうち、開いた前のふたの先（z > TEAR_Z）にある三角形を抜き出し、
+# 前のふた（FlapFront）の子に移して、ふたと一緒に動かす。分けた形は1回だけ作って使い回す
+const TEAR_Z := 0.16
+static var _tear_split: Array = []   # [破れを抜いた本体, 破れだけ]
+
+static func fix_tear(model: Node3D) -> void:
+	var body := model.find_child("Body", true, false) as MeshInstance3D
+	var flap := model.find_child("FlapFront", true, false) as Node3D
+	var lid := model.find_child("LidFront", true, false) as Node3D
+	if body == null or flap == null or lid == null or body.mesh == null or flap.has_node("TearFront"):
+		return
+	if _tear_split.is_empty():
+		_tear_split = _split_tear(body.mesh)
+	if _tear_split.is_empty():
+		return
+	body.mesh = _tear_split[0]
+	var tear := MeshInstance3D.new()
+	tear.name = "TearFront"
+	tear.mesh = _tear_split[1]
+	tear.transform = lid.transform   # ふたの形と同じ置き方（形の座標は本体と同じ）
+	tear.cast_shadow = body.cast_shadow
+	flap.add_child(tear)
+
+
+static func _split_tear(src: Mesh) -> Array:
+	var rest := ArrayMesh.new()
+	var tear := ArrayMesh.new()
+	for k in src.get_surface_count():
+		var arrays := src.surface_get_arrays(k)
+		var pos: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var keep := PackedInt32Array()
+		var cut := PackedInt32Array()
+		for t in range(0, idx.size(), 3):
+			var z: float = (pos[idx[t]].z + pos[idx[t + 1]].z + pos[idx[t + 2]].z) / 3.0
+			var tri := PackedInt32Array([idx[t], idx[t + 1], idx[t + 2]])
+			if z > TEAR_Z:
+				cut.append_array(tri)
+			else:
+				keep.append_array(tri)
+		var mat := src.surface_get_material(k)
+		for pair: Array in [[rest, keep], [tear, cut]]:
+			if (pair[1] as PackedInt32Array).is_empty():
+				continue
+			var out: ArrayMesh = pair[0]
+			arrays[Mesh.ARRAY_INDEX] = pair[1]
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+	if tear.get_surface_count() == 0:
+		return []
+	return [rest, tear]
 
 
 # 中身の見た目を作り直す。list：[[物, 箱から見た置き方（Transform3D）], ...]（入れた順）。
