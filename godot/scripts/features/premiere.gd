@@ -16,6 +16,7 @@ extends Node
 ## 自動確認などが直接呼ぶ納品（game.h_deliver）は、今までどおり、すぐ納品になる（試写会は、画面から頼んだときだけ）
 const UI := preload("res://scripts/ui/ui_theme.gd")
 const Briefs := preload("res://scripts/production_briefs.gd")
+const CompanyLogo := preload("res://scripts/ui/company_logo.gd")   # 「{会社}」＝事務所に掛けた看板の絵（features/company_sign.gd）
 const LINE_SEC := 0.7        # 読み上げの1行の間（秒）
 const VOICE_SEC := 1.6       # 依頼主のせりふの行の間
 const HOLD_SEC := 2.2        # 読み上げ終わってから、精算の画面へ移るまで
@@ -160,9 +161,9 @@ static func _ring_style() -> StyleBoxFlat:
 
 
 func _show_card(small: String, big: String, sec: float) -> void:
-	_card_small.text = small
+	CompanyLogo.show_in(_card_small, small)
 	_card_small.visible = small != ""
-	_card_big.text = big
+	CompanyLogo.show_in(_card_big, big)
 	var ring: bool = big == "終"
 	_card_big.add_theme_font_size_override("font_size", 64 if ring else 52)
 	_card_big.custom_minimum_size = Vector2(118, 118) if ring else Vector2.ZERO
@@ -581,7 +582,7 @@ func _open() -> void:
 	_sheet_head.text = "コメントと広告収入" if _online() else "依頼主の感想とギャラ"
 	if _online():
 		_name.text = "コメント欄"
-	_title.text = ("動画サイトに投稿　『%s』" if _online() else "試写会　『%s』") % str(game.film_title())
+	CompanyLogo.show_in(_title, ("動画サイトに投稿　『%s』" if _online() else "試写会　『%s』") % _film_name())
 	_hint.text = "Enter・Esc：とばして結果へ"
 	_shade.color = Color(0, 0, 0, 0)
 	_sheet.visible = false
@@ -602,13 +603,20 @@ func _open() -> void:
 	_end_t = 0.0
 	_closing_line = []
 	_chapter.modulate.a = 0.0
-	_show_card("アップロード完了" if _online() else "%s　作品" % game.production.company_name(), "『%s』" % str(game.film_title()), CARD_SEC)
+	_show_card("アップロード完了" if _online() else CompanyLogo.TOKEN + "　作品", "『%s』" % _film_name(), CARD_SEC)
+
+
+# 上映する作品の題。会社の紹介動画は、会社の名前（看板の絵）を題に入れる
+func _film_name() -> String:
+	if _online():
+		return CompanyLogo.TOKEN + " 紹介動画"
+	return str(game.film_title())
 
 
 # 依頼主のひとこと。気分で、顔の動きと音を変える（happy はねる / wow びくっ / sad かしげる / neutral うなずく）
 func _say(text: String, mood: String) -> void:
 	last_line = text
-	_bubble_text.text = text
+	CompanyLogo.show_in(_bubble_text, text)
 	_bubble.visible = _layer.visible
 	_bubble_t = BUBBLE_SEC
 	if _tween != null:
@@ -911,10 +919,11 @@ func _note(rows: Array) -> Control:
 		line.add_theme_constant_override("separation", 10)
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var voice: bool = bool(row[2])
-		var text := UI.label("『%s』" % row[0] if voice else str(row[0]), 17, UI.TAPE_HI if voice else UI.PAPER, "bold" if voice else "body")
+		var text := UI.label("", 17, UI.TAPE_HI if voice else UI.PAPER, "bold" if voice else "body")
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.custom_minimum_size = Vector2(228, 0)      # 折り返しの幅を先に決める（決めないと、1字ずつ折れて縦に伸びる）
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		CompanyLogo.show_in(text, "『%s』" % row[0] if voice else str(row[0]))
 		line.add_child(text)
 		if row[1] != null:
 			var coins: int = int(row[1])

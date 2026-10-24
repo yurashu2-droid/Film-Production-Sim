@@ -5,7 +5,7 @@ extends Node
 ##   ・立てる：板はそのままだと倒れる。接着剤で箱馬などに貼ると、立ったままになる（接着は adhesive.gd）
 ##   ・スプレー缶（黒・赤）：持って F を押している間、狙った段ボール板の表に色を吹く（手描き。字はガタガタになる）
 ##   ・字は打ち込まない。看板に何と書くかは、吹く人が手で書く（名前を聞く画面も、下書きも出さない）。
-##     会社が呼ばれる所（作品の札・電話・事務所の建物の看板など）は、production_flow.gd の company_name() のまま
+##     描いた板を事務所の入口の上の金具に掛けると、その看板の絵が会社の名前になる（features/company_sign.gd）
 ##   ・描いた板は、カンペ・等身大パネルと同じ「描ける物」（cue_cards.gd の boards）。看板の判定（signboard.gd）にも、そのまま数える
 ## 決めるのはホスト（たたむ・吹いた点）。吹いた絵は cue_cards.gd の rx_draw で全員へ配る
 const Sheet := preload("res://scripts/cardboard_sheet.gd")
@@ -61,7 +61,6 @@ func setup() -> void:
 		game.production._home_layout[can.pid] = can.get_state()
 		cans.append(can)
 	_build_mist()
-	_show_name()
 
 
 # ---- たたむ（Shift+F） ----
@@ -122,13 +121,16 @@ func h_fold(box_pid: int) -> void:
 	game.ev.rpc_id(who, "toast", ["段ボール箱をたたんで、板にした。スプレーで描ける（立てるなら、接着剤で箱馬などに貼る）", 0])
 
 
-# 帰社のあと：使った板は、地下へしまい直す（はじめの2枚だけが出ている）
+# 帰社のあと：使った板は、地下へしまい直す（はじめの2枚だけが出ている）。事務所の前に掛けてある看板の板は、そのまま
 func hook_office_ready() -> void:
 	spare = []
+	var sign: Node = game.hooks.feature("company_sign")
 	for i in sheets.size():
 		if i < SHOWN:
 			continue
 		var s: RigidBody3D = sheets[i]
+		if sign != null and sign.in_use(s):
+			continue
 		game.production._let_go(s)
 		var st: Array = s.get_state()
 		st[0] = Vector3(300.0 + float(i) * 2.0, -60.0, 40.0)
@@ -348,19 +350,6 @@ func _update_mist(now: float) -> void:
 			mat.set_shader_parameter("paint", can.paint)
 			mat.set_shader_parameter("grow", float(m["grow"]))
 			mat.set_shader_parameter("cut", float(m["cut"]))
-
-
-# ---- 会社の名前 ----
-
-func hook_production_applied() -> void:
-	_show_name()
-
-
-# 事務所の建物の看板を、会社の名前に書き換える（名前は打ち込まないので、ふつうは決まった名前のまま）
-func _show_name() -> void:
-	var sign: Label3D = game.find_child("CompanyNameSign", true, false) as Label3D
-	if sign != null:
-		sign.text = game.production.company_name()
 
 
 # ---- 画面の案内 ----

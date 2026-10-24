@@ -5,6 +5,7 @@ extends CanvasLayer
 const UI := preload("res://scripts/ui/ui_theme.gd")
 
 const Catalog := preload("res://scripts/ui/order_catalog.gd")
+const CompanyLogo := preload("res://scripts/ui/company_logo.gd")
 const Cast := preload("res://scripts/production_cast.gd")
 const Scripts := preload("res://scripts/production_script.gd")
 const Briefing := preload("res://scripts/ui/briefing.gd")
@@ -1248,7 +1249,7 @@ func _refresh() -> void:
 		if _settled_next.visible:
 			var left: int = production.RENT_EVERY if production.rent_paid > 0 else production.rent_in() - 1
 			_settled_next.text = "次の家賃：%d コイン（あと%d本）" % [production.rent_amount(), left]
-		_settled_notes.text = observations
+		CompanyLogo.show_in(_settled_notes, observations)
 		_settled_folder.visible = game.production_export != null and not game.production_export.last_saved.is_empty()
 
 

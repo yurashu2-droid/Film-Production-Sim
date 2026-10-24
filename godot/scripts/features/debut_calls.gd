@@ -20,7 +20,7 @@ func hook_office_ready() -> void:
 	if not _pending:
 		return
 	_pending = false
-	game.host_ev("toast", ["電話だ！「%sさんですか？ 動画、見ましたよ」地方テレビ局のランプ部長から。明日から、仕事の依頼が来る（事務所の掲示板へ）" % game.production.company_name(), 0])
+	game.host_ev("toast", ["電話だ！「%sさんですか？ 動画、見ましたよ」地方テレビ局のランプ部長から。明日から、仕事の依頼が来る（事務所の掲示板へ）" % game.production.COMPANY, 0])
 	game.host_ev("debut_ring", [])
 
 

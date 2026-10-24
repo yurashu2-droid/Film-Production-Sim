@@ -18,6 +18,7 @@ const MonitorMarks := preload("res://scripts/ui/monitor_marks.gd")
 const ClapperOverlay := preload("res://scripts/ui/clapper_overlay.gd")
 const PANEL_W := 672.0
 const EditDesk := preload("res://scripts/ui/edit_desk.gd")
+const CompanyLogo := preload("res://scripts/ui/company_logo.gd")   # 文の中の「{会社}」を、事務所に掛けた看板の絵にする
 const NOTE_FREE := "無料：カメラ・ライト2台・カチンコは荷台に載っている。廃材置き場に出ている物も自由に使える。"
 var character_picker: Control
 var character_button: Button
@@ -634,9 +635,9 @@ func show_toast(text: String, col: Color = YELLOW, sec: float = 2.6) -> void:
 	elif col.is_equal_approx(GREEN):
 		bar = UI.OK_GREEN
 	var max_w := _toast_max_width()
-	var text_w := FilmSet.font("marker").get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
-	toast_label.text = text
+	var text_w := FilmSet.font("marker").get_string_size(CompanyLogo.layout_text(text, 21), HORIZONTAL_ALIGNMENT_LEFT, -1, 21).x
 	toast_label.add_theme_color_override("font_color", FilmSet.MARKER_RED if bar == UI.STAMP_RED else FilmSet.MARKER_INK)
+	CompanyLogo.show_in(toast_label, text)
 	# 2行になるときは、行の長さを揃える（1文字だけ次の行へ落ちないように）
 	var label_w := text_w + 2.0
 	if label_w > max_w - 56.0:

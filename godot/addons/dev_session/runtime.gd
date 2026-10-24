@@ -163,6 +163,7 @@ func _dispatch(request: Dictionary) -> Dictionary:
 				k.keycode = code
 				k.physical_keycode = code
 				k.pressed = bool(request.get("pressed", true))
+				k.shift_pressed = bool(request.get("shift", false))
 				ev = k
 			elif op == "click":
 				var b := InputEventMouseButton.new()

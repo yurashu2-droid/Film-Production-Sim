@@ -48,7 +48,7 @@ const ORDERS := {
 	# 開いている画面：のぞき箱・発注 → 接着剤 → カンペを書く画面
 	"hook_input": ["director", "adhesive", "cue_cards"],
 	# 画面の案内：あとの仕組みが、前の仕組みの文を見て書き足す・差し替える
-	"hook_hud": ["bomb_kit", "cargo_kit", "rope_grab"],
+	"hook_hud": ["bomb_kit", "cargo_kit", "rope_grab", "delivery_box", "company_sign"],
 	# 見返しの終わりだけは、場面の進み → 箱とロープ → 爆弾の順に戻す（run の3つ目に、この名前を渡す）
 	"hook_playback:off": ["beats", "cargo_kit", "bomb_kit"],
 }

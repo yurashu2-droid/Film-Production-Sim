@@ -46,9 +46,12 @@ func hook_new_job() -> void:
 # その種類の物を1つ（出ている物か、今日しまってある物。人が持っている物・荷台の物は使わない）
 func _pick(kind: String, used: Dictionary) -> RigidBody3D:
 	var flow: Node = game.production
+	var sign: Node = game.hooks.feature("company_sign")
 	for p: RigidBody3D in game.props.values():
 		if p.kind != kind or used.has(p.pid) or p.holder != 0 or p.rider_of != 0:
 			continue
+		if sign != null and sign.in_use(p):
+			continue          # 事務所の前に掛けてある看板の板
 		if p.absent and not (p.pid in flow.stash):
 			continue          # 借りていない物・しまい込んである物
 		return p

@@ -185,9 +185,12 @@ var owned := {}                  # 買って会社の持ち物になった物（
 var bought_now: Array = []       # この依頼の間に買った物（発注の id）
 var bought := 0                  # この依頼の間に、買い物で貯金から払った額（精算の内訳に出す）
 var sack_stock: Array = []       # 前の依頼から持ち越した火薬の袋（1袋ごとの残りの量）
-# 会社の名前（看板にスプレーで書くときに決める。features/spray_sign.gd）。空なら、ゲームの題名を仮の名前にする。
-# 会社が呼ばれる所（作品の札・依頼主のひとこと・電話・建物の看板）は、company_name() を使う
-const DEFAULT_COMPANY := "格安アクション映画制作班"
+# 会社の名前：文字では決めない。事務所の入口の上に掛けた段ボールの看板の絵が、会社の名前（features/company_sign.gd）。
+# 会社が呼ばれる文（お知らせ・電話・コメント欄・作品の札・依頼主のひとこと）には COMPANY（「{会社}」）を書き、
+# 表示する側が ui/company_logo.gd の show_in で看板の絵に替える。文字しか出せない所（題など）は company_name() の文字
+const CompanyLogo := preload("res://scripts/ui/company_logo.gd")
+const COMPANY := CompanyLogo.TOKEN
+const DEFAULT_COMPANY := CompanyLogo.DEFAULT
 var company := ""
 var _new_names: Array = []       # いま買ったばかりの物の名前（お知らせに出す）
 var last_flubs: Array[String] = []
@@ -1775,7 +1778,7 @@ func settle(index: int) -> void:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
 	# 最初の一本（会社の紹介動画）：ネットに上げると、テレビ局の人がコメントを書いていく（帰社すると、その人から電話が鳴る。2日目から、ほかの依頼が来る）
 	if bool(job().get("debut", false)):
-		last_flubs.append("コメント欄『地方テレビ局のランプと申します。%sさんの動画、拝見しました。のちほど、お電話します』" % company_name())
+		last_flubs.append("コメント欄『地方テレビ局のランプと申します。%sさんの動画、拝見しました。のちほど、お電話します』" % COMPANY)
 		said = true
 	if count == passed.size() and count > 0 and not said:
 		last_flubs.append("依頼主『あの怪獣、本物を呼んだのかと思ったよ！』" if job()["script"] == "kaiju" else "依頼主『これをこの予算で？ 次も頼むよ！』")
@@ -1872,7 +1875,7 @@ func return_office() -> void:
 	_bring_home()
 	if finale_done:
 		# エンディング：ハリウッドへ。会社は次の世代へ（最初から、もう一度）
-		game.host_ev("toast", ["エンディング：%s は、ハリウッドへ旅立った。事務所には、新しい制作班がやって来る" % company_name(), 0])
+		game.host_ev("toast", ["エンディング：%s は、ハリウッドへ旅立った。事務所には、新しい制作班がやって来る" % COMPANY, 0])
 	if bankrupt or finale_done:
 		# 倒産：新しい会社を立ち上げて、最初からやり直す
 		reputation = 0

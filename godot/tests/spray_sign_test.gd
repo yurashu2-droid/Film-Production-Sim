@@ -3,7 +3,7 @@ extends SceneTree
 #   ・段ボール板がはじめから2枚、スプレー缶が黒・赤の2本ある
 #   ・空の段ボール箱を Shift+F でたたむと、箱は奥へしまわれ、その場に段ボール板が出る
 #   ・缶を持って吹くと、狙った板に色が付く（持っていない人・遠い人は吹けない）
-#   ・名前は打ち込まない：吹いても、名前を聞く画面は出ない（手で書く）。会社が呼ばれる所は決まった名前のまま
+#   ・名前は打ち込まない：吹いても、名前を聞く画面は出ない（手で書く）。会社の名前は、掛けた看板の絵（company_sign_test.gd）
 #   ・吹いた板を、表をカメラへ向けて立てると、看板として映っている（signboard.gd）
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/spray_sign_test.gd
 #   SPRAY_SHOTS=1 を付けて画面ありで流すと、tests/shots/spray/ に絵を残す
@@ -103,7 +103,7 @@ func run() -> void:
 	check(can.holder == me.peer_id, "スプレー缶を持った")
 	check(str(kit.hook_hud(me, "", "").get("keys", "")).contains("スプレー"), "缶を持つと、吹き方の案内が出る")
 	var sign: Label3D = game.find_child("CompanyNameSign", true, false)
-	check(sign != null and sign.text == flow.company_name(), "事務所の建物の看板は、会社の名前（%s）" % (sign.text if sign != null else ""))
+	check(sign != null and not sign.visible, "書割の社屋の、文字の社名は出さない（会社の名前は、入口の上に掛けた段ボールの看板）")
 	# 吹く：太い線を何本か
 	for row in 6:
 		var pts := PackedVector2Array()
@@ -198,7 +198,7 @@ func run() -> void:
 	signboard._by_take[99] = true
 	signboard._first_by_take[99] = 1.0
 	var cues: Array = signboard.hook_premiere_cues(99)
-	check(not cues.is_empty() and str(cues[0][1]).contains(flow.company_name()), "看板への反応は、会社の名前で呼ぶ（%s）" % (str(cues[0][1]) if not cues.is_empty() else ""))
+	check(not cues.is_empty() and str(cues[0][1]).contains(flow.COMPANY), "看板への反応は、会社の名前（看板の絵）で呼ぶ（%s）" % (str(cues[0][1]) if not cues.is_empty() else ""))
 	flow.chosen_job = flow.debut_job()
 	flow.phase = 2
 	check(str(game.film_title()) == str(flow.job()["title"]), "名前を打ち込まないので、紹介動画の題は依頼の題のまま（%s）" % game.film_title())
