@@ -1,6 +1,6 @@
 extends CanvasLayer
-## 会社のスマホの画面（依頼主から届いた参考写真）。見ている人の画面いっぱいに出て、まわりの世界を隠す。
-## 黒い縁のスマホを横向きに持った画面に、写真が1枚だけ見える。左右に送ると、次の写真に替わる。
+## 台本に挟まっている参考写真（依頼主が撮って挟んでおいた物）。見ている人の画面いっぱいに出て、まわりの世界を隠す。
+## 白い縁のプリント写真が1枚だけ見える。左右に送ると、次の写真に替わる。
 ## 中身（どの種類の物を並べるか）は production_slides.gd がホストで決めた物。ここは、それを絵にするだけ。
 ##   1枚目   ：役ごとのおすすめの形。黒いシルエットだけ（名前・色・属性は出さない）。一緒に使うと良い2つは「＋」でつなぐ
 ##   2枚目   ：依頼主の好み。その属性を持つ物のシルエットに、ハートを添える（属性の名前は出さない）
@@ -51,30 +51,30 @@ func build(owner_game: Node) -> void:
 	root.add_child(cover)
 	# 画面のまわりに、液晶の光が少しだけ漏れる
 	_glow = TextureRect.new()
-	_glow.texture = UI.radial_gradient(Color(0.85, 0.9, 1.0, 0.12), Color(0.85, 0.9, 1.0, 0.0), 0.5)
+	_glow.texture = UI.radial_gradient(Color(1.0, 0.95, 0.85, 0.1), Color(1.0, 0.95, 0.85, 0.0), 0.5)
 	_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_glow.stretch_mode = TextureRect.STRETCH_SCALE
 	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_glow)
-	# スマホの黒い縁（横向き。右にカメラの穴）
+	# 写真の白い縁（プリントの余白。少し影）
 	_bezel = Panel.new()
 	var rim := StyleBoxFlat.new()
-	rim.bg_color = Color("141518")
-	rim.set_corner_radius_all(44)
-	rim.border_color = Color("2e3036")
-	rim.set_border_width_all(3)
+	rim.bg_color = Color("fbfaf6")
+	rim.set_corner_radius_all(3)
+	rim.shadow_color = Color(0, 0, 0, 0.5)
+	rim.shadow_size = 18
+	rim.shadow_offset = Vector2(0, 6)
 	_bezel.add_theme_stylebox_override("panel", rim)
 	_bezel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_bezel)
 	_lens = Panel.new()
 	var lens := StyleBoxFlat.new()
-	lens.bg_color = Color("05060a")
-	lens.set_corner_radius_all(10)
+	lens.bg_color = Color(0, 0, 0, 0)
 	_lens.add_theme_stylebox_override("panel", lens)
 	_lens.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bezel.add_child(_lens)
 	frame = Panel.new()
-	frame.add_theme_stylebox_override("panel", _flat(LIT, 10))
+	frame.add_theme_stylebox_override("panel", _flat(LIT, 1))
 	frame.clip_contents = true
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(frame)
@@ -126,13 +126,13 @@ func _fit() -> void:
 	frame.position = Vector2((vs.x - w) * 0.5, (vs.y - h) * 0.5 - 20.0).round()
 	frame.size = Vector2(w, h)
 	_canvas.scale = Vector2.ONE * (w / BASE.x)
-	_bezel.position = frame.position - Vector2(46, 22)
-	_bezel.size = Vector2(w, h) + Vector2(92, 44)
+	_bezel.position = frame.position - Vector2(22, 22)
+	_bezel.size = Vector2(w, h) + Vector2(44, 70)
 	_lens.position = Vector2(_bezel.size.x - 30.0, _bezel.size.y * 0.5 - 10.0)
 	_lens.size = Vector2(20, 20)
 	_glow.position = frame.position - Vector2(w, h) * 0.22
 	_glow.size = Vector2(w, h) * 1.44
-	_hints.position = Vector2(0, frame.position.y + h + 24.0)
+	_hints.position = Vector2(0, frame.position.y + h + 64.0)     # 写真の白い余白の外
 	_hints.size = Vector2(vs.x, 30.0)
 
 

@@ -1035,7 +1035,7 @@ func _refresh() -> void:
 		elif me and game.props.has(me.held) and game.props[me.held].kind == "cue_card":
 			line = "F カンペに書く\n" + game.hold_hint()
 		elif me and game.holding_script():
-			line = ("F 台本を閉じる" if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
+			line = (("F 挟まっている写真を見る" if game.director != null and game.director.open_hours() else "F 台本を閉じる") if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
 		elif me and me.held != 0:
 			line = game.hold_hint()
 			if me.global_position.distance_to(production.HOME_TRUCK) < 4.5:
@@ -1080,7 +1080,7 @@ func _refresh() -> void:
 		if guides != null and guides.active() and guides.left() > 0 and not game.is_action_prop(action_prop):
 			legacy.keys.text = ("左クリック 置く" if me and me.held != 0 else "左クリック 持つ") + " ／ 事務所の前の物を、舞台の青い影に合わせて置こう（あと %d）" % guides.left()
 		if me and game.holding_script():
-			legacy.keys.text = ("F 台本を閉じる" if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
+			legacy.keys.text = (("F 挟まっている写真を見る" if game.director != null and game.director.open_hours() else "F 台本を閉じる") if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
 		if me and game.props.has(me.operating) and game.props[me.operating].kind == "camera" and game.state == game.S.TAKE:
 			legacy.keys.text = "左クリック 次の合図 ／ マウス 首振り ／ ホイール ズーム ／ F 離れる\nT カット"
 		if me and me.target == game.camera_switcher.monitor and me.held == 0 and me.operating == 0:

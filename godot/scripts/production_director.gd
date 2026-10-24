@@ -1,13 +1,13 @@
 extends Node
-## 監督の机：事務所の机の上の「会社のスマホ」（依頼主から届いた参考写真）と、発注の電話。
-## （中の名前は、前の「のぞき箱」のまま peep と呼んでいる）
+## 監督の机：事務所の机の上の発注の電話と、台本に挟まっている参考写真を見る画面。
+## （写真を見ることの中の名前は、前の「のぞき箱」のまま peep と呼んでいる。机の上の写真の台は、もう置かない）
 ##
 ## 役割は、窓のメニューでは選ばない。「どこにいて、何をのぞいているか」で決まる。
-##   ・スマホを見て F：依頼主から届いた参考写真（何が欲しいかの絵）が、画面いっぱいに見える。
-##     見ている間は、まわりの世界が見えない（スマホに夢中）。現物を見られるのは、集めに行った人だけ。
+##   ・台本を持って開き、もう一度 F：挟まっている参考写真（何が欲しいかの絵）が、画面いっぱいに見える。
+##     見ている間は、まわりの世界が見えない。現物を見られるのは、集めに行った人だけ。
 ##     声（外のボイスチャット）で「こういう形の物ある？」と聞くしかない。
-##   ・見られるのは一度に1人（会社のスマホは1台）（決めるのはホスト。production_flow.gd の peeper）。やめれば、ほかの人がのぞける。
-##     見ている人のキャラは、スマホに顔を寄せた姿勢で止まる。ほかの人から見て「あの人が監督だ」と分かる。
+##   ・見られるのは台本を持っている1人（決めるのはホスト。production_flow.gd の peeper）。やめれば、ほかの人がのぞける。
+##     見ている人のキャラは、その場で止まる。ほかの人から見て「あの人が監督だ」と分かる。
 ##   ・使えるのは、依頼を受けてから出発するまで（会社にいる間）。
 ##   ・電話を見て F：その人の画面にだけ、発注の画面が開く（production_main.gd の h_open_order）。
 ## スライドの中身は production_slides.gd が決め、絵は scripts/ui/slide_view.gd が描く。
@@ -49,7 +49,6 @@ func setup() -> void:
 	_root = Node3D.new()
 	_root.name = "DirectorDesk"
 	flow._office_root.add_child(_root)
-	_build_peep_box()
 	_build_phone()
 	view = SlideView.new()
 	view.name = "SlideView"
@@ -59,9 +58,9 @@ func setup() -> void:
 
 # ---- 使えるか・誰が使っているか ----
 
-# のぞき箱を使える時か（依頼を受けてから出発するまで）
+# 台本の写真を見られる時か（依頼を受けてから、本番の前まで。会社でも現場でも）
 func open_hours() -> bool:
-	return flow != null and flow.office_prep() and game.state == game.S.PREP and not flow.slides.is_empty()
+	return flow != null and flow.phase in [2, 4] and game.state == game.S.PREP and not flow.slides.is_empty()
 
 
 # 自分がのぞいている最中か（その間は、歩けず、まわりも見えない）
@@ -193,7 +192,7 @@ func _find_desk() -> String:
 		return ""
 	var best := ""
 	var nearest := STEP_UP
-	for thing: String in ["peep", "phone"]:
+	for thing: String in ["phone"]:
 		var to: Vector3 = (BOX_AT if thing == "peep" else PHONE_AT) - me.global_position
 		to.y = 0.0
 		if to.length() < nearest and to.normalized().dot(me.flat_forward()) > 0.75:
@@ -206,7 +205,7 @@ func _process(_delta: float) -> void:
 	if flow == null:
 		return
 	var me: Node = game.local_player()
-	var mine: bool = me != null and flow.office_prep() and int(flow.peeper) == me.peer_id
+	var mine: bool = me != null and flow.phase in [2, 4] and int(flow.peeper) == me.peer_id
 	if mine != _mine:
 		_mine = mine
 		if mine:
@@ -226,14 +225,9 @@ func _process(_delta: float) -> void:
 		part.visible = not calling
 
 
-# のぞき始めた：箱の前に立って、顔を寄せる
+# 写真を見始めた：その場で止まって、台本に挟まった写真を見る
 func _begin(me: Node) -> void:
-	var stand: Vector3 = stand_point(me)
-	me.global_position = stand
 	me.velocity = Vector3.ZERO
-	me.aim_yaw = 0.0
-	me.aim_pitch = -0.2
-	me.vis.rotation.y = PI
 	if me.has_method("cancel_performance"):
 		me.cancel_performance()
 	view.open(flow.slides, flow.JOBS)
@@ -316,8 +310,8 @@ func _sync_poses() -> void:
 	for id: int in game.players:
 		var pl: Node = game.players[id]
 		var mode := ""
-		if flow.office_prep() and id == int(flow.peeper):
-			mode = "peep"
+		if false and id == int(flow.peeper):
+			mode = "peep"            # 台本の写真を見ている人は、その場で台本を見下ろすだけ（決まった姿勢は付けない）
 		elif id == caller:
 			mode = "phone"
 		var skel: Skeleton3D = pl.vis.skel

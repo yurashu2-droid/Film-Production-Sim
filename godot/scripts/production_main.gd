@@ -463,8 +463,13 @@ func _input(event: InputEvent) -> void:
 			h_load_truck.rpc_id(1,me.held)
 			get_viewport().set_input_as_handled()
 		elif holding_script():
-			script_open = not script_open
-			Sfx.play("menu_open" if script_open else "menu_close", null, -8.0)
+			# 台本を開いている間の F は、挟まっている参考写真を見る（写真の間の F は director が受けて、写真と台本を閉じる）
+			if script_open and director != null and director.open_hours():
+				h_peep.rpc_id(1, true)
+				script_open = false
+			else:
+				script_open = not script_open
+				Sfx.play("menu_open" if script_open else "menu_close", null, -8.0)
 			get_viewport().set_input_as_handled()
 		elif me.held != 0 and is_action_prop(props[me.held]):
 			h_prop_action.rpc_id(1,me.held)

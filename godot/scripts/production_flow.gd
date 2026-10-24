@@ -793,7 +793,7 @@ func accept(index: int) -> void:
 		# 会社の前で撮る依頼（1日目の紹介動画・CM）：軽トラにも乗らず、出発の時間も無い。そのまま撮影の準備に入る
 		_shoot_home(bool(job().get("debut", false)))
 	else:
-		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。依頼主から、会社のスマホに参考写真も来ている。となりの粗大ごみ置き場の金網の穴も、めくっておいた（廃材は、そこから持ち出す）。出発まで3分",0])
+		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。依頼主の参考写真が挟まっている（台本を開いて、もう一度 F）。となりの粗大ごみ置き場の金網の穴も、めくっておいた（廃材は、そこから持ち出す）。出発まで3分",0])
 
 
 # アップグレードを1段買う（買い切り。次の依頼からもずっと使える）
@@ -866,7 +866,8 @@ func obtainable_kinds() -> Array:
 	return out
 
 
-# のぞき箱を使い始める・やめる（ホスト）。一度にのぞけるのは1人。会社にいる間（依頼を受けてから出発するまで）だけ
+# 台本に挟まっている参考写真を見る・やめる（ホスト。中の名前は、前の「のぞき箱」のまま peep）。
+# 見られるのは台本を手に持っている人だけ（台本は1冊なので、一度に1人）。依頼を受けてから、本番の前まで。会社でも現場でも
 func peep(who: int, on: bool) -> bool:
 	if not on:
 		if peeper != who:
@@ -875,15 +876,12 @@ func peep(who: int, on: bool) -> bool:
 		game.production_sync.rpc(snapshot())
 		return true
 	var pl: Node3D = game.players.get(who)
-	if not office_prep() or game.state != game.S.PREP or slides.is_empty() or pl == null or orderer == who:
+	if phase not in [2, 4] or game.state != game.S.PREP or slides.is_empty() or pl == null or orderer == who:
 		return false
 	if peeper == who:
 		return true
-	if peeper != 0 and game.players.has(peeper):
-		game.ev.rpc_id(who, "toast", ["のぞき箱は、いま使用中", 0])
-		return false
-	# 手ぶらで、箱のそばにいる人だけ
-	if pl.held != 0 or pl.operating != 0 or pl.global_position.distance_to(Office.PEEP_BOX) > PEEP_REACH:
+	# 台本を手に持っている人だけ
+	if script_prop == null or pl.held != script_prop.pid or pl.operating != 0:
 		return false
 	peeper = who
 	game.production_sync.rpc(snapshot())
