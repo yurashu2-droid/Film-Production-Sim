@@ -121,11 +121,9 @@ static func _cyl(r: float, h: float) -> CylinderMesh:
 	return m
 
 
-# 書割の社屋の、文字の社名（Label3D）は出さない。会社の名前は、掛けた段ボールの看板で見せる
+# 書割の社屋の、もとの社名はそのまま出しておく（2026-10-24 ユーザー：隠さなくていい）。会社の名前として呼ぶのは、掛けた段ボールの看板
 func _hide_old_sign() -> void:
-	var old: Label3D = game.find_child("CompanyNameSign", true, false) as Label3D
-	if old != null:
-		old.visible = false
+	pass
 
 
 func hook_production_applied() -> void:

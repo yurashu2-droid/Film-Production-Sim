@@ -60,7 +60,7 @@ func run() -> void:
 	var me: Node3D = game.local_player()
 	check(sign != null and game.find_child("CompanySignHooks", true, false) != null, "入口の上に、看板を掛ける金具がある")
 	var old: Label3D = game.find_child("CompanyNameSign", true, false)
-	check(old == null or not old.visible, "書割の社屋の、文字の社名は出さない")
+	check(old == null or old.visible, "書割の社屋の、もとの社名はそのまま出ている")
 	check(not sign.hung() and not Logo.has_logo(), "はじめは、金具は空で、会社の名前の絵も無い")
 	game.hud.show_toast("電話だ！「%sさんですか？」" % flow.COMPANY)
 	check(str(game.hud.toast_label.text).contains(Logo.NAMELESS), "看板が無いうちは「%s」と呼ばれる（%s）" % [Logo.NAMELESS, game.hud.toast_label.text])
@@ -128,7 +128,7 @@ func run() -> void:
 	var gap_b: float = a.to_global(pa).distance_to(b.to_global(pb))
 	var gap_c: float = a.to_global(pa2).distance_to(c.to_global(pc))
 	check(gap_b < 0.03 and gap_c < 0.03, "つないだ点は、離れない（%.3f・%.3f m）" % [gap_b, gap_c])
-	check(old == null or not old.visible, "看板が掛かっても、文字の社名は出さない")
+	check(old == null or old.visible, "看板が掛かっても、もとの社名はそのまま")
 	# ---- 撮る ----
 	await wait_sec(sign.SETTLE + 0.3)
 	await frames(3)

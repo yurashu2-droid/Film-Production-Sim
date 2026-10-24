@@ -4,7 +4,7 @@ extends RefCounted
 ##   ・事務所は屋根なしのまま（三人称カメラが入る）。入口の隙間 x 69.85..74.15（z=4）はそのまま
 ##   ・小物は実体のある部品に当たり判定を付ける。入口・積込口・機材置場・道路の通路は空ける
 ##   ・文字の看板・路面の文字は置かない（浮いた文字は使わない）。札は板と色と絵記号（Look.picto）だけ。
-##     例外は、書割の社屋の社名（CompanyNameSign）。制作のゲームでは features/company_sign.gd が隠す（社名は、入口の上に掛けた段ボールの看板）
+##     例外は、書割の社屋の社名（CompanyNameSign）。そのまま出す（会社の名前として呼ぶのは、入口の上に掛けた段ボールの看板。features/company_sign.gd）
 const Look := preload("res://scripts/production_look.gd")
 const Foliage := preload("res://scripts/foliage.gd")
 const VENDING_MODEL := preload("res://assets/production/scrap/S059_vending_machine_jp.glb")
@@ -496,7 +496,7 @@ static func _facade(root: Node3D, font: Font) -> void:
 	# 表の社名（会社の名前。プレイヤーがスプレーで書き直す。features/spray_sign.gd）。ほかの文字は置かない
 	var sign := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 5.43, z + 0.18)), "格安アクション映画制作班", 0.011, 72, Color("f6e7c4"), font, false)
 	sign.layers = FACADE_LAYER
-	sign.name = "CompanyNameSign"          # 制作のゲームでは隠す（features/company_sign.gd）
+	sign.name = "CompanyNameSign"
 
 
 static func _desk_things(b: Look.Batch) -> void:
