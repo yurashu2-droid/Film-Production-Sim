@@ -2,7 +2,6 @@ extends Node
 ## 1日目の青いガイド（情報商材の投影機が、事務所の前に映す影。docs/production/tutorial-cm.md）
 ##   紹介動画の準備中と撮影中だけ、置く所に青い影が出る。合わせて置くと、影が緑に変わる：
 ##   ・カメラ：段ボール（箱馬）を2つ積んで、その上にカメラ（三脚があれば、床にカメラ）
-##   ・役者の印①（4人分）
 ##   ・城に見立てる物（城の役を決めた物か、書割）・爆炎の書割
 ##   影の形は、事務所の前に出してある本物の物の写し（features/tutorial_day.gd が出す物）。
 ## 映画には映らない（制作班にだけ見える層）。ふつうに遊ぶときだけ出す（確認では force を立てる）。
@@ -66,8 +65,7 @@ func _build() -> void:
 				_add("box%d" % k, box.visual, o + CAM_AT + Vector3(0, _stack_top, 0), 0.0, "" if k > 0 else "段ボールを積む")
 				_stack_top += float(box.half.y) * 2.0
 	_add("camera", film.visual, o + CAM_AT + Vector3(0, _stack_top, 0), 0.0, "カメラ" if _tripod else "カメラを箱の上に")
-	for i in MARK_AT.size():
-		_add_ring("mark%d" % i, o + MARK_AT[i], "①%s" % ["A", "B", "C", "D"][i])
+	# 役者の立ち位置（印）は、1日目の案内に入れない（2026-10-24 ユーザー：分かりづらく、意味がない）
 	var flat: Node = _one("flat")
 	if flat != null:
 		_add("castle", flat.visual, o + CASTLE_AT, 0.0, "城（Y で城の役に）")
@@ -177,6 +175,15 @@ func _check() -> void:
 				m.set_shader_parameter("tint", GREEN if ok else BLUE)
 			if ok:
 				Sfx.play("ui_select", (g["node"] as Node3D).global_position, -10.0)
+
+
+# まだ影に合わせていない物の数（HUD の案内に使う）
+func left() -> int:
+	var n := 0
+	for g: Dictionary in guides:
+		if not bool(g.get("ok", false)):
+			n += 1
+	return n
 
 
 func done(gname: String) -> bool:

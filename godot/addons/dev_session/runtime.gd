@@ -12,6 +12,7 @@ var _viewport: SubViewport
 var _scene: Node
 var _scene_path := ""
 var _pending_input := {}
+var _allow_capture := false   # "play" op: mouse events arrive as if the game had captured the mouse
 
 func start(port: int, token: String) -> Error:
 	name = "DevSession"
@@ -148,6 +149,49 @@ func _dispatch(request: Dictionary) -> Dictionary:
 			_viewport.push_input(event, true)
 			get_tree().paused = was_paused
 			return _ok(action)
+		"play":
+			_allow_capture = bool(request.get("on", true))
+			return _ok(_allow_capture)
+		"key", "click", "motion":
+			# Real key / mouse events, as a player would send them (keys by name: "F", "W", "Escape", "Tab", "Space").
+			var ev: InputEvent = null
+			if op == "key":
+				var code := OS.find_keycode_from_string(str(request.get("key", "")))
+				if code == KEY_NONE:
+					return _error("Unknown key: " + str(request.get("key", "")))
+				var k := InputEventKey.new()
+				k.keycode = code
+				k.physical_keycode = code
+				k.pressed = bool(request.get("pressed", true))
+				ev = k
+			elif op == "click":
+				var b := InputEventMouseButton.new()
+				b.button_index = int(request.get("button", MOUSE_BUTTON_LEFT)) as MouseButton
+				b.position = Vector2(float(request.get("x", 0)), float(request.get("y", 0)))
+				b.global_position = b.position
+				b.pressed = bool(request.get("pressed", true))
+				b.button_mask = (1 << (b.button_index - 1)) if b.pressed else 0
+				ev = b
+			else:
+				var m := InputEventMouseMotion.new()
+				m.relative = Vector2(float(request.get("dx", 0)), float(request.get("dy", 0)))
+				m.screen_relative = m.relative
+				m.position = Vector2(float(request.get("x", 800)), float(request.get("y", 450)))
+				m.global_position = m.position
+				ev = m
+			var paused_now := get_tree().paused
+			get_tree().paused = false
+			# The game only treats mouse input as play while the mouse is captured. Pretend so for this one event,
+			# then let go at once (never hold the real cursor).
+			var fake_capture := _allow_capture and op != "key"
+			if fake_capture:
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			Input.parse_input_event(ev)
+			_viewport.push_input(ev, true)
+			if fake_capture:
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			get_tree().paused = paused_now
+			return _ok(op)
 		"reload":
 			var path := str(request.get("path", ""))
 			return _reload_shader(path) if path.ends_with(".gdshader") else _reload_script(path)

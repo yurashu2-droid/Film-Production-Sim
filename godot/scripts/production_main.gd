@@ -167,7 +167,7 @@ func station() -> String:
 			return "board"
 	elif production.phase == 2 and p.distance_to(Flow.HOME_TRUCK) < 4.5:
 		return "packing"
-	elif production.phase == 2:
+	elif production.office_prep():
 		var d: Vector3 = Flow.Rental.POINT
 		if Vector2(p.x - d.x, p.z - d.z).length() < 3.2:
 			return "order"
@@ -278,14 +278,14 @@ func close_menu() -> void:
 func ordering() -> bool:
 	if production == null:
 		return super.ordering()
-	return production.orderer != 0 and production.orderer == Net.my_id() and production.phase == 2 and state == S.PREP
+	return production.orderer != 0 and production.orderer == Net.my_id() and production.office_prep() and state == S.PREP
 
 
 # 注文を変えられるのは、発注の画面を開いている人だけ（ホストが確かめる）
 func may_order(who: int) -> bool:
 	if production == null:
 		return super.may_order(who)
-	return production.orderer != 0 and production.orderer == who and production.phase == 2 and state == S.PREP
+	return production.orderer != 0 and production.orderer == who and production.office_prep() and state == S.PREP
 
 
 # 現場に無い物の種類。届いている物は「決めた注文」で決まる（画面で選んでいる途中の物は、決めるまで届かない）

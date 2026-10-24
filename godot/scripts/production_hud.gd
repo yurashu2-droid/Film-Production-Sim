@@ -1075,6 +1075,10 @@ func _refresh() -> void:
 		if game.is_action_prop(action_prop):
 			legacy.target_label.text = action_prop.label + "　[F] " + game.prop_action_hint(action_prop)
 			legacy.keys.text = "F " + game.prop_action_hint(action_prop) + "\n" + (game.hold_hint() if me and me.held != 0 else "左クリック 持つ")
+		# 1日目：青い影がまだ残っていれば、まずそれを案内する（影は、事務所の前の舞台の上。事務所を背にして見る）
+		var guides: Object = game.hooks.feature("holo_guides") if game.get("hooks") != null else null
+		if guides != null and guides.active() and guides.left() > 0 and not game.is_action_prop(action_prop):
+			legacy.keys.text = ("左クリック 置く" if me and me.held != 0 else "左クリック 持つ") + " ／ 事務所の前の物を、舞台の青い影に合わせて置こう（あと %d）" % guides.left()
 		if me and game.holding_script():
 			legacy.keys.text = ("F 台本を閉じる" if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
 		if me and game.props.has(me.operating) and game.props[me.operating].kind == "camera" and game.state == game.S.TAKE:

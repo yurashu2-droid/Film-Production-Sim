@@ -13,3 +13,4 @@ func apply(args: Array) -> void:
 	if "--day2" in args and Net.mode != "client" and game.production != null and int(game.production.day) <= 1:
 		game.production.day = 2
 		game.production.all_jobs = true
+		game.production.park_truck_for_day()

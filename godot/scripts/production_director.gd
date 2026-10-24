@@ -1,12 +1,13 @@
 extends Node
-## 監督の机：事務所の机の上の「のぞき箱」（参考スライド）と、発注の電話。
+## 監督の机：事務所の机の上の「会社のスマホ」（依頼主から届いた参考写真）と、発注の電話。
+## （中の名前は、前の「のぞき箱」のまま peep と呼んでいる）
 ##
 ## 役割は、窓のメニューでは選ばない。「どこにいて、何をのぞいているか」で決まる。
-##   ・のぞき箱を見て F：箱の中の参考スライド（何が欲しいかの絵）が、画面いっぱいに見える。
-##     のぞいている間は、まわりの世界が見えない。現物を見られるのは、集めに行った人だけ。
+##   ・スマホを見て F：依頼主から届いた参考写真（何が欲しいかの絵）が、画面いっぱいに見える。
+##     見ている間は、まわりの世界が見えない（スマホに夢中）。現物を見られるのは、集めに行った人だけ。
 ##     声（外のボイスチャット）で「こういう形の物ある？」と聞くしかない。
-##   ・のぞけるのは一度に1人（決めるのはホスト。production_flow.gd の peeper）。やめれば、ほかの人がのぞける。
-##     のぞいている人のキャラは、箱に顔を寄せた姿勢で止まる。ほかの人から見て「あの人が監督だ」と分かる。
+##   ・見られるのは一度に1人（会社のスマホは1台）（決めるのはホスト。production_flow.gd の peeper）。やめれば、ほかの人がのぞける。
+##     見ている人のキャラは、スマホに顔を寄せた姿勢で止まる。ほかの人から見て「あの人が監督だ」と分かる。
 ##   ・使えるのは、依頼を受けてから出発するまで（会社にいる間）。
 ##   ・電話を見て F：その人の画面にだけ、発注の画面が開く（production_main.gd の h_open_order）。
 ## スライドの中身は production_slides.gd が決め、絵は scripts/ui/slide_view.gd が描く。
@@ -22,14 +23,14 @@ const Office := preload("res://scripts/production_office.gd")
 
 const DESK_EDGE := 0.75                             # 机の、入口側のふち（z）
 const BOX_AT := Office.PEEP_BOX                     # のぞき箱（机の上）。のぞき口は入口側（+Z）を向く
-const EYE_AT := BOX_AT + Vector3(0, 0.31, 0.44)     # のぞき口（顔を寄せる所）
+const EYE_AT := BOX_AT + Vector3(0, 0.62, 0.5)      # スマホをのぞき込む顔の位置（軽く前かがみ）
 const PHONE_AT := Office.ORDER_PHONE                # 電話（のぞき箱のとなり）
 const NEAR := 7.0                                   # 机からこれより遠い人は、照準を調べない
 const AIM_REACH := 3.8                              # 手の届く距離（player.gd の REACH と同じ）
 const STEP_UP := 1.6                                # 机の物にここまで寄れば、そちらを向くだけで使える
 const FACE_GAP := 0.14                              # 目から、のぞき口まで（顔の厚み）
 const HEAD_SINK := 0.22                             # 頭が、のぞき口の面より先へ入ってよい深さ。これより入る大きな頭は、そのぶん下がって立つ
-const NAMES := {"peep": "のぞき箱（参考スライド）", "phone": "発注の電話"}
+const NAMES := {"peep": "会社のスマホ（依頼主からの参考写真）", "phone": "発注の電話"}
 
 var game: Node
 var flow: Node
@@ -60,7 +61,7 @@ func setup() -> void:
 
 # のぞき箱を使える時か（依頼を受けてから出発するまで）
 func open_hours() -> bool:
-	return flow != null and flow.phase == 2 and game.state == game.S.PREP and not flow.slides.is_empty()
+	return flow != null and flow.office_prep() and game.state == game.S.PREP and not flow.slides.is_empty()
 
 
 # 自分がのぞいている最中か（その間は、歩けず、まわりも見えない）
@@ -89,7 +90,7 @@ func thing_keys(which: String) -> String:
 		return ""
 	if me.held != 0:
 		return "手ぶらで F"
-	return "F のぞく" if which == "peep" else "F 発注する"
+	return "F 写真を見る" if which == "peep" else "F 発注する"
 
 
 # その机の物を、いま使っている人（参加者のID。0＝空いている）
@@ -167,7 +168,7 @@ func _find_aim() -> String:
 # 照準の先にある机の物（""＝無い）
 func _find_desk() -> String:
 	var me: Node3D = game.local_player()
-	if me == null or me.cam == null or flow == null or flow.phase != 2 or game.state != game.S.PREP:
+	if me == null or me.cam == null or flow == null or not flow.office_prep() or game.state != game.S.PREP:
 		return ""
 	if _mine or me.operating != 0 or game.ui_blocking():
 		return ""
@@ -205,7 +206,7 @@ func _process(_delta: float) -> void:
 	if flow == null:
 		return
 	var me: Node = game.local_player()
-	var mine: bool = me != null and flow.phase == 2 and int(flow.peeper) == me.peer_id
+	var mine: bool = me != null and flow.office_prep() and int(flow.peeper) == me.peer_id
 	if mine != _mine:
 		_mine = mine
 		if mine:
@@ -218,7 +219,7 @@ func _process(_delta: float) -> void:
 	_sync_poses()
 	# ランプ：誰かがのぞいている間は、明るく灯る
 	if _lamp != null:
-		_lamp.emission_energy_multiplier = 3.2 if int(flow.peeper) != 0 else 0.9
+		_lamp.emission_energy_multiplier = 1.4 if int(flow.peeper) != 0 else 0.5
 	# 受話器：発注中は、持ち上げてある
 	var calling: bool = _desk_caller() != 0
 	for part: Node3D in _handset:
@@ -304,7 +305,7 @@ func _pivot_height(pl: Node) -> float:
 # 電話のそばで発注している人（外のレンタルのカウンターで開いた人は、数えない）
 func _desk_caller() -> int:
 	var who: int = _user("phone")
-	if who == 0 or flow.phase != 2 or not game.players.has(who):
+	if who == 0 or not flow.office_prep() or not game.players.has(who):
 		return 0
 	return who if (game.players[who] as Node3D).global_position.distance_to(PHONE_AT) < 2.6 else 0
 
@@ -315,7 +316,7 @@ func _sync_poses() -> void:
 	for id: int in game.players:
 		var pl: Node = game.players[id]
 		var mode := ""
-		if flow.phase == 2 and id == int(flow.peeper):
+		if flow.office_prep() and id == int(flow.peeper):
 			mode = "peep"
 		elif id == caller:
 			mode = "phone"
@@ -336,59 +337,37 @@ func _sync_poses() -> void:
 
 # ---- 机の上の物を作る ----
 
-# のぞき箱：木の箱に、のぞき口（双眼鏡）・フィルムリール・ランプの小屋・差し込んだスライド
+# 会社のスマホ：机の上の木のスタンドに立てかけてある。依頼主から届いた参考写真が、画面に出ている（光る）
 func _build_peep_box() -> void:
 	var box := Node3D.new()
 	box.name = "PeepBox"
 	box.position = BOX_AT
 	_root.add_child(box)
 	var wood := Color("8a6240")
-	var dark := Color("2a2622")
-	var brass := Color("c9a24a")
-	for x: float in [-0.21, 0.21]:
-		for z: float in [-0.22, 0.18]:
-			_block(box, Vector3(x, 0.03, z), Vector3(0.06, 0.06, 0.06), dark)
-	_block(box, Vector3(0, 0.27, -0.02), Vector3(0.52, 0.42, 0.5), wood)
-	_block(box, Vector3(0, 0.485, -0.02), Vector3(0.56, 0.025, 0.54), Color("6b4a2e"))
-	_block(box, Vector3(0, 0.065, -0.02), Vector3(0.56, 0.025, 0.54), Color("6b4a2e"))
-	# のぞき口：黒いひさしと、双眼鏡（接眼の側を、のぞく人へ向ける）
-	_block(box, Vector3(0, 0.31, 0.26), Vector3(0.44, 0.26, 0.07), dark)
-	var eyes := _model(box, "P019_binoculars", Vector3(0, 0.215, 0.25), 1.5)
-	eyes.rotation = Vector3(0.16, PI, 0)
-	# 横のフィルムリール
-	var reel := _model(box, "P056_film_reel", Vector3(0.30, 0.12, -0.06), 1.15)
-	reel.rotation.y = PI * 0.5
-	_block(box, Vector3(0.27, 0.29, -0.06), Vector3(0.05, 0.05, 0.05), brass)
-	# 上：ランプの小屋（光が漏れる）と、差し込んだスライド
-	_block(box, Vector3(-0.1, 0.56, -0.12), Vector3(0.2, 0.13, 0.2), dark)
-	_block(box, Vector3(-0.1, 0.65, -0.12), Vector3(0.09, 0.06, 0.09), dark)
+	var dark := Color("1b1c1f")
+	# 木のスタンド（台と、斜めの背）
+	_block(box, Vector3(0, 0.02, 0.02), Vector3(0.3, 0.04, 0.2), wood)
+	var back := _block(box, Vector3(0, 0.12, -0.03), Vector3(0.28, 0.2, 0.025), wood)
+	back.rotation.x = -0.32
+	_block(box, Vector3(0, 0.055, 0.075), Vector3(0.28, 0.03, 0.025), Color("6b4a2e"))
+	# スマホ（横向きに立てかける。黒い縁と、光る画面）
+	var phone := Node3D.new()
+	phone.position = Vector3(0, 0.15, 0.0)
+	phone.rotation.x = -0.32
+	box.add_child(phone)
+	_block(phone, Vector3.ZERO, Vector3(0.3, 0.15, 0.014), dark)
 	_lamp = StandardMaterial3D.new()
-	_lamp.albedo_color = Color("ffe9b0")
+	_lamp.albedo_color = Color("f3ebd5")
 	_lamp.emission_enabled = true
-	_lamp.emission = Color("ffd27a")
-	_lamp.emission_energy_multiplier = 0.9
-	for side: float in [-1.0, 1.0]:
-		var slit := _block(box, Vector3(-0.1 + side * 0.101, 0.56, -0.12), Vector3(0.006, 0.07, 0.12), Color.WHITE)
-		slit.material_override = _lamp
-	var glow := _block(box, Vector3(-0.1, 0.56, -0.019), Vector3(0.12, 0.07, 0.006), Color.WHITE)
-	glow.material_override = _lamp
-	_block(box, Vector3(0.13, 0.515, -0.04), Vector3(0.2, 0.04, 0.32), dark)
-	for i in 6:
-		var card := _block(box, Vector3(0.13, 0.575, -0.16 + i * 0.048), Vector3(0.15, 0.11, 0.008), Color("efe6cc"))
-		card.rotation.x = -0.12
-		_block(card, Vector3(0, 0.005, 0.005), Vector3(0.1, 0.07, 0.002), Color("26272b"))
-	# 正面の札
-	_block(box, Vector3(0, 0.13, 0.232), Vector3(0.3, 0.07, 0.006), Color("efe6cc"))
-	var plate := Label3D.new()
-	plate.text = "参考スライド"
-	plate.font = game.font
-	plate.font_size = 64
-	plate.pixel_size = 0.00065
-	plate.modulate = Color("26272b")
-	plate.outline_size = 0
-	plate.position = Vector3(0, 0.13, 0.237)
-	box.add_child(plate)
-	_solid(box, "peep", Vector3(0, 0.33, 0.07), Vector3(0.62, 0.66, 0.78))
+	_lamp.emission = Color("f3ebd5")
+	_lamp.emission_energy_multiplier = 0.5
+	var screen := _block(phone, Vector3(0, 0, 0.0075), Vector3(0.27, 0.125, 0.002), Color.WHITE)
+	screen.material_override = _lamp
+	# 画面の中の参考写真（黒いシルエットが3つ）
+	for i in 3:
+		_block(phone, Vector3(-0.08 + i * 0.08, -0.01, 0.0095), Vector3(0.04, 0.06, 0.001), Color("26272b"))
+	_block(phone, Vector3(0.13, 0.0, 0.0085), Vector3(0.006, 0.006, 0.001), Color("3a3d44"))
+	_solid(box, "peep", Vector3(0, 0.15, 0.02), Vector3(0.4, 0.32, 0.3))
 
 
 # 電話：黒電話と、となりのカタログ

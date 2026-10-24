@@ -361,6 +361,7 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 			_home_layout[pid] = prop.get_state()
 		_rng.randomize()
 		restock()
+		park_truck_for_day()
 		game._set_state(game.S.PREP)
 		game.production_sync.rpc(snapshot())
 		game.move_crew(Office.SPAWN_POINT, 0.0)
@@ -458,6 +459,11 @@ func at_site(prop: Node3D) -> bool:
 	var at: Vector3 = whereabouts(prop)
 	var center: Vector3 = site_center()
 	return Vector2(at.x - center.x, at.z - center.z).length() < SITE_RADIUS
+
+
+# 準備で会社にいる間か（発注・会社のスマホが使える）：出発前の積み込み、または会社の前で撮る日の撮影の準備
+func office_prep() -> bool:
+	return phase == 2 or (phase == 4 and shoots_home())
 
 
 # 今回の依頼を、会社の前で撮るか（会社のCM。出発しない）
@@ -779,14 +785,15 @@ func accept(index: int) -> void:
 			own.restore(state)
 	game._set_state(game.S.PREP)
 	phase = 2
+	park_truck_for_day()
 	game.production_sync.rpc(snapshot())
 	# 各仕組みの hook_new_job：場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
 	game.hooks.run("hook_new_job")
-	if bool(job().get("debut", false)):
-		# 1日目：廃材置き場は閉まったまま。使えそうな物は、事務所の前に出してある（features/tutorial_day.gd）
-		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。使えそうな物は、事務所の前に出しておいた（廃材置き場は、今日は閉まっている）",0])
+	if bool(job().get("home", false)):
+		# 会社の前で撮る依頼（1日目の紹介動画・CM）：軽トラにも乗らず、出発の時間も無い。そのまま撮影の準備に入る
+		_shoot_home(bool(job().get("debut", false)))
 	else:
-		game.host_ev("toast", ["机に台本（1冊だけ）と、のぞき箱の参考スライドが届いた。廃材置き場（となりの粗大ごみ置き場）の鎖も、切っておいた。出発まで3分",0])
+		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。依頼主から、会社のスマホに参考写真も来ている。廃材置き場（となりの粗大ごみ置き場）の鎖も、切っておいた。出発まで3分",0])
 
 
 # アップグレードを1段買う（買い切り。次の依頼からもずっと使える）
@@ -868,7 +875,7 @@ func peep(who: int, on: bool) -> bool:
 		game.production_sync.rpc(snapshot())
 		return true
 	var pl: Node3D = game.players.get(who)
-	if phase != 2 or game.state != game.S.PREP or slides.is_empty() or pl == null or orderer == who:
+	if not office_prep() or game.state != game.S.PREP or slides.is_empty() or pl == null or orderer == who:
 		return false
 	if peeper == who:
 		return true
@@ -898,7 +905,7 @@ func crew_left(who: int) -> void:
 # 画面が開くのは、開いた人（orderer）だけ。全体の段階は変えないので、ほかの人は準備を続け、出発までの時計も進む。
 # 同時に開けるのは1人
 func open_order(who: int) -> void:
-	if phase != 2 or game.state != game.S.PREP or not game.players.has(who) or orderer == who:
+	if not office_prep() or game.state != game.S.PREP or not game.players.has(who) or orderer == who:
 		return
 	if orderer != 0 and game.players.has(orderer):
 		game.ev.rpc_id(who, "toast", ["発注は、いま別の人が使用中", 0])
@@ -1671,7 +1678,7 @@ func arrive() -> void:
 
 
 # 会社の前で撮る（出発しない）：物はその場のまま、撮影の時計を回し始める
-func _shoot_home() -> void:
+func _shoot_home(debut := false) -> void:
 	peeper = 0
 	_drop_order()
 	_ahead = []
@@ -1685,7 +1692,11 @@ func _shoot_home() -> void:
 	while _notice < _warnings.size() and lease_left <= _warnings[_notice]: _notice += 1
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
-	game.host_ev("toast",["ここで撮る！ 撮影現場は、事務所の前。廃材置き場も機材置き場も、すぐそば。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
+	if debut:
+		# 1日目：廃材置き場は閉まったまま。使えそうな物は、事務所の前に出してある（features/tutorial_day.gd）
+		game.host_ev("toast",["撮影は、事務所の前で。使えそうな物は、事務所の前に出しておいた。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
+	else:
+		game.host_ev("toast",["ここで撮る！ 撮影現場は、事務所の前。廃材置き場も機材置き場も、すぐそば。撮影に使えるのは%d分%02d秒" % [int(lease_left)/60,int(lease_left)%60],0])
 
 
 func expire() -> void:
@@ -1886,12 +1897,30 @@ func return_office() -> void:
 	peeper = 0
 	phase = 0
 	day += 1
+	park_truck_for_day()
 	restock()
 	# 各仕組みの hook_office_ready。段ボール置き場に、箱を出し直す
 	game.hooks.run("hook_office_ready")
 	game._set_state(game.S.PREP)
 	game.production_sync.rpc(snapshot())
 	game.move_crew(Office.SPAWN_POINT, 0.0)
+
+# 1日目（会社の紹介動画の日）は、軽トラを事務所の前に置かない。移動が無いので、あると「乗るの？」と迷う。
+# 2日目の朝（事務所へ戻ったとき）、いつもの所に来ている
+const TRUCK_AWAY := Vector3(80, 0, 150)
+
+
+func park_truck_for_day() -> void:
+	if game.truck == null or not Net.is_host() or debut_job() < 0:
+		return
+	var parked_away: bool = game.truck.global_position.distance_to(TRUCK_AWAY) < 1.0
+	# 1日目の朝と、紹介動画を撮っている間だけ。1日目にほかの依頼を受けたとき（自動確認など）は、いつもの所へ
+	var away: bool = day <= 1 and (phase == 0 or bool(job().get("debut", false)))
+	if away and not parked_away:
+		_move(game.truck, TRUCK_AWAY, 0.0)
+	elif not away and parked_away:
+		_move(game.truck, HOME_TRUCK, 0.0)
+
 
 func _move(prop: Node3D, pos: Vector3, yaw: float = NAN) -> void:
 	var carrier: int = prop.rider_of
