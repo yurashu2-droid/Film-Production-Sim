@@ -3,6 +3,11 @@ extends "res://scripts/paint_board.gd"
 # 板は立てた向き（横 SIZE.x・縦 SIZE.y・厚み THICK）。裏と縁は、段ボール箱の素材の面をそのまま使う。
 # 描く仕組み（ink・同期）は paint_board.gd。カンペ・等身大パネルと同じに cue_cards.gd に登録して、絵を全員へ配る
 const CARTON := preload("res://assets/gear/carton.glb")
+# 段ボール箱をたたんだ形：2枚重ね・左右の丸い折り目・フラップの切れ込み・折り筋・切り口の中芯・はがしたテープ・少しの反り。
+# 表の面は素材名 PaintFace（全面に UV 0〜1）。ほかの面の素材名は carton.glb と同じで、読み込み時に差し替える。
+# 作り直し：blender -b --python build_cardboard_sheet.py
+const SHEET_MODEL := preload("res://assets/gear/cardboard_sheet.glb")
+static var _carton_mats := {}
 const SIZE := Vector2(1.1, 0.74)
 const THICK := 0.02
 const RESOLUTION := Vector2i(704, 474)
@@ -15,32 +20,16 @@ func build() -> void:
 	mass = 1.2
 	visual = Node3D.new()
 	add_child(visual)
-	# 縁と裏：段ボール箱の素材（本体の面）を、薄い箱に貼る
-	var body := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(SIZE.x, SIZE.y, THICK)
-	body.mesh = box
-	body.position = Vector3(0, SIZE.y * 0.5, 0)
-	var carton_mat := _carton_material()
-	if carton_mat != null:
-		body.material_override = carton_mat
-	visual.add_child(body)
-	# 表：スプレーの絵（地の色から始まる）
+	# たたんだ段ボール箱の形（下の真ん中が原点、表が +Z）。表以外の面は、段ボール箱と同じ素材にする
+	var model: Node3D = SHEET_MODEL.instantiate()
+	visual.add_child(model)
+	_use_carton_materials(model)
+	# 表：スプレーの絵（地の色から始まる）。PaintFace の面に映す（照明を受ける）
 	make_ink(RESOLUTION)
 	ink.fill(BASE)
 	texture.update(ink)
-	var face := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = SIZE
-	face.mesh = quad
-	face.position = Vector3(0, SIZE.y * 0.5, THICK * 0.5 + 0.001)
-	var paper := StandardMaterial3D.new()
-	paper.albedo_texture = texture
-	paper.roughness = 0.95
-	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	face.material_override = paper
-	visual.add_child(face)
-	surface = face
+	bind_surface(model, "PaintFace", true)
+	_paper_relief()
 	center = Vector3(0, SIZE.y * 0.5, 0)
 	half = Vector3(SIZE.x * 0.5, SIZE.y * 0.5, THICK * 0.5 + 0.004)
 	hold_min = 1.3
@@ -51,6 +40,44 @@ func build() -> void:
 	collider.position = center
 	add_child(collider)
 	_refresh()
+
+
+# 段ボール箱（carton.glb）の素材を、素材名で引けるように集める（1回だけ）
+static func _carton_materials() -> Dictionary:
+	if _carton_mats.is_empty():
+		var model: Node3D = CARTON.instantiate()
+		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			for i in mi.mesh.get_surface_count():
+				var m: Material = mi.get_active_material(i)
+				if m != null and not _carton_mats.has(m.resource_name):
+					_carton_mats[m.resource_name] = m
+		model.free()
+	return _carton_mats
+
+
+static func _use_carton_materials(root: Node3D) -> void:
+	var mats := _carton_materials()
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var m: Material = mi.get_active_material(i)
+			if m != null and mats.has(m.resource_name):
+				mi.set_surface_override_material(i, mats[m.resource_name])
+
+
+# 表（スプレーの面）に、段ボール箱の紙と同じ凹凸とザラつきを重ねる（色は描いた絵のまま）
+func _paper_relief() -> void:
+	if surface == null or _ink_surface < 0:
+		return
+	var face := surface.get_surface_override_material(_ink_surface) as StandardMaterial3D
+	var kraft := _carton_materials().get("01 • outer kraft liner / uncoated.001") as StandardMaterial3D
+	if face == null or kraft == null:
+		return
+	face.normal_enabled = kraft.normal_enabled
+	face.normal_texture = kraft.normal_texture
+	face.normal_scale = kraft.normal_scale
+	face.roughness = 1.0
+	face.roughness_texture = kraft.roughness_texture
+	face.roughness_texture_channel = kraft.roughness_texture_channel
 
 
 static func _carton_material() -> Material:
