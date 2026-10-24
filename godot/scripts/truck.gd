@@ -75,6 +75,7 @@ func _setup_kei() -> void:
 	deck_half = Vector2(0.66, 0.92)
 	deck_c = Vector2(0, -0.72)
 	visual = (load(KEI_GLB) as PackedScene).instantiate()
+	_seal_windows(visual)
 	# 後ろのあおりを倒して、荷下ろしできる状態にしておく
 	var tail: Node3D = visual.find_child("TAILGATE_HINGE_X", true, false)
 	if tail:
@@ -92,6 +93,8 @@ func _setup_van() -> void:
 	var model := (load(VAN_GLB) as PackedScene).instantiate() as Node3D
 	model.scale = Vector3.ONE * VAN_SCALE
 	_adjust_van_wheel(model)
+	_seal_windows(model)
+	_van_floor_pan(model)
 	visual = Node3D.new()
 	visual.add_child(model)
 	# 荷物が見えるように、後ろのハッチとスライドドアを開け、座席・棚（荷室の改装部分）は外す
@@ -142,6 +145,347 @@ func _van_supports(model: Node3D, hatch: Node3D) -> void:
 		support.basis = Basis.looking_at(to.normalized(), Vector3.UP) * Basis(Vector3.RIGHT, -PI * 0.5)
 		piston.position.y = (0.25 + length) * 0.5
 		piston.scale.y = maxf(0.02, length - 0.25)
+
+
+# ── 窓ガラスまわりのゴム縁 ──
+# 元のモデルは、ガラスが窓穴より一回り小さく、角も丸いので、ガラスと車体の間から向こうが見える。
+# ガラスごとに、縁から少し内側に重なり、窓穴の縁の下まで届く黒いゴムの枠を作って、その隙間をふさぐ。
+# 枠の外側は、ガラスの長い辺をまっすぐ延ばした角のある形にする（丸い角の外の三角の隙間も埋まる）。
+# 枠はガラスの部品の子にするので、ドアやハッチと一緒に動く。大きさはモデルの単位（あとで車ごと拡大される）
+const SEAL_INSET := 0.012    # ガラスの縁から内側へ重ねる幅
+const SEAL_MARGIN := 0.05    # ガラスの外へ張り出す幅（窓穴の縁の下まで）
+
+func _seal_windows(model: Node) -> void:
+	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var rubber: Material = null
+		var panes: Array = []
+		for surface in mi.mesh.get_surface_count():
+			var material := mi.mesh.surface_get_material(surface)
+			if material == null:
+				continue
+			var mat_name := material.resource_name.to_lower()
+			if mat_name.contains("seal") or (rubber == null and mat_name.contains("polymer")):
+				rubber = material
+			if mat_name.contains("glass") and not mat_name.contains("headlamp") and not mat_name.contains("defog"):
+				panes.append(surface)
+		if panes.is_empty():
+			continue
+		var seal_mat := _seal_material(rubber)
+		for surface: int in panes:
+			for piece: PackedVector3Array in _glass_pieces(mi.mesh.surface_get_arrays(surface)):
+				var seal := _seal_mesh(piece)
+				if seal == null:
+					continue
+				var node := MeshInstance3D.new()
+				node.name = "WindowSeal"
+				node.mesh = seal
+				node.material_override = seal_mat
+				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+				mi.add_child(node)
+
+
+func _seal_material(base: Material) -> Material:
+	var mat: StandardMaterial3D
+	if base is StandardMaterial3D:
+		mat = (base as StandardMaterial3D).duplicate()
+	else:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.07, 0.075, 0.085)
+		mat.roughness = 0.75
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mat
+
+
+# ガラスの面を、つながった1枚ずつに分ける。返すのは、1枚ぶんの三角形の頂点（3つずつ）
+func _glass_pieces(arrays: Array) -> Array:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if index.is_empty():
+		for i in verts.size():
+			index.append(i)
+	# 同じ位置の頂点（法線違いで分かれている）を1つにまとめてから、三角形でつなぐ
+	var key_of := {}
+	var vid := PackedInt32Array()
+	vid.resize(verts.size())
+	for i in verts.size():
+		var key := Vector3i((verts[i] * 10000.0).round())
+		if not key_of.has(key):
+			key_of[key] = key_of.size()
+		vid[i] = key_of[key]
+	# 小関数の中から書き換えるので、参照で渡る Array にする（Packed は値渡しで、書き換えが外に届かない）
+	var parent: Array[int] = []
+	for i in key_of.size():
+		parent.append(i)
+	var find := func(a: int) -> int:
+		while parent[a] != a:
+			parent[a] = parent[parent[a]]
+			a = parent[a]
+		return a
+	for t in range(0, index.size(), 3):
+		var a: int = find.call(vid[index[t]])
+		for k in [1, 2]:
+			var b: int = find.call(vid[index[t + k]])
+			if a != b:
+				parent[b] = a
+	var groups := {}
+	for t in range(0, index.size(), 3):
+		var root: int = find.call(vid[index[t]])
+		if not groups.has(root):
+			groups[root] = PackedVector3Array()
+		var tri: PackedVector3Array = groups[root]
+		tri.append(verts[index[t]])
+		tri.append(verts[index[t + 1]])
+		tri.append(verts[index[t + 2]])
+		groups[root] = tri
+	var pieces: Array = []
+	for tri: PackedVector3Array in groups.values():
+		var area := 0.0
+		for t in range(0, tri.size(), 3):
+			area += (tri[t + 1] - tri[t]).cross(tri[t + 2] - tri[t]).length() * 0.5
+		# 板の表と裏を数えるので、窓1枚（0.05㎡以上）なら面積はその倍
+		if area > 0.1:
+			pieces.append(tri)
+	return pieces
+
+
+func _seal_mesh(tri: PackedVector3Array) -> ArrayMesh:
+	# 面の向き：いちばん大きい三角形の向きにそろえて足す（表と裏で打ち消さないように）
+	var biggest := Vector3.ZERO
+	for t in range(0, tri.size(), 3):
+		var c := (tri[t + 1] - tri[t]).cross(tri[t + 2] - tri[t])
+		if c.length_squared() > biggest.length_squared():
+			biggest = c
+	var n := Vector3.ZERO
+	var center := Vector3.ZERO
+	for t in range(0, tri.size(), 3):
+		var c := (tri[t + 1] - tri[t]).cross(tri[t + 2] - tri[t])
+		n += c if c.dot(biggest) >= 0.0 else -c
+	for p in tri:
+		center += p
+	center /= float(tri.size())
+	n = n.normalized()
+	var u := (Vector3.UP.cross(n) if absf(n.y) < 0.9 else Vector3.RIGHT.cross(n)).normalized()
+	var v := n.cross(u)
+	var flat := PackedVector2Array()
+	var depth := PackedFloat32Array()
+	for p in tri:
+		var d := p - center
+		flat.append(Vector2(d.dot(u), d.dot(v)))
+		depth.append(d.dot(n))
+	var hull := Geometry2D.convex_hull(flat)
+	if hull.size() > 1 and hull[0].is_equal_approx(hull[hull.size() - 1]):
+		hull.remove_at(hull.size() - 1)
+	if hull.size() < 3:
+		return null
+	if _signed_area(hull) < 0.0:
+		hull.reverse()
+	# 曲がったガラス（前の窓）でも縁に沿うよう、枠の奥行きは、いちばん近いガラスの頂点に合わせる
+	var hull_depth := PackedFloat32Array()
+	for h in hull:
+		var best := 1e9
+		var at := 0.0
+		for i in flat.size():
+			var dd := flat[i].distance_squared_to(h)
+			if dd < best:
+				best = dd
+				at = depth[i]
+		hull_depth.append(at)
+	var outer := _seal_outline(hull)
+	# 中心から放射状に、ガラスの縁（内側）と枠の外形（外側）を結んで帯にする
+	var angles: Array[float] = []
+	for p in hull:
+		angles.append(p.angle())
+	for p in outer:
+		angles.append(p.angle())
+	for i in 96:
+		angles.append(-PI + TAU * i / 96.0)
+	angles.sort()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ring_in: Array[Vector3] = []
+	var ring_out: Array[Vector3] = []
+	var last := -10.0
+	for a in angles:
+		if a - last < 0.0005:
+			continue
+		last = a
+		var dir := Vector2.from_angle(a)
+		var hit_in := _ray_polygon(hull, dir)
+		var hit_out := _ray_polygon(outer, dir)
+		if hit_in.x <= 0.0 or hit_out.x <= 0.0:
+			continue
+		var edge := int(hit_in.y)
+		var d := lerpf(hull_depth[edge], hull_depth[(edge + 1) % hull.size()], hit_in.z)
+		var p_in := dir * maxf(hit_in.x - SEAL_INSET, hit_in.x * 0.5)
+		var p_out := dir * maxf(hit_out.x, hit_in.x + 0.005)
+		ring_in.append(center + u * p_in.x + v * p_in.y + n * d)
+		ring_out.append(center + u * p_out.x + v * p_out.y + n * d)
+	var count := ring_in.size()
+	if count < 3:
+		return null
+	st.set_normal(n)
+	for i in count:
+		var j := (i + 1) % count
+		st.add_vertex(ring_in[i])
+		st.add_vertex(ring_out[i])
+		st.add_vertex(ring_out[j])
+		st.add_vertex(ring_in[i])
+		st.add_vertex(ring_out[j])
+		st.add_vertex(ring_in[j])
+	return st.commit()
+
+
+func _signed_area(poly: PackedVector2Array) -> float:
+	var s := 0.0
+	for i in poly.size():
+		s += poly[i].cross(poly[(i + 1) % poly.size()])
+	return s * 0.5
+
+
+# 枠の外形：ガラスの外形（凸包）の長い辺をまっすぐ延ばし、隣どうしの交点を角にして、SEAL_MARGIN だけ外へ広げる
+func _seal_outline(hull: PackedVector2Array) -> PackedVector2Array:
+	var count := hull.size()
+	var fallback := PackedVector2Array()
+	for p in hull:
+		fallback.append(p + p.normalized() * SEAL_MARGIN)
+	# いちばん大きく曲がる頂点から数え始める（まっすぐな辺の途中で切らない）
+	var start := 0
+	var sharpest := -1.0
+	for i in count:
+		var e0 := (hull[i] - hull[(i - 1 + count) % count]).normalized()
+		var e1 := (hull[(i + 1) % count] - hull[i]).normalized()
+		var turn := absf(e0.angle_to(e1))
+		if turn > sharpest:
+			sharpest = turn
+			start = i
+	var lines: Array = []   # [向き, 外向きの法線, 外へ出す量]
+	var i := 0
+	while i < count:
+		var a := hull[(start + i) % count]
+		var first := (hull[(start + i + 1) % count] - a).normalized()
+		var j := i + 1
+		while j < count:
+			var e := (hull[(start + j + 1) % count] - hull[(start + j) % count]).normalized()
+			if absf(first.angle_to(e)) > deg_to_rad(20.0):
+				break
+			j += 1
+		var b := hull[(start + j) % count]
+		if a.distance_to(b) >= 0.1:
+			var dir := (b - a).normalized()
+			var nrm := Vector2(dir.y, -dir.x)
+			var off := -1e9
+			for p in hull:
+				off = maxf(off, p.dot(nrm))
+			if lines.is_empty() or absf((lines[-1][0] as Vector2).angle_to(dir)) > deg_to_rad(8.0):
+				lines.append([dir, nrm, off + SEAL_MARGIN])
+		i = j
+	if lines.size() >= 2 and absf((lines[-1][0] as Vector2).angle_to(lines[0][0])) <= deg_to_rad(8.0):
+		lines.pop_back()
+	if lines.size() < 3:
+		return fallback
+	var radius := 0.0
+	for p in hull:
+		radius = maxf(radius, p.length())
+	var outline := PackedVector2Array()
+	for k in lines.size():
+		var l0: Array = lines[k]
+		var l1: Array = lines[(k + 1) % lines.size()]
+		var turn := (l0[0] as Vector2).angle_to(l1[0])
+		if turn <= 0.0 or turn > deg_to_rad(160.0):
+			return fallback
+		# 2本の直線 p·n0 = o0, p·n1 = o1 の交点
+		var n0: Vector2 = l0[1]
+		var n1: Vector2 = l1[1]
+		var det := n0.x * n1.y - n0.y * n1.x
+		if absf(det) < 1e-5:
+			return fallback
+		var o0: float = l0[2]
+		var o1: float = l1[2]
+		var corner := Vector2((o0 * n1.y - o1 * n0.y) / det, (n0.x * o1 - n1.x * o0) / det)
+		if corner.length() > radius * 2.0 + 0.2:
+			return fallback
+		outline.append(corner)
+	return outline
+
+
+# 原点から dir 方向の半直線が凸多角形の辺に当たる所：(距離, 辺の番号, 辺の上の割合)。当たらなければ距離は -1
+func _ray_polygon(poly: PackedVector2Array, dir: Vector2) -> Vector3:
+	var best := Vector3(-1.0, 0.0, 0.0)
+	for i in poly.size():
+		var a := poly[i]
+		var e := poly[(i + 1) % poly.size()] - a
+		var den := dir.cross(e)
+		if absf(den) < 1e-9:
+			continue
+		var t := a.cross(e) / den
+		var s := a.cross(dir) / den
+		if t > 0.0 and s >= -1e-4 and s <= 1.0001 and (best.x < 0.0 or t < best.x):
+			best = Vector3(t, float(i), clampf(s, 0.0, 1.0))
+	return best
+
+
+# ── ロケバンの床下 ──
+# 荷室のゴムの床は細い板の組み合わせで、壁ぎわ・タイヤハウスの前後に隙間があり、地面とタイヤが車内から見える。
+# 床のすぐ下に黒い床板（フロアパン）を張ってふさぐ。後ろのタイヤハウスの所だけは、タイヤが通るので左右を空ける。
+# 見た目だけで当たり判定は無い（荷台の当たり判定は _rebuild_shapes のまま）。モデルの単位で、モデルの子にする
+func _van_floor_pan(model: Node3D) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.075, 0.08, 0.09)
+	mat.roughness = 0.9
+	var y0 := 0.545           # 床板の下面
+	var y1 := 0.583           # 床板の上面（ゴムの床の裏 0.585 のすぐ下）
+	var rear := -2.62         # 荷室のいちばん後ろ（ゴムの床の後端 -2.64 の少し内側）
+	var front := 0.95         # 荷室の前（運転席の後ろ。ゴムの床の幅広い所の前端 0.9 の少し前）
+	var arch_z := -1.605      # 後ろのタイヤの中心
+	var arch_half := 0.365    # タイヤハウスの外側の丸み（半径0.43）が床の高さで切れる幅
+	var pan := Node3D.new()
+	pan.name = "FloorPan"
+	model.add_child(pan)
+	var add := func(x0: float, x1: float, z0: float, z1: float) -> void:
+		var box := BoxMesh.new()
+		box.size = Vector3(x1 - x0, y1 - y0, z1 - z0)
+		var part := MeshInstance3D.new()
+		part.mesh = box
+		part.material_override = mat
+		part.position = Vector3((x0 + x1) * 0.5, (y0 + y1) * 0.5, (z0 + z1) * 0.5)
+		pan.add_child(part)
+	# 真ん中：タイヤハウスの内側の壁（x=±0.71）まで
+	add.call(-0.72, 0.72, rear, front)
+	# 左右：壁（x=±0.925）まで。タイヤハウスの所は空ける
+	for side: float in [-1.0, 1.0]:
+		var x0 := 0.70 * side
+		var x1 := 0.925 * side
+		add.call(minf(x0, x1), maxf(x0, x1), rear, arch_z - arch_half)
+		add.call(minf(x0, x1), maxf(x0, x1), arch_z + arch_half, front)
+	# タイヤハウスの丸い屋根（x=±0.73まで）と内側の板（x=±0.715）の間の細い隙間に、丸い帯をかぶせる
+	var band := SurfaceTool.new()
+	band.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := 0.428            # 丸い屋根の上面（半径0.425）のすぐ外
+	var steps := 24
+	for side: float in [-1.0, 1.0]:
+		var xa := 0.70 * side
+		var xb := 0.745 * side
+		for k in steps:
+			var a0 := PI * k / steps
+			var a1 := PI * (k + 1) / steps
+			var p0 := Vector3(0, 0.347 + sin(a0) * r, arch_z + cos(a0) * r)
+			var p1 := Vector3(0, 0.347 + sin(a1) * r, arch_z + cos(a1) * r)
+			band.set_normal(Vector3(0, sin(a0), cos(a0)))
+			band.add_vertex(p0 + Vector3(xa, 0, 0))
+			band.add_vertex(p0 + Vector3(xb, 0, 0))
+			band.add_vertex(p1 + Vector3(xb, 0, 0))
+			band.add_vertex(p0 + Vector3(xa, 0, 0))
+			band.add_vertex(p1 + Vector3(xb, 0, 0))
+			band.add_vertex(p1 + Vector3(xa, 0, 0))
+	var band_mat := mat.duplicate() as StandardMaterial3D
+	band_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var arch := MeshInstance3D.new()
+	arch.name = "WheelArchSeam"
+	arch.mesh = band.commit()
+	arch.material_override = band_mat
+	pan.add_child(arch)
 
 
 func _rebuild_shapes() -> void:
