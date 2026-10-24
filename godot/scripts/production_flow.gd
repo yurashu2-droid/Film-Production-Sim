@@ -324,7 +324,7 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 	game.add_child(_trip_camera)
 	# 自動確認では毎回同じ結果になるよう、全部の廃材を出し、遅れ・荷崩れ・スタジオの段階を使わない
 	# （現場の種類は全員の画面で同じ決め方をする必要があるので、ホスト以外でも決めておく）
-	daily = get_tree().get_script() == null
+	daily = get_tree().get_script() == null or "--dev-play" in OS.get_cmdline_user_args()      # --dev-play：dev_session で、ふつうに遊ぶ
 	for flag: String in OS.get_cmdline_user_args():
 		# 二人通信の確認には「--〇〇-host」「--〇〇-client」で起動するものがある（"--host" だけの起動は、本番の遊び）
 		var mark := flag.trim_prefix("--")

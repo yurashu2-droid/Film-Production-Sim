@@ -43,7 +43,7 @@ var _elapsed := 0.0
 
 func _ready() -> void:
 	for argument: String in OS.get_cmdline_user_args():
-		if argument.begins_with("--") and not argument.begins_with("--menutest"):
+		if argument.begins_with("--") and not argument.begins_with("--menutest") and not argument.begins_with("--dev-"):
 			_launch(false)
 			return
 	_build()
