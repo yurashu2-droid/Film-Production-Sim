@@ -793,7 +793,7 @@ func accept(index: int) -> void:
 		# 会社の前で撮る依頼（1日目の紹介動画・CM）：軽トラにも乗らず、出発の時間も無い。そのまま撮影の準備に入る
 		_shoot_home(bool(job().get("debut", false)))
 	else:
-		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。依頼主から、会社のスマホに参考写真も来ている。廃材置き場（となりの粗大ごみ置き場）の鎖も、切っておいた。出発まで3分",0])
+		game.host_ev("toast", ["机に台本（1冊だけ）が届いた。依頼主から、会社のスマホに参考写真も来ている。となりの粗大ごみ置き場の金網の穴も、めくっておいた（廃材は、そこから持ち出す）。出発まで3分",0])
 
 
 # アップグレードを1段買う（買い切り。次の依頼からもずっと使える）
@@ -1103,7 +1103,7 @@ func apply_stash(hidden: Array) -> void:
 
 
 func _process(delta: float) -> void:
-	# 依頼を受けている間だけ、廃材置き場の門が開く。1日目（会社の紹介動画）は開けない（使う物は事務所の前に出してある。features/tutorial_day.gd）
+	# 依頼を受けている間だけ、廃材置き場の金網の穴（ペンチで切った所）がめくれて通れる。1日目（会社の紹介動画）は開けない（使う物は事務所の前に出してある。features/tutorial_day.gd）
 	var want := 1.0 if phase >= 1 and not bool(job().get("debut", false)) else 0.0
 	if _yard_root and not is_equal_approx(_gate, want):
 		if _gate == 0.0 or _gate == 1.0:

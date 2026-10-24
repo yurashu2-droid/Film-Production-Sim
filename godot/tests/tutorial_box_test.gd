@@ -116,8 +116,8 @@ func run() -> void:
 	await frames(30)
 	check(guides.active() and guides.root != null and guides.root.visible, "紹介動画の依頼を受けると、事務所の前に青い影が出る")
 	var names: Array = guides.guides.map(func(g: Dictionary) -> String: return str(g["name"]))
-	check("box0" in names and "box1" in names and "camera" in names and "castle" in names and "blast" in names and names.filter(func(n: String) -> bool: return n.begins_with("mark")).size() == 4,
-		"影は、箱2つ・カメラ・印4つ・城・書割（%s）" % ", ".join(names))
+	check("box0" in names and "box1" in names and "camera" in names and "castle" in names and "blast" in names and names.filter(func(n: String) -> bool: return n.begins_with("mark")).size() == 0,
+		"影は、箱2つ・カメラ・城・書割（役者の印は出さない）（%s）" % ", ".join(names))
 	var crew_only := true
 	for mi: VisualInstance3D in guides.root.find_children("*", "VisualInstance3D", true, false):
 		crew_only = crew_only and mi.layers == guides.CREW_LAYER
