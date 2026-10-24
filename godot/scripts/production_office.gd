@@ -3,6 +3,8 @@ extends RefCounted
 ## 拠点の事務所・駐車場・道・敷地の小物。見た目は production_look.gd の Batch でマテリアルごとにまとめる。
 ##   ・事務所は屋根なしのまま（三人称カメラが入る）。入口の隙間 x 69.85..74.15（z=4）はそのまま
 ##   ・小物は実体のある部品に当たり判定を付ける。入口・積込口・機材置場・道路の通路は空ける
+##   ・文字の看板・路面の文字は置かない（浮いた文字は使わない）。札は板と色と絵記号（Look.picto）だけ。
+##     例外は、書割の社屋の社名（CompanyNameSign。features/spray_sign.gd がプレイヤーの書いた名前に差し替える）
 const Look := preload("res://scripts/production_look.gd")
 const Foliage := preload("res://scripts/foliage.gd")
 const VENDING_MODEL := preload("res://assets/production/scrap/S059_vending_machine_jp.glb")
@@ -39,14 +41,13 @@ static func build(parent: Node3D, font: Font) -> Node3D:
 	rng.seed = 77
 	_ground(root, rng)
 	var office := Look.Batch.new()
-	var departure := _office(office, root, font)
+	_office(office, root)
 	office.build(root, "OfficeBuilding")
 	_facade(root, font)
-	_lot(root, font, rng)
+	_lot(root, rng)
 	var road := Look.Batch.new()
-	_road(road, root, font, rng)
+	_road(road, rng)
 	road.build(root, "RoadDressing")
-	root.set_meta("departure_label", departure)
 	return root
 
 
@@ -108,19 +109,15 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var white := Look.mat("paint", Color("ece6d2"))
 	var cream := Look.mat("paint", Color("e6d9a4"))
 	var yellow := Look.mat("paint", Color("e0b43a"))
-	# 社用車の駐車枠。北東の角は、機材置き場の囲いと地面の文字に譲る
+	# 社用車の駐車枠。北東の角は、機材置き場の囲いに譲る
 	var yard0: Vector2 = GEAR_YARD.position
 	var yard1: Vector2 = GEAR_YARD.end
 	g.strip(cream, Vector3(77.3, 0, 13.4), Vector3(77.3, 0, 22.8), 0.12, 0.018)
 	g.strip(cream, Vector3(83.2, 0, yard1.y + 1.35), Vector3(83.2, 0, 22.8), 0.12, 0.018)
 	g.strip(cream, Vector3(77.3, 0, 13.4), Vector3(yard0.x - 0.15, 0, 13.4), 0.12, 0.018)
-	# 機材置き場の黄色い囲いと、地面の文字（南側と、軽トラのある西側から読める向き）
+	# 機材置き場の黄色い囲い
 	for edge: Array in [[yard0, Vector2(yard1.x, yard0.y)], [Vector2(yard0.x, yard1.y), yard1], [yard0, Vector2(yard0.x, yard1.y)], [Vector2(yard1.x, yard0.y), yard1]]:
 		g.strip(yellow, Vector3(edge[0].x, 0, edge[0].y), Vector3(edge[1].x, 0, edge[1].y), 0.12, 0.019)
-	var yard_mid: float = (yard0.x + yard1.x) * 0.5
-	Look.label(root, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(yard_mid, 0.024, yard1.y + 0.45)), "機材置き場", 0.0042, 128, Color("e8e2cc"), null, false)
-	Look.label(root, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(yard_mid, 0.024, yard1.y + 0.98)), "出発すると、いっしょに運ばれる", 0.0019, 128, Color("e8e2cc"), null, false)
-	Look.label(root, Transform3D(Basis(Vector3.UP, -PI * 0.5) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(yard0.x - 0.36, 0.024, (yard0.y + yard1.y) * 0.5)), "機材置き場", 0.0032, 128, Color("e8e2cc"), null, false)
 	g.strip(white, Vector3(74.4, 0, 12.0), Vector3(74.4, 0, 81.0), 0.14, 0.018)
 	g.strip(white, Vector3(85.6, 0, 12.0), Vector3(85.6, 0, 81.0), 0.14, 0.018)
 	for z in range(31, 75, 8):
@@ -166,8 +163,7 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 		g.boxp(iron, Vector3(d[0], d[1] + 0.01, d[2]), Vector3(0.5, 0.02, 1.2), ALL)
 		for k in 5:
 			g.boxp(iron_l, Vector3(d[0], d[1] + 0.022, d[2] - 0.45 + k * 0.225), Vector3(0.4, 0.008, 0.05), ALL)
-	# 駐車スペースの文字（路面に寝かせる）と輪止め
-	Look.label(root, Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(80.2, 0.024, 14.9)), "社用車専用", 0.0085, 128, Color("e8e2cc"), null, false)
+	# 駐車スペースの輪止め
 	g.boxp(Look.mat("concrete", Color("d5d0c2")), Vector3(80.2, 0.07, 13.8), Vector3(2.0, 0.12, 0.22), ALL)
 	g.solidp(Vector3(80.2, 0.07, 13.8), Vector3(2.0, 0.12, 0.22))
 	# 敷地の外周の雑草
@@ -187,13 +183,12 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 		Foliage.tuft(g, wp + Vector3(rng.randf_range(-0.1, 0.1), 0, 0), rng.randf_range(0.25, 0.5), rng, dry)
 		if rng.randf() < 0.6:
 			Foliage.tuft(g, wp + Vector3(rng.randf_range(0.15, 0.35), 0, rng.randf_range(-0.1, 0.1)), rng.randf_range(0.15, 0.3), rng, dry)
-	# 門の前の黒黄の縞（積み込み口の目印）と文字
+	# 積み込み口の目印の黒黄の縞
 	var hazard := Look.mat("paint", Color("e0b43a"))
 	g.strip(P(Color("26282a"), 0.9), Vector3(64.7, 0, 12.8), Vector3(64.7, 0, 19.2), 0.55, 0.0075)
 	for k in 12:
 		var z0 := 12.9 + k * 0.52
 		g.poly_out(hazard, [Vector3(64.45, 0.0105, z0), Vector3(64.95, 0.0105, z0 + 0.22), Vector3(64.95, 0.0105, z0 + 0.4), Vector3(64.45, 0.0105, z0 + 0.18)], Vector3.UP)
-	Look.label(root, Transform3D(Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(67.2, 0.02, 15.3)), "搬入口", 0.0085, 128, Color("e8e2cc"), null, false)
 	# 事務所から駐車場への通り道に、踏まれてできた汚れ
 	for k in 6:
 		var t := k / 5.0
@@ -253,7 +248,7 @@ static func _crack(g: Look.Batch, m: Look.Tint, from: Vector3, length: float, rn
 
 # ---- 事務所の建物（屋根なし） ----
 
-static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
+static func _office(b: Look.Batch, root: Node3D) -> void:
 	var plaster := Look.mat("plaster", CREAM)
 	var teal := Look.mat("plaster", TEAL)
 	var wood := Look.mat("wood", WOOD)
@@ -316,17 +311,10 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	for lx: float in [69.55, 74.45]:
 		b.boxp(iron, Vector3(lx, 2.7, 4.3), Vector3(0.1, 0.1, 0.3), ALL)
 		b.boxp(lamp, Vector3(lx, 2.6, 4.45), Vector3(0.22, 0.2, 0.22), ALL)
-	# 営業中の札
+	# 扉の横の、掛け札の板（吊り紐つき）
 	b.boxp(wood_d, Vector3(69.7, 1.3, 4.22), Vector3(0.45, 0.22, 0.03), FACADE)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(69.7, 1.3, 4.245)), "営業中", 0.0035, 48, Color("fff0c6"), font, false)
-	# 看板の3枚（ゆがんだ段ボール）と文字
-	# （書割の社屋の壁より手前に掛ける。ちゃんとした看板の下に、手書きの段ボールが残っているのが可笑しい）
-	for i in range(3):
-		var ang: float = [-0.05, 0.02, 0.06][i]
-		b.box(P([Color("c9a46c"), Color("d2ae74"), Color("bf9a62")][i], 0.95), Transform3D(Basis(Vector3.BACK, ang), Vector3(70.55 + i * 1.45, 2.98 - (0.1 if i == 1 else 0.0), 4.44)), Vector3(1.5, 0.62, 0.05), ALL)
-	for tx: float in [69.95, 74.05]:
-		b.boxp(P(Color("e9e4d2"), 0.9), Vector3(tx, 3.22, 4.47), Vector3(0.22, 0.07, 0.01), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 2.92, 4.48)), "激安映画制作会社", 0.0085, 52, Color("3a2a20"), font, false)
+	b.bar(P(Color("3a3f44"), 0.7), Vector3(69.55, 1.41, 4.22), Vector3(69.7, 1.52, 4.2), 0.012)
+	b.bar(P(Color("3a3f44"), 0.7), Vector3(69.85, 1.41, 4.22), Vector3(69.7, 1.52, 4.2), 0.012)
 	# 窓口の机と大きな掲示板
 	b.boxp(wood, Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4), ALL)
 	b.solidp(Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4))
@@ -336,11 +324,8 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	b.boxp(wood, Vector3(72, 1.65, -0.72), Vector3(4.1, 2.1, 0.16), ALL)
 	b.solidp(Vector3(72, 1.65, -0.72), Vector3(4.1, 2.1, 0.16))
 	b.boxp(Look.mat("plaster", Color("42645b")), Vector3(72, 1.65, -0.61), Vector3(3.88, 1.9, 0.04), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 2.25, -0.56)), "お仕事掲示板", 0.01, 48, Color("fff0c6"), font, false)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 0.97, 0.79)), "小さな予算で、大きな映画。", 0.006, 34, Color("fff0c6"), font, false)
 	for i in range(3):
 		b.boxp(P(Color("e5d5a5")), Vector3(70.75 + i * 1.25, 1.45, -0.56), Vector3(0.95, 0.78, 0.02), ALL)
-		Look.label(root, Transform3D(Basis.IDENTITY, Vector3(70.75 + i * 1.25, 1.47, -0.53)), ["アクション", "怪獣映画", "おまかせ"][i], 0.004, 34, Color("5a4731"), font, false)
 	# 掲示板の画びょうと貼り紙
 	for k in 6:
 		b.boxp(P([Color("c4503a"), Color("d9a441"), Color("7aa6c2")][k % 3]), Vector3(70.2 + k * 0.38, 0.85 + (k % 2) * 0.12, -0.57), Vector3(0.28, 0.2, 0.012), ALL)
@@ -354,17 +339,15 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	b.solidp(Vector3(76.7, 0.5, -5.9), Vector3(2.3, 1, 1.2))
 	for i in range(4):
 		b.boxp(P(Color("e8ddbf")), Vector3(76.3 + i * 0.13, 1.04 + i * 0.028, -5.9), Vector3(0.9, 0.028, 0.6), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(76.1, 2.08, -7.83)), "家賃 未払い\n電気代 督促\n夢は 黒字", 0.008, 40, Color("754437"), font, false)
 	b.boxp(wood, Vector3(68.2, 1.7, -7.81), Vector3(2.1, 1.3, 0.08), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(68.2, 1.7, -7.74)), "窓 修理中\n（段ボール）", 0.006, 36, Color("392b25"), font, false)
 	for x: float in [67.45, 68.95]:
 		b.box(P(Color("b8a76e")), Transform3D(Basis(Vector3.BACK, 0.2), Vector3(x, 1.7, -7.7)), Vector3(0.18, 1.5, 0.025), ALL)
 	# 壁のポスター（映画の宣伝）
-	_poster(b, root, font, Vector3(65.16, 1.75, -6.6), PI * 0.5, Vector2(0.95, 1.4), Color("2f4b6e"), "月下の城", Color("f1d98a"), 0)
-	_poster(b, root, font, Vector3(65.16, 1.75, -4.4), PI * 0.5, Vector2(0.95, 1.4), Color("a8442e"), "大爆発", Color("ffe9b0"), 1)
-	_poster(b, root, font, Vector3(65.16, 1.75, -2.2), PI * 0.5, Vector2(0.95, 1.4), Color("46704f"), "怪獣大決戦", Color("f6f0d2"), 2)
-	_poster(b, root, font, Vector3(65.16, 1.75, -0.1), PI * 0.5, Vector2(0.95, 1.4), Color("c09a3d"), "激安ヒーロー", Color("3b2a22"), 0)
-	_poster(b, root, font, Vector3(72.8, 2.55, -7.85), 0.0, Vector2(1.0, 0.7), Color("e6d6a8"), "本日 撮影中", Color("7a2f22"), 3)
+	_poster(b, Vector3(65.16, 1.75, -6.6), PI * 0.5, Vector2(0.95, 1.4), Color("2f4b6e"), Color("f1d98a"), 0)
+	_poster(b, Vector3(65.16, 1.75, -4.4), PI * 0.5, Vector2(0.95, 1.4), Color("a8442e"), Color("ffe9b0"), 1)
+	_poster(b, Vector3(65.16, 1.75, -2.2), PI * 0.5, Vector2(0.95, 1.4), Color("46704f"), Color("f6f0d2"), 2)
+	_poster(b, Vector3(65.16, 1.75, -0.1), PI * 0.5, Vector2(0.95, 1.4), Color("c09a3d"), Color("3b2a22"), 0)
+	_poster(b, Vector3(72.8, 2.55, -7.85), 0.0, Vector2(1.0, 0.7), Color("e6d6a8"), Color("7a2f22"), 3)
 	# フィルム缶とクラッパーの棚（東の壁）
 	b.boxp(wood_d, Vector3(78.6, 1.45, 0.4), Vector3(0.5, 0.06, 2.4), ALL)
 	b.boxp(wood_d, Vector3(78.6, 1.95, 0.4), Vector3(0.5, 0.06, 2.4), ALL)
@@ -395,13 +378,10 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	b.boxp(P(Color("93989a"), 0.6, 0.4), Vector3(76.0, 0.8, -8.3), Vector3(0.5, 0.7, 0.2), GROUND)
 	b.cylp(P(Color("3a3f44"), 0.7, 0.3), Vector3(76.4, 0.0, -8.3), 0.07, 3.4, 8)
 	b.boxp(P(Color("3a3f44"), 0.7, 0.3), Vector3(75.0, 3.22, -8.3), Vector3(1.8, 0.14, 0.14), ALL)
-	# 駐車場へ向かう矢印看板
-	_sign(b, root, font, "廃材と軽トラ →", Vector3(76.8, 0, 6.5), TEAL)
-	var scrap_sign := _sign(b, root, font, "← 廃材置き場", Vector3(66.5, 0, 12.2), RUST)
-	scrap_sign.position.y += 0.13
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(66.5, 1.68, 12.29)), "（となりの区の粗大ごみ置き場から、拝借）", 0.0036, 40, Color("f3dcc4"), font, false)
-	var departure := _sign(b, root, font, "積み込み確認 / F", Vector3(86, 0, 17.5), TEAL)
-	_sign(b, root, font, "スタジオ →", Vector3(87, 0, 33), TEAL)
+	# 駐車場・廃材置き場・スタジオへ向かう矢印看板（文字は書かず、矢印の絵だけ）
+	_sign(b, root, Vector3(76.8, 0, 6.5), TEAL, 1.0)
+	_sign(b, root, Vector3(66.5, 0, 12.2), RUST, -1.0)
+	_sign(b, root, Vector3(87, 0, 33), TEAL, 1.0)
 	# 事務所の明かり（従来のまま）
 	var light := OmniLight3D.new()
 	light.position = Vector3(72, 3, -2)
@@ -410,7 +390,6 @@ static func _office(b: Look.Batch, root: Node3D, font: Font) -> Label3D:
 	light.omni_range = 13
 	light.shadow_enabled = false
 	root.add_child(light)
-	return departure
 
 
 # ---- 書割の社屋：事務所の正面に立てた、2階建てに見える「正面だけ」の板 ----
@@ -514,14 +493,10 @@ static func _facade(root: Node3D, font: Font) -> void:
 	var out := b.build(root, "OfficeFacade")
 	for node: Node in out.find_children("*", "VisualInstance3D", true, false):
 		(node as VisualInstance3D).layers = FACADE_LAYER
-	# 文字：表の社名、裏の書き込み
+	# 表の社名（会社の名前。プレイヤーがスプレーで書き直す。features/spray_sign.gd）。ほかの文字は置かない
 	var sign := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 5.43, z + 0.18)), "格安アクション映画制作班", 0.011, 72, Color("f6e7c4"), font, false)
 	sign.layers = FACADE_LAYER
 	sign.name = "CompanyNameSign"          # company_name() に合わせる（features/spray_sign.gd）
-	var tag := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 4.6, z + 0.16)), "撮影所・事務所", 0.006, 40, Color("3a5a5e"), font, false)
-	tag.layers = FACADE_LAYER
-	var back := Look.label(root, Transform3D(Basis(Vector3.UP, PI), Vector3(72, 5.6, z - 0.13)), "書割 No.1　社屋（表）\n裏は見ないこと", 0.008, 48, Color("6a4a2e"), font, false)
-	back.layers = FACADE_LAYER
 
 
 static func _desk_things(b: Look.Batch) -> void:
@@ -578,7 +553,7 @@ static func _bunting(b: Look.Batch, p: Vector3, q: Vector3) -> void:
 		prev = cur
 
 
-static func _poster(b: Look.Batch, root: Node3D, font: Font, pos: Vector3, yaw: float, size: Vector2, bg: Color, title: String, fg: Color, art: int) -> void:
+static func _poster(b: Look.Batch, pos: Vector3, yaw: float, size: Vector2, bg: Color, fg: Color, art: int) -> void:
 	var fwd := Basis(Vector3.UP, yaw)
 	b.box(P(Color("efe6cc"), 0.9), Transform3D(fwd, pos), Vector3(size.x + 0.08, size.y + 0.08, 0.02), ALL)
 	b.box(P(bg, 0.9), Transform3D(fwd, pos + fwd * Vector3(0, 0, 0.012)), Vector3(size.x, size.y, 0.012), ALL)
@@ -594,7 +569,9 @@ static func _poster(b: Look.Batch, root: Node3D, font: Font, pos: Vector3, yaw: 
 			b.extrude(P(fg.darkened(0.3), 0.8), Transform3D(fwd, ap + fwd * Vector3(0, -0.2, 0.0)), [Vector2(-0.38, 0), Vector2(0.38, 0), Vector2(0.2, 0.5), Vector2(0.0, 0.3), Vector2(-0.2, 0.55)], 0.015)
 		_:
 			b.box(P(fg, 0.8), Transform3D(fwd, ap), Vector3(size.x * 0.7, 0.02, 0.014), ALL)
-	Look.label(root, Transform3D(fwd, pos + fwd * Vector3(0, -size.y * 0.36, 0.03)), title, 0.0034 if title.length() > 4 else 0.0042, 64, fg, font, false)
+	# 題名の代わりに、下に太い帯と細い帯（刷った色の帯）
+	b.box(P(fg, 0.85), Transform3D(fwd, pos + fwd * Vector3(0, -size.y * 0.33, 0.014)), Vector3(size.x * 0.72, size.y * 0.075, 0.004), ALL)
+	b.box(P(fg.darkened(0.25), 0.85), Transform3D(fwd, pos + fwd * Vector3(0, -size.y * 0.43, 0.014)), Vector3(size.x * 0.5, size.y * 0.025, 0.004), ALL)
 
 
 static func _chair(b: Look.Batch, pos: Vector3, color: Color, yaw: float) -> void:
@@ -618,18 +595,20 @@ static func _plant(b: Look.Batch, pos: Vector3, s: float, pot: Color) -> void:
 	Foliage.bush(b, pos + Vector3(0, 0.72 * s, 0), 0.34 * s)
 
 
-static func _sign(b: Look.Batch, root: Node3D, font: Font, words: String, pos: Vector3, color: Color) -> Label3D:
+# 矢印看板。arrow：+1 で右（+x）、−1 で左を指す絵を、板の表（+z）にぴったり貼る
+static func _sign(b: Look.Batch, root: Node3D, pos: Vector3, color: Color, arrow: float) -> void:
 	b.boxp(P(Color("716557"), 0.8), pos + Vector3(0, 0.95, 0), Vector3(0.12, 1.9, 0.12), ALL)
 	b.solidp(pos + Vector3(0, 0.95, 0), Vector3(0.12, 1.9, 0.12))
 	b.boxp(P(color.darkened(0.3), 0.8), pos + Vector3(0, 1.9, -0.012), Vector3(4.0, 1.12, 0.12), ALL)
 	b.solidp(pos + Vector3(0, 1.9, -0.012), Vector3(4.0, 1.12, 0.12))
 	b.boxp(Look.mat("plaster", color), pos + Vector3(0, 1.9, 0.0), Vector3(3.9, 1.05, 0.12), ALL)
-	return Look.label(root, Transform3D(Basis.IDENTITY, pos + Vector3(0, 1.9, 0.09)), words, 0.006, 40, Color("fff1d1"), font, false)
+	var flip := Basis.IDENTITY if arrow > 0.0 else Basis(Vector3.BACK, PI)
+	Look.picto(root, Transform3D(flip, pos + Vector3(0, 1.9, 0.0608)), "arrow", Vector2(1.2, 1.2))
 
 
 # ---- 敷地の小物（部品に沿った当たり判定。脚の間や機材の開口部はふさがない） ----
 
-static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
+static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 	# 場所ごとに別メッシュにして、見えない場所は描かないようにする（Batch ごとに視錐台で間引かれる）
 	var zones: Array = []
 	var b := Look.Batch.new()
@@ -637,13 +616,9 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	# 北西：区の清掃事務所の車庫（差し掛け小屋とフォークリフト。粗大ごみを運ぶ）。ここから西は区の土地（ward_lot.gd）
 	_shed(b, 38.0, 60.0, -13.8, -9.5)
 	_forklift(b, Vector3(50.5, 0, -4.4), 0.45, Color("3f8a5a"))
-	var fl := Transform3D(Basis(Vector3.UP, 0.45), Vector3(50.5, 0, -4.4))
-	for s: float in [-1.0, 1.0]:
-		Look.label(root, fl * Transform3D(Basis(Vector3.UP, s * PI * 0.5), Vector3(s * 0.53, 0.62, -0.2)), "みどり区", 0.0032, 64, Color.WHITE, font, false)
+	# 車庫の札：白地に区の緑の帯（文字は書かない）
 	b.boxp(P(Color("f4f2ea"), 0.6), Vector3(49.0, 2.78, -9.42), Vector3(3.2, 0.62, 0.04), ALL)
 	b.boxp(P(Color("2f7d4f"), 0.6), Vector3(49.0, 2.98, -9.398), Vector3(3.2, 0.2, 0.01), ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(49.0, 2.98, -9.39)), "みどり区　清掃事務所", 0.0028, 64, Color.WHITE, font, false)
-	Look.label(root, Transform3D(Basis.IDENTITY, Vector3(49.0, 2.7, -9.395)), "車庫・資材置場", 0.0036, 64, Color("1f2a24"), font, false)
 	_pallet_stack(b, Vector3(44.0, 0, -5.9), 0.1, 4, true, rng)
 	_pallet_stack(b, Vector3(45.4, 0, -6.1), -0.2, 2, false, rng)
 	for k in 5:
@@ -657,8 +632,8 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	b = Look.Batch.new()
 	zones.append(b)
 	# 北：事務所の裏手（ごみ置き場と資材）
-	_dumpster(b, Vector3(68.4, 0, -12.2), 0.0, Color("4c7a58"), "燃えるゴミ", root, font)
-	_dumpster(b, Vector3(70.8, 0, -12.2), 0.05, Color("3f6290"), "資源ゴミ", root, font)
+	_dumpster(b, Vector3(68.4, 0, -12.2), 0.0, Color("4c7a58"))
+	_dumpster(b, Vector3(70.8, 0, -12.2), 0.05, Color("3f6290"))
 	_cardboard_pile(b, Vector3(75.0, 0, -12.2), rng)
 	_crate_stack(b, Vector3(79.6, 0, -12.0), rng)
 	for k in 4:
@@ -667,8 +642,8 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	b = Look.Batch.new()
 	zones.append(b)
 	# 東：自販機・ベンチ・自転車置き場・植え込み
-	_vending(b, Vector3(79.62, 0, -2.7), PI * 0.5, Color("c4503a"), "ドリンク", root, font)
-	_vending(b, Vector3(79.62, 0, -1.55), PI * 0.5, Color("3b6ea5"), "つめたい", root, font)
+	_vending(b, Vector3(79.62, 0, -2.7), PI * 0.5, Color("c4503a"), root)
+	_vending(b, Vector3(79.62, 0, -1.55), PI * 0.5, Color("3b6ea5"), root)
 	_bench(b, Vector3(83.0, 0, -2.1), -PI * 0.5)
 	_bin(b, Vector3(81.5, 0, -4.3))
 	for k in 3:
@@ -689,7 +664,7 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	b = Look.Batch.new()
 	zones.append(b)
 	# 事務所と駐車場のあいだ
-	_bulletin(b, Vector3(69.2, 0, 9.8), root, font)
+	_bulletin(b, Vector3(69.2, 0, 9.8))
 	_lamp_post(b, Vector3(64.0, 0, 6.4), root, true)
 	_lamp_post(b, Vector3(84.2, 0, 11.0), root, true)
 	_lamp_post(b, Vector3(70.4, 0, 33.5), root, false)
@@ -706,11 +681,11 @@ static func _lot(root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
 	for k in 5:
 		if k != 1:            # 区の入口（ward_lot.gd）の前は空ける
 			_planter(b, Vector3(36.5 + k * 5.4, 0, 35.2), 4.0)
-	_pallet_stack(b, Vector3(36.0, 0, 32.0), 0.0, 5, true, rng)
-	_pallet_stack(b, Vector3(37.4, 0, 32.2), 0.1, 3, false, rng)
+	_pallet_stack(b, Vector3(33.2, 0, 32.0), 0.0, 5, true, rng)
+	_pallet_stack(b, Vector3(34.6, 0, 32.2), 0.1, 3, false, rng)
 	_pipes(b, Vector3(58.5, 0, 33.8))
 	_tires(b, Vector3(52.0, 0, 33.8), 4)
-	_lamp_post(b, Vector3(41.0, 0, 31.6), root, false)
+	_lamp_post(b, Vector3(35.75, 0, 31.6), root, false)   # 区の門（x 39..45）と看板の前は空ける
 	_lamp_post(b, Vector3(57.0, 0, 31.6), root, false)
 	_bike(b, Vector3(66.0, 0, 35.0), 0.0, Color("7f8352"))
 	b = Look.Batch.new()
@@ -946,7 +921,7 @@ static func _light_stand(b: Look.Batch, pos: Vector3, yaw: float) -> void:
 		b.box(dark, at * Transform3D(Basis(Vector3.RIGHT, 0.3) * Basis(Vector3.UP, sx * 1.4), Vector3(sx, 2.0, 0.28)), Vector3(0.02, 0.34, 0.18), ALL)
 
 
-static func _dumpster(b: Look.Batch, pos: Vector3, yaw: float, c: Color, words: String, root: Node3D, font: Font) -> void:
+static func _dumpster(b: Look.Batch, pos: Vector3, yaw: float, c: Color) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos)
 	var body := P(c, 0.55, 0.15)
 	b.box(body, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.6, 0)), Vector3(1.9, 1.1, 1.0), GROUND)
@@ -956,11 +931,9 @@ static func _dumpster(b: Look.Batch, pos: Vector3, yaw: float, c: Color, words: 
 		b.cyl(P(Color("1e2022"), 0.9), at * Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(wx, 0.1, 0.35)), 0.1, 0.08, 8, -1.0, true, true)
 	b.box(P(Color("2f3438"), 0.5, 0.4), at * Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)), Vector3(1.9, 0.14, 0.9), GROUND)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.6, 0)), Vector3(1.9, 1.2, 1.0))
-	var fw := at * Transform3D(Basis.IDENTITY, Vector3(0, 0.62, 0.508))
-	Look.label(root, fw, words, 0.0055, 64, Color("f4efe0"), font, false)
 
 
-static func _vending(b: Look.Batch, pos: Vector3, yaw: float, c: Color, words: String, root: Node3D, font: Font) -> void:
+static func _vending(b: Look.Batch, pos: Vector3, yaw: float, c: Color, root: Node3D) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos)
 	# 採用済みの日本型自販機。プロップ生成/ID登録を通さず、固定の背景として置く。
 	# 元モデルは Y上、正面+Z。商品窓・投入口・受取口のある形を、従来の外寸へ合わせる。
@@ -977,7 +950,6 @@ static func _vending(b: Look.Batch, pos: Vector3, yaw: float, c: Color, words: S
 				painted.albedo_color = c
 				mesh.set_surface_override_material(surface, painted)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.93, 0)), Vector3(0.9, 1.86, 0.78))
-	Look.label(root, at * Transform3D(Basis.IDENTITY, Vector3(0, 1.78, 0.36)), words, 0.0028, 48, Color("f3efdc"), font, false)
 
 
 static func _bench(b: Look.Batch, pos: Vector3, yaw: float) -> void:
@@ -1102,7 +1074,7 @@ static func _flat(b: Look.Batch, pos: Vector3, k: int) -> void:
 			b.box(m, at * Transform3D(Basis.IDENTITY, Vector3(0.0, 1.5, -0.3 + t * 0.3)), Vector3(0.05, 0.26, 0.2), ALL)
 
 
-static func _bulletin(b: Look.Batch, pos: Vector3, root: Node3D, font: Font) -> void:
+static func _bulletin(b: Look.Batch, pos: Vector3) -> void:
 	var post := Look.mat("wood", Color("7a5a3c"))
 	b.boxp(post, pos + Vector3(-0.85, 1.1, 0), Vector3(0.12, 2.2, 0.12), GROUND)
 	b.solidp(pos + Vector3(-0.85, 1.1, 0), Vector3(0.12, 2.2, 0.12))
@@ -1115,7 +1087,6 @@ static func _bulletin(b: Look.Batch, pos: Vector3, root: Node3D, font: Font) -> 
 	var cols := [Color("efe6cc"), Color("e8c24a"), Color("8ec0e0"), Color("e8a28a")]
 	for k in 6:
 		b.boxy(P(cols[k % 4], 0.9), pos + Vector3(-0.55 + (k % 3) * 0.55, 1.2 + (k / 3) * 0.5, 0.06), Vector3(0.42, 0.34, 0.01), 0.0, ALL)
-	Look.label(root, Transform3D(Basis.IDENTITY, pos + Vector3(0, 1.84, 0.07)), "お知らせ", 0.0045, 64, Color("3a2a22"), font, false)
 
 
 static func _lamp_post(b: Look.Batch, pos: Vector3, root: Node3D, with_light: bool) -> void:
@@ -1141,8 +1112,7 @@ static func _lamp_post(b: Look.Batch, pos: Vector3, root: Node3D, with_light: bo
 
 # ---- 道の演出：壁のポスター・落書き・街灯・信号 ----
 
-static func _road(b: Look.Batch, root: Node3D, font: Font, rng: RandomNumberGenerator) -> void:
-	var titles := ["上映中", "激安映画祭", "貼り紙禁止", "助監督 求ム", "怪獣大決戦", "清掃日", "探しています", "夏の大爆発"]
+static func _road(b: Look.Batch, rng: RandomNumberGenerator) -> void:
 	var cols := [Color("2f4b6e"), Color("a8442e"), Color("46704f"), Color("c09a3d"), Color("e6d6a8"), Color("6a4a7a"), Color("d77b4a"), Color("3b8a8a")]
 	var zs := [39.0, 42.5, 46.0, 50.5, 55.0, 58.0, 63.0, 67.0, 71.5, 76.0]
 	for side in 2:
@@ -1150,23 +1120,12 @@ static func _road(b: Look.Batch, root: Node3D, font: Font, rng: RandomNumberGene
 		var yaw := PI * 0.5 if side == 0 else -PI * 0.5
 		for k in zs.size():
 			var z: float = zs[k] + rng.randf_range(-0.5, 0.5) + side * 1.3
-			var i := (k * 3 + side * 5) % titles.size()
+			var i := (k * 3 + side * 5) % cols.size()
 			var y := 1.25 + rng.randf_range(-0.1, 0.25)
 			var turn := yaw + rng.randf_range(-0.0, 0.0)
 			if side == 0 and z < 46.2:
 				continue        # 西側は、区道（ward_lot.gd）の出口で塀が切れている
-			_poster(b, root, font, Vector3(x, y, z), turn, Vector2(0.9, 1.25), cols[i], titles[i], Color("f6efd6") if i % 2 == 0 else Color("2b2018"), i % 4)
-	# 落書き（吹き付けの文字）
-	var tag := Look.label(root, Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(87.25, 1.5, 53.9)), "ガンバレ!", 0.008, 128, Color("ff5fa8"), font, false)
-	tag.outline_size = 14
-	tag.outline_modulate = Color("fff4f8")
-	tag.rotate_object_local(Vector3.BACK, 0.12)
-	var tag2 := Look.label(root, Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(87.25, 1.55, 61.8)), "WOW", 0.009, 128, Color("5ad0c0"), font, false)
-	tag2.outline_size = 14
-	tag2.outline_modulate = Color("0f3b3a")
-	var tag3 := Look.label(root, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(72.75, 1.45, 48.3)), "映画", 0.009, 128, Color("f2c230"), font, false)
-	tag3.outline_size = 14
-	tag3.outline_modulate = Color("4a3208")
+			_poster(b, Vector3(x, y, z), turn, Vector2(0.9, 1.25), cols[i], Color("f6efd6") if i % 2 == 0 else Color("2b2018"), i % 4)
 	# 街灯（歩道に立ち、道の上へ腕を伸ばす）
 	var iron := P(Color("2f3438"), 0.5, 0.5)
 	for side in 2:
@@ -1193,13 +1152,12 @@ static func _road(b: Look.Batch, root: Node3D, font: Font, rng: RandomNumberGene
 		var lc: Color = [Color("e84a3a"), Color("e8c24a"), Color("4ec27a")][k]
 		var m: Look.Tint = Look.mat("lit", lc) if k == 2 else P(lc.darkened(0.6), 0.4)
 		b.boxp(m, sp + Vector3(0, 4.85 - k * 0.3, -0.16), Vector3(0.22, 0.22, 0.03), ALL)
-	# 止まれの標識（敷地の出口、道へ出る側へ向く）
+	# 止まれの標識（敷地の出口、道へ出る側へ向く）。赤い八角の板（文字は書かない）
 	var stop := Vector3(72.9, 0.0, 26.4)
 	b.cylp(iron, stop, 0.04, 2.3, 6)
 	b.solidp(stop + Vector3(0, 1.15, 0), Vector3(0.07, 2.3, 0.07))
 	b.cyl(P(Color("c4382a"), 0.4), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis(Vector3.UP, PI / 8.0), stop + Vector3(0, 2.4, 0.0)), 0.42, 0.03, 8)
 	b.solidp(stop + Vector3(0, 2.4, 0.015), Vector3(0.64, 0.68, 0.03))
-	Look.label(root, Transform3D(Basis(Vector3.UP, PI), stop + Vector3(0, 2.4, -0.03)), "止まれ", 0.0035, 64, Color("fff6e6"), font, false)
 	# 道の入口のボラード
 	for bx: float in [73.8, 86.2]:
 		b.cylp(P(Color("e8c24a"), 0.5), Vector3(bx, 0.0, 24.4), 0.09, 0.8, 8)

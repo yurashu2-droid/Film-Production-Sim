@@ -15,6 +15,7 @@ const Carton := preload("res://scripts/carton.gd")
 const Prop := preload("res://scripts/prop.gd")
 const FilmCamera := preload("res://scripts/film_camera.gd")
 const Pack := preload("res://scripts/carton_pack.gd")
+const Look := preload("res://scripts/production_look.gd")
 
 # ---- 段ボール置き場 ----
 const CARTON_COUNT := 16                      # 箱の総数（撮影だけモードからある4個を含む）
@@ -670,16 +671,8 @@ func _build_pile() -> void:
 	post.name = "SignPost"
 	var board := _pile_box(Vector3(-0.47, 2.2, 0.83), Vector3(1.8, 0.62, 0.04), flat)
 	board.rotation.y = PI * 0.75
-	for line: Array in [["段ボール置き場", 0.0034, 0.11], ["山を見て F で、もう1箱", 0.0019, -0.17]]:
-		var words := Label3D.new()
-		words.text = line[0]
-		words.font = game.font
-		words.font_size = 64
-		words.pixel_size = line[1]
-		words.modulate = Color("3a2a1c")
-		words.outline_size = 0
-		words.position = Vector3(0, float(line[2]), 0.025)
-		board.add_child(words)
+	# 札の絵（段ボール箱）。文字は書かず、札の表にぴったり貼る
+	Look.picto(board, Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.0208)), "box", Vector2(0.52, 0.52))
 	for shape: Array in [[Vector3(0, 0.13 + tall * 0.5, 0), Vector3(1.1, tall, 1.8)], [Vector3(0, 0.13 + tall * 1.5, 0), Vector3(1.1, tall, 0.85)], [Vector3(0, 0.065, 0), Vector3(1.2, 0.13, 1.9)]]:
 		var collider := CollisionShape3D.new()
 		var solid := BoxShape3D.new()
@@ -702,7 +695,7 @@ func _pile_box(at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	return part
 
 
-# 置き場の地面：黄色い囲いと、足元の文字（北の通り道から読める向き）
+# 置き場の地面：黄色い囲い（地面に文字は書かない）
 func _build_yard() -> void:
 	var root := Node3D.new()
 	root.name = "CartonYard"
@@ -723,17 +716,6 @@ func _build_yard() -> void:
 		line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		line.position = Vector3((from.x + to.x) * 0.5, 0.022, (from.y + to.y) * 0.5)
 		root.add_child(line)
-	for text: Array in [["段ボール置き場", 0.0042, -0.45], ["箱は、いくらでも使っていい", 0.0019, -0.98]]:
-		var words := Label3D.new()
-		words.text = text[0]
-		words.font = game.font
-		words.font_size = 128
-		words.pixel_size = text[1]
-		words.modulate = Color("e8e2cc")
-		words.outline_size = 0
-		words.shaded = false
-		words.transform = Transform3D(Basis(Vector3.UP, PI) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(YARD.get_center().x, 0.024, a.y + float(text[2])))
-		root.add_child(words)
 
 
 # ---- cargo_kit.gd から呼ばれる入口 ----

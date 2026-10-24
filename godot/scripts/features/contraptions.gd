@@ -162,9 +162,6 @@ func _kit_sign() -> void:
 	frame.position = Vector3(0, 0.78, 0.012)
 	frame.rotation.x = -0.12
 	root.add_child(frame)
-	# チョークの字（事務所のほかの札と同じ作り。光に当たって見える）
-	for row: Array in [["仕掛けの道具", 0.84, 0.0021], ["滑車・呼び鈴・トーチ・時計", 0.66, 0.0011]]:
-		Look.label(root, Transform3D(Basis(Vector3.RIGHT, -0.12), Vector3(0, float(row[1]), 0.08)), str(row[0]), float(row[2]), 64, Color("ecebe2"), game.get("font"), false)
 
 
 # 備品を1つ作る（全員の画面で、同じ順に。物のIDがそろう）

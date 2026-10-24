@@ -95,6 +95,141 @@ static func label(parent: Node, xf: Transform3D, words: String, pixel: float, si
 	return l
 
 
+# ---- 金網 ----
+
+const CHAIN_LINK := preload("res://shaders/chain_link.gdshader")
+
+
+# 金網のマテリアル（頂点色で色を付ける）。diamond：ひし形の金網フェンス、false：縦長の格子の溶接金網。
+# 網目を画像で抜かずに計算するので、遠くでも網が透けて消えない（shaders/chain_link.gdshader）
+static func chain_link(pitch: Vector2, wire: float, diamond := true) -> ShaderMaterial:
+	var key := "chain%s%.4f%s" % [str(pitch), wire, str(diamond)]
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var m := ShaderMaterial.new()
+	m.shader = CHAIN_LINK
+	m.set_shader_parameter("pitch", pitch)
+	m.set_shader_parameter("wire", wire)
+	m.set_shader_parameter("diamond", diamond)
+	_mat_cache[key] = m
+	return m
+
+
+# ---- 絵記号（文字を使わない札の絵） ----
+# 板の面にぴったり貼る（浮かせない）。xf の +Z が絵の表。大きさは size（メートル）
+#   no_entry：赤い丸に白い横棒（進入禁止）　camera：防犯カメラ　arrow：右向きの矢印（左は xf で裏返す）
+#   bag：ごみ袋　movie_camera：映画の撮影機（リール2つ）　box：段ボール箱
+static var _picto_cache: Dictionary = {}
+
+
+static func picto(parent: Node, xf: Transform3D, kind: String, size: Vector2, layers := 1) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "Picto_" + kind
+	var quad := QuadMesh.new()
+	quad.size = size
+	mi.mesh = quad
+	mi.material_override = _picto_mat(kind)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.layers = layers
+	mi.transform = xf
+	parent.add_child(mi)
+	return mi
+
+
+static func _picto_mat(kind: String) -> StandardMaterial3D:
+	if _picto_cache.has(kind):
+		return _picto_cache[kind]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(_picto_image(kind, 128))
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+	m.roughness = 0.75
+	_picto_cache[kind] = m
+	return m
+
+
+# 形の一覧（[種類, 引数...]）と色の組を、塗る順に並べる。座標は -1..1（上が +y）
+static func _picto_layers(kind: String) -> Array:
+	var ink := Color("26282a")
+	match kind:
+		"no_entry":
+			return [[[["circle", Vector2.ZERO, 1.0]], Color("f4f2ea")],
+					[[["circle", Vector2.ZERO, 0.86]], Color("c8352b")],
+					[[["box", Vector2.ZERO, Vector2(0.6, 0.15), 0.0]], Color("f4f2ea")]]
+		"camera":
+			return [[[["box", Vector2(0.12, 0.18), Vector2(0.5, 0.2), -0.32], ["box", Vector2(0.16, 0.42), Vector2(0.58, 0.05), -0.32],
+					["box", Vector2(-0.42, -0.08), Vector2(0.07, 0.3), 0.0], ["box", Vector2(-0.42, -0.4), Vector2(0.22, 0.07), 0.0]], ink],
+					[[["circle", Vector2(0.55, 0.02), 0.09]], Color("f2d23c")]]
+		"arrow":
+			return [[[["box", Vector2(-0.25, 0.0), Vector2(0.55, 0.15), 0.0],
+					["poly", [Vector2(0.2, -0.48), Vector2(0.85, 0.0), Vector2(0.2, 0.48)]]], Color("fff1d1")]]
+		"bag":
+			return [[[["circle", Vector2(0.0, -0.22), 0.6], ["box", Vector2(0.0, 0.42), Vector2(0.1, 0.14), 0.0],
+					["circle", Vector2(-0.17, 0.62), 0.13], ["circle", Vector2(0.17, 0.62), 0.13]], Color("2f7d4f")]]
+		"movie_camera":
+			return [[[["box", Vector2(-0.12, -0.2), Vector2(0.45, 0.28), 0.0], ["circle", Vector2(-0.36, 0.36), 0.26], ["circle", Vector2(0.16, 0.36), 0.26],
+					["poly", [Vector2(0.3, -0.2), Vector2(0.88, -0.52), Vector2(0.88, 0.12)]]], Color("f4f1ea")]]
+		"box":
+			return [[[["seg", Vector2(-0.62, 0.22), Vector2(0.36, 0.22), 0.05], ["seg", Vector2(0.36, 0.22), Vector2(0.36, -0.72), 0.05],
+					["seg", Vector2(0.36, -0.72), Vector2(-0.62, -0.72), 0.05], ["seg", Vector2(-0.62, -0.72), Vector2(-0.62, 0.22), 0.05],
+					["seg", Vector2(-0.62, 0.22), Vector2(-0.3, 0.6), 0.05], ["seg", Vector2(-0.3, 0.6), Vector2(0.68, 0.6), 0.05],
+					["seg", Vector2(0.68, 0.6), Vector2(0.36, 0.22), 0.05], ["seg", Vector2(0.68, 0.6), Vector2(0.68, -0.34), 0.05],
+					["seg", Vector2(0.68, -0.34), Vector2(0.36, -0.72), 0.05], ["seg", Vector2(-0.13, 0.22), Vector2(0.19, 0.6), 0.04]], Color("3a2a1c")]]
+	return []
+
+
+static func _picto_image(kind: String, sz: int) -> Image:
+	var im := Image.create_empty(sz, sz, false, Image.FORMAT_RGBA8)
+	im.fill(Color(0, 0, 0, 0))
+	var px := 2.0 / sz
+	var layers := _picto_layers(kind)
+	for j in sz:
+		for i in sz:
+			var p := Vector2(-1.0 + (i + 0.5) * px, 1.0 - (j + 0.5) * px)
+			var out := Color(0, 0, 0, 0)
+			for layer: Array in layers:
+				var d := INF
+				for s: Array in layer[0]:
+					d = minf(d, _sdf(p, s))
+				var cov := clampf(0.5 - d / px, 0.0, 1.0)
+				if cov > 0.0:
+					var c: Color = layer[1]
+					var a := out.a * (1.0 - cov) + cov
+					var keep := out.a * (1.0 - cov) / a
+					out = Color(out.r * keep + c.r * (1.0 - keep), out.g * keep + c.g * (1.0 - keep), out.b * keep + c.b * (1.0 - keep), a)
+			im.set_pixel(i, j, out)
+	im.generate_mipmaps()
+	return im
+
+
+static func _sdf(p: Vector2, s: Array) -> float:
+	match str(s[0]):
+		"circle":
+			return p.distance_to(s[1]) - float(s[2])
+		"box":
+			var q: Vector2 = (p - s[1]).rotated(-float(s[3]))
+			var d: Vector2 = q.abs() - (s[2] as Vector2)
+			return Vector2(maxf(d.x, 0.0), maxf(d.y, 0.0)).length() + minf(maxf(d.x, d.y), 0.0)
+		"seg":
+			var a: Vector2 = s[1]
+			var ab: Vector2 = (s[2] as Vector2) - a
+			var h := clampf((p - a).dot(ab) / ab.dot(ab), 0.0, 1.0)
+			return (p - a - ab * h).length() - float(s[3])
+		"poly":
+			# 凸多角形（反時計回り）：辺の外向きの距離のうち最大
+			var pts: Array = s[1]
+			var d := -INF
+			for k in pts.size():
+				var a: Vector2 = pts[k]
+				var e: Vector2 = (pts[(k + 1) % pts.size()] as Vector2) - a
+				var n := Vector2(e.y, -e.x).normalized()
+				d = maxf(d, (p - a).dot(n))
+			return d
+	return INF
+
+
 # ---- 画像の部品 ----
 
 static func _blank(w: int, h: int, c: Color = Color(0, 0, 0, 0)) -> Image:

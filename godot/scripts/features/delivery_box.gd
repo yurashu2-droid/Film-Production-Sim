@@ -110,16 +110,30 @@ func _build() -> void:
 	paper.position = Vector3(body.get_center().x + body.size.x * 0.06, body.position.y + body.size.y * 0.45, front + 0.004)
 	paper.rotation.z = 0.04
 	box.add_child(paper)
-	var slip := Label3D.new()
-	slip.text = "代金引換　1,000,000 コイン\n絶対バズる！\n会社紹介動画メソッド\n（DVD・投影機つき）"
-	slip.font = game.font
-	slip.font_size = 48
-	slip.outline_size = 0
-	slip.pixel_size = quad.size.x * 0.9 / (48.0 * 14.0)    # いちばん長い行（約14文字分）が、紙の幅に収まる
-	slip.modulate = Color(0.12, 0.1, 0.1)
-	slip.position = paper.position + Vector3(0, 0, 0.003)
-	slip.rotation.z = paper.rotation.z
-	box.add_child(slip)
+	# 送り状の字は、紙の絵として書き込む（SubViewport に書いて、紙の面のテクスチャにする。空中に字を浮かせない）
+	var vp := SubViewport.new()
+	vp.name = "SlipInk"
+	vp.size = Vector2i(512, maxi(int(512.0 * quad.size.y / quad.size.x), 64))
+	vp.disable_3d = true
+	vp.transparent_bg = false
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	box.add_child(vp)
+	var sheet := ColorRect.new()
+	sheet.color = Color(0.97, 0.95, 0.88)
+	sheet.size = Vector2(vp.size)
+	vp.add_child(sheet)
+	var words := Label.new()
+	words.text = "代金引換　1,000,000 コイン\n絶対バズる！\n会社紹介動画メソッド\n（DVD・投影機つき）"
+	words.add_theme_font_override("font", game.font)
+	# いちばん長い行（約14文字分）が紙の幅に、4行が紙の高さに収まる大きさ
+	words.add_theme_font_size_override("font_size", int(minf(vp.size.x * 0.86 / 14.0, vp.size.y * 0.86 / (4.0 * 1.4))))
+	words.add_theme_color_override("font_color", Color(0.12, 0.1, 0.1))
+	words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	words.size = Vector2(vp.size)
+	vp.add_child(words)
+	pm.albedo_color = Color.WHITE
+	pm.albedo_texture = vp.get_texture()
 	_top_y = body.end.y
 	# 講師（青いホログラム）。箱が開くまでは、箱の中に隠しておく
 	_teacher = Node3D.new()

@@ -1,129 +1,323 @@
 extends RefCounted
-## 廃材置き場を「となりの区の粗大ごみ置き場」に見せる飾り。制作班は、ここから勝手に拾ってきて撮影に使っている。
-##   ・遊びの仕組み（廃材の置き場所・数・門が開く時）は変えない。見た目と物語だけを変える
-##   ・ユーザー作成のヤード（L01）の店の看板と通路の白線は外し（hidden_part）、区の看板と分別の札に差し替える
-##   ・門：閉まっている間は鎖と南京錠。開くと、切られた鎖が地面に落ち、ボルトクリッパーが転がっている
+## 廃材置き場を「となりの区の粗大ごみ置き場（収集所）」に見せる飾り。制作班は、ここから勝手に拾ってきて撮影に使っている。
+##   ・本当の入口（区の門）は、南の区道の側（会社の反対側）。門は閉まったまま、扉の合わせ目に鎖と南京錠。
+##     門の脇に区の看板と、柱に取り付けた防犯カメラ（production_yard.gd が門の扉をここへ移す）
+##   ・会社の側（東。ローカル +Z）には入口が無い。金網をペンチで切った穴があり、制作班はそこから入る。
+##     依頼を受けている間は、切った網をめくって開けておき、それ以外は元に戻して針金で留めておく（set_hole）
+##   ・文字の看板は置かない。札は板と色の帯と絵記号（Look.picto）だけ
 ##   ・外のフェンス際：ゴミ集積所（袋とカラス除けネット）と、処理券を貼った粗大ごみ
 ##   ・拾ってきた廃材には、黄色い「粗大ごみ処理券」が貼ったままになっている（sticker_on）
-## 位置はヤードのローカル座標（x：横、z：奥 −12 〜 門 +12。+z が門の外＝会社の側）
+## 位置はヤードのローカル座標（x：横 −15 〜 15、z：奥 −12 〜 会社の側 +12。+z が会社の側、−x が南の区道の側）
 const Look := preload("res://scripts/production_look.gd")
 const Office := preload("res://scripts/production_office.gd")
 
-const WARD := "みどり区"
 const TICKET := Color("f2d23c")          # 処理券の黄色
 const TICKET_RED := Color("c8352b")
 const GREEN := Color("2f7d4f")           # 区の看板の緑
 
-static var _net_mat: StandardMaterial3D
+const FRONT_Z := 12.0                    # 会社の側の金網の面
+const HOLE := Vector2(0.15, 2.85)        # ペンチで切った穴の横の範囲（x）。右端（x=2.85）を軸に、網をめくる
+const HOLE_TOP := 1.95                   # 穴の上の端（その上は網が残る）
+const FENCE_TOP := 2.06
+const FLAP_OPEN := 2.45                  # めくった網の開き（ラジアン。外＝会社の側へ）
+const FLAP_TIP := 0.85                   # めくった網の先の、反り返った部分の幅
+
+static var _net_mat: ShaderMaterial
+static var _crow_mat: ShaderMaterial
 
 
-# ヤードの部品のうち、外す物（店の看板・通路の白線・コンテナの置き場の印）
+# 会社の側の門の場所（モデルの門）を、南の区道の側へ移す変換。
+# 門の面 z=12（x −3..3、外が +z）→ 南の面 x=−15（z −9..−3、外が −x）
+static func south_gate() -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(-3.0, 0.0, -6.0))
+
+
+# ヤードの部品のうち、外す物（店の看板・通路の白線・コンテナの置き場の印・前の看板の柱）
 static func hidden_part(nm: String) -> bool:
 	for key: String in ["zone title", "zone subtitle", "zone bolt", "materials title", "materials subtitle", "materials bolt",
 			"second take salvage title", "second take salvage subtitle", "second take salvage bolt", "fabric rack label",
 			"crosswalk edge", "faded aisle boundary", "aisle 5_5m clear", "aisle 3m clear", "pad stencil",
-			"container bay side marking", "container optional pad", "twistlock corner landing marker", "entry public apron"]:
+			"container bay side marking", "container optional pad", "twistlock corner landing marker", "entry public apron",
+			"main sign timber upright"]:
 		if nm.contains(key):
 			return true
 	return false
 
 
+# 南の金網のうち、門にする2区画（z −9..−3）の網・桟・留め具・真ん中の柱
+static func south_opening(nm: String, box: AABB) -> bool:
+	if not nm.begins_with("side fence bay"):
+		return false
+	var c := box.get_center()
+	return c.x < 0.0 and c.z > -8.95 and c.z < -3.05
+
+
 static func build(root: Node3D, xf: Transform3D) -> void:
-	var font := Look.font()
 	var b := Look.Batch.new()
 	b.xf = xf
-	_main_sign(b, root, xf, font)
-	_bay_signs(b, root, xf, font)
-	_collection_point(b, root, xf, font, Vector3(-11.4, 0, 12.95), 9)
-	_collection_point(b, root, xf, font, Vector3(10.6, 0, 12.95), 6)
-	_junk(b, root, xf, font)
-	_notices(b, root, xf, font)
+	_bay_signs(b)
+	_collection_point(b, root, xf, Vector3(-11.4, 0, 12.95), 9)
+	_collection_point(b, root, xf, Vector3(10.6, 0, 12.95), 6)
+	_junk(b)
+	_front_notice(b, root, xf)
 	b.build(root, "DumpDressing")
-	# 門の鎖（閉まっている間）と、切られた鎖（開いたあと）。production_yard.set_gate が切り替える
-	var shut := Look.Batch.new()
-	shut.xf = xf
-	_lock_shut(shut)
-	var shut_node := shut.build(root, "DumpLockShut")
-	var cut := Look.Batch.new()
-	cut.xf = xf
-	_lock_cut(cut)
-	var cut_node := cut.build(root, "DumpLockCut")
-	cut_node.visible = false
-	shut_node.visible = true
+	_south_entrance(root, xf)
+	_front_fence(root, xf)
 
 
-# 門の開き（0..1）に合わせて、鎖を切り替える
-static func set_lock(root: Node3D, open: float) -> void:
-	var shut := root.get_node_or_null("DumpLockShut") as Node3D
-	var cut := root.get_node_or_null("DumpLockCut") as Node3D
-	if shut:
-		shut.visible = open < 0.05
-	if cut:
-		cut.visible = open >= 0.05
+# ---- 本当の入口（南の区道の側）：門の鎖と南京錠、区の看板、防犯カメラ ----
+
+static func _south_entrance(root: Node3D, xf: Transform3D) -> void:
+	# 門の扉の合わせ目に鎖を巻き、南京錠をかける（門の場所の座標で作って、南へ移す）。
+	# モデルの扉は少し斜めで、閉じると先の縦枠が x≈0、z≈12.25（外寄り）で合わさる。鎖はその2本の縦枠を抱く
+	var lock := Look.Batch.new()
+	lock.xf = xf * south_gate()
+	var steel := Look.plain(Color("a9afb2"), 0.35, 0.8)
+	for y: float in [1.05, 1.2]:
+		var loop := [Vector3(-0.17, y, 12.12), Vector3(0.17, y + 0.03, 12.12), Vector3(0.17, y - 0.03, 12.38), Vector3(-0.17, y, 12.38)]
+		for k in 4:
+			_chain(lock, steel, loop[k], loop[(k + 1) % 4], 1.6)
+	_chain(lock, steel, Vector3(0.0, 1.05, 12.38), Vector3(0.03, 0.78, 12.42), 1.6)
+	_padlock(lock, Vector3(0.03, 0.68, 12.43), 0.0, 1.6)
+	lock.build(root, "DumpLockShut")
+	var b := Look.Batch.new()
+	b.xf = xf
+	var wood := Look.mat("wood", Color("7a5a3c"))
+	var pole := Look.plain(Color("9aa3a6"), 0.45, 0.6)
+	var x := -15.4                            # 金網の外（区道の側）
+	# 区の看板：門の西どなり。木の柱と、カメラの鉄の柱に渡して留める
+	var sc := Vector3(x - 0.07, 2.1, -10.75)
+	b.boxp(wood, Vector3(x, 1.4, -11.75), Vector3(0.12, 2.8, 0.12), Look.Batch.GROUND)
+	b.solidp(Vector3(x, 1.4, -11.75), Vector3(0.12, 2.8, 0.12))
+	b.boxp(Look.plain(Color("f4f2ea"), 0.6), sc, Vector3(0.03, 1.15, 2.3), Look.Batch.ALL)
+	b.solidp(sc, Vector3(0.05, 1.15, 2.3))
+	b.boxp(Look.plain(GREEN, 0.6), sc + Vector3(-0.018, 0.44, 0), Vector3(0.008, 0.27, 2.3), Look.Batch.ALL)
+	b.boxp(Look.plain(TICKET_RED, 0.6), sc + Vector3(-0.018, -0.46, 0), Vector3(0.008, 0.23, 2.3), Look.Batch.ALL)
+	for z: float in [-1.05, 1.05]:
+		for y: float in [0.44, -0.44]:
+			b.boxp(Look.plain(Color("9aa0a2"), 0.4, 0.6), sc + Vector3(-0.02, y, z), Vector3(0.02, 0.05, 0.05), Look.Batch.ALL)
+	Look.picto(root, xf * Transform3D(Basis(Vector3.UP, -PI * 0.5), sc + Vector3(-0.0165, -0.02, 0.0)), "no_entry", Vector2(0.62, 0.62))
+	# 防犯カメラの鉄の柱（門の西の柱の外）。腕木の先に、門と区道の入口をにらむカメラ
+	var pz := -9.45
+	b.boxp(pole, Vector3(x, 1.65, pz), Vector3(0.1, 3.3, 0.1), Look.Batch.GROUND)
+	b.solidp(Vector3(x, 1.65, pz), Vector3(0.1, 3.3, 0.1))
+	b.boxp(Look.mat("concrete", Color("a8a59a")), Vector3(x, 0.06, pz), Vector3(0.3, 0.12, 0.3), Look.Batch.GROUND)
+	b.boxp(pole, Vector3(x, 3.31, pz), Vector3(0.12, 0.02, 0.12), Look.Batch.ALL)
+	# 看板を柱へ留める金具（帯で柱を抱く）
+	for y: float in [2.5, 1.7]:
+		b.boxp(pole, Vector3(x, y, pz), Vector3(0.13, 0.04, 0.13), Look.Batch.ALL)
+		b.boxp(pole, Vector3(x - 0.06, y, (pz + sc.z + 1.15) * 0.5), Vector3(0.03, 0.05, absf(pz - (sc.z + 1.15)) + 0.1), Look.Batch.ALL)
+	_camera(b, Vector3(x, 3.05, pz), xf)
+	# 柱の札：黄色地に防犯カメラの絵（帯金で柱に巻いて留める）
+	var tag := Vector3(x - 0.057, 1.15, pz)
+	b.boxp(Look.plain(TICKET, 0.6), tag, Vector3(0.012, 0.42, 0.34), Look.Batch.ALL)
+	for y: float in [0.16, -0.16]:
+		b.boxp(pole, Vector3(x, tag.y + y, pz), Vector3(0.13, 0.025, 0.13), Look.Batch.ALL)
+	Look.picto(root, xf * Transform3D(Basis(Vector3.UP, -PI * 0.5), tag + Vector3(-0.0068, 0.0, 0.0)), "camera", Vector2(0.3, 0.3))
+	b.build(root, "DumpEntrance")
 
 
-# ---- 看板 ----
+# 防犯カメラ：柱の頭から腕木を出し、先の取付け板にカメラを吊る。カメラは門（+z）と区道（−x）を見下ろす
+static func _camera(b: Look.Batch, top: Vector3, xf: Transform3D) -> void:
+	var white := Look.plain(Color("e8e8e2"), 0.5, 0.2)
+	var dark := Look.plain(Color("26282a"), 0.3)
+	var metal := Look.plain(Color("9aa3a6"), 0.45, 0.6)
+	var arm_end := top + Vector3(-0.12, 0.0, 0.42)
+	# 腕木（柱の側面に取付け板。斜めの控えつき）
+	b.boxp(metal, top + Vector3(0, 0, 0.06), Vector3(0.14, 0.18, 0.02), Look.Batch.ALL)
+	b.bar(metal, top + Vector3(0, 0.02, 0.06), arm_end, 0.045)
+	b.bar(metal, top + Vector3(0, -0.2, 0.06), arm_end + Vector3(0, -0.02, -0.12), 0.025)
+	# 吊り金具と首振りの台
+	b.boxp(metal, arm_end + Vector3(0, -0.05, 0), Vector3(0.08, 0.08, 0.08), Look.Batch.ALL)
+	var aim := (Vector3(-17.5, 0.0, -6.0) - (arm_end + Vector3(0, -0.2, 0))).normalized()
+	var basis := Basis.looking_at(aim, Vector3.UP)
+	var body_at := arm_end + Vector3(0, -0.2, 0) + basis * Vector3(0, 0, -0.08)
+	b.bar(metal, arm_end + Vector3(0, -0.08, 0), body_at + basis * Vector3(0, 0.08, 0.06), 0.035)
+	b.box(white, Transform3D(basis, body_at), Vector3(0.15, 0.14, 0.34), Look.Batch.ALL)
+	b.box(white, Transform3D(basis, body_at + basis * Vector3(0, 0.085, -0.03)), Vector3(0.19, 0.016, 0.42), Look.Batch.ALL)
+	b.box(dark, Transform3D(basis, body_at + basis * Vector3(0, -0.005, -0.172)), Vector3(0.11, 0.1, 0.012), Look.Batch.ALL)
+	b.box(Look.plain(Color("5a7d9a"), 0.15, 0.3), Transform3D(basis, body_at + basis * Vector3(0, -0.005, -0.18)), Vector3(0.06, 0.06, 0.006), Look.Batch.ALL)
+	# 配線：カメラの後ろから腕木に沿って、柱の中へ
+	var cable := Look.plain(Color("1e2022"), 0.6)
+	var back := body_at + basis * Vector3(0, -0.02, 0.17)
+	b.bar(cable, back, back + Vector3(0, 0.0, -0.06), 0.012)
+	b.bar(cable, back + Vector3(0, 0.0, -0.06), top + Vector3(-0.055, -0.08, 0.06), 0.012)
+	b.bar(cable, top + Vector3(-0.055, -0.08, 0.06), top + Vector3(-0.055, -0.5, 0.0), 0.012)
 
-# 門の横の大きな看板（店の看板の板と柱に、区の看板を打ち付けた）
-static func _main_sign(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> void:
-	var c := Vector3(-6.3, 2.5, 12.1)
-	b.boxp(Look.plain(Color("f4f2ea"), 0.6), c, Vector3(3.9, 1.45, 0.04), Look.Batch.ALL)
-	b.boxp(Look.plain(GREEN, 0.6), c + Vector3(0, 0.56, 0.022), Vector3(3.9, 0.33, 0.01), Look.Batch.ALL)
-	b.boxp(Look.plain(TICKET_RED, 0.6), c + Vector3(0, -0.56, 0.022), Vector3(3.9, 0.3, 0.01), Look.Batch.ALL)
-	for x: float in [-1.8, 1.8]:
-		for y: float in [0.6, -0.6]:
-			b.boxp(Look.plain(Color("9aa0a2"), 0.4, 0.6), c + Vector3(x, y, 0.03), Vector3(0.05, 0.05, 0.02), Look.Batch.ALL)
-	var z := c.z + 0.032
-	_text(root, xf, Vector3(c.x, c.y + 0.56, z), WARD + "　清掃課", 0.0042, Color.WHITE, font)
-	_text(root, xf, Vector3(c.x, c.y + 0.13, z), "粗大ごみ　一時置き場", 0.0054, Color("1f2a24"), font)
-	_text(root, xf, Vector3(c.x, c.y - 0.2, z), "関係者以外　立入禁止", 0.0038, Color("1f2a24"), font)
-	_text(root, xf, Vector3(c.x, c.y - 0.56, z), "持ち去りは禁止です（見つけたら通報します）", 0.0025, Color.WHITE, font)
+
+# ---- 会社の側：ペンチで切った金網の穴（入口は無い） ----
+
+# 門のあった所（x −3..3）を、モデルと同じ溶接金網でふさぐ。右半分は、ペンチで切った穴
+static func _front_fence(root: Node3D, xf: Transform3D) -> void:
+	var b := Look.Batch.new()
+	b.xf = xf
+	var steel := Look.plain(Color("9aa3a6"), 0.45, 0.6)
+	var net := Look.Tint.new(grid_mat(), Color("aab3b5"))
+	var cut := Look.plain(Color("b9c0c2"), 0.35, 0.8)
+	var z := FRONT_Z
+	var h := FENCE_TOP
+	for x: float in [-2.95, 0.0, 2.95]:
+		b.boxp(steel, Vector3(x, h * 0.5, z), Vector3(0.07, h, 0.07), Look.Batch.GROUND)
+		b.solidp(Vector3(x, h * 0.5, z), Vector3(0.07, h, 0.07))
+		b.boxp(Look.mat("concrete", Color("a8a59a")), Vector3(x, 0.05, z), Vector3(0.24, 0.1, 0.24), Look.Batch.GROUND)
+	b.boxp(steel, Vector3(0.0, h, z), Vector3(5.97, 0.05, 0.05), Look.Batch.ALL)
+	b.boxp(steel, Vector3(-1.475, 0.1, z), Vector3(2.88, 0.04, 0.04), Look.Batch.ALL)
+	# 左半分：切られていない網
+	b.boxp(net, Vector3(-1.475, (0.1 + h) * 0.5, z), Vector3(2.88, h - 0.1, 0.012), Look.Batch.ALL)
+	b.solidp(Vector3(-1.475, h * 0.5, z), Vector3(2.9, h, 0.1))
+	# 右半分：穴のまわりに残った網（上の帯と、柱ぎわの細い帯）
+	b.boxp(net, Vector3(1.475, (HOLE_TOP + h) * 0.5, z), Vector3(2.88, h - HOLE_TOP, 0.012), Look.Batch.ALL)
+	b.solidp(Vector3(1.475, (HOLE_TOP + h) * 0.5, z), Vector3(2.9, h - HOLE_TOP + 0.05, 0.1))
+	b.boxp(net, Vector3((0.035 + HOLE.x) * 0.5, (0.1 + HOLE_TOP) * 0.5, z), Vector3(HOLE.x - 0.035, HOLE_TOP - 0.1, 0.012), Look.Batch.ALL)
+	b.solidp(Vector3((0.035 + HOLE.x) * 0.5, HOLE_TOP * 0.5, z), Vector3(HOLE.x - 0.035, HOLE_TOP, 0.1))
+	# 切り口：針金の端が、穴の縁から短く飛び出す（横の針金 0.2m ごと、縦の針金 0.05m ごと）
+	var y := 0.2
+	while y < HOLE_TOP - 0.05:
+		b.bar(cut, Vector3(HOLE.x, y, z), Vector3(HOLE.x + 0.035 + fmod(y * 7.3, 0.03), y - 0.01, z + 0.006), 0.006)
+		y += 0.2
+	var cx := HOLE.x + 0.05
+	while cx < HOLE.y - 0.02:
+		b.bar(cut, Vector3(cx, HOLE_TOP, z), Vector3(cx + 0.006, HOLE_TOP - 0.03 - fmod(cx * 5.1, 0.03), z + 0.008 * (fmod(cx * 20.0, 2.0) - 1.0)), 0.006)
+		cx += 0.05
+	b.build(root, "DumpFrontFence")
+	# めくる網（右端の柱ぎわを軸に、外へ開く。先は反り返る）
+	var hinge := Node3D.new()
+	hinge.name = "HoleFlap"
+	hinge.set_meta("base", xf * Transform3D(Basis.IDENTITY, Vector3(HOLE.y, 0.0, z)))
+	root.add_child(hinge)
+	var w := HOLE.y - HOLE.x
+	var fb := Look.Batch.new()
+	_flap_part(fb, net, cut, -w + FLAP_TIP, 0.0, false)
+	fb.build(hinge, "Mesh")
+	var tip := Node3D.new()
+	tip.name = "Tip"
+	tip.position = Vector3(-w + FLAP_TIP, 0.0, 0.0)
+	tip.set_meta("base", Transform3D(Basis.IDENTITY, tip.position))
+	hinge.add_child(tip)
+	var tb := Look.Batch.new()
+	_flap_part(tb, net, cut, -FLAP_TIP, 0.0, true)
+	tb.build(tip, "Mesh")
+	# 閉じている間：網を戻して、針金で留めてある（ねじった針金の輪）
+	var ties := Look.Batch.new()
+	ties.xf = xf
+	var tie := Look.plain(Color("c9cfd1"), 0.35, 0.8)
+	for p: Vector3 in [Vector3(HOLE.x, 0.45, z), Vector3(HOLE.x, 1.05, z), Vector3(HOLE.x, 1.6, z), Vector3(0.9, HOLE_TOP, z), Vector3(1.9, HOLE_TOP, z)]:
+		var along := Vector3(0, 0.03, 0) if p.y < HOLE_TOP - 0.01 else Vector3(0.03, 0, 0)
+		var across := Vector3(0.04, 0, 0) if p.y < HOLE_TOP - 0.01 else Vector3(0, 0.04, 0)
+		ties.bar(tie, p - across + Vector3(0, 0, 0.012), p + across + Vector3(0, 0, 0.012), 0.008)
+		ties.bar(tie, p - across + along + Vector3(0, 0, -0.012), p + across + along + Vector3(0, 0, -0.012), 0.008)
+		ties.bar(tie, p + across + Vector3(0, 0, 0.012), p + across + along * 1.6 + Vector3(0.01, 0.01, 0.03), 0.008)
+	ties.build(root, "HoleTies")
+	# 開いている間：外の地面に、ペンチと、切り落とした針金のくず
+	var lay := Look.Batch.new()
+	lay.xf = xf
+	_pliers(lay, Transform3D(Basis(Vector3.UP, 0.7), Vector3(0.85, 0.02, 12.75)))
+	for k in 5:
+		var p := Vector3(0.4 + k * 0.33, 0.012, 12.35 + fmod(k * 0.37, 0.5))
+		lay.bar(cut, p, p + Vector3(0.06 + k * 0.012, 0.0, 0.03 - k * 0.015), 0.006)
+	lay.build(root, "HolePliers")
+	set_hole(root, 0.0)
 
 
-# 分別の札（店の「01 / TIMBER」などの代わり。板と金具はそのまま使う）
-static func _bay_signs(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> void:
-	for s: Array in [[Vector3(-10.0, 2.95, 5.2), "木くず（角材・板）", Color("8a5a32")],
-			[Vector3(-10.0, 2.95, -6.1), "金属くず", Color("3b6ea5")],
-			[Vector3(0.75, 3.0, -6.85), "粗大ごみ（建具・家具）", Color("d0782e")],
-			[Vector3(9.5, 2.8, 8.5), "発泡スチロール・軽い物", Color("4e9a8a")],
-			[Vector3(-5.5, 2.88, 0.95), "古布・ふとん", Color("8a5a8f")]]:
+# めくる網の一枚（x0..x0+幅、高さは穴の下から上まで）。tip：先の反り返る部分（自由な縁に切り口を付ける）
+static func _flap_part(b: Look.Batch, net: Look.Tint, cut: Look.Tint, x0: float, z: float, tip: bool) -> void:
+	var w := FLAP_TIP if tip else (HOLE.y - HOLE.x) - FLAP_TIP
+	var y0 := 0.1
+	var y1 := HOLE_TOP - 0.012
+	b.boxp(net, Vector3(x0 + w * 0.5, (y0 + y1) * 0.5, z), Vector3(w, y1 - y0, 0.012), Look.Batch.ALL)
+	# 上の縁（切り口）
+	var x := x0 + 0.03
+	while x < x0 + w - 0.01:
+		b.bar(cut, Vector3(x, y1, z), Vector3(x - 0.004, y1 + 0.028 + fmod(absf(x) * 5.1, 0.025), z - 0.006), 0.006)
+		x += 0.05
+	# 下の縁（いちばん下の横の針金ごと切ってある）
+	b.bar(cut, Vector3(x0, y0, z), Vector3(x0 + w, y0, z), 0.007)
+	if tip:
+		var y := 0.2
+		while y < y1 - 0.05:
+			b.bar(cut, Vector3(x0, y, z), Vector3(x0 - 0.03 - fmod(y * 7.3, 0.025), y + 0.01, z - 0.006), 0.006)
+			y += 0.2
+
+
+# ペンチ（赤い握りの、大きめの針金切り）。at の +Z が握りの向き
+static func _pliers(b: Look.Batch, at: Transform3D) -> void:
+	var steel := Look.plain(Color("6a7074"), 0.4, 0.8)
+	var red := Look.plain(Color("c8352b"), 0.5)
+	for s: float in [-1.0, 1.0]:
+		b.box(steel, at * Transform3D(Basis(Vector3.UP, s * 0.05), Vector3(s * 0.012, 0.0, -0.06)), Vector3(0.016, 0.014, 0.1), Look.Batch.ALL)
+		b.box(steel, at * Transform3D(Basis(Vector3.UP, s * 0.16), Vector3(s * 0.03, 0.0, 0.05)), Vector3(0.012, 0.012, 0.12), Look.Batch.ALL)
+		b.box(red, at * Transform3D(Basis(Vector3.UP, s * 0.16), Vector3(s * 0.05, 0.0, 0.16)), Vector3(0.024, 0.02, 0.15), Look.Batch.ALL)
+	b.cyl(steel, at * Transform3D(Basis.IDENTITY, Vector3(0, -0.01, -0.01)), 0.016, 0.02, 8)
+
+
+# 穴の開き（0..1）。0：網を戻して針金で留めてある。1：網をめくって外へ開き、ペンチが転がっている
+static func set_hole(root: Node3D, open: float) -> void:
+	var hinge := root.get_node_or_null("HoleFlap") as Node3D
+	if hinge:
+		hinge.transform = (hinge.get_meta("base") as Transform3D) * Transform3D(Basis(Vector3.UP, FLAP_OPEN * open), Vector3.ZERO)
+		var tip := hinge.get_node_or_null("Tip") as Node3D
+		if tip:
+			tip.transform = (tip.get_meta("base") as Transform3D) * Transform3D(Basis(Vector3.UP, -0.55 * open), Vector3.ZERO)
+	var ties := root.get_node_or_null("HoleTies") as Node3D
+	if ties:
+		ties.visible = open < 0.05
+	var pliers := root.get_node_or_null("HolePliers") as Node3D
+	if pliers:
+		pliers.visible = open >= 0.05
+
+
+# ---- 札（文字なし。板と色の帯と絵記号） ----
+
+# 分別の札（店の「01 / TIMBER」などの代わり。板と金具はそのまま使う）。色の帯で分ける
+static func _bay_signs(b: Look.Batch) -> void:
+	for s: Array in [[Vector3(-10.0, 2.95, 5.2), Color("8a5a32")],
+			[Vector3(-10.0, 2.95, -6.1), Color("3b6ea5")],
+			[Vector3(0.75, 3.0, -6.85), Color("d0782e")],
+			[Vector3(9.5, 2.8, 8.5), Color("4e9a8a")],
+			[Vector3(-5.5, 2.88, 0.95), Color("8a5a8f")]]:
 		var c: Vector3 = s[0]
 		b.boxp(Look.plain(Color("f4f2ea"), 0.6), c, Vector3(2.5, 0.62, 0.03), Look.Batch.ALL)
-		b.boxp(Look.plain(s[2], 0.6), c + Vector3(0, 0.22, 0.017), Vector3(2.5, 0.18, 0.01), Look.Batch.ALL)
-		_text(root, xf, c + Vector3(0, 0.22, 0.024), WARD + "　分別置き場", 0.0026, Color.WHITE, font)
-		_text(root, xf, c + Vector3(0, -0.06, 0.024), s[1], 0.0034, Color("1f2a24"), font)
+		b.boxp(Look.plain(s[1], 0.6), c + Vector3(0, 0.0, 0.017), Vector3(2.5, 0.3, 0.01), Look.Batch.ALL)
+		b.boxp(Look.plain(GREEN, 0.6), c + Vector3(0, 0.25, 0.017), Vector3(2.5, 0.08, 0.01), Look.Batch.ALL)
 
 
-# フェンスの貼り紙：不法投棄・収集日・防犯カメラ（作動していないかもしれない）
-static func _notices(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> void:
-	var z := 12.18
-	# 不法投棄は犯罪です（赤字）
-	var p := Vector3(4.3, 1.45, z)
-	b.boxp(Look.plain(Color("f4f2ea"), 0.6), Vector3(p.x, p.y, z), Vector3(0.9, 0.6, 0.02), Look.Batch.ALL)
-	_text(root, xf, Vector3(p.x, p.y + 0.12, z + 0.012), "不法投棄は犯罪です", 0.0022, TICKET_RED, font)
-	_text(root, xf, Vector3(p.x, p.y - 0.1, z + 0.012), "5年以下の懲役　" + WARD, 0.0015, Color("1f2a24"), font)
-	# 防犯カメラ作動中（柱の上にカメラ。たぶん電源は入っていない）
-	var cam := Vector3(-3.6, 2.6, 12.25)
-	b.boxp(Look.plain(Color("e8e8e2"), 0.5, 0.2), cam, Vector3(0.18, 0.16, 0.34), Look.Batch.ALL)
-	b.boxp(Look.plain(Color("26282a"), 0.3), cam + Vector3(0, -0.01, 0.175), Vector3(0.11, 0.1, 0.02), Look.Batch.ALL)
-	b.bar(Look.plain(Color("9aa0a2"), 0.4, 0.6), cam + Vector3(0, 0.08, -0.12), cam + Vector3(0, 0.3, -0.2), 0.04)
-	b.boxp(Look.plain(Color("f2d23c"), 0.6), Vector3(-3.6, 1.7, z), Vector3(0.5, 0.36, 0.02), Look.Batch.ALL)
-	_text(root, xf, Vector3(-3.6, 1.74, z + 0.012), "防犯カメラ", 0.0018, Color("1f2a24"), font)
-	_text(root, xf, Vector3(-3.6, 1.6, z + 0.012), "作動中", 0.0018, TICKET_RED, font)
+# 会社の側の金網の札：進入禁止の絵（穴の左の、切られていない網に、針金で四隅を留める）
+static func _front_notice(b: Look.Batch, root: Node3D, xf: Transform3D) -> void:
+	var p := Vector3(-1.5, 1.35, FRONT_Z + 0.022)
+	b.boxp(Look.plain(Color("f4f2ea"), 0.6), p, Vector3(0.5, 0.5, 0.012), Look.Batch.ALL)
+	b.boxp(Look.plain(GREEN, 0.6), p + Vector3(0, 0.2, 0.007), Vector3(0.5, 0.1, 0.004), Look.Batch.ALL)
+	for cx: float in [-0.22, 0.22]:
+		for cy: float in [-0.22, 0.22]:
+			b.bar(Look.plain(Color("c9cfd1"), 0.35, 0.8), p + Vector3(cx, cy, 0.008), p + Vector3(cx, cy, -0.03), 0.006)
+	Look.picto(root, xf * Transform3D(Basis.IDENTITY, p + Vector3(0, -0.04, 0.0068)), "no_entry", Vector2(0.32, 0.32))
 
 
 # ---- ゴミ集積所（フェンスの外。袋の山とカラス除けネット、収集日の札） ----
 
 # 区道に面したゴミ集積所（ワールド座標。札は塀の面 wall_z に、南向きに貼る）
-static func street_point(b: Look.Batch, root: Node3D, font: Font, at: Vector3, wall_z: float) -> void:
-	_collection_point(b, root, Transform3D.IDENTITY, font, at, 8, wall_z)
+static func street_point(b: Look.Batch, root: Node3D, at: Vector3, wall_z: float) -> void:
+	_collection_point(b, root, Transform3D.IDENTITY, at, 8, wall_z)
 
 
-static func net_mat() -> StandardMaterial3D:
-	return _net()
+# 金網フェンスの網（ひし形。遠くでも透けて消えない）
+static func net_mat() -> ShaderMaterial:
+	if _net_mat == null:
+		_net_mat = Look.chain_link(Vector2(0.06, 0.06), 0.0055, true)
+	return _net_mat
 
 
-static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font, at: Vector3, bags: int, sign_z := 12.06) -> void:
+# 溶接金網（縦長の格子。ヤードのモデルの金網に合わせる）
+static func grid_mat() -> ShaderMaterial:
+	return Look.chain_link(Vector2(0.05, 0.2), 0.005, false)
+
+
+static func _crow_net() -> ShaderMaterial:
+	if _crow_mat == null:
+		_crow_mat = Look.chain_link(Vector2(0.008, 0.022), 0.0012, false)   # 袋の山にかぶせる網の UV は 0..1（Batch.lump）
+	return _crow_mat
+
+
+static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, at: Vector3, bags: int, sign_z := 12.06) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0)))
 	var spots: Array = []
@@ -139,14 +333,12 @@ static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, font
 		_bag(b, spots[k], rng, [Color("e6eef2"), Color("f0dc84"), Color("d9e4ea")][k % 3])
 	# カラス除けネット（青い網を、袋の山にかぶせる）
 	var w := 1.0 + float(bags) / 3.0 * 0.36
-	b.lump(Look.Tint.new(_net(), Color("2f6fd0")), at + Vector3(-0.35 + (w - 1.0) * 0.2, 0.05, 0.1), Vector3(w, 0.66, 0.7), at, rng, 0.0, 6, 14, 0.08)
-	# 収集日の札（フェンスに結び付けた）
+	b.lump(Look.Tint.new(_crow_net(), Color("2f6fd0")), at + Vector3(-0.35 + (w - 1.0) * 0.2, 0.05, 0.1), Vector3(w, 0.66, 0.7), at, rng, 0.0, 6, 14, 0.08)
+	# 収集日の札（フェンスに結び付けた）。緑の帯と、ごみ袋の絵
 	var s := Vector3(at.x + 0.1, 1.35, sign_z)
 	b.boxp(Look.plain(Color("f4f2ea"), 0.6), s, Vector3(0.95, 0.62, 0.02), Look.Batch.ALL)
 	b.boxp(Look.plain(GREEN, 0.6), s + Vector3(0, 0.23, 0.012), Vector3(0.95, 0.16, 0.01), Look.Batch.ALL)
-	_text(root, xf, s + Vector3(0, 0.23, 0.02), "ごみ集積所", 0.0022, Color.WHITE, font)
-	_text(root, xf, s + Vector3(0, 0.03, 0.02), "燃やすごみ　月・木", 0.0015, Color("1f2a24"), font)
-	_text(root, xf, s + Vector3(0, -0.15, 0.02), "朝8時までに出してください", 0.001, Color("1f2a24"), font)
+	Look.picto(root, xf * Transform3D(Basis.IDENTITY, s + Vector3(0, -0.06, 0.0105)), "bag", Vector2(0.36, 0.36))
 
 
 # ゴミ袋：ふくらんだ袋と、上の結び目
@@ -166,34 +358,9 @@ static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color
 		b.box(bag, Transform3D(Basis(Vector3.BACK, s * 0.9 + rng.randf_range(-0.25, 0.25)), top + Vector3(s * 0.08, 0.05, 0)), Vector3(0.15, 0.025, 0.06), Look.Batch.ALL)
 
 
-# 網のマテリアル（細い格子で抜く。両面）
-static func _net() -> StandardMaterial3D:
-	if _net_mat != null:
-		return _net_mat
-	var sz := 64
-	var im := Image.create_empty(sz, sz, false, Image.FORMAT_RGBA8)
-	im.fill(Color(1, 1, 1, 0))
-	for i in sz:
-		for w in 3:
-			im.set_pixel(i, w, Color.WHITE)
-			im.set_pixel(w, i, Color.WHITE)
-	im.generate_mipmaps()
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = ImageTexture.create_from_image(im)
-	m.vertex_color_use_as_albedo = true
-	m.vertex_color_is_srgb = true
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	m.alpha_scissor_threshold = 0.4
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.uv1_scale = Vector3(26, 9, 1)
-	m.roughness = 0.8
-	_net_mat = m
-	return m
-
-
 # ---- 粗大ごみ（処理券つき）：テレビ・洗濯機・マットレス・ソファ・自転車 ----
 
-static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> void:
+static func _junk(b: Look.Batch) -> void:
 	var dark := Look.plain(Color("3a3d40"), 0.5)
 	# ブラウン管テレビ（集積所の横、少し斜め）
 	var tv := Transform3D(Basis(Vector3.UP, 0.25), Vector3(-8.9, 0.0, 13.15))
@@ -215,7 +382,7 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.05, 0.585, -0.05)), Vector3(0.12, 0.03, 0.08), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
 		b.bar(Look.plain(Color("c8ccce"), 0.3, 0.8), ant, tv * Vector3(0.05 + s * 0.28, 0.98, -0.12), 0.012)
-	_ticket(b, root, xf, font, tv * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.17, 0.562, 0.08)))
+	_ticket(b, tv * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.17, 0.562, 0.08)))
 	# 縦型の洗濯機（フタが半開き）
 	var wm := Transform3D(Basis(Vector3.UP, -0.15), Vector3(8.4, 0.0, 13.1))
 	var enamel := Look.plain(Color("e9ebea"), 0.42)
@@ -248,7 +415,7 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	for x: float in [-0.22, 0.22]:
 		for zz: float in [-0.22, 0.22]:
 			b.box(dark, wm * Transform3D(Basis.IDENTITY, Vector3(x, 0.025, zz)), Vector3(0.07, 0.05, 0.07), Look.Batch.ALL)
-	_ticket(b, root, xf, font, wm * Transform3D(Basis.IDENTITY, Vector3(-0.14, 0.62, 0.292)))
+	_ticket(b, wm * Transform3D(Basis.IDENTITY, Vector3(-0.14, 0.62, 0.292)))
 	# マットレス（フェンスに立てかけた。縞の布）
 	var mt := Transform3D(Basis(Vector3.RIGHT, -0.18), Vector3(5.6, 0.92, 12.42))
 	b.box(Look.plain(Color("e8e1cf"), 0.95), mt, Vector3(1.0, 1.85, 0.2), Look.Batch.ALL)
@@ -256,7 +423,7 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 	for k in 6:
 		b.box(Look.plain(Color("9fb4c4"), 0.95), mt * Transform3D(Basis.IDENTITY, Vector3(-0.375 + k * 0.15, 0, 0.101)), Vector3(0.05, 1.85, 0.005), Look.Batch.ALL)
 	b.box(Look.plain(Color("c9b48a"), 0.95), mt * Transform3D(Basis.IDENTITY, Vector3(0.18, -0.3, 0.104)), Vector3(0.36, 0.28, 0.003), Look.Batch.ALL)
-	_ticket(b, root, xf, font, mt * Transform3D(Basis.IDENTITY, Vector3(-0.25, 0.55, 0.106)))
+	_ticket(b, mt * Transform3D(Basis.IDENTITY, Vector3(-0.25, 0.55, 0.106)))
 	# 二人がけのソファ（座面のクッションが1つ無い）
 	var sf := Transform3D(Basis(Vector3.UP, 0.1), Vector3(12.3, 0.0, 12.85))
 	var cloth := Look.plain(Color("6f8a6a"), 0.95)
@@ -283,53 +450,20 @@ static func _junk(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font) -> v
 		b.bar(Look.plain(Color("92a28a"), 0.95), sf * Vector3(-0.6, 0.5, zz), sf * Vector3(-0.04, 0.5, zz), 0.012)
 	for x: float in [-0.32, 0.32]:
 		b.box(Look.plain(Color("7d9375"), 0.95), sf * Transform3D(Basis(Vector3.RIGHT, -0.08), Vector3(x, 0.66, -0.209)), Vector3(0.58, 0.37, 0.06), Look.Batch.ALL)
-	_ticket(b, root, xf, font, sf * Transform3D(Basis.IDENTITY, Vector3(-0.4, 0.62, -0.225)))
+	_ticket(b, sf * Transform3D(Basis.IDENTITY, Vector3(-0.4, 0.62, -0.225)))
 	# さびた自転車（タイヤの空気が抜けている）
 	var bike := Transform3D(Basis(Vector3.UP, 0.12), Vector3(14.2, 0.0, 12.75))
 	Office._bike(b, bike.origin, 0.12, Color("8a6a4a"))
-	_ticket(b, root, xf, font, bike * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.5, 0.575, 0.0)))
+	_ticket(b, bike * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.5, 0.575, 0.0)))
 
 
-# 粗大ごみ処理券（黄色い紙。at の +Z が表）
-static func _ticket(b: Look.Batch, root: Node3D, xf: Transform3D, font: Font, at: Transform3D) -> void:
+# 粗大ごみ処理券（黄色い紙。at の +Z が表）。文字は書かず、赤い帯だけ
+static func _ticket(b: Look.Batch, at: Transform3D) -> void:
 	b.box(Look.plain(TICKET, 0.8), at, Vector3(0.16, 0.1, 0.004), Look.Batch.ALL)
 	b.box(Look.plain(TICKET_RED, 0.8), at * Transform3D(Basis.IDENTITY, Vector3(0, 0.032, 0.0025)), Vector3(0.16, 0.026, 0.001), Look.Batch.ALL)
-	var l := Look.label(root, xf * at * Transform3D(Basis.IDENTITY, Vector3(0, -0.01, 0.004)), "粗大ごみ\n処理券", 0.0007, 32, TICKET_RED, font, false)
-	l.line_spacing = -6.0
 
 
 # ---- 門の鎖 ----
-
-# 閉まっている門：2枚の扉の合わせ目に鎖を巻き、南京錠をかける
-static func _lock_shut(b: Look.Batch) -> void:
-	var steel := Look.plain(Color("a9afb2"), 0.35, 0.8)
-	for y: float in [1.05, 1.2]:
-		var loop := [Vector3(-0.2, y, 11.86), Vector3(0.2, y + 0.03, 11.86), Vector3(0.2, y - 0.03, 12.1), Vector3(-0.2, y, 12.1)]
-		for k in 4:
-			_chain(b, steel, loop[k], loop[(k + 1) % 4], 1.6)
-	_chain(b, steel, Vector3(0.0, 1.05, 12.1), Vector3(0.03, 0.78, 12.14), 1.6)
-	_padlock(b, Vector3(0.03, 0.68, 12.15), 0.0, 1.6)
-	# 区の札（施錠中）
-	b.boxp(Look.plain(Color("f4f2ea"), 0.6), Vector3(0.35, 1.38, 12.13), Vector3(0.3, 0.2, 0.01), Look.Batch.ALL)
-	b.boxp(Look.plain(GREEN, 0.6), Vector3(0.35, 1.45, 12.137), Vector3(0.3, 0.05, 0.005), Look.Batch.ALL)
-
-
-# 開いた門：切られた鎖が地面に落ち、南京錠とボルトクリッパーが転がっている
-static func _lock_cut(b: Look.Batch) -> void:
-	var steel := Look.plain(Color("5d6266"), 0.45, 0.7)
-	var y := 0.02
-	var path := [Vector3(1.2, y, 12.6), Vector3(1.5, y, 12.9), Vector3(1.35, y, 13.2), Vector3(1.7, y, 13.45), Vector3(2.05, y, 13.35)]
-	for k in path.size() - 1:
-		_chain(b, steel, path[k], path[k + 1])
-	_padlock(b, Vector3(2.15, 0.05, 13.4), PI * 0.5)
-	# ボルトクリッパー（赤い握り）
-	var at := Transform3D(Basis(Vector3.UP, 0.6), Vector3(2.7, 0.03, 13.0))
-	var red := Look.plain(Color("c8352b"), 0.5)
-	for s: float in [-1.0, 1.0]:
-		b.box(steel, at * Transform3D(Basis(Vector3.UP, s * 0.06), Vector3(s * 0.03, 0.0, 0.0)), Vector3(0.025, 0.025, 0.62), Look.Batch.ALL)
-		b.box(red, at * Transform3D(Basis(Vector3.UP, s * 0.1), Vector3(s * 0.06, 0.0, 0.42)), Vector3(0.04, 0.04, 0.3), Look.Batch.ALL)
-	b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.0, -0.36)), Vector3(0.07, 0.03, 0.12), Look.Batch.ALL)
-
 
 # 鎖：a から b まで、向きを交互に変えた輪を並べる
 static func _chain(b: Look.Batch, m: Look.Tint, a: Vector3, c: Vector3, k_size := 1.0) -> void:
@@ -347,10 +481,6 @@ static func _padlock(b: Look.Batch, p: Vector3, yaw: float, k := 1.0) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), p)
 	b.box(Look.plain(Color("c9a04a"), 0.35, 0.8), at, Vector3(0.08, 0.075, 0.03) * k, Look.Batch.ALL)
 	b.box(Look.plain(Color("9aa0a2"), 0.3, 0.8), at * Transform3D(Basis.IDENTITY, Vector3(0, 0.06 * k, 0)), Vector3(0.06, 0.05, 0.012) * k, Look.Batch.ALL)
-
-
-static func _text(root: Node3D, xf: Transform3D, p: Vector3, words: String, pixel: float, c: Color, font: Font) -> Label3D:
-	return Look.label(root, xf * Transform3D(Basis.IDENTITY, p), words, pixel, 64, c, font, false)
 
 
 # ---- 拾ってきた廃材に、処理券を貼ったままにする ----

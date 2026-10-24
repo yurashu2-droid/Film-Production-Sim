@@ -45,9 +45,9 @@ static func build(parent: Node3D) -> Node3D:
 	parent.add_child(root)
 	if ResourceLoader.exists(YARD_PATH):
 		var src: Node3D = (load(YARD_PATH) as PackedScene).instantiate()
-		# 門の扉2枚だけは別にして、開け閉めできるようにする
-		# 店の看板と通路の白線は外し、となりの区の粗大ごみ置き場に見せる（dump_dressing.gd）
-		_place(root, _merge(src, func(nm: String, box: AABB) -> bool: return _leaf(nm, box) == 0 and not Dump.hidden_part(nm), 0.9), xform())
+		# 門（扉・柱・蝶番）は、会社の側から南の区道の側へ移す。会社の側は、金網をペンチで切った穴（dump_dressing.gd）
+		# 店の看板と通路の白線は外し、となりの区の粗大ごみ置き場に見せる
+		_place(root, _merge(src, func(nm: String, box: AABB) -> bool: return not nm.begins_with("gate") and not Dump.hidden_part(nm) and not Dump.south_opening(nm, box), 0.9), xform())
 		_gate(root, src)
 		src.free()
 	if ResourceLoader.exists(CONTAINER_PATH):
@@ -55,6 +55,7 @@ static func build(parent: Node3D) -> Node3D:
 		_place(root, _merge(box_src, func(_nm: String, _box: AABB) -> bool: return true, 0.6), xform() * Transform3D(Basis.IDENTITY, CONTAINER_LOCAL))
 		box_src.free()
 	Dump.build(root, xform())
+	_hole_block(root)
 	Ward.build(root)
 	_surroundings(root)
 	return root
@@ -69,39 +70,52 @@ static func _leaf(nm: String, box: AABB) -> int:
 	return 0
 
 
-# 門：モデルでは開いた形なので、蝶番を軸に回して閉じる。閉じている間は見えない壁でふさぐ
+# 区の門（南の区道の側）：モデルでは開いた形なので、蝶番を軸に回して閉じ、南の金網の2区画のところへ移す。
+# 門はいつも閉まっていて、鎖と南京錠がかかっている（dump_dressing.gd）。閉じた扉は見えない壁でふさぐ
 static func _gate(root: Node3D, src: Node3D) -> void:
+	var south := xform() * Dump.south_gate()
+	_place(root, _merge(src, func(nm: String, box: AABB) -> bool: return nm.begins_with("gate") and _leaf(nm, box) == 0, 0.9), south)
 	for side: int in [-1, 1]:
 		var hinge := Vector3(-3.0 if side < 0 else 2.95, 0.0, 11.97)
-		var pivot := Node3D.new()
-		pivot.name = "GateL" if side < 0 else "GateR"
-		pivot.transform = xform() * Transform3D(Basis.IDENTITY, hinge)
-		root.add_child(pivot)
 		var mi := MeshInstance3D.new()
+		mi.name = "WardGateL" if side < 0 else "WardGateR"
 		mi.mesh = _merge(src, func(nm: String, box: AABB) -> bool: return _leaf(nm, box) == side, 99.0)[0]
-		mi.position = -hinge
-		pivot.add_child(mi)
+		mi.transform = south * Transform3D(Basis.IDENTITY, hinge) * Transform3D(Basis(Vector3.UP, -side * PI * 0.5), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -hinge)
+		root.add_child(mi)
+	var block := StaticBody3D.new()
+	block.name = "WardGateBlock"
+	block.collision_layer = 1
+	block.collision_mask = 0
+	block.transform = south * Transform3D(Basis.IDENTITY, Vector3(0.0, 1.1, 12.0))
+	root.add_child(block)
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(6.0, 2.2, 0.3)
+	cs.shape = bs
+	block.add_child(cs)
+
+
+# 会社の側の、ペンチで切った金網の穴。めくった網を戻している間は、見えない壁でふさぐ（GateBlock）
+static func _hole_block(root: Node3D) -> void:
 	var block := StaticBody3D.new()
 	block.name = "GateBlock"
 	block.collision_layer = 1
 	block.collision_mask = 0
-	block.transform = xform() * Transform3D(Basis.IDENTITY, Vector3(0.0, 1.2, 12.0))
+	var w: float = Dump.HOLE.y - Dump.HOLE.x
+	block.transform = xform() * Transform3D(Basis.IDENTITY, Vector3((Dump.HOLE.x + Dump.HOLE.y) * 0.5, Dump.HOLE_TOP * 0.5, Dump.FRONT_Z))
 	root.add_child(block)
 	var cs := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
-	bs.size = Vector3(6.0, 2.4, 0.3)
+	bs.size = Vector3(w, Dump.HOLE_TOP, 0.3)
 	cs.shape = bs
 	block.add_child(cs)
 	set_gate(root, 0.0)
 
 
-# 門の開き（0=閉じている、1=開いている）
+# 穴の開き（0=網を戻して針金で留めてある、1=めくって開いている）。
+# 名前は前の「門」のまま（production_flow.gd が、依頼を受けている間だけ開く）
 static func set_gate(root: Node3D, open: float) -> void:
-	for side: int in [-1, 1]:
-		var pivot := root.get_node_or_null("GateL" if side < 0 else "GateR") as Node3D
-		if pivot:
-			pivot.basis = xform().basis * Basis(Vector3.UP, -side * PI * 0.5 * (1.0 - open))
-	Dump.set_lock(root, open)
+	Dump.set_hole(root, open)
 	var block := root.get_node_or_null("GateBlock") as StaticBody3D
 	if block:
 		var shut := open < 0.6
@@ -110,9 +124,9 @@ static func set_gate(root: Node3D, open: float) -> void:
 			shape.set_deferred("disabled", not shut)
 
 
-# 門の前（ワールド）。目印や案内に使う
+# 制作班の出入り口（会社の側の金網の穴）の前（ワールド）。目印や案内・音に使う
 static func gate_point() -> Vector3:
-	return to_world(Vector2(0.0, 13.0), 0.0)
+	return to_world(Vector2((Dump.HOLE.x + Dump.HOLE.y) * 0.5, Dump.FRONT_Z + 1.0), 0.0)
 
 
 # モデルの部品を、材質ごとに1つのメッシュへまとめる。大きい部品からは当たり判定の面も集める
@@ -175,9 +189,6 @@ static func _place(root: Node3D, made: Array, at: Transform3D) -> void:
 # 見た目は Batch でまとめ、近景の倉庫と電柱にも実体を持たせる。遠景のスカイラインと細い電線は背景。
 # 建物は「正面(+Z)」をローカルに作り、置く向きだけ回す。西側（x<31.4）は撮影現場の敷地なので何も建てない。
 
-const SIGNS := ["第三倉庫", "資材置場", "搬入口", "共栄物流", "丸山工業", "中古建材", "映像機材", "格安市場", "部品センター", "冷凍倉庫", "松田運送", "B棟"]
-
-
 static func _surroundings(root: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 12
@@ -227,10 +238,10 @@ static func _perimeter(b: Look.Batch, dress: Node3D) -> void:
 		b.boxp(post, Vector3(31.77, 3.5, z), Vector3(0.22, 7.0, 0.3), Look.Batch.GROUND)
 	# 下の塗り帯と大きな看板（敷地側の面だけ）
 	b.boxp(Look.plain(Color("55797c"), 0.8), Vector3(31.69, 0.9, 11.0), Vector3(0.06, 1.8, 51.0), Look.Batch.GROUND)
-	b.boxp(Look.plain(Color("e9dcb4"), 0.8), Vector3(31.69, 4.9, 16.0), Vector3(0.06, 1.7, 9.6), Look.Batch.GROUND)
-	Look.label(dress, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(31.74, 4.9, 16.0)), "清掃事務所", 0.011, 128, Color("2f7d4f"))
-	b.boxp(Look.plain(Color("e9dcb4"), 0.8), Vector3(31.69, 4.9, -4.0), Vector3(0.06, 1.7, 9.6), Look.Batch.GROUND)
-	Look.label(dress, Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(31.74, 4.9, -4.0)), "搬入口", 0.011, 128, Color("a85a3f"))
+	# 塗り分けの帯（文字は書かない）
+	for bz: float in [16.0, -4.0]:
+		b.boxp(Look.plain(Color("e9dcb4"), 0.8), Vector3(31.69, 4.9, bz), Vector3(0.06, 1.7, 9.6), Look.Batch.GROUND)
+		b.boxp(Look.plain(Color("2f7d4f") if bz > 0.0 else Color("a85a3f"), 0.8), Vector3(31.73, 5.45, bz), Vector3(0.02, 0.24, 9.6), Look.Batch.GROUND)
 
 
 static func _wall(b: Look.Batch, c: Vector3, size: Vector3) -> void:
@@ -339,15 +350,16 @@ static func _warehouse(b: Look.Batch, dress: Node3D, at: Transform3D, size: Vect
 			var x := -w * 0.5 + 0.8 + gap * (k + 0.5)
 			var lit := rng.randf() < 0.14
 			_window(b, x, ry, hz, trim, lit)
-	# 看板（色あせた塗装の文字）
-	var words: String = SIGNS[rng.randi() % SIGNS.size()]
-	var sw := minf(w - 1.6, 1.25 * words.length() + 1.0)
+	# 看板（文字は書かない。会社の色の丸い印と、帯の塗装）
+	var sw := minf(w - 1.6, rng.randf_range(4.5, 9.0))
 	var sy := h * 0.5 + 1.8 if h > 9.0 else h * 0.5 + 1.4
 	var sx := rng.randf_range(-(w - sw) * 0.4, (w - sw) * 0.4)
+	var mark := Look.plain(accent.darkened(0.3), 0.8)
 	b.boxp(Look.plain(Color("efe6cc"), 0.8), Vector3(sx, sy, hz + 0.06), Vector3(sw, 1.4, 0.12), Look.Batch.FACADE)
 	b.boxp(trim, Vector3(sx, sy + 0.72, hz + 0.09), Vector3(sw + 0.1, 0.06, 0.18), Look.Batch.FACADE)
-	var em := minf(1.05, (sw - 0.6) / maxf(words.length(), 1.0))
-	Look.label(dress, at * Transform3D(Basis.IDENTITY, Vector3(sx, sy, hz + 0.13)), words, em / 128.0, 128, accent.darkened(0.3))
+	b.cyl(mark, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx - sw * 0.5 + 0.75, sy, hz + 0.12)), 0.46, 0.02, 16)
+	for k in 2:
+		b.boxp(mark, Vector3(sx + 0.55, sy + 0.22 - k * 0.44, hz + 0.125), Vector3(sw - 1.9, 0.2, 0.01), Look.Batch.FACADE)
 	# 配管：縦の雨どいと軒どい
 	var px := w * 0.5 - 0.55
 	b.cylp(dark, Vector3(-px, 0.0, hz + 0.16), 0.09, h - 0.1, 8)
