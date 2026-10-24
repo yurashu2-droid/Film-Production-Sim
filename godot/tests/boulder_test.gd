@@ -114,8 +114,8 @@ func run() -> void:
 	game.h_depart()
 	await frames(490)
 	check(flow.phase == 4, "現場（倉庫）に着いた")
-	var a1: Vector3 = beats.mark(0, 1).global_position
-	var a2: Vector3 = beats.mark(0, 2).global_position
+	var a1: Vector3 = beats.spot(0, 1)
+	var a2: Vector3 = beats.spot(0, 2)
 	var film: RigidBody3D = game.film
 	# カメラは、走り出す所を真ん中に、少し引いて（後ろから迫る大岩も入るように）
 	place(film, Vector3(a1.x + 0.4, 0.05, a1.z + 6.5), 0.0)
@@ -181,8 +181,8 @@ func run() -> void:
 		if p.kind == hole_kind and not p.absent and not p.fixed:
 			tub = p
 			break
-	var end_a: Vector3 = beats.mark(0, 2).global_position
-	var end_b: Vector3 = beats.mark(1, 2).global_position
+	var end_a: Vector3 = beats.spot(0, 2)
+	var end_b: Vector3 = beats.spot(1, 2)
 	var spot: Vector3 = (end_a + end_b) * 0.5
 	if painted:
 		tub.restore([Vector3(spot.x, 0.1, spot.z), Quaternion(Vector3.RIGHT, -PI * 0.5), false])     # 寝かせて、床に置く
@@ -194,8 +194,8 @@ func run() -> void:
 	await frames(3)
 	check(game._cast_dress.has(tub.pid) and not (game._cast_dress[tub.pid] as Node).find_children("*", "Decal", true, false).is_empty(), "穴の役の物には、黒い穴が描かれる")
 	var bottom: Vector3 = tub.center_global() + Vector3(0, tub.half.y + 0.2, 0)       # ふちの上から落とすと、中の底に乗る
-	place(beats.mark(0, 2), bottom + Vector3(-0.3, 0, 0))
-	place(beats.mark(1, 2), bottom + Vector3(0.3, 0, 0))
+	beats.place_spot(0, 2, bottom + Vector3(-0.3, 0, 0))
+	beats.place_spot(1, 2, bottom + Vector3(0.3, 0, 0))
 	await frames(40)
 	place(rock, Vector3(a1.x - 6.0, 0.7, a1.z + 1.5))
 	await frames(10)

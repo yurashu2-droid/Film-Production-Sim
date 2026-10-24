@@ -39,7 +39,7 @@ func prepare() -> void:
 		set_mark(aid, 0, C + Vector3(-0.5 + 1.0 * aid, 0.05, -1.5))
 		set_mark(aid, 1, C + Vector3(-0.5 + 1.0 * aid, 0.05, -2.2))
 		set_mark(aid, 2, C + Vector3(-0.4 + 0.8 * aid, 0.05, 0.4))
-		game.actors[aid].global_position = beats.mark(aid, 0).global_position
+		game.actors[aid].global_position = beats.spot(aid, 0)
 	await aim_camera(C + Vector3(0, 0.05, 5.0), C + Vector3(0, 0.9, -1.5), 60.0)
 	await light(C + Vector3(0, 0, -1.5))
 	var at: Vector3 = C + Vector3(-2.6, 0.05, 0.4)

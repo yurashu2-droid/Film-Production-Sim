@@ -4,7 +4,9 @@ extends Node
 ##
 ## ・進め方：監督がページをめくる。台本を読める人（持っている・手帳で開いている・置いた台本のすぐそばにいる）だけが、
 ##   1＝次の場面へ / 2＝今の場面をもう一度、を出せる。決めるのはホスト（host_step）。
-##   役者は、場面ごとに決まった印（①②③）へ、決まった動きでまっすぐ進み、着いたら、その姿のまま次の合図を待つ（actor.gd の play_beat）。
+##   役者は、場面ごとに決まった立ち位置（①②③）へ、決まった動きでまっすぐ進み、着いたら、その姿のまま次の合図を待つ（actor.gd の play_beat）。
+##   立ち位置は、ふだんは決まった場所（MARK_HOME。床には何も出ない）。班が役者を見て F → 床を左クリックで教えると、
+##   そこが立ち位置になり、足元に役者の色のバミリ（床のテープ。features/bami.gd が貼る飾り）が付く（spots。host_teach）
 ##   準備中に進めると、通し稽古になる（フィルムは減らない。採点もしない。爆弾は、今までどおり準備中は鳴らない）。
 ## ・時計は物：テイクは、フィルム1本（FILM_SEC）で終わる。残りは、撮影カメラの上のリール（film_camera.gd）と、
 ##   確認用モニターの枠の目盛り（production_monitor_prop.gd）で見せる。残り秒数の数字は、どこにも出さない。
@@ -13,7 +15,8 @@ extends Node
 ##   班の誰か（プレイヤー）が撮影カメラに映っている間は、その場面は「撮れている時間」に数えない（production_notes.gd の数え方）。
 ##   撮れた場面は、確認用モニターの枠のランプが点く。撮れなかった理由（why）は、テイクのあとの確認に、場面ごとに出す。
 ## ・通信：ホストが決めて、"beat" の合図で配る（いまの場面・ランプ・稽古かどうか）。本番中の合図は、見返しにも残る。
-##   役者の動きと印の場所は、今までどおり、世界の同期で届く。フィルムの残りは、テイクの時計（main.gd の take_t）から出す。
+##   役者の動きは、今までどおり、世界の同期で届く。教えた立ち位置は "spots" の合図で配る。フィルムの残りは、テイクの時計（main.gd の take_t）から出す。
+##   採点は、役者・人の位置とカメラの映りだけを見る（床のバミリは飾り。無くても採点は変わらない）
 const Scripts := preload("res://scripts/production_script.gd")
 const Marks := preload("res://scripts/ui/monitor_marks.gd")
 const Cast := preload("res://scripts/production_cast.gd")
@@ -49,7 +52,7 @@ const TRACK_JUMP := 0.12          # 1コマにこれより大きく動いたら�
 const DROP_M := 1.0               # 上から落ちる（drop）：場面の間に、物がこれだけ下がったら「落ちた」
 const NEED_PIT := 0.4             # 穴（pit）：穴の中の二人のそばを、転がる物が通っている秒数（通るのは一瞬）
 const PIT_PASS := 2.2             # 穴の二人から、この距離までを転がっていけば「上を通った」（m）
-const NEED_CHASE := 0.6           # 大岩に追われる（chase）：逃げる二人と、後ろから転がって迫る物が映っている秒数（印の間が短いと、走るのは1秒ほど）
+const NEED_CHASE := 0.6           # 大岩に追われる（chase）：逃げる二人と、後ろから転がって迫る物が映っている秒数（立ち位置の間が短いと、走るのは1秒ほど）
 const CHASE_SPEED := 0.9          # これより速く動いている物を「迫っている」とみる（m/秒）
 const CHASE_SPIN := 1.2           # これより速く回っていれば「転がっている」（滑っているだけではない。rad/秒）
 const CHASE_NEAR := 4.5           # 二人のうち近いほうから、この距離までに迫っていること（m）
@@ -68,12 +71,14 @@ const CLIMB_M := 0.8              # 駆け上がる（climb）：場面の始ま
 const PASS_SIZE := 0.45           # 走り抜ける（pass）：これより大きい物（いちばん長い向きの半分）
 const PASS_SPEED := 0.9
 const PASS_M := 2.0
-# 役者ごとの印 ①②③ の、最初の置き場所（現場の座標）。班が、好きな所へ置き直す
+# 役者ごとの立ち位置 ①②③ の、決まった場所（現場の真ん中から）。教えていない役者は、ここに立つ・ここへ歩く
 # （室内スタジオの左右の壁は x＝±4.1。どの現場でも、壁の内側に並ぶようにしてある）
 const MARK_HOME := [[Vector3(-3.4, 0.05, -1.5), Vector3(-0.6, 0.05, -1.5), Vector3(2.6, 0.05, -1.5)],
 	[Vector3(-3.4, 0.05, -0.3), Vector3(-0.6, 0.05, -0.3), Vector3(2.6, 0.05, -0.3)],
 	[Vector3(-3.4, 0.05, 0.9), Vector3(-0.6, 0.05, 0.9), Vector3(2.6, 0.05, 0.9)],
 	[Vector3(-3.4, 0.05, 2.1), Vector3(-0.6, 0.05, 2.1), Vector3(2.6, 0.05, 2.1)]]
+# 3場面の依頼（場面の列が無い）の、役者A・B の待つ場所（前の印の置き場所。stage.gd の _spawn_actors と同じ）
+const CLASSIC_HOME := [Vector3(-1.2, 0.05, -2.0), Vector3(1.2, 0.05, 0.2), Vector3(-0.6, 0.05, 1.2), Vector3(0.6, 0.05, 1.2)]
 const ACTORS := ["A", "B", "C", "D"]
 const MAX_CAST := 4               # 役者は台本ごとに最大4人（A・B は舞台がはじめから持っている。C・D はここで作る）
 const Actor := preload("res://scripts/actor.gd")
@@ -107,8 +112,12 @@ const NO_REASON := {
 
 var game: Node
 var flow: Node
-var marks: Array = [[], [], [], []]       # 役者ごとの印 [①, ②, ③]（A〜D）
-var _mark_start: Array = []       # 印の最初の置き場所（setup のとき）
+# 教えた立ち位置（バミリ）。役者ごとに [①, ②, ③]（A〜D）。1つは [] ＝教えていない / [物のID, 物の中の場所, 世界の場所]。
+# 物のIDが 0 でなければ、その物の上に貼ってある（物を動かすと、立ち位置もついて行く）。全員の画面で同じ（"spots" の合図）
+var spots: Array = [[[], [], []], [[], [], []], [[], [], []], [[], [], []]]
+var last_taught: Array = [-1, -1, -1, -1]     # 役者ごとに、最後に教えた立ち位置（全部教えたあとは、その次から教え直す）
+var spots_rev := 0                # 立ち位置が届くたびに増える（features/bami.gd が、バミリを貼り直す合図に見る）
+var anchors: Array = []           # 役者ごとの、待つ場所（立ち位置①）の目印（物ではない Node3D。actor.gd の mark）
 var scene := -1                   # いまの場面（-1＝まだ始めていない）。全員の画面で同じ
 var lit: Array = []               # 場面ごとに、撮れたか（確認用モニターのランプ）
 var rehearsal := false            # 通し稽古の最中か（準備中に場面を進めた）
@@ -165,69 +174,182 @@ var _before_replay := {}
 var _rattle := 0.0
 
 
-# 印②③ を作る。全員の画面で同じ順に呼ぶ（物のIDがそろう）。ふだんは片づけてあり、この依頼のときだけ出る
+# 役者C・D を作り、役者ごとの待つ場所の目印を付ける。全員の画面で同じ順に呼ぶ（物のIDがそろう）。
+# 床に置く印（物）は、もう無い：立ち位置は、教えるまでは決まった場所（MARK_HOME）、教えたら、その場所（spots）
 func setup() -> void:
 	flow = game.production
-	# 役者C・D と、その最初の印（ふだんは誰も演じない＝舞台の外で待つ。台本の人数が3人以上の依頼のときだけ出る）
+	# 役者C・D（ふだんは誰も演じない＝舞台の外で待つ。台本の人数が3人以上の依頼のときだけ出る）
 	for k in EXTRA_CAST.size():
 		var aid: int = 2 + k
-		var first: RigidBody3D = game.stage.spawn_mark(aid, Vector3(float(game.props.size() + 1) * 3.0, -60.0, 40.0))
 		var a: CharacterBody3D = Actor.new()
 		a.game = game
 		a.aid = aid
 		a.label = str(EXTRA_CAST[k][1])
 		a.name = "Actor%d" % aid
 		a.setup(str(EXTRA_CAST[k][0]), [])
-		a.mark = first
 		a.position = Vector3(float(aid) * 3.0, -40.0, -40.0)
 		game.stage.add_child(a)
 		game.actors.append(a)
 		a.set_grade("none")
 	for k in EXTRA_CAST.size():
 		game.actors[2 + k].partner = game.actors[3 - k]
+	# 役者A・B の、前の印（舞台が作った円盤）は片づける（持てる物としても、置き場所の控えからも外す）
+	for a: CharacterBody3D in game.actors:
+		var old: Node = a.mark
+		if old != null and "pid" in old:
+			game.props.erase(old.pid)
+			if flow.get("_home_layout") is Dictionary:
+				(flow._home_layout as Dictionary).erase(old.pid)
+			old.queue_free()
+	anchors = []
 	for aid in MAX_CAST:
-		marks[aid] = [game.actors[aid].mark]
-	for aid in MAX_CAST:
-		for _more in 2:
-			var disc: RigidBody3D = game.stage.spawn_mark(aid, Vector3(float(game.props.size() + 1) * 3.0, -60.0, 40.0))
-			(marks[aid] as Array).append(disc)
-	for aid in MAX_CAST:
-		for step in 3:
-			_dress(marks[aid][step], aid, step)
-	# 最初の置き場所（会社の前で撮ったあと、ここへ戻す）
-	for aid in MAX_CAST:
-		_mark_start.append([])
-		for step in 3:
-			(_mark_start[aid] as Array).append((marks[aid][step] as RigidBody3D).get_state())
+		var anchor := Spot.new()
+		anchor.name = "Stand%s" % ACTORS[aid]
+		anchor.beats = self
+		anchor.aid = aid
+		add_child(anchor)
+		anchors.append(anchor)
+		game.actors[aid].mark = anchor
+	_place_anchors()
 	refresh()
 
 
-# 印に、番号を付ける：円盤の上の数字（床の印として、映画にも映る）。役者は円盤の色で分かる
-func _dress(disc: RigidBody3D, aid: int, step: int) -> void:
-	var numeral := Label3D.new()
-	numeral.name = "Numeral"
-	numeral.text = str(step + 1)
-	numeral.font = game.font
-	numeral.font_size = 200
-	numeral.pixel_size = 0.0019
-	numeral.modulate = Color("1b1c20")
-	numeral.outline_size = 14
-	numeral.outline_modulate = Color("1b1c20")
-	numeral.position = Vector3(0, 0.046, 0.02)
-	numeral.rotation.x = -PI * 0.5
-	numeral.visible = false
-	disc.add_child(numeral)
+# 役者の待つ場所の目印（物ではない。持てない・当たらない・映らない）。actor.gd の mark はこれを見る。
+# 前の印（物）と同じ restore で置くと、立ち位置①を教えたことになる（見本のセット main.gd の h_sample など。ホスト）
+class Spot extends Node3D:
+	var beats: Node
+	var aid := 0
+
+	func restore(state: Array) -> void:
+		if beats != null and not state.is_empty():
+			beats.host_teach(aid, 0, 0, Vector3.ZERO, state[0] as Vector3, false)
+
+	func get_state() -> Array:
+		return [global_position, Quaternion.IDENTITY, false]
 
 
-func mark(aid: int, step: int) -> RigidBody3D:
-	return marks[aid][clampi(step, 0, 2)]
+# ---- 立ち位置（全員の画面で同じ） ----
+
+# 決まった立ち位置（教えていないときの場所）
+func home(aid: int, step: int) -> Vector3:
+	var center: Vector3 = flow.site_center() if flow != null else Vector3.ZERO
+	if not active():
+		return CLASSIC_HOME[clampi(aid, 0, MAX_CAST - 1)] + center
+	return MARK_HOME[clampi(aid, 0, MAX_CAST - 1)][clampi(step, 0, 2)] + center
 
 
-# 印を、その場に留める・戻す（ホスト。爆風を計算する間だけ留める。production_main.gd の host_burst）
-func pin_marks(on: bool) -> void:
-	for aid in MAX_CAST:
-		for step in 3:
-			(marks[aid][step] as RigidBody3D).immovable = on
+# その立ち位置を、教えてあるか
+func taught(aid: int, step: int) -> bool:
+	return aid >= 0 and aid < spots.size() and step >= 0 and step < 3 and not (spots[aid][step] as Array).is_empty()
+
+
+# 役者の立ち位置（教えてあれば、教えた所。物の上に貼ってあれば、いまの物の上。教えていなければ、決まった場所）
+func spot(aid: int, step: int) -> Vector3:
+	step = clampi(step, 0, 2)
+	if not taught(aid, step):
+		return home(aid, step)
+	var e: Array = spots[aid][step]
+	var prop: Node3D = game.props.get(int(e[0])) if int(e[0]) != 0 else null
+	if prop != null and is_instance_valid(prop) and not prop.absent:
+		return prop.to_global(e[1] as Vector3)
+	return e[2] as Vector3
+
+
+# この依頼で使う立ち位置の数（場面の列の from・to の大きいほう＋1。3場面の依頼は、待つ場所の1つだけ）
+func step_count() -> int:
+	if not active():
+		return 1
+	var n := 1
+	for b: Dictionary in list():
+		n = maxi(n, maxi(int(b.get("from", 0)), int(b.get("to", 0))) + 1)
+	return mini(n, 3)
+
+
+# いま教えると、どの立ち位置になるか（全員の画面で同じ答え。F の案内と、ホストの決め方に使う）：
+#   ・カット割りの本番で、フィルムを止めている間（場転）：次に撮る場面で、役者が向かう立ち位置（その場面の to）
+#   ・それ以外（準備中）：まだ教えていない、いちばん若い立ち位置。全部教えてあれば、最後に教えた立ち位置の次
+func teach_step(aid: int) -> int:
+	var n := step_count()
+	if active() and holding and next_scene >= 0 and next_scene < list().size():
+		return clampi(int((list()[next_scene] as Dictionary).get("to", 0)), 0, n - 1)
+	for s in n:
+		if not taught(aid, s):
+			return s
+	return (int(last_taught[aid]) + 1) % n if aid >= 0 and aid < last_taught.size() else 0
+
+
+# 立ち位置を教えた（ホスト）。pid・local：物の上なら、その物と物の中の場所 / world：世界の場所。
+# walk：役者を、そこへ歩かせる（準備中。場転の間は、行って確かめてから、次の場面の始まりへ戻る）
+func host_teach(aid: int, step: int, pid: int, local: Vector3, world: Vector3, walk: bool = true) -> void:
+	if not multiplayer.is_server() or aid < 0 or aid >= MAX_CAST or step < 0 or step > 2 or not world.is_finite():
+		return
+	var table: Array = spots.duplicate(true)
+	table[aid][step] = [pid, local, world]
+	var last: Array = last_taught.duplicate()
+	last[aid] = step
+	_send_spots(table, last)
+	if walk:
+		_walk_to_spot(aid, step)
+
+
+# 教えた立ち位置を消す（ホスト）。そこは、決まった場所に戻る
+func host_unteach(aid: int, step: int) -> void:
+	if not multiplayer.is_server() or not taught(aid, step):
+		return
+	var table: Array = spots.duplicate(true)
+	table[aid][step] = []
+	_send_spots(table, last_taught.duplicate())
+	var a: CharacterBody3D = game.actors[aid] if aid < (game.actors as Array).size() else null
+	if a != null and step == 0 and a.st == a.St.STANDBY and a.stand_in == null and a.present():
+		a.play_beat({"to": spot(aid, 0), "gait": "walk", "pose": "idle", "look": "", "face_go": "neutral", "face_hold": "neutral"})
+
+
+# 教えた立ち位置を、全部はがす（ホスト。依頼を受けた・帰社した）
+func host_clear_spots() -> void:
+	if multiplayer.is_server():
+		_send_spots([[[], [], []], [[], [], []], [[], [], []], [[], [], []]], [-1, -1, -1, -1])
+
+
+# 役者でテスト用：その立ち位置を、世界の場所に決める（ホスト。役者は歩かない。待っている役者は、その場へ移る）
+func place_spot(aid: int, step: int, pos: Vector3) -> void:
+	host_teach(aid, step, 0, Vector3.ZERO, pos, false)
+
+
+func _send_spots(table: Array, last: Array) -> void:
+	_set_spots(table, last)
+	game.host_ev("spots", [table, last])
+
+
+func _set_spots(table: Array, last: Array) -> void:
+	spots = table.duplicate(true)
+	last_taught = last.duplicate()
+	spots_rev += 1
+	_place_anchors()
+
+
+func _place_anchors() -> void:
+	for aid in anchors.size():
+		(anchors[aid] as Node3D).global_position = spot(aid, 0)
+
+
+# 教えた役者を、その立ち位置へ歩かせる（ホスト）。役に入った人（班・等身大パネル）は動かさない
+func _walk_to_spot(aid: int, step: int) -> void:
+	if aid >= (game.actors as Array).size():
+		return
+	var a: CharacterBody3D = game.actors[aid]
+	if a.stand_in != null or not a.present():
+		return
+	var S: Dictionary = game.S
+	var go := {"to": spot(aid, step), "gait": "walk", "pose": "idle", "look": "", "face_go": "neutral", "face_hold": "neutral"}
+	if game.state == S.TAKE and holding and next_scene >= 0 and next_scene < list().size():
+		# 場転の間：教えた所まで行ってから、次の場面の始まりの立ち位置へ戻って待つ
+		var from := int((list()[next_scene] as Dictionary).get("from", 0))
+		if from != step:
+			go["back"] = go["to"]
+			go["to"] = spot(aid, from)
+	elif game.state != S.PREP:
+		return
+	a.play_beat(go)
 
 
 # いまの依頼の、場面の列（無ければ空）
@@ -323,28 +445,21 @@ func _falses(count: int) -> Array:
 	return out
 
 
-# 依頼が変わった・物の出し入れがあった（全員の画面）：この依頼のときだけ、印②③と番号を出し、採点をこちらへ回す
+# 依頼が変わった・物の出し入れがあった（全員の画面）：この依頼のときだけ、採点をこちらへ回す
 func refresh() -> void:
 	if flow == null:
 		return
 	var on := active()
 	game.judge.beats = self if on else null
-	var cast := cast_count()
-	for aid in MAX_CAST:
-		for step in 3:
-			var item: RigidBody3D = marks[aid][step]
-			if step > 0 or aid >= 2:
-				item.set_absent(not on or aid >= cast)
-			item.label = "立ち位置の印 %s%s" % [ACTORS[aid], STEPS[step] if on else ""]
-			(item.get_node("Numeral") as Node3D).visible = on
 	var count := list().size() if on else 0
 	if lit.size() != count:
 		lit = _falses(count)
 		scene = -1
 		rehearsal = false
+	_place_anchors()
 
 
-# 依頼を受けた（ホスト）：印を最初の置き場所へ並べ、場面を最初へ戻す
+# 依頼を受けた（ホスト）：教えた立ち位置（バミリ）をはがし、場面を最初へ戻す。役者は、決まった場所で待つ
 func host_new_job() -> void:
 	if not multiplayer.is_server():
 		return
@@ -352,23 +467,21 @@ func host_new_job() -> void:
 	rehearsal = false
 	_boom_in = -1.0
 	lit = _falses(list().size() if active() else 0)
+	host_clear_spots()
 	if active():
 		refresh()
-		for aid in MAX_CAST:
-			for step in 3:
-				(marks[aid][step] as RigidBody3D).restore([MARK_HOME[aid][step] + flow.site_center(), Quaternion.IDENTITY, false])
 		for a: CharacterBody3D in game.actors:
 			a.set_state(a.St.STANDBY)
 	_broadcast()
 
 
-# 帰社（ホスト）：会社の前で撮ったあとは、印を、軽トラで行く現場の最初の置き場所へ戻す（役者もそこへ戻る）
+# 帰社（ホスト）：現場のバミリは、はがして帰る。会社の前で撮ったあとは、役者も決まった場所へ戻る
 func hook_return_office() -> void:
-	if not multiplayer.is_server() or not flow.shoots_home():
+	if not multiplayer.is_server():
 		return
-	for aid in MAX_CAST:
-		for step in 3:
-			(marks[aid][step] as RigidBody3D).restore(_mark_start[aid][step])
+	host_clear_spots()
+	if not flow.shoots_home():
+		return
 	for a: CharacterBody3D in game.actors:
 		a.set_state(a.St.STANDBY)
 
@@ -406,7 +519,10 @@ func lamps() -> Array:
 
 
 func _process(delta: float) -> void:
-	if flow == null or game.camera_switcher == null:
+	if flow == null:
+		return
+	_place_anchors()          # 物の上に貼った立ち位置は、物と一緒に動く。決まった場所は、依頼と現場で変わる
+	if game.camera_switcher == null:
 		return
 	var on := active()
 	var S: Dictionary = game.S
@@ -502,12 +618,12 @@ func _tell(who: int, text: String, bad: bool) -> void:
 		game.ev.rpc_id(who, "sfx", ["ui_fail", null])
 
 
-# 役者の行き先（その場面の最後の印）。二人が近づく場面では、二人の印のあいだで向かい合う
+# 役者の行き先（その場面の最後の立ち位置）。二人が近づく場面では、二人の立ち位置のあいだで向かい合う
 func _targets(b: Dictionary) -> Array:
 	var to := int(b.get("to", 0))
 	var out: Array = []
 	for aid in MAX_CAST:
-		out.append(mark(aid, to).global_position)
+		out.append(spot(aid, to))
 	if b.get("meet", false):
 		var here: Array = present().map(func(a: Node) -> int: return int(a.aid))
 		if here.size() >= 2:
@@ -527,7 +643,7 @@ func _targets(b: Dictionary) -> Array:
 	return out
 
 
-# その場面を始める（again＝やり直し。役者は、その場面の最初の印まで走って戻ってから、もう一度演じる）
+# その場面を始める（again＝やり直し。役者は、その場面の最初の立ち位置まで走って戻ってから、もう一度演じる）
 func _enter(i: int, again: bool) -> void:
 	var b: Dictionary = list()[i]
 	scene = i
@@ -541,8 +657,12 @@ func _enter(i: int, again: bool) -> void:
 		var pose := str((b.get("pose_by", {}) as Dictionary).get(str(a.aid), b.get("pose", "idle")))
 		var spec := {"to": targets[a.aid], "gait": str(b.get("gait", "walk")), "pose": pose,
 			"look": str(b.get("look", "")), "face_go": str(faces[0]), "face_hold": str(faces[1]), "dive": bool(b.get("dive", false))}
-		if again:
-			spec["back"] = mark(a.aid, int(b.get("from", 0))).global_position
+		var from := int(b.get("from", 0))
+		# 役に入った人（班・等身大パネル）は、立ち位置を教えていなければ、止まった所がその場面の立ち位置（床に何も無いので）
+		var stand: bool = a.stand_in != null
+		spec["free"] = stand and not taught(int(a.aid), int(b.get("to", 0)))
+		if again and not (stand and not taught(int(a.aid), from)):
+			spec["back"] = spot(int(a.aid), from)
 		a.play_beat(spec)
 	if game.state == game.S.TAKE and i < _entered.size():
 		_entered[i] = true
@@ -558,7 +678,7 @@ func _enter(i: int, again: bool) -> void:
 
 
 # カット（ホスト。カット割りの依頼の本番）：フィルムを止めて、場転に入る。
-# 役者は、次に撮る場面の最初の印へ歩いて行き、そこで待つ。テイクは続いている（時計と記録が止まるだけ）
+# 役者は、次に撮る場面の最初の立ち位置へ歩いて行き、そこで待つ。テイクは続いている（時計と記録が止まるだけ）
 func _start_hold(next: int) -> void:
 	_hold_in = -1.0
 	_boom_in = -1.0
@@ -571,8 +691,9 @@ func _start_hold(next: int) -> void:
 	for a: CharacterBody3D in game.actors:
 		if not who.is_empty() and int(a.aid) not in who:
 			continue
-		a.play_beat({"to": mark(a.aid, int(b.get("from", 0))).global_position, "gait": "walk", "pose": "idle",
-			"look": "", "face_go": "neutral", "face_hold": "neutral"})
+		var from := int(b.get("from", 0))
+		a.play_beat({"to": spot(int(a.aid), from), "gait": "walk", "pose": "idle",
+			"look": "", "face_go": "neutral", "face_hold": "neutral", "free": a.stand_in != null and not taught(int(a.aid), from)})
 	game.host_ev("music", [""])
 	game.host_ev("sfx", ["clap", null])
 	var title := hold_title(next_scene)
@@ -601,7 +722,7 @@ func _action() -> void:
 	next_scene = -1
 
 
-# 場面を閉じる（ホスト。テイクが終わった・準備へ戻った・役者を印へ戻した）
+# 場面を閉じる（ホスト。テイクが終わった・準備へ戻った・役者を立ち位置へ戻した）
 func host_reset() -> void:
 	if not multiplayer.is_server():
 		return
@@ -916,7 +1037,7 @@ func _rule_stroll(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	_count(i, r, dt, NEED_STROLL)
 
 
-# 2：怪獣あらわる。怪獣が、立っていて、街より大きく映る。二人は印②で見上げて固まる
+# 2：怪獣あらわる。怪獣が、立っていて、街より大きく映る。二人は立ち位置②で見上げて固まる
 func _rule_appear(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _stuck():
 		_note(i, ["役者が物にぶつかって、立ち止まった"], dt)
@@ -1227,7 +1348,7 @@ func _rule_pit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		_note(i, ["穴に入る前に、大岩にぺちゃんこにされた"], dt)
 		return
 	if _stuck():
-		_note(i, ["役者が物にぶつかって、立ち止まった（穴の役の物の中へ、③の印を移す）"], dt)
+		_note(i, ["役者が物にぶつかって、立ち止まった（役者を見て F で、③の立ち位置を穴の役の物の中に教える）"], dt)
 		return
 	if not _all("beat_arrived"):
 		return
@@ -1237,7 +1358,7 @@ func _rule_pit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		if not acts[a.aid]["in"]:
 			r.append("%sが画面に入っていない" % a.label)
 		elif a.in_pit() == null:
-			r.append("%sが穴に入っていない（穴の役の物の中へ、③の印を移す）" % a.label)
+			r.append("%sが穴に入っていない（役者を見て F で、③の立ち位置を穴の役の物の中に教える）" % a.label)
 	if crew:
 		r.append("スタッフが映っていた（押す人・引く人は映さない）")
 	var mid: Vector3 = game.actors_mid()
@@ -1414,7 +1535,7 @@ func _rule_high(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		r.append("スタッフが映っていた")
 	for a: Node3D in present():
 		if a.global_position.y < HIGH_M:
-			r.append("%sが、高い所に立っていなかった（台や箱の上に印を置く）" % str(a.label))
+			r.append("%sが、高い所に立っていなかった（役者を見て F で、台や箱の上を立ち位置に教える）" % str(a.label))
 	_count(i, r, dt, NEED_HIGH)
 
 
@@ -1469,7 +1590,7 @@ func _rule_orbit(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		_met(i)
 
 
-# 駆け上がる：二人が、この場面の始まりより CLIMB_M 以上高い印に着く（階段・坂・箱を上る）
+# 駆け上がる：二人が、この場面の始まりより CLIMB_M 以上高い立ち位置に着く（階段・坂・箱を上る）
 func _rule_climb(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 	if _climb_y0.is_empty():
 		for a: Node3D in game.actors:
@@ -1483,7 +1604,7 @@ func _rule_climb(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 		r.append("スタッフが映っていた")
 	for a: Node3D in present():
 		if a.global_position.y < float(_climb_y0[int(a.aid)]) + CLIMB_M:
-			r.append("%sが、上っていなかった（上の印を、高い所に置く）" % a.label)
+			r.append("%sが、上っていなかった（役者を見て F で、上の立ち位置を高い所に教える）" % a.label)
 	_count(i, r, dt, NEED_HIGH)
 
 
@@ -1663,11 +1784,15 @@ func results() -> Array:
 # ---- 登録（feature_hooks.gd）。決まった名前の関数を持っていると、中心の側が呼ぶ ----
 
 func hook_events() -> Array:
-	return ["beat"]
+	return ["beat", "spots"]
 
 
 # 場面の進み：いまの場面・撮れた場面のランプ・稽古かどうか
-func hook_event(_n: String, a: Array) -> void:
+func hook_event(n: String, a: Array) -> void:
+	if n == "spots":
+		if not multiplayer.is_server():
+			_set_spots(a[0], a[1])
+		return
 	receive(a[0])
 
 
@@ -1678,9 +1803,11 @@ func hook_rec_events() -> Array:
 
 func hook_sync(who: int) -> void:
 	sync_to(who)
+	if multiplayer.is_server() and who != multiplayer.get_unique_id():
+		game.ev.rpc_id(who, "spots", [spots, last_taught])
 
 
-# 準備中にテイクを始める直前：通し稽古は、ここまで。役者は最初の印へ戻る
+# 準備中にテイクを始める直前：通し稽古は、ここまで。役者は最初の立ち位置へ戻る
 func hook_take_ready() -> void:
 	host_reset()
 
@@ -1707,11 +1834,11 @@ func hook_playback(on: bool) -> void:
 	playback_changed(on)
 
 
-# 依頼を受けた：場面の列を持つ依頼なら、役者の印（①②③）を現場に並べる
+# 依頼を受けた：前の現場のバミリをはがし、場面を最初へ戻す
 func hook_new_job() -> void:
 	host_new_job()
 
 
-# 場面の列を持つ依頼のときだけ、印②③・リール・ランプを出す
+# 場面の列を持つ依頼のときだけ、採点をこちらへ回す（リール・ランプは _process）
 func hook_production_applied() -> void:
 	refresh()

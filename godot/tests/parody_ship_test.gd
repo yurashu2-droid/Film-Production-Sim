@@ -30,7 +30,7 @@ func prepare() -> void:
 		set_mark(aid, 0, C + Vector3(-0.3 + 0.6 * aid, 0.05, 0.4 + 0.3 * aid))       # 床（舳先の手前）
 		set_mark(aid, 1, C + Vector3(-0.3 + 0.6 * aid, 0.55, -1.9 + 0.5 * aid))     # 舳先の上（役者は、台に跳び乗って上る）
 		set_mark(aid, 2, C + Vector3(-0.3 + 0.6 * aid, 0.55, -1.2))
-		game.actors[aid].global_position = beats.mark(aid, 0).global_position
+		game.actors[aid].global_position = beats.spot(aid, 0)
 	await aim_camera(C + Vector3(-0.5, 0.05, 5.0), C + Vector3(0, 1.4, -1.6), 60.0)
 	await light(C + Vector3(0, 0.5, -1.6))
 	fan = of_kind("scrap_fan")

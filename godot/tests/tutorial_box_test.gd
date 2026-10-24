@@ -4,7 +4,7 @@ extends SceneTree
 #   ・箱を F で開けると、100万が引き落とされて 600 になる。画面の数字は、くるくる減ってから 600 に止まる
 #   ・開いた箱から講師（青いホログラム）が出てきて話す。F で次のせりふへ飛ばせる
 #   ・開けずに買い物をしても、そこで箱が開いて払う（100万は使えない）
-#   ・紹介動画の依頼を受けると、事務所の前に青い影が出る。カメラ・箱・印・城・書割を合わせると緑になる。映画には映らない
+#   ・紹介動画の依頼を受けると、事務所の前に青い影が出る。カメラ・箱・城・書割を合わせると緑になる。映画には映らない
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/tutorial_box_test.gd
 #   TUTBOX_SHOTS=1 を付けて画面ありで流すと、tests/shots/tutorial/ に絵を残す
 var game: Node
@@ -134,8 +134,6 @@ func run() -> void:
 		top += float(boxes[k].half.y) * 2.0
 		await frames(20)
 	place(game.film, spot + Vector3(0, top + 0.1, 0))
-	for aid in 4:
-		place(game.beats.marks[aid][0], o + guides.MARK_AT[aid])
 	var flat: Node = game.props.values().filter(func(p: Node) -> bool: return p.kind == "flat" and not p.absent)[0]
 	place(flat, o + guides.CASTLE_AT)
 	var boom: Node = game.props.values().filter(func(p: Node) -> bool: return p.kind == "boomflat" and not p.absent)[0]
@@ -146,7 +144,7 @@ func run() -> void:
 		all_ok = all_ok and bool(g["ok"])
 		if not bool(g["ok"]):
 			print("TUTBOX_NOTE まだ青い：", g["name"])
-	check(all_ok, "カメラ・箱・印・城・書割を合わせると、全部緑になる")
+	check(all_ok, "カメラ・箱・城・書割を合わせると、全部緑になる")
 	await shot(cam, o + Vector3(3.2, 2.4, 9.0), o + Vector3(0, 0.4, 0.5), "guides_green")
 	print("TUTBOX_TEST_FAIL" if failed else "TUTBOX_TEST_OK")
 	await frames(2)

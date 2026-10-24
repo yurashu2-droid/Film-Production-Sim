@@ -67,7 +67,7 @@ func host_action(action: String, _arg: Variant, who: int) -> Dictionary:
 			place(first("boomflat"), O + FLAT_AT)
 			for aid in 4:
 				for step in 3:
-					(beats.mark(aid, step) as Node).restore([O + MARKS[aid][step], Quaternion.IDENTITY, false])
+					beats.place_spot(aid, step, O + MARKS[aid][step])
 			# 看板：カンペに会社の名前を描いて、片づけておく（最後のカットの場転で出す）
 			var card: RigidBody3D = game.cue_cards.card
 			for i in 12:

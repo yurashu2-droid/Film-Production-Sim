@@ -123,7 +123,7 @@ func shoot(debut: int, site: String) -> void:
 	place(flat, FLAT_AT, 0.0)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, MARKS[aid][step])
 	for i in 2:
 		place(game.spots[i], SPOT_AT[i], PI)
 	var book: Node = flow.script_prop

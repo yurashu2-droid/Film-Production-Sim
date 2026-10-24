@@ -12,7 +12,6 @@ const BLUE := Color(0.15, 0.55, 1.0)
 const GREEN := Color(0.35, 1.0, 0.45)
 # 置く所（事務所の前の舞台の真ん中 production_flow.gd の HOME_SET から）。tests/pr_test.gd の置き方と同じ
 const CAM_AT := Vector3(0.0, 0.0, 5.0)
-const MARK_AT := [Vector3(-0.6, 0.05, -1.2), Vector3(0.6, 0.05, -1.2), Vector3(-1.8, 0.05, -1.2), Vector3(1.8, 0.05, -1.2)]
 const CASTLE_AT := Vector3(0.0, 0.0, -2.2)
 const FLAT_AT := Vector3(1.9, 0.0, -2.3)
 const NEAR := 0.6                    # この距離（横）まで寄せたら、合っている
@@ -118,24 +117,6 @@ func _add(gname: String, visual: Node3D, at: Vector3, yaw: float, tag: String) -
 	guides.append({"name": gname, "node": holder, "mats": [mat], "ok": false})
 
 
-# 役者の印の影：輪
-func _add_ring(gname: String, at: Vector3, tag: String) -> void:
-	var holder := Node3D.new()
-	holder.name = gname
-	holder.position = at
-	root.add_child(holder)
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.24
-	torus.outer_radius = 0.34
-	ring.mesh = torus
-	ring.position.y = 0.05
-	holder.add_child(ring)
-	var mat := _material()
-	_holo(ring, mat)
-	guides.append({"name": gname, "node": holder, "mats": [mat], "ok": false})
-
-
 func _top(node: Node3D) -> float:
 	var top := 0.0
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
@@ -161,10 +142,6 @@ func _check() -> void:
 			ok = boxes > int(name.trim_prefix("box"))
 		elif name == "camera":
 			ok = _flat_dist(film.global_position, cam_spot) < NEAR and film.global_position.y > cam_spot.y + _stack_top * 0.6
-		elif name.begins_with("mark"):
-			var aid := int(name.trim_prefix("mark"))
-			var marks: Array = game.beats.marks[aid] if game.beats != null and aid < game.beats.marks.size() else []
-			ok = not marks.is_empty() and _flat_dist((marks[0] as Node3D).global_position, (g["node"] as Node3D).global_position) < 0.45
 		elif name == "castle":
 			ok = _near_any((g["node"] as Node3D).global_position, func(p: Node) -> bool: return flow.role_of(p) == "castle" or p.kind == "flat", 1.1)
 		elif name == "blast":
@@ -195,7 +172,7 @@ func done(gname: String) -> bool:
 
 func _near_any(at: Vector3, want: Callable, reach: float) -> bool:
 	for p: Node3D in game.props.values():
-		if p.kind != "mark" and not p.absent and want.call(p) and _flat_dist(p.global_position, at) < reach:
+		if not p.absent and want.call(p) and _flat_dist(p.global_position, at) < reach:
 			return true
 	return false
 

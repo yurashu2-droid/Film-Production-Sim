@@ -83,7 +83,7 @@ func light(at: Vector3) -> void:
 
 
 func set_mark(aid: int, step: int, pos: Vector3) -> void:
-	(beats.mark(aid, step) as Node).restore([pos, Quaternion.IDENTITY, false])
+	beats.place_spot(aid, step, pos)
 
 
 func of_kind(kind: String) -> RigidBody3D:

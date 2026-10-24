@@ -80,9 +80,9 @@ func run() -> void:
 	game.h_depart()
 	await frames(490)
 	for aid in 2:
-		(beats.mark(aid, 0) as Node).restore([RUN_FROM[aid] + Vector3(-3.0, 0, 0.0), Quaternion.IDENTITY, false])     # 場面1の印は、大岩の通り道の外へ
-		(beats.mark(aid, 1) as Node).restore([RUN_FROM[aid], Quaternion.IDENTITY, false])
-		(beats.mark(aid, 2) as Node).restore([RUN_TO[aid], Quaternion.IDENTITY, false])
+		beats.place_spot(aid, 0, RUN_FROM[aid] + Vector3(-3.0, 0, 0.0))     # 場面1の印は、大岩の通り道の外へ
+		beats.place_spot(aid, 1, RUN_FROM[aid])
+		beats.place_spot(aid, 2, RUN_TO[aid])
 	var film: RigidBody3D = game.film
 	place(film, CAM_AT, 0.0)
 	await frames(30)

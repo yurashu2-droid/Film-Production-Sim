@@ -1,6 +1,6 @@
 extends SceneTree
 # 5場面の台本「怪獣、段ボールの街に現る・完全版」を確かめる（場面どうしが、同じ物・同じ場所・同じ人手を取り合う）。
-#   受注 → 印①②③が6つ出る → 通し稽古（フィルムは減らない・爆弾は鳴らない・通り道をふさぐと役者が立ち止まる）→
+#   受注 → 床に印は出ない（立ち位置は決まった所。教えるとバミリ） → 通し稽古（フィルムは減らない・爆弾は鳴らない・通り道をふさぐと役者が立ち止まる）→
 #   テイク1：二人ぶんの手（台本とカメラの係／火薬と黒子の係）で、5場面を一本のフィルムに収める → 見返し。
 #   テイク2：撮れない撮り方（怪獣が先に映る・火薬が少なすぎる・多すぎる）と、やり直し。最後はフィルム切れ。
 #   テイク3：別の解き方（怪獣を板の後ろに隠してどける・別のカメラへ切り替えて寄る）と、倒す人が映った場合。 → 納品。
@@ -243,23 +243,20 @@ func test_office() -> void:
 	flow.day = 2
 	flow.all_jobs = true
 	check(job in flow.offered(), "from the second day the complete edition is offered (all jobs, as with --day2)")
-	check(not beats.active() and game.judge.beats == null and of_kind("mark").size() == 2, "before the job: two marks, and the old judge")
+	check(not beats.active() and game.judge.beats == null and of_kind("mark").is_empty(), "before the job: no mark props on the floor, and the old judge")
 	check(game.take_limit() == game.TAKE_SEC and not game.hides_take_clock(), "the old jobs keep their sixty-second take and its clock")
 	check(not film.film_shown and (game.camera_switcher.monitor.lamps_shown as Array).is_empty(), "no reel on the camera and no lamps on the monitor for the old jobs")
 
 	game.h_accept_job(job)
 	await frames(6)
 	check(flow.phase == 2 and beats.active() and game.judge.story == "kaiju" and game.judge.beats == beats, "accepting it switches to the scene list")
-	var marks: Array = of_kind("mark")
-	var labels: Array = marks.map(func(m: Node) -> String: return str(m.label))
-	check(marks.size() == 6 and "立ち位置の印 A①" in labels and "立ち位置の印 A③" in labels and "立ち位置の印 B②" in labels, "six numbered marks are out: %s" % str(labels))
-	var numerals: Array = []
+	check(of_kind("mark").is_empty() and beats.step_count() == 3, "no mark props come out: the job uses three standing places (%d)" % beats.step_count())
+	var homes := true
 	for aid in 2:
 		for step in 3:
-			var disc: Node = beats.mark(aid, step)
-			numerals.append(str((disc.get_node("Numeral") as Label3D).text) if (disc.get_node("Numeral") as Label3D).visible else "-")
-	check(numerals == ["1", "2", "3", "1", "2", "3"], "each mark shows its number on the floor disc")
-	check(game.actors[0].mark == beats.mark(0, 0) and game.actors[1].mark == beats.mark(1, 0), "the actors wait on their first marks")
+			homes = homes and not beats.taught(aid, step) and beats.spot(aid, step).distance_to(beats.MARK_HOME[aid][step] + flow.site_center()) < 0.01
+	check(homes, "untaught, every standing place is the fixed one (MARK_HOME)")
+	check(game.actors[0].mark == beats.anchors[0] and game.actors[1].mark == beats.anchors[1] and not ("pid" in game.actors[0].mark), "the actors wait on a plain place, not on a prop")
 	check(is_equal_approx(game.take_limit(), beats.FILM_SEC) and beats.FILM_SEC >= 80.0, "the take is one roll of film (%.0f s)" % beats.FILM_SEC)
 	# ギャラ：5場面そろうと、今までの 1.5 倍
 	game.takes = [{"passed": [true, true, true, true, true], "results": [], "extras": {}}, {"passed": [true, true, true, false, false], "results": [], "extras": {}}]
@@ -310,7 +307,7 @@ func test_office() -> void:
 	game.h_depart()
 	await frames(490)
 	check(flow.phase == 4, "the crew arrives at the location")
-	check(of_kind("mark").size() == 6 and (beats.mark(0, 2) as Node3D).global_position.distance_to(beats.MARK_HOME[0][2]) < 0.4, "the six marks are waiting on the set")
+	check(of_kind("mark").is_empty() and beats.spot(0, 2).distance_to(beats.MARK_HOME[0][2]) < 0.4, "the standing places wait on the set, with nothing on the floor")
 	check(film.film_shown and (game.camera_switcher.cameras as Array).all(func(c: Node) -> bool: return c.film_shown and is_equal_approx(c.film_frac, 1.0)), "every camera carries a full reel")
 	check(none_lit() and game.camera_switcher.monitor.ticks_left == 18, "the monitor frame shows five dark lamps and a full row of film ticks")
 
@@ -335,7 +332,7 @@ func test_set_up() -> void:
 	place(game.camera_switcher.monitor, MONITOR_AT, PI)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, MARKS[aid][step])
 	place(book, BOOK_AT, 0.0, false)
 	me.global_position = ME_AT
 	await frames(40)
@@ -799,4 +796,4 @@ func test_delivery() -> void:
 	check(flow.last_payment >= 1800 * 1 and 1800 == 1200 * 3 / 2, "the base fee is half as much again as the three-scene jobs")
 	game.h_return_office()
 	await frames(10)
-	check(flow.phase == 0 and not beats.active() and game.judge.beats == null and of_kind("mark").size() == 2 and not film.film_shown, "back at the office the extra marks, the reels and the scene list are put away")
+	check(flow.phase == 0 and not beats.active() and game.judge.beats == null and of_kind("mark").is_empty() and not beats.taught(0, 0) and not film.film_shown, "back at the office the taped places are peeled, the reels and the scene list are put away")

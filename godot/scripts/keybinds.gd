@@ -15,7 +15,7 @@ const ACTIONS := [
 	["talent", "特技", KEY_K], ["cast_role", "役を決める", KEY_Y],
 	["act", "演技", KEY_Z], ["effect", "効果", KEY_X], ["act_menu", "演技を選ぶ", KEY_H],
 	["cue_1", "合図 1", KEY_1], ["cue_2", "合図 2", KEY_2], ["cue_3", "合図 3", KEY_3], ["cut", "カット", KEY_T],
-	["reset_actors", "役者を戻す", KEY_B], ["ping", "目印", KEY_V],
+	["reset_actors", "役者を戻す", KEY_B], ["ping", "目印", KEY_V], ["self_mark", "足元にバミリ", KEY_M],
 	["help", "あそびかた", KEY_TAB], ["character", "キャラクター", KEY_C], ["view", "視点", KEY_F2],
 ]
 # 替えられないキー（画面の操作に使う）

@@ -254,7 +254,7 @@ func go_to_set() -> void:
 	place(game.camera_switcher.monitor, T.MONITOR_AT, PI)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([T.MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, T.MARKS[aid][step])
 	place(book, T.BOOK_AT, 0.0, false)
 	me.global_position = T.ME_AT
 	await frames(40)
@@ -293,7 +293,7 @@ func set_screens() -> void:
 	place(book, T.BOOK_AT, 0.0, false)
 	# 通り道をふさぐ：立ち止まって困った顔（もう一人は、絵のために離れた印へ行かせる）
 	place(board, T.BLOCK_AT, PI * 0.5)
-	(beats.mark(1, 2) as Node).restore([Vector3(3.2, 0.05, 1.8), Quaternion.IDENTITY, false])
+	beats.place_spot(1, 2, Vector3(3.2, 0.05, 1.8))
 	await frames(20)
 	game.h_beat(1)
 	await frames(150)
@@ -302,7 +302,7 @@ func set_screens() -> void:
 	look_from(Vector3(2.6, 2.2, 2.8), Vector3(0.6, 0.8, 0.6), 44.0)
 	await snap("06_actor_stuck_wide", 4)
 	place(board, T.BOARD_AWAY)
-	(beats.mark(1, 2) as Node).restore([T.MARKS[1][2], Quaternion.IDENTITY, false])
+	beats.place_spot(1, 2, T.MARKS[1][2])
 	game.h_standby()
 	await frames(20)
 	# 台本をそばに置いた監督の画面（場面の一覧が出る。準備中の「答え」は出ない）

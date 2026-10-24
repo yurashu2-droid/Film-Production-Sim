@@ -18,6 +18,7 @@ const HOOKS := {
 	"hook_input": "(event: InputEvent) -> bool：どのキー・マウスよりも先に受ける（開いている画面の操作）。使ったら true",
 	"hook_key": "(event: InputEvent, me: Node) -> bool：自分のキー（歩いている間）。使ったら true",
 	"hook_f": "(me: Node) -> bool：F が押された。使ったら true（ほかへは回らない）",
+	"hook_right_click": "(me: Node) -> bool：右クリック（歩いている間。モニターを開くより先）。使ったら true",
 	"hook_click": "(me: Node) -> bool：手ぶらの左クリック。使ったら true",
 	"hook_hud": "(me: Node, label: String, keys: String) -> Dictionary：狙った物の名前の横と、操作の案内に足す文（production_hud.gd の _apply_view）",
 	"hook_grab_block": "(prop: Node) -> String：その物を持ち上げられない理由（\"\"＝持てる）",
@@ -42,9 +43,11 @@ const HOOKS := {
 const ORDER := ["adhesive", "cue_cards", "cargo_kit", "bomb_kit", "beats", "rope_grab", "talent", "director"]
 # 関数ごとの順番（順番で結果が変わる物）。書いてある仕組みが先。書いていない仕組みは、そのあとに ORDER の順で続く
 const ORDERS := {
-	# F：机の物 → 仲間の頭の道具箱 → 接着剤の点（素手ではがす）→ つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル。
+	# F：机の物 → 役者を見て立ち位置を教える（バミリ）→ 仲間の頭の道具箱 → 接着剤の点（素手ではがす）→ つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル。
 	# どれも使わなければ、production_main.gd の残り（荷台に積む・台本・仕掛けを動かす・その場所の画面）へ回る
-	"hook_f": ["director", "talent", "adhesive", "rope_grab", "bomb_kit", "cargo_kit", "cue_cards"],
+	"hook_f": ["director", "bami", "talent", "adhesive", "rope_grab", "bomb_kit", "cargo_kit", "cue_cards"],
+	# 手ぶらの左クリック：立ち位置を教えている途中（床を指す）なら、それが先
+	"hook_click": ["bami"],
 	# 開いている画面：のぞき箱・発注 → 接着剤 → カンペを書く画面
 	"hook_input": ["director", "adhesive", "cue_cards"],
 	# 画面の案内：あとの仕組みが、前の仕組みの文を見て書き足す・差し替える

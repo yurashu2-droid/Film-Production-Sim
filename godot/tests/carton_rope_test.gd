@@ -334,11 +334,11 @@ func run() -> void:
 	put(box_c, bench + Vector3(1.6, 0.1, -1.8))
 	await frames(40)
 	var refused: Array = []
-	for kind: String in ["carton", "camera", "spot", "clapper", "cue_card", "monitor", "script", "standin", "mark", "rope", "glue"]:
+	for kind: String in ["carton", "camera", "spot", "clapper", "cue_card", "monitor", "script", "standin", "rope", "glue"]:
 		var thing: Node = any_of(kind) if kind != "carton" else shown[3]
 		if kit.pack_problem(thing, box_b) == "":
 			refused.append(kind)
-	check(refused.is_empty(), "cartons, gear, the script, the stand-in, marks and tools are refused (%s)" % str(refused))
+	check(refused.is_empty(), "cartons, gear, the script, the stand-in and tools are refused (%s)" % str(refused))
 	check(kit.pack_problem(game.fx, box_b) != "" and kit.pack_problem(rock, box_b) != "" and kit.pack_problem(of_kind("plywood")[0], box_b) != "", "the bomb and big props are refused")
 	check(kit.pack_problem(fish, box_b) == "" and kit.pack_problem(toilet, box_b) == "", "a rubber fish and a toilet may go in")
 	# 断られた物は手に残り、失格にもならない

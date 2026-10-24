@@ -83,8 +83,8 @@ func run() -> void:
 	var book: Node = flow.script_prop
 	var film: RigidBody3D = game.film
 	# カメラを、印の列を横から映す所へ。カメラは台車に載せない（あとで手で動かす）
-	var a1: Vector3 = beats.mark(0, 1).global_position
-	var a0: Vector3 = beats.mark(0, 0).global_position
+	var a1: Vector3 = beats.spot(0, 1)
+	var a0: Vector3 = beats.spot(0, 0)
 	var mid: Vector3 = (a0 + a1) * 0.5
 	place(film, Vector3(mid.x - 1.0, 0.05, mid.z + 4.2), 0.0)
 	await frames(20)
@@ -127,14 +127,14 @@ func run() -> void:
 	var last: Array = (game._rec_events as Array).back() if (game._rec_events as Array).size() > rec_before else []
 	check(not last.is_empty() and str(last[1]) == "bombkit", "場転の間に変わった導火線と火薬も、見返しの記録に残る")
 	# ---- 場転：罠を仕掛ける。二人の立ち止まる印②の横、頭の上に重りを吊る ----
-	var spot: Vector3 = beats.mark(0, 1).global_position.lerp(beats.mark(1, 1).global_position, 0.5) + Vector3(0.9, 0, 0)
+	var spot: Vector3 = beats.spot(0, 1).lerp(beats.spot(1, 1), 0.5) + Vector3(0.9, 0, 0)
 	var bag: RigidBody3D = game.stage.spawn("sandbag", Vector3(spot.x, 1.6, spot.z), 0.0)
 	await frames(1)
 	var top: Vector3 = bag.center_global() + Vector3(0, bag.half.y * 0.9, 0)
 	var rope: int = rig.host_add_row([0, top + Vector3(0, 0.7, 0)], [bag.pid, bag.to_local(top)], [])
 	await frames(30)
 	# カメラを、二人と罠が入る所へ（固定）
-	var stand: Vector3 = beats.mark(0, 1).global_position
+	var stand: Vector3 = beats.spot(0, 1)
 	place(film, Vector3(stand.x + 0.4, 0.05, stand.z + 4.5), 0.0)
 	await frames(30)
 	await light(stand)

@@ -1,5 +1,5 @@
 extends CharacterBody3D
-# 合図で動く役者（NPC）。仕込み中は立ち位置の印の上で待つ。
+# 合図で動く役者（NPC）。仕込み中は立ち位置（mark：production_beats.gd の目印。教えた所か、決まった所）で待つ。
 # 役に入った人（stand_in：班のプレイヤーか等身大パネル。features/stand_ins.gd）がいる間は、姿を消してその人に付いていく。
 # 判定・場面の進め方は、そのまま「役者」を見るので、役に入った人の位置と動きで数えることになる
 
@@ -12,7 +12,11 @@ const CONFESS_SEC := 6.0
 const RUN_SPEED := 3.4
 const WALK_SPEED := 1.9
 const ARRIVE := 0.12          # 印に、ここまで近づいたら着いた
-const STAND_ARRIVE := 0.75    # 役に入った人は、印からこの距離にいれば着いた（人の足で、ぴたりとは止まれない）
+const STAND_ARRIVE := 0.75    # 役に入った人は、立ち位置からこの距離にいれば着いた（人の足で、ぴたりとは止まれない）
+# 役に入った人で、その立ち位置を教えていない（床にバミリが無い）ときは、止まった所に着いたとみる
+const STAND_SETTLE := 0.4     # 合図から、これだけ経ってから
+const STAND_STILL := 0.35     # これより遅ければ、止まっている（m/秒）
+const STAND_MOVE := 0.9       # これより速く動いたら、また歩き出した
 const STUCK_SEC := 0.45       # まっすぐ進めないまま、これだけ経ったら立ち止まる
 const STEP_UP := 0.65         # 上の印へ向かう途中なら、この高さまでの段（箱・台・階段）には跳び乗る
 const STUCK_PACE := 0.3       # 進む速さが、歩く・走る速さのこの割合より遅ければ「進めていない」
@@ -397,6 +401,14 @@ func _follow_stand_in(delta: float) -> void:
 	rotation.y = (body as Node3D).global_rotation.y if body is Node3D else stand_in.global_rotation.y
 	st_t += delta
 	match st:
+		St.BEAT_GO when beat.get("free", false):
+			# 立ち位置を教えていない：止まった所が、その場面の立ち位置（床に何も無いので、人の足に任せる）
+			_beat_leg = 1
+			if st_t > STAND_SETTLE and _stand_speed < STAND_STILL:
+				set_state(St.BEAT_HOLD)
+		St.BEAT_HOLD when beat.get("free", false):
+			if _stand_speed > STAND_MOVE:
+				set_state(St.BEAT_GO)      # また歩き出した
 		St.BEAT_GO:
 			var target: Vector3 = beat.get("back" if _beat_leg == 0 else "to", p)
 			if Vector2(target.x - p.x, target.z - p.z).length() < STAND_ARRIVE:

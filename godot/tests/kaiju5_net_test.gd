@@ -45,13 +45,16 @@ func view() -> Dictionary:
 	var labels: Array = []
 	var marks: Array = []
 	var pids: Array = []
+	# 床の印（物）は、もう無い。教えた立ち位置（バミリ）と、その場所を比べる
+	for prop: Node in game.props.values():
+		if prop.kind == "mark":
+			pids.append(prop.pid)
 	for aid in 2:
 		for step in 3:
-			var disc: Node3D = beats.mark(aid, step)
-			pids.append(disc.pid)
-			present += 0 if disc.absent else 1
-			labels.append(str(disc.label))
-			marks.append([] if disc.absent else [snappedf(disc.global_position.x, 0.25), snappedf(disc.global_position.z, 0.25)])
+			var at: Vector3 = beats.spot(aid, step)
+			present += 1 if beats.taught(aid, step) else 0
+			labels.append("%d%d%s" % [aid, step, "t" if beats.taught(aid, step) else ""])
+			marks.append([snappedf(at.x, 0.25), snappedf(at.z, 0.25)])
 	var actors: Array = []
 	for a: Node3D in game.actors:
 		if not a.present():
@@ -81,7 +84,7 @@ func stage(who: int) -> void:
 		place(game.spots[i], SPOT_AT[i], PI)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, MARKS[aid][step])
 	place(game.production.script_prop, BOOK_AT)
 	crew_to(1, HOST_AT)
 	crew_to(who, FAR)
@@ -139,9 +142,9 @@ func client_run() -> void:
 
 	# ---- 依頼を受ける前：今までどおり、印は2つ ----
 	var reply: Dictionary = await request("hello")
-	check(job >= 0 and reply["view"]["pids"] == view()["pids"], "both peers number the six marks the same way")
-	check(not reply["view"]["active"] and reply["view"]["present"] == 2 and not view()["active"] and view()["present"] == 2 and not view()["reel"] and (view()["lamps"] as Array).is_empty(),
-		"before the job only the two usual marks are out, on both peers")
+	check(job >= 0 and reply["view"]["pids"] == [] and view()["pids"] == [], "neither peer has mark props on the floor")
+	check(not reply["view"]["active"] and reply["view"]["present"] == 0 and not view()["active"] and view()["present"] == 0 and not view()["reel"] and (view()["lamps"] as Array).is_empty(),
+		"before the job no standing place is taught, on both peers")
 
 	# ---- 参加者が、5場面の依頼を受ける ----
 	flow.day = 2
@@ -149,8 +152,8 @@ func client_run() -> void:
 	check(await until(func() -> bool: return flow.phase == 2 and beats.active()), "the five-scene job starts on both peers")
 	reply = await request("snapshot")
 	var taken: Dictionary = reply["view"]
-	check(taken["active"] and taken["present"] == 6 and taken["titles"] == 5 and taken["limit"] == beats.FILM_SEC and "立ち位置の印 B③" in taken["labels"], "the host has six numbered marks and a five-scene, one-roll take")
-	await sees(taken, ["job", "active", "present", "labels", "marks", "titles", "limit", "scene", "lit"], "the participant sees the same six marks, in the same places")
+	check(taken["active"] and taken["present"] == 0 and taken["titles"] == 5 and taken["limit"] == beats.FILM_SEC, "the host has a five-scene, one-roll take, with the fixed standing places")
+	await sees(taken, ["job", "active", "present", "labels", "marks", "titles", "limit", "scene", "lit"], "the participant sees the same standing places")
 
 	# ---- 軽トラで現場へ。置き方は、ホストが作る ----
 	reply = await request("to_set")
@@ -158,7 +161,8 @@ func client_run() -> void:
 	reply = await request("snapshot")
 	var on_set: Dictionary = reply["view"]
 	check(on_set["phase"] == 4 and on_set["reel"] and on_set["lamps"] == [false, false, false, false, false] and on_set["ticks"] == 18 and on_set["mute"], "on the set the host shows the reel, five dark lamps and a full row of ticks")
-	await sees(on_set, ["phase", "marks", "reel", "lamps", "ticks", "scene", "mute"], "the participant sees the marks where the host put them, and the same reel, lamps and ticks", LATE)
+	check(on_set["present"] == 6, "the host taught six standing places (%d)" % on_set["present"])
+	await sees(on_set, ["phase", "present", "labels", "marks", "reel", "lamps", "ticks", "scene", "mute"], "the participant gets the taught places where the host put them, and the same reel, lamps and ticks", LATE)
 
 	# ---- 台本を読めない人は、場面を進められない ----
 	game.h_beat.rpc_id(1, 1)
@@ -180,9 +184,9 @@ func client_run() -> void:
 	flow = game.production
 	beats = game.beats
 	reply = await request("hello")
-	check(reply["view"]["pids"] == view()["pids"], "the late joiner numbers the marks the same way")
+	check(reply["view"]["pids"] == view()["pids"], "the late joiner has no mark props either")
 	await sees(rehearsed, ["phase", "job", "active", "present", "labels", "marks", "scene", "rehearsal", "actors", "reel", "lamps", "ticks", "titles", "limit"],
-		"a late joiner receives the job, the six marks, the current scene and the actors' places", LATE)
+		"a late joiner receives the job, the six taught places, the current scene and the actors' places", LATE)
 
 	# B で役者を戻す（誰でもできる）
 	game.h_standby.rpc_id(1)

@@ -94,7 +94,7 @@ func run() -> void:
 	var rec2: int = (game._rec_frames as Array).size()
 	var ev2: int = (game._rec_events as Array).size()
 	var b: Dictionary = beats.list()[1]
-	var from_a: Vector3 = beats.mark(0, int(b.get("from", 0))).global_position
+	var from_a: Vector3 = beats.spot(0, int(b.get("from", 0)))
 	var monster: Node = null
 	for p: Node in game.props.values():
 		if p.kind == "toy_kaiju" or game.judge.role_of(p) == "monster":

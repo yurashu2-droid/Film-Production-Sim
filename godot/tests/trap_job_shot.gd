@@ -99,7 +99,7 @@ func run() -> void:
 	print("TRAPSHOT phase ", flow.phase)
 	for aid in 2:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, MARKS[aid][step])
 	# 撮る場所（倉庫の東の壁ぎわ）に置いてある物を、よそへ寄せる（届いた物・モニターなど）
 	var k := 0
 	for p: Node in game.props.values():

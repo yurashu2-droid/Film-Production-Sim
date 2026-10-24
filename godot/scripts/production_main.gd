@@ -101,7 +101,7 @@ func _ready() -> void:
 	hooks.add("rope_grab", rope_grab)
 	# キャラの特技で使う物（モップの王様の毛の束）。物のIDがずれないよう、いちばん最後に作る
 	talent.setup()
-	# 場面の列を持つ依頼で使う、役者の印②③。ふだんは片づけてある。これも、ほかの物のあとに作る
+	# 場面の列を持つ依頼の進め方と、役者の立ち位置（役者C・D もここで作る）。これも、ほかの物のあとに作る
 	beats = Beats.new()
 	beats.name = "Beats"
 	beats.game = self
@@ -208,6 +208,9 @@ func select_program_camera(pid: int) -> void:
 
 func open_monitor() -> bool:
 	var me: Node = local_player()
+	# 仕組みの右クリック（床のバミリをはがす など。features/bami.gd の hook_right_click）が先
+	if me != null and hooks.first("hook_right_click", [me]):
+		return true
 	if monitor_popup == null or me == null or me.held != 0 or me.operating != 0 or me.target != camera_switcher.monitor:
 		return false
 	if not camera_switcher.allowed() or not camera_switcher.nearby(me): return false
@@ -455,7 +458,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if event.physical_keycode == Keybinds.code("operate") and hooks.first("hook_f", [me]):
 		# 仕組みの F（各仕組みの hook_f）。最初に使った仕組みで止まる。順番は feature_hooks.gd の ORDERS["hook_f"]：
-		#   机の物（のぞき箱・発注の電話）→ 仲間の頭の道具箱 → 接着剤の点（素手ではがす）→ つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
+		#   机の物（のぞき箱・発注の電話）→ 役者に立ち位置を教える（バミリ）→ 仲間の頭の道具箱 → 接着剤の点（素手ではがす）→ つかんだロープの端 → 爆弾の道具 → 箱とロープ → カンペ・等身大パネル
 		get_viewport().set_input_as_handled()
 		return
 	if event.physical_keycode == Keybinds.code("operate"):
@@ -600,7 +603,7 @@ func _update_live() -> void:
 		live.erase("mute")
 
 
-# B：役者を最初の印へ戻す。通し稽古も、そこで終わる
+# B：役者を最初の立ち位置へ戻す。通し稽古も、そこで終わる
 @rpc("any_peer", "call_local", "reliable")
 func h_standby() -> void:
 	super.h_standby()
@@ -626,13 +629,7 @@ func _apply_order() -> void:
 # 爆弾が爆発した：つないであった線は吹き飛び、こぼれた火薬に火が移る
 func host_burst(box: RigidBody3D) -> void:
 	var power: float = box.blast() if state == S.TAKE and box.loaded() else 0.0
-	# 場面の列を持つ依頼では、役者の印（床のバミリ）は爆風で飛ばさない（役者の行き先が、爆発のたびに変わらないように）
-	var pinned: bool = beats != null and beats.active()
-	if pinned:
-		beats.pin_marks(true)
 	super.host_burst(box)
-	if pinned:
-		beats.pin_marks(false)
 	if bomb_kit != null and box == fx:
 		bomb_kit.on_bomb_burst(power)
 
@@ -1230,7 +1227,7 @@ func _take_or_cut(who: int) -> void:
 		ev.rpc_id(who,"toast",["撮影は現場に着いてから。期限後は撮れたテイクを納品しよう",1])
 		return
 	if state == S.PREP:
-		# 各仕組みの hook_take_ready：箱の中身を覚える（撮り直しで戻す）・通し稽古を終える（役者は最初の印へ戻る）
+		# 各仕組みの hook_take_ready：箱の中身を覚える（撮り直しで戻す）・通し稽古を終える（役者は最初の立ち位置へ戻る）
 		hooks.run("hook_take_ready")
 	super._take_or_cut(who)
 

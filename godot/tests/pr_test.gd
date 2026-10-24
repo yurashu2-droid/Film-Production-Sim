@@ -165,7 +165,7 @@ func shoot(debut: int, site: String) -> void:
 	check(beats.cast_count() == 4, "%s：この依頼の役者は4人" % site)
 	check(flow.shoots_home() and flow.site_center() == flow.HOME_SET, "%s：CMは、会社の前で撮る依頼" % site)
 	var O: Vector3 = flow.site_center()
-	check((beats.mark(0, 0) as Node3D).global_position.distance_to(beats.MARK_HOME[0][0] + O) < 0.3, "%s：役者の印は、事務所の前に並ぶ" % site)
+	check(beats.spot(0, 0).distance_to(beats.MARK_HOME[0][0] + O) < 0.3, "%s：役者の立ち位置は、事務所の前（教えるまでは決まった所）" % site)
 	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	await frames(3)
 	var truck_at: Vector3 = game.truck.global_position
@@ -181,7 +181,7 @@ func shoot(debut: int, site: String) -> void:
 	place(flat, O + FLAT_AT, 0.0)
 	for aid in 4:
 		for step in 3:
-			(beats.mark(aid, step) as Node).restore([O + MARKS[aid][step], Quaternion.IDENTITY, false])
+			beats.place_spot(aid, step, O + MARKS[aid][step])
 	for i in 2:
 		place(game.spots[i], O + SPOT_AT[i], PI)
 	var book: Node = flow.script_prop
@@ -304,4 +304,4 @@ func shoot(debut: int, site: String) -> void:
 		await frames(10)
 	game.h_return_office()
 	await frames(20)
-	check((beats.mark(0, 0) as Node3D).global_position.distance_to(beats._mark_start[0][0][0]) < 0.3, "%s：帰社すると、役者の印は元の現場へ戻る" % site)
+	check(not beats.taught(0, 0) and beats.spot(0, 0).distance_to(beats.home(0, 0)) < 0.01, "%s：帰社すると、現場のバミリははがして、立ち位置は決まった所に戻る" % site)
