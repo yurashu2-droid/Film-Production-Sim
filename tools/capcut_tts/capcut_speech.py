@@ -14,12 +14,20 @@ if DEPS.is_dir():
 
 def voice_catalog():
     from capcut_tts.voices import all_voices
-    return all_voices()
+    # Public voice metadata from this PC's CapCut 9.6 resource catalog,
+    # checked 2026-10-26. No account/session data is included.
+    return all_voices() + [{
+        'lan': 'ja', 'lang': 'ja-JP',
+        'voice_type': 'ICL_uranus_ja_female_yuanqi',
+        'display_name': '快活な娘',
+        'aliases': ['快活な女の子'],
+        'resource_id': '7681166532600220936',
+    }]
 
 
 def resolve_voice(name):
     matches = [v for v in voice_catalog()
-               if name in (v['voice_type'], v['display_name'])]
+               if name in (v['voice_type'], v['display_name'], *v.get('aliases', []))]
     if len(matches) != 1:
         raise ValueError('Voice is unknown or ambiguous. Run voices and use its exact ID.')
     return matches[0]

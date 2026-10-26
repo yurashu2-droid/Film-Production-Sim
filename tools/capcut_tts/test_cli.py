@@ -6,6 +6,13 @@ from capcut_speech import generate, resolve_voice
 
 
 class SpeechTests(unittest.TestCase):
+    def test_lively_girl_alias_uses_the_desktop_catalog_voice(self):
+        voice = resolve_voice('快活な女の子')
+        self.assertEqual(voice, resolve_voice('快活な娘'))
+        self.assertEqual(voice['voice_type'], 'ICL_uranus_ja_female_yuanqi')
+        self.assertEqual(voice['resource_id'], '7681166532600220936')
+        self.assertEqual(voice['lang'], 'ja-JP')
+
     def test_japanese_display_name_resolves_to_catalog_voice(self):
         voice = resolve_voice('女性AI')
         self.assertEqual(voice['voice_type'], 'ICL_ja_female_lengjingnv')
