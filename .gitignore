@@ -20,6 +20,7 @@
 /tools/*
 !/tools/build_vfx_knowledge.py
 !/tools/uvi_direct/
+!/tools/capcut_tts/
 !/.claude/
 /.claude/*
 !/.claude/skills/
