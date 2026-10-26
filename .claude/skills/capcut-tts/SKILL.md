@@ -13,7 +13,7 @@ description: Use when generating spoken dialogue, narration, or text-to-speech w
 .\tools\capcut_tts\tts.cmd voices
 ```
 
-一覧の表示名またはvoice IDを使う。日本語20声が候補にあり、全言語を見る場合は`voices --all`。一覧への掲載だけでは生成可能と断定しない。2026-10-26に実際の生成を確認した声は「女性AI」「narrator」「快活な娘」。
+一覧の表示名またはvoice IDを使う。日本語24声が候補にあり、全言語を見る場合は`voices --all`。一覧への掲載だけでは生成可能と断定しない。2026-10-26に実際の生成を確認した声は「女性AI」「narrator」「快活な娘」「爽やかな少年」「頼れる兄貴」「落ち着いた叔父」「荒々しい男」。男性の台詞はこれら4声を表示名で指定できる。
 
 **「快活な女の子」と「快活な娘」はこのツールで同じ声を呼ぶ名前。** PC版の表示名は「快活な娘」、voice IDは`ICL_uranus_ja_female_yuanqi`。ユーザーが「快活な女の子」を指定したら、その名前をそのまま`--voice`へ渡せる。別の声へ置き換える必要はない。
 

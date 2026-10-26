@@ -22,6 +22,26 @@ def voice_catalog():
         'display_name': '快活な娘',
         'aliases': ['快活な女の子'],
         'resource_id': '7681166532600220936',
+    }, {
+        'lan': 'ja', 'lang': 'ja-JP',
+        'voice_type': 'ICL_uranus_ja_male_fbpc',
+        'display_name': '爽やかな少年',
+        'resource_id': '7672596485128637716',
+    }, {
+        'lan': 'ja', 'lang': 'ja-JP',
+        'voice_type': 'ICL_uranus_ja_male_duoyi',
+        'display_name': '頼れる兄貴',
+        'resource_id': '7681191804464549141',
+    }, {
+        'lan': 'ja', 'lang': 'ja-JP',
+        'voice_type': 'ICL_uranus_ja_male_zhongnian',
+        'display_name': '落ち着いた叔父',
+        'resource_id': '7681176395589930261',
+    }, {
+        'lan': 'ja', 'lang': 'ja-JP',
+        'voice_type': 'ICL_uranus_ja_male_ribenheidao',
+        'display_name': '荒々しい男',
+        'resource_id': '7688271756057988372',
     }]
 
 

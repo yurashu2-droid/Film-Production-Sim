@@ -23,8 +23,9 @@
 ## 確認できたこと・制約
 
 - 2026-10-26、このPCで日本語narratorと女性AIの生成に成功。MP3のデコードと非無音も確認した。女性AIの試聴は`output/capcut_tts/filming_test.mp3`（4.632秒）。
-- 上流カタログの日本語19声に、このPCのCapCut 9.6の音声一覧から確認した「快活な娘」を追加して20声。「快活な娘」は`ICL_uranus_ja_female_yuanqi`、resource IDは`7681166532600220936`。「快活な女の子」でも指定でき、実際の生成を確認済み。試聴ファイルは`output/capcut_tts/lively_girl_test.mp3`。
-- 全20声の生成を検証したわけではない。CapCutの画面と名前・一覧が一致する保証もない。
+- 上流カタログの日本語19声に、このPCのCapCut 9.6の音声一覧から確認した5声を追加して24声。「快活な娘」は`ICL_uranus_ja_female_yuanqi`、resource IDは`7681166532600220936`。「快活な女の子」でも指定でき、実際の生成を確認済み。試聴ファイルは`output/capcut_tts/lively_girl_test.mp3`。
+- 追加した男性4声も生成を確認済み：`爽やかな少年`、`頼れる兄貴`、`落ち着いた叔父`、`荒々しい男`。`--voice "頼れる兄貴"`のように表示名で呼べる。試聴は順に`output/capcut_tts/male_young.mp3`、`male_brother.mp3`、`male_uncle.mp3`、`male_rough.mp3`。
+- 全24声の生成を検証したわけではない。CapCutの画面と名前・一覧が一致する保証もない。
 - この確認ではログインやアカウントのパスワードは不要だった。文章は生成のためCapCutへ送られる。ブラウザやCapCutアプリから認証情報を読み取らない。
 - インストール識別用の設定は`%LOCALAPPDATA%\CapCut-Code-TTS\device.json`。同じ設定を継続利用する。拒否・回数制限時にIDを変えて再試行する仕組みはない。
 - 非公式APIのため、将来の変更やサービス側の制限で使えなくなる場合がある。有料音声や契約で許可されない音声へのアクセスは保証しない。
