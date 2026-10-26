@@ -2,23 +2,35 @@
 
 文章と声を指定してCapCutのクラウドで音声を生成し、MP3に保存する。非公式Pythonクライアント [jutlyne/capcut-tts](https://github.com/jutlyne/capcut-tts) の確認済みリビジョンを使う。UI操作や常駐サーバーは不要。このPCではセットアップ済み。
 
-リポジトリ直下のPowerShellから実行：
+## どのプロジェクトからも使う
+
+実行用の本体は `%USERPROFILE%\Tools\capcut-tts\`。Claude Codeの共通スキルは`%USERPROFILE%\.claude\skills\capcut-tts\`、Codexの共通スキルは`%USERPROFILE%\.agents\skills\capcut-tts\`。両スキルは、本体内の`skill/`にある同じ手順書へのディレクトリジャンクションで、説明を二重管理しない。
+
+作業中のプロジェクトのPowerShellから、共通コマンドを呼ぶ。出力先は呼び出したプロジェクトを基準に解決する。
 
 ```powershell
 # 日本語の声一覧（通信なし）
-.\tools\capcut_tts\tts.cmd voices
+& "$env:USERPROFILE\Tools\capcut-tts\tts.cmd" voices
 
 # 声の名前、または一覧に出たIDを指定する
-.\tools\capcut_tts\tts.cmd speak --text "よし、撮影を始めよう！" --voice "女性AI" -o output\capcut_tts\director.mp3
+& "$env:USERPROFILE\Tools\capcut-tts\tts.cmd" speak --text "よし、撮影を始めよう！" --voice "女性AI" -o output\capcut_tts\director.mp3
 
 # CapCut PC版での表示名「快活な娘」。「快活な女の子」も同じ声の別名として使える。
-.\tools\capcut_tts\tts.cmd speak --text "おはよう！今日も張り切って、撮影を始めよう！" --voice "快活な女の子" -o output\capcut_tts\lively.mp3
+& "$env:USERPROFILE\Tools\capcut-tts\tts.cmd" speak --text "おはよう！今日も張り切って、撮影を始めよう！" --voice "快活な女の子" -o output\capcut_tts\lively.mp3
 
 # UTF-8の台詞ファイルから生成。声の省略時は日本語narrator。
-.\tools\capcut_tts\tts.cmd speak --text-file output\dialogue.txt -o output\capcut_tts\dialogue.mp3
+& "$env:USERPROFILE\Tools\capcut-tts\tts.cmd" speak --text-file output\dialogue.txt -o output\capcut_tts\dialogue.mp3
 ```
 
 `--rate 1.2`で速度を指定できる（1.0が通常、受付範囲0.5～2.0）。既存ファイルは保護し、上書きするときだけ`--force`を付ける。生成失敗時に既存の音声を壊さない。`voices --all`で他の言語も一覧表示できる。
+
+このゲーム内の`tools/capcut_tts/tts.cmd`は、共通版があればそちらを呼ぶ。共通版のない別PCでは同梱版で動く。既存のコマンドも使い続けられる。
+
+## 共通配置と更新
+
+このPCでは配置済み。各プロジェクトで作り直したり、このゲームのフォルダを読みに来たりする必要はない。音声・台詞は各プロジェクトの`output/`に保存し、本体や共通スキルと分ける。Claude Code・Codexの既存セッションで共通スキルが見えない場合は、新しいセッションで読み込む。
+
+保守用ソースはこのゲームのGit内に残してある。更新時はソースを変更して、`tools/capcut_tts/install_shared.ps1`を1回実行すると共通本体と共通手順書へ反映する。スキルのリンクは既存の別スキルを上書きしない。通常の音声生成時はこの更新操作は不要。
 
 ## 確認できたこと・制約
 
@@ -33,12 +45,12 @@
 
 ## 別PCでのセットアップ
 
-Python 3.10以上とGitを入れ、PowerShellで`tools\capcut_tts\setup.ps1`を実行する。依存は`%USERPROFILE%\.cache\codex-audio\capcut-deps`へ分離して入れる。CapCutクライアントはコミット`150e49bee79462f83f527498535cd39ad5c74dcb`に固定している。
+Python 3.10以上とGitを入れ、このツールフォルダの`setup.ps1`で依存を準備し、`install_shared.ps1`で共通配置する。依存は`%USERPROFILE%\.cache\codex-audio\capcut-deps`へ分離して入れる。CapCutクライアントはコミット`150e49bee79462f83f527498535cd39ad5c74dcb`に固定している。
 
 ## 関連チェック
 
 ```powershell
-python -m unittest discover -s tools/capcut_tts -p test_cli.py
+python -m unittest discover -s "$env:USERPROFILE\Tools\capcut-tts" -p test_cli.py
 ```
 
 保存時の失敗・入力検証・声の解決を確認する。テストでCapCutへの生成要求は送らない。
