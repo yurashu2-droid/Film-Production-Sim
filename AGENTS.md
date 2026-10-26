@@ -20,6 +20,8 @@ Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディ�
   （先に `.claude/skills/godot-vfx/PLAYBOOK.md` の手順を読む）
 - **UVI Player・Prisma・UVI StarterでSEを作る／登録音色をコードから鳴らす** → `.claude/skills/uvi-se/SKILL.md`
   （Claude・Codex共通。`tools/uvi_direct/uvi.cmd voices` で登録状況を確認できる）
+- **CapCutで台詞・ナレーション・読み上げ音声を生成する** → `.claude/skills/capcut-tts/SKILL.md`
+  （Claude・Codex共通。「快活な女の子」も指定できる）
 
 ## VFX の資料（Claude Code / Codex 共通）
 
