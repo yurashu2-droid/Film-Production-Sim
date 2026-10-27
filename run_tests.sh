@@ -233,7 +233,10 @@ script_case parody-stairs-test 200 'STAIRS_TEST_OK' parody_stairs_test.gd --fixe
 script_case parody-noodle-test 200 'NOODLE_TEST_OK' parody_noodle_test.gd --fixed-fps 60
 script_case parody-car-test 200 'CARCM_TEST_OK' parody_car_test.gd --fixed-fps 60
 script_case night-filter 90 'NIGHT_TEST_OK' night_filter_test.gd --fixed-fps 60
-script_case scripts-catalog 40 'SCRIPTS_CATALOG_TEST_OK' scripts_catalog_test.gdscript_case parody-lottery-test 200 'LOTTERY_TEST_OK' parody_lottery_test.gd --fixed-fps 60script_case parody-duel-test 200 'DUEL_TEST_OK' parody_duel_test.gd --fixed-fps 60script_case parody-cooking-test 200 'COOKING_TEST_OK' parody_cooking_test.gd --fixed-fps 60
+script_case scripts-catalog 40 'SCRIPTS_CATALOG_TEST_OK' scripts_catalog_test.gd
+script_case parody-lottery-test 200 'LOTTERY_TEST_OK' parody_lottery_test.gd --fixed-fps 60
+script_case parody-duel-test 200 'DUEL_TEST_OK' parody_duel_test.gd --fixed-fps 60
+script_case parody-cooking-test 200 'COOKING_TEST_OK' parody_cooking_test.gd --fixed-fps 60
 script_case backdrop 90 'BACKDROP_TEST_OK' backdrop_test.gd --fixed-fps 60
 script_case start-day 60 'START_DAY_TEST_OK' start_day_test.gd --fixed-fps 60
 script_case junk-bags 120 'JUNK_TEST_OK' junk_bags_test.gd --fixed-fps 60
