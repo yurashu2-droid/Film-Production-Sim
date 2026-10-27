@@ -1,13 +1,14 @@
 extends "res://tests/pair_net_base.gd"
 # 監督の机の二人通信：
 #   スライド：ホストが決めた中身が、参加者にも、あとから入った人にも、同じに届く
-#   のぞき箱：参加者がのぞくと、ホストは使えない。やめるとホストが使える。誰がのぞいているかは、両方の画面で姿に出る
+#   参考写真：台本に挟まっている（2026-10-24 から。前の「のぞき箱」。中の名前は peep のまま）。台本を持つ人だけが見られる。
+#             参加者が台本を持って見ると、ホストは見られない。台本を渡すとホストが見られる。誰が台本を持っているかは、両方で同じ
 #   発注　　：開くのは、頼んだ人の画面だけ。その間もホストは歩ける・物を持てる・時計が進む。
 #             選んでいる途中の物は届かず、決めると届く。決めずに閉じる・途中で抜ける、は前の注文へ戻る。
 #             ホストが持っている物や接着は、発注を決めても、そのまま
 #   godot --headless --path godot res://tests/director_net_test.tscn -- --director-net-test-host   （参加者は -client）
 
-const CLIENT_SPOT := Vector3(71.5, 0.1, 1.7)      # 机の前（のぞき箱と電話のどちらにも近い）
+const CLIENT_SPOT := Vector3(71.5, 0.1, 1.7)      # 机の前（電話に近い）
 const HOST_SPOT := Vector3(72.7, 0.1, 2.4)
 const WORK_SPOT := Vector3(77.5, 0.1, 9.5)        # 事務所の外の空いた所（西へ歩ける）
 
@@ -27,7 +28,14 @@ func view() -> Dictionary:
 	for id: int in game.players:
 		var pose: Node = game.players[id].vis.skel.get_node_or_null("DeskPose")
 		poses[id] = str(pose.mode) if pose != null else ""
+	# 台本を持っている人（それぞれの画面で、誰の手に台本があるか。物の holder はホストだけが持つので、人の held で見る）
+	var book: Node = flow.script_prop
+	var holder := 0
+	for id: int in game.players:
+		if book != null and int(game.players[id].held) == book.pid:
+			holder = id
 	return {"phase": flow.phase, "slides": flow.slides, "peeper": flow.peeper, "orderer": flow.orderer, "ordered": flow.ordered,
+		"script_holder": holder,
 		"order": game.order, "buying": game.buying, "expenses": flow.expenses, "poses": poses,
 		"dolly": not first("dolly").absent, "bomb": not game.fx.absent, "sandbag": not first("sandbag").absent,
 		"glue": game.adhesive.pairs.size(), "prep": flow.prep_left,
@@ -44,8 +52,22 @@ func host_action(action: String, arg: Variant, who: int) -> Dictionary:
 			crew_to(1, HOST_SPOT)
 			crew_to(who, CLIENT_SPOT)
 		"peep":
-			# ホストの制作班が、のぞく・やめる（F を押したのと同じ道筋）
+			# ホストの制作班が、台本の写真を見る・やめる（台本を開いて F を押したのと同じ道筋）
 			game.h_peep(bool(arg))
+		"script_near":
+			# 台本を、その人の前に出しておく（持つのは、その人が自分で）
+			var spot: Vector3 = (game.players[int(arg)] as Node3D).global_position
+			place(game.production.script_prop, spot + Vector3(0, 0.6, -0.7))
+			game.production.script_prop.set_fixed(false)
+		"take_script":
+			# ホストの制作班が、台本を手に取る
+			var book: Node = game.production.script_prop
+			place(book, game.local_player().global_position + Vector3(0, 0.6, -0.7))
+			book.set_fixed(false)
+			await wait(0.1)
+			game.h_grab(book.pid)
+		"release":
+			game.h_release()
 		"order":
 			# ホストの制作班が、発注の画面を開こうとする
 			game.h_open_order()
@@ -90,37 +112,48 @@ func client_run() -> void:
 	check(not deck.is_empty() and (deck["rows"] as Array).size() == 3 and int(deck["job"]) == job_of("kaiju"), "the host decided the slides for this job")
 	await sees(reply["view"], ["slides", "phase"], "host and participant have the same slides")
 
-	# ---- のぞき箱：一度に1人。誰がのぞいているかは、両方の画面で見える ----
+	# ---- 参考写真：台本を持つ1人だけ。誰が台本を持っているかは、両方の画面で同じ ----
 	game.h_peep.rpc_id(1, true)
-	check(await until(func() -> bool: return desk.peeping()), "the participant starts peeping")
 	await wait(0.3)
-	check(desk.view.visible and desk.view.count() == 5 and desk.view.shown_kinds(0).size() == 9 and game.ui_blocking(), "the participant's screen shows the slides and nothing else")
+	check(not desk.peeping() and flow.peeper == 0, "without the script, the participant cannot look at the photos")
+	await request("script_near", mine)
+	var book: Node = flow.script_prop
+	await wait(0.3)
+	game.h_grab.rpc_id(1, book.pid)
+	check(await until(func() -> bool: return game.local_player().held == book.pid), "the participant takes the script")
+	game.h_peep.rpc_id(1, true)
+	check(await until(func() -> bool: return desk.peeping()), "the participant starts looking at the photos")
+	await wait(0.3)
+	check(desk.view.visible and desk.view.count() == 5 and desk.view.shown_kinds(0).size() == 9 and game.ui_blocking(), "the participant's screen shows the photos and nothing else")
 	reply = await request("snapshot")
-	check(reply["view"]["peeper"] == mine and str(reply["view"]["poses"].get(mine, "")) == "peep", "the host sees the participant leaning over the peep box")
+	check(reply["view"]["peeper"] == mine and int(reply["view"]["script_holder"]) == mine, "the host sees the participant with the script, looking")
 	check(not reply["view"]["slide"] and not reply["view"]["blocked"] and not reply["view"]["peeping"], "the host's own screen is not covered")
 	reply = await request("peep", true)
-	check(reply["view"]["peeper"] == mine and not reply["view"]["peeping"], "the host cannot peep while the participant does")
+	check(reply["view"]["peeper"] == mine and not reply["view"]["peeping"], "the host cannot look while the participant has the script")
 	game.h_peep.rpc_id(1, false)
 	check(await until(func() -> bool: return not desk.peeping() and not desk.view.visible), "the participant stops, and the world is back")
+	game.h_release.rpc_id(1)
+	check(await until(func() -> bool: return game.local_player().held == 0), "the participant puts the script down")
+	await request("take_script")
 	reply = await request("peep", true)
-	check(reply["view"]["peeper"] == 1 and reply["view"]["peeping"] and reply["view"]["slide"], "now the host can peep")
-	await sees(reply["view"], ["peeper"], "the participant knows the box is taken")
-	check(await until(func() -> bool: return game.players[1].vis.skel.get_node_or_null("DeskPose") != null), "and sees the host leaning over the box")
+	check(reply["view"]["peeper"] == 1 and reply["view"]["peeping"] and reply["view"]["slide"] and int(reply["view"]["script_holder"]) == 1, "now the host has the script and can look")
+	await sees(reply["view"], ["peeper", "script_holder"], "the participant knows the host has the script and is looking")
 	game.h_peep.rpc_id(1, true)
 	reply = await request("snapshot")
-	check(reply["view"]["peeper"] == 1 and not desk.peeping() and not desk.view.visible, "the participant is refused while the host peeps")
+	check(reply["view"]["peeper"] == 1 and not desk.peeping() and not desk.view.visible, "the participant is refused while the host looks")
 
-	# ---- あとから入った人にも、同じスライドと「誰がのぞいているか」が届く ----
+	# ---- あとから入った人にも、同じスライドと「誰が見ているか」が届く ----
 	await rejoin()
 	flow = game.production
 	desk = game.director
 	mine = Net.my_id()
 	reply = await request("snapshot")
-	check(reply["view"]["slides"] == deck and reply["view"]["peeper"] == 1, "the host still has the same slides, and is still peeping")
-	await sees(reply["view"], ["slides", "peeper", "phase", "ordered"], "a late joiner receives the same slides and who is peeping", LATE)
-	check(await until(func() -> bool: return game.players.has(1) and game.players[1].vis.skel.get_node_or_null("DeskPose") != null, LATE), "and sees the host at the peep box")
+	check(reply["view"]["slides"] == deck and reply["view"]["peeper"] == 1, "the host still has the same slides, and is still looking")
+	await sees(reply["view"], ["slides", "peeper", "phase", "ordered", "script_holder"], "a late joiner receives the same slides, who is looking and who has the script", LATE)
 	reply = await request("peep", false)
-	await sees(reply["view"], ["peeper"], "the host stops peeping")
+	await sees(reply["view"], ["peeper"], "the host stops looking")
+	reply = await request("release")
+	await sees(reply["view"], ["script_holder"], "and puts the script down")
 
 	# ---- 発注：開くのは、頼んだ人の画面だけ。ホストは止まらない ----
 	reply = await request("desk")

@@ -1,6 +1,7 @@
 extends SceneTree
-# 監督の机の確認：のぞき箱（参考スライド）・みんなの画面から外した情報・自分にだけ開く発注。
-#   のぞき箱：F でのぞける / のぞいている間は世界が隠れる / 2人目は使えない / やめると次の人が使える / 出発後は使えない
+# 監督の机の確認：台本に挟まった参考写真（参考スライド）・みんなの画面から外した情報・自分にだけ開く発注。
+#   参考写真：台本を持って開き、もう一度 F で見る / 見ている間は世界が隠れる / 台本を持たない人は見られない / やめると台本は手に残る
+#             移動中は見られない / 現場でも本番の前なら見られる（2026-10-24 から。机の上の物は発注の電話だけ）
 #   スライド：役ごとにシルエットが並ぶ / 名前や属性の文字が無い / 役ごとに今日手に入る物が混ざる / 「＋」の組は本当にコンボ
 #   画面　　：台本を持たない人には、場面の一覧と配役表が無い / 台本を持つと見られる / 発注画面に今日の廃材の一覧が無い
 #   発注　　：開いている間も、ほかの人は動ける・物を持てる・時計が進む / 決めると物が届く / ほかの人の手や接着には触らない
@@ -73,9 +74,11 @@ func face(at: Vector3) -> void:
 	await frames(6)
 
 
-# 机の前に立って、机の上の物（のぞき箱・電話）を見る
-func stand_at_desk(thing_at: Vector3) -> void:
-	me.global_position = Vector3(thing_at.x, 0.1, 2.3)
+# 机の前に立って、机の上の物（電話）を見る。
+# すぐ前（1.4 m）に立つ：2 m 離れると、三人称のカメラが社屋の書割の外に出て、照準の線が書割の当たり判定に止められる
+# （ゲームの不具合として報告済み。test_order の最初で、その場合だけを別に確かめる）
+func stand_at_desk(thing_at: Vector3, z: float = 1.7) -> void:
+	me.global_position = Vector3(thing_at.x, 0.1, z)
 	me.velocity = Vector3.ZERO
 	await frames(2)
 	await face(thing_at + Vector3(0, 0.25, 0.05))
@@ -357,58 +360,68 @@ func test_slides() -> void:
 	check((flow.snapshot()["slides"] as Dictionary) == deck, "the slides travel in the snapshot")
 
 
-# ---- のぞき箱 ----
+# ---- 台本に挟まった参考写真（中の名前は、前の「のぞき箱」のまま peep） ----
+# 2026-10-24 から、机の上の写真の台は無い。台本を持って開き、もう一度 F で写真を見る（production_director.gd の冒頭）
+
+# 台本を、自分の前に出して持つ
+func hold_script() -> Node:
+	var book: Node = flow.script_prop
+	if me.held == book.pid:
+		return book
+	if me.held != 0:
+		game.h_release()
+		await frames(3)
+	book.restore([me.global_position + me.flat_forward() * 0.9 + Vector3(0, 0.6, 0), Quaternion.IDENTITY, false])
+	await frames(3)
+	game.h_grab(book.pid)
+	await frames(3)
+	return book
+
 
 func test_peep_box() -> void:
 	var view: CanvasLayer = desk.view
 	var box: Vector3 = desk.BOX_AT
-	check(desk.open_hours() and not desk.peeping() and not view.visible, "the peep box is open once a job is taken, and nobody is looking")
-	# 机の前に立って、箱を見る
+	check(desk.open_hours() and not desk.peeping() and not view.visible, "the photos can be seen once a job is taken, and nobody is looking")
+	# 机の上には、もう写真の台は無い（机の物は発注の電話だけ）。手ぶらでは写真は見られない
 	await stand_at_desk(box)
-	check(desk.aimed() == "peep", "looking at the box aims at it (%s)" % desk.aimed())
-	# すぐ前に立って、そちらを向くだけでも使える（照準を机の上まで下げなくてよい）。背を向けると外れる
-	me.global_position = desk.stand_point(me)
-	me.aim_yaw = 0.0
+	check(desk.aimed() != "peep" and desk._root.get_node_or_null("PeepBox") == null, "the desk has no peep box any more (%s)" % desk.aimed())
+	game.h_peep(true)
+	await frames(2)
+	check(flow.peeper == 0 and not desk.peeping(), "without the script, the photos cannot be seen")
+
+	# 台本を持つ → F で開く → もう一度 F で、挟まった写真を見る
+	var book: Node = await hold_script()
+	me.aim_yaw = PI
 	me.aim_pitch = 0.0
 	await frames(4)
-	var close: String = desk.aimed()
-	me.aim_yaw = PI
-	await frames(4)
-	check(close == "peep" and desk.aimed() == "", "standing right at the box and facing it is enough, turning away is not (%s / %s)" % [close, desk.aimed()])
-	await stand_at_desk(box)
-	await process_frame
-	await process_frame
-	check("のぞき箱" in game.hud.target_label.text and "F のぞく" in game.hud.keys.text, "the box shows its name and the F hint (%s / %s)" % [game.hud.target_label.text, game.hud.keys.text.get_slice("\n", 0)])
+	refresh_hud()
+	check(me.held == book.pid and "F 台本を開く" in game.hud.keys.text, "holding the script, F opens it (%s)" % game.hud.keys.text.get_slice("\n", 0))
+	press(KEY_F)
+	await frames(3)
+	refresh_hud()
+	check(game.script_open and "F 挟まっている写真を見る" in game.hud.keys.text, "with the script open, F looks at the tucked-in photos (%s)" % game.hud.keys.text.get_slice("\n", 0))
 	var clock_before: float = flow.prep_left
+	var stood_at: Vector3 = me.global_position
 	press(KEY_F)
 	await frames(4)
-	check(flow.peeper == me.peer_id and desk.peeping(), "F at the box starts peeping")
+	check(flow.peeper == me.peer_id and desk.peeping() and not game.script_open, "F again starts looking at the photos")
 	var screen := Rect2(Vector2.ZERO, root.get_visible_rect().size)
-	check(view.visible and is_equal_approx(view.cover.color.a, 1.0) and view.cover.get_global_rect().encloses(screen), "while peeping, an opaque cover hides the whole world")
-	check(view.layer > game.hud.layer and view.layer > game.production_hud.layer, "the slide sits above every other screen")
-	check(game.ui_blocking() and desk.aimed() == "", "the peeper cannot act on the world")
-	check(me.global_position.distance_to(desk.stand_point(me)) < 0.25 and absf(wrapf(me.vis.rotation.y - PI, -PI, PI)) < 0.05, "the peeper stands at the box, facing it")
-	var skel: Skeleton3D = me.vis.skel
-	check(skel.get_node_or_null("DeskPose") != null and skel.get_node("DeskPose").mode == "peep", "the peeper leans to the eyepiece (pose on the skeleton)")
-	# 姿勢は、骨格を描く直前にだけ重なる。肩が、立っているときより前へ出ていることを、その時に測る
-	var shoulder: int = skel.find_bone("UPPER_ARM.L")
-	var lean := [0.0]
-	var probe := func() -> void: lean[0] = skel.get_bone_global_pose(shoulder).origin.z - skel.get_bone_global_rest(shoulder).origin.z
-	skel.skeleton_updated.connect(probe)
-	await frames(4)
-	skel.skeleton_updated.disconnect(probe)
-	check(lean[0] > 0.1, "the body is really tilted forward (shoulder %.2f ahead)" % lean[0])
+	check(view.visible and is_equal_approx(view.cover.color.a, 1.0) and view.cover.get_global_rect().encloses(screen), "while looking, an opaque cover hides the whole world")
+	check(view.layer > game.hud.layer and view.layer > game.production_hud.layer, "the photo sits above every other screen")
+	check(game.ui_blocking() and desk.aimed() == "", "the one looking cannot act on the world")
+	check(me.held == book.pid and me.global_position.distance_to(stood_at) < 0.2, "the looker keeps the script in hand and stays where they were")
+	check(me.vis.skel.get_node_or_null("DeskPose") == null, "no fixed pose is put on the looker (they just look down at the script)")
 
-	# スライド：役ごとのシルエット・好み・絵コンテ
+	# 写真：役ごとのシルエット・好み・絵コンテ
 	var deck: Dictionary = flow.slides
 	var scenes: Array = flow.job()["scenes"]
-	check(view.count() == 2 + scenes.size() and view.page == 0, "there are slides for the roles, the client's taste and each scene (%d)" % view.count())
+	check(view.count() == 2 + scenes.size() and view.page == 0, "there are photos for the roles, the client's taste and each scene (%d)" % view.count())
 	var row_kinds: Array = []
 	var captions: Array = []
 	for row: Array in deck["rows"]:
 		row_kinds.append_array(row[1])
 		captions.append(Cast.role_name(str(row[0]), "kaiju") + ("に" if row[0] == "boom" else "の役に"))
-	check(view.shown_kinds(0) == row_kinds, "the first slide lines up the silhouettes role by role")
+	check(view.shown_kinds(0) == row_kinds, "the first photo lines up the silhouettes role by role")
 	check(view.texts(0) == captions, "the only words on it are the short role captions %s" % str(view.texts(0)))
 	var words: Array = view.texts(0) + view.texts(1)
 	var leaks: Array = []
@@ -422,18 +435,21 @@ func test_peep_box() -> void:
 			for word: String in words:
 				if attr in word:
 					leaks.append(attr)
-	check(leaks.is_empty(), "no prop name and no attribute is written on the slides %s" % str(leaks))
-	var pictures: Array = (view.pages[0] as Control).find_children("*", "TextureRect", true, false).filter(func(pic: TextureRect) -> bool: return pic.has_meta("kind"))
-	check(pictures.size() == row_kinds.size() and pictures.all(func(pic: TextureRect) -> bool: return pic.texture != null and pic.material is ShaderMaterial), "every shape is drawn through the silhouette shader, not as a colour photo")
-	var like_kinds: Array = []
-	for group: Array in deck["likes"]:
-		like_kinds.append_array(group)
-	check(view.shown_kinds(1) == like_kinds and view.texts(1) == ["依頼主の好み"], "the second slide shows the client's taste as shapes, without naming the attribute")
-	check((view.pages[2] as Control).find_children("*", "TextureRect", true, false).size() == 1 and str(scenes[0]).get_slice("（", 0) in view.texts(2), "then one storyboard per scene")
+	check(leaks.is_empty(), "no prop name and no attribute is written on the photos %s" % str(leaks))
+	if view.pages.size() >= 3:
+		var pictures: Array = (view.pages[0] as Control).find_children("*", "TextureRect", true, false).filter(func(pic: TextureRect) -> bool: return pic.has_meta("kind"))
+		check(pictures.size() == row_kinds.size() and pictures.all(func(pic: TextureRect) -> bool: return pic.texture != null and pic.material is ShaderMaterial), "every shape is drawn through the silhouette shader, not as a colour photo")
+		var like_kinds: Array = []
+		for group: Array in deck["likes"]:
+			like_kinds.append_array(group)
+		check(view.shown_kinds(1) == like_kinds and view.texts(1) == ["依頼主の好み"], "the second photo shows the client's taste as shapes, without naming the attribute")
+		check((view.pages[2] as Control).find_children("*", "TextureRect", true, false).size() == 1 and str(scenes[0]).get_slice("（", 0) in view.texts(2), "then one storyboard per scene")
+	else:
+		check(false, "the photo pages exist (%d)" % view.pages.size())
 
 	# 送る：A/D・クリック・ホイール。端まで行くと回る
 	press(KEY_D)
-	check(view.page == 1 and (view.pages[1] as Control).visible and not (view.pages[0] as Control).visible, "D shows the next slide")
+	check(view.page == 1 and (view.pages[1] as Control).visible and not (view.pages[0] as Control).visible, "D shows the next photo")
 	press(KEY_A)
 	check(view.page == 0, "A goes back")
 	mouse(MOUSE_BUTTON_LEFT)
@@ -442,107 +458,40 @@ func test_peep_box() -> void:
 	mouse(MOUSE_BUTTON_WHEEL_UP)
 	mouse(MOUSE_BUTTON_RIGHT)
 	press(KEY_A)
-	check(view.page == view.count() - 1, "going back past the first slide wraps to the last")
-	check(flow.peeper == me.peer_id and flow.prep_left < clock_before, "the peeper stays put, and the prep clock keeps running")
+	check(view.page == view.count() - 1, "going back past the first photo wraps to the last")
+	check(flow.peeper == me.peer_id and flow.prep_left < clock_before, "the looker stays put, and the prep clock keeps running")
 
-	# のぞいている人は、目印（ここ！）を出せない
+	# 写真を見ている人は、目印（ここ！）を出せない
 	game.h_ping(me.global_position + Vector3(0, 2, 0), Vector3.DOWN)
 	await frames(2)
-	check(game.production_ping.snapshot().is_empty(), "the peeper cannot point at things")
+	check(game.production_ping.snapshot().is_empty(), "the looker cannot point at things")
 
-	# やめる：F / Esc / 歩こうとする
+	# 一度に見られるのは、台本を持っている1人（台本は1冊）
+	var other: Node = add_crew(2, me.global_position + Vector3(0.9, 0, 0))
+	await frames(2)
+	check(not flow.peep(2, true) and flow.peeper == me.peer_id, "another crew member without the script cannot look")
+
+	# やめる：F / Esc / 歩こうとする。台本は手に残り、閉じる
 	press(KEY_F)
 	await frames(3)
-	check(flow.peeper == 0 and not desk.peeping() and not view.visible and not game.ui_blocking(), "F stops peeping and the world is back")
-	await frames(2)
-	check(skel.get_node_or_null("DeskPose") == null, "the pose is gone")
+	check(flow.peeper == 0 and not desk.peeping() and not view.visible and not game.ui_blocking() and not game.script_open and me.held == book.pid, "F stops looking, the world is back, the script is closed in hand")
 	for code: int in [KEY_ESCAPE, KEY_W]:
 		game.h_peep(true)
 		await frames(3)
 		var was: bool = desk.peeping()
 		press(code)
 		await frames(3)
-		check(was and flow.peeper == 0 and not view.visible and game.menu_open == "", "%s stops peeping too" % ("Esc" if code == KEY_ESCAPE else "trying to walk"))
-
-	# どのキャラでも、頭が箱へ深くめり込まない所に立つ（頭の大きな段ボール頭は、そのぶん下がって立つ）
-	var cast_before: int = game._roster[0][1]
-	var sinks: Array = []
-	for index in game.PLAYER_CASTS.size():
-		game.h_select_cast(index)
-		await frames(6)
-		sinks.append(snappedf(desk.head_sink(me), 0.01))
-	game.h_select_cast(cast_before)
-	await frames(6)
-	var box_head: float = sinks[game.PLAYER_CASTS.find("09")]
-	check(sinks.all(func(depth: float) -> bool: return depth <= desk.HEAD_SINK + 0.011) and is_equal_approx(box_head, desk.HEAD_SINK), "no character's head sinks deep into the box; the big box head stands further back %s" % str(sinks))
-
-	# 一人称（F2）でも同じ：箱・電話を見ると名前が出て、F でのぞける・やめられる
-	me.set_first_person(true)
-	me.global_position = Vector3(box.x, 0.1, 2.3)
-	me.velocity = Vector3.ZERO
-	await frames(3)
-	var seen_fp: Array = []
-	for at: Vector3 in [box + Vector3(0, 0.3, 0.05), desk.PHONE_AT + Vector3(0, 0.12, 0)]:
-		var to_thing: Vector3 = at - me.cam.global_position
-		me.aim_yaw = atan2(-to_thing.x, -to_thing.z)
-		me.aim_pitch = atan2(to_thing.y, Vector2(to_thing.x, to_thing.z).length())
-		await frames(6)
-		seen_fp.append(desk.aimed())
-	var to_box: Vector3 = box + Vector3(0, 0.3, 0.05) - me.cam.global_position
-	me.aim_yaw = atan2(-to_box.x, -to_box.z)
-	me.aim_pitch = atan2(to_box.y, Vector2(to_box.x, to_box.z).length())
-	await frames(6)
-	press(KEY_F)
-	await frames(4)
-	var peeped_fp: bool = desk.peeping() and view.visible and flow.peeper == me.peer_id
-	press(KEY_F)
-	await frames(4)
-	check(me.first_person and seen_fp == ["peep", "phone"] and peeped_fp and not desk.peeping() and not view.visible, "in first person, the box and the phone are aimed at and F peeps the same way %s" % str(seen_fp))
-	me.set_first_person(false)
-	await frames(3)
-
-	# 一度にのぞけるのは1人
-	var other: Node = add_crew(2, desk.stand_point(me) + Vector3(0.9, 0, 0))
-	await frames(2)
-	check(flow.peep(2, true) and flow.peeper == 2, "another crew member takes the box")
-	await frames(3)
-	check(other.vis.skel.get_node_or_null("DeskPose") != null and not view.visible, "everyone sees who is peeping, but only that person sees the slides")
-	await stand_at_desk(box)
-	await process_frame
-	check(desk.aimed() == "peep" and "使用中" in game.hud.target_label.text and "F のぞく" not in game.hud.keys.text, "the box says it is in use (%s)" % game.hud.target_label.text)
-	press(KEY_F)
+		check(was and flow.peeper == 0 and not view.visible and game.menu_open == "", "%s stops looking too" % ("Esc" if code == KEY_ESCAPE else "trying to walk"))
 	game.h_peep(true)
 	await frames(3)
-	check(flow.peeper == 2 and not desk.peeping(), "a second person cannot peep")
-	check(flow.peep(2, false) and flow.peeper == 0, "the first one stops")
-	await frames(2)
-	game.h_peep(true)
-	await frames(3)
-	check(flow.peeper == me.peer_id and desk.peeping(), "and the next one can use it")
+	check(flow.peeper == me.peer_id, "the script holder can look again")
 	flow.crew_left(me.peer_id)
 	await frames(3)
-	check(flow.peeper == 0 and not view.visible, "a peeper who leaves the game frees the box")
+	check(flow.peeper == 0 and not view.visible, "a looker who leaves the game frees the photos")
 
-	# 断られる場合：遠い・手に物を持っている
-	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
-	await frames(3)
-	game.h_peep(true)
-	check(flow.peeper == 0, "far from the box, peeping is refused")
-	var book: Node = flow.script_prop
-	me.global_position = Vector3(box.x, 0.1, 2.0)
-	await frames(3)
-	game.h_grab(book.pid)
-	await frames(3)
-	game.h_peep(true)
-	check(me.held == book.pid and flow.peeper == 0, "with something in hand, peeping is refused")
+	# 台本以外の物を持っていると、断られる
 	game.h_release()
 	await frames(3)
-
-	# 物を手に持ったまま箱を見る：名前の欄は箱の名前だけ（手に持った物の属性・役・特技の案内を、箱の名前に足さない）。
-	# 段ボール頭で確かめる（持った物に「K：頭にしまう」も付くキャラ）。操作の案内は、今までどおり下の行に出る
-	var my_cast: int = game._roster[0][1]
-	game.h_select_cast(game.PLAYER_CASTS.find("09"))
-	await frames(4)
 	var crown: Node = first("crown")
 	# 王冠は、日替わりで廃材置き場に出ていない日がある。確かめる間だけ、出しておく（終わったら元へ戻す）
 	var stash_before: Array = flow.stash.duplicate()
@@ -550,17 +499,58 @@ func test_peep_box() -> void:
 	if crown.pid in flow.stash:
 		game.host_ev("stash", [flow.stash.filter(func(pid: int) -> bool: return pid != crown.pid)])
 		await frames(2)
-	crown.restore([Vector3(box.x + 0.7, 0.3, 2.0), Quaternion.IDENTITY, false])
+	crown.restore([me.global_position + me.flat_forward() * 0.9 + Vector3(0, 0.3, 0), Quaternion.IDENTITY, false])
 	await frames(4)
 	game.h_grab(crown.pid)
 	await frames(3)
-	await stand_at_desk(box)
+	game.h_peep(true)
+	await frames(2)
+	check(me.held == crown.pid and flow.peeper == 0, "with something other than the script in hand, looking is refused")
+	game.h_release()
+	await frames(3)
+
+	# 一人称（F2）でも同じ：電話を見ると名前が出る。台本を開いて F で写真を見られる・やめられる
+	me.set_first_person(true)
+	me.global_position = Vector3(desk.PHONE_AT.x, 0.1, 2.3)
+	me.velocity = Vector3.ZERO
+	await frames(3)
+	var to_phone: Vector3 = desk.PHONE_AT + Vector3(0, 0.12, 0) - me.cam.global_position
+	me.aim_yaw = atan2(-to_phone.x, -to_phone.z)
+	me.aim_pitch = atan2(to_phone.y, Vector2(to_phone.x, to_phone.z).length())
+	await frames(6)
+	var seen_fp: String = desk.aimed()
+	me.aim_yaw = PI
+	me.aim_pitch = 0.0
+	await frames(3)
+	await hold_script()
+	press(KEY_F)
+	await frames(3)
+	press(KEY_F)
+	await frames(4)
+	var peeped_fp: bool = desk.peeping() and view.visible and flow.peeper == me.peer_id
+	press(KEY_F)
+	await frames(4)
+	check(me.first_person and seen_fp == "phone" and peeped_fp and not desk.peeping() and not view.visible, "in first person, the phone is aimed at and the script's photos open the same way (%s)" % seen_fp)
+	me.set_first_person(false)
+	game.h_release()
+	await frames(3)
+
+	# 物を手に持ったまま電話を見る：名前の欄は電話の名前だけ（手に持った物の属性・役・特技の案内を、足さない）。
+	# 段ボール頭で確かめる（持った物に「K：頭にしまう」も付くキャラ）。操作の案内は、今までどおり下の行に出る
+	var my_cast: int = game._roster[0][1]
+	game.h_select_cast(game.PLAYER_CASTS.find("09"))
+	await frames(4)
+	crown.restore([Vector3(desk.PHONE_AT.x + 0.7, 0.3, 2.0), Quaternion.IDENTITY, false])
+	await frames(4)
+	game.h_grab(crown.pid)
+	await frames(3)
+	await stand_at_desk(desk.PHONE_AT)
 	refresh_hud()
 	var in_hand: String = game.hud.target_label.text
 	var hand_keys: String = game.hud.keys.text
-	check(me.held == crown.pid and desk.aimed() == "peep" and in_hand == "のぞき箱（参考スライド）", "with a prop in hand, the box still shows only its own name (%s)" % in_hand)
+	check(me.held == crown.pid and desk.aimed() == "phone" and in_hand == "発注の電話", "with a prop in hand, the phone still shows only its own name (%s)" % in_hand)
 	check("手ぶらで F" in hand_keys and "K 頭にしまう" in hand_keys and "Y 役を決める" in hand_keys, "and the hints for the prop in hand stay on the key line (%s)" % hand_keys.get_slice("\n", 0))
-	# 箱から目を離せば、手に持った物の属性と特技の案内が、今までどおり名前の欄に出る
+	# 電話から目を離せば、手に持った物の属性と特技の案内が、今までどおり名前の欄に出る
 	me.aim_yaw = PI
 	me.aim_pitch = 0.0
 	await frames(6)
@@ -570,52 +560,69 @@ func test_peep_box() -> void:
 	game.h_select_cast(my_cast)
 	await frames(4)
 
-	# 段ボール頭の仲間が箱の前に立っている：頭に物をしまっていれば、その頭の道具箱が先（F は「頭から取り出す」）。
-	# 何もしまっていなければ、仲間ごしに箱を見られる
+	# 段ボール頭の仲間が電話の前に立っている：頭に物をしまっていれば、その頭の道具箱が先（F は「頭から取り出す」）。
+	# 何もしまっていなければ、仲間ごしに電話を見られる
 	for row: Array in game._roster:
 		if row[0] == 2:
 			row[1] = game.PLAYER_CASTS.find("09")
 	game._apply_roster()
-	other.global_position = desk.stand_point(other)
+	other.global_position = Vector3(desk.PHONE_AT.x, 0.05, 1.2)
 	crown.restore([other.global_position + Vector3(1.2, 0.3, 0.8), Quaternion.IDENTITY, false])
 	await frames(4)
-	# 仲間の1.6 m 後ろから、頭ごしに箱を見る（頭の道具箱は、自分より先にいる相手のだけ狙える）
-	me.global_position = Vector3(box.x, 0.1, other.global_position.z + 1.6)
+	# 仲間の1.6 m 後ろから、頭ごしに電話を見る（頭の道具箱は、自分より先にいる相手のだけ狙える）。
+	# 一人称で見る（三人称だと、カメラが社屋の書割の外に出て、照準が書割に止まる。報告済みの不具合）
+	me.set_first_person(true)
+	me.global_position = Vector3(desk.PHONE_AT.x, 0.1, other.global_position.z + 1.6)
 	me.velocity = Vector3.ZERO
-	await frames(2)
-	await face(box + Vector3(0, 0.25, 0.05))
+	await frames(3)
+	var to_phone2: Vector3 = desk.PHONE_AT + Vector3(0, 0.12, 0) - me.cam.global_position
+	me.aim_yaw = atan2(-to_phone2.x, -to_phone2.z)
+	me.aim_pitch = atan2(to_phone2.y, Vector2(to_phone2.x, to_phone2.z).length())
+	await frames(6)
 	var through: String = desk.aimed()
 	game.host_ev("stow", [2, crown.pid, true])
 	await frames(6)
 	refresh_hud()
-	var head_first: bool = game.talent.crew_aimed(me) == 2 and desk.aimed() == "" and "頭の道具箱" in game.hud.target_label.text and "のぞく" not in game.hud.keys.text
-	check(through == "peep" and head_first, "a crew member's head box in front of the peep box comes first (%s / %s)" % [through, game.hud.target_label.text])
+	var head_first: bool = game.talent.crew_aimed(me) == 2 and desk.aimed() == "" and "頭の道具箱" in game.hud.target_label.text and "発注する" not in game.hud.keys.text
+	check(through == "phone" and head_first, "a crew member's head box in front of the phone comes first (%s / %s)" % [through, game.hud.target_label.text])
 	# F は机が受け取らず、次の「頭から取り出す」へ回る（取り出すところまでは、ここでは押さない。相手が本物の参加者でないため）
-	check(not desk.handle_f(me) and flow.peeper == 0 and not desk.peeping(), "and the desk leaves F to the head box")
+	check(not desk.handle_f(me) and flow.orderer == 0, "and the desk leaves F to the head box")
 	game.host_ev("stow", [2, crown.pid, false])
 	await frames(6)
-	check(game.talent.crew_aimed(me) == 0 and desk.aimed() == "peep", "once that head is empty, the box can be aimed at again")
+	check(game.talent.crew_aimed(me) == 0 and desk.aimed() == "phone", "once that head is empty, the phone can be aimed at again")
+	me.set_first_person(false)
 	crown.restore(crown_home)
 	game.host_ev("stash", [stash_before])
 	await frames(2)
 
-	# 出発したら使えない（のぞいていた人も、外れる）
+	# 出発すると、見ていた人も外れる。移動中は見られない
 	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	other.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 1.2)
 	flow.peeper = 2
 	await frames(3)
 	game.h_depart()
 	await frames(3)
-	check(flow.phase == 3 and flow.peeper == 0 and not desk.peeping() and not desk.open_hours(), "leaving for the set closes the box")
+	check(flow.phase == 3 and flow.peeper == 0 and not desk.peeping() and not desk.open_hours(), "leaving for the set closes the photos")
 	game.h_peep(true)
-	check(flow.peeper == 0, "nobody can peep on the road")
+	check(flow.peeper == 0, "nobody can look on the road")
 	for i in 900:
 		if flow.phase == 4:
 			break
 		await physics_frame
+	await frames(4)
+	# 現場でも、本番の前なら、台本を持てば写真を見られる（会社でも現場でも）
 	game.h_peep(true)
 	await frames(2)
-	check(flow.phase == 4 and flow.peeper == 0 and not view.visible, "nor on the set")
+	var empty_handed: bool = flow.peeper == 0
+	await hold_script()
+	game.h_peep(true)
+	await frames(3)
+	check(flow.phase == 4 and empty_handed and flow.peeper == me.peer_id and view.visible, "on the set, before the take, the script holder can still look at the photos")
+	game.h_peep(false)
+	await frames(3)
+	game.h_release()
+	await frames(3)
+	check(flow.peeper == 0 and not view.visible and not game.reads_script(), "and stops again")
 
 
 # ---- 発注：自分の画面にだけ開く。ほかの人は止まらない ----
@@ -660,6 +667,9 @@ func test_order() -> void:
 	var book: Node = flow.script_prop
 	check(flow.phase == 2 and flow.orderer == 0 and flow.ordered.is_empty() and not game.ordering() and dolly.absent and rose.absent, "a new job starts with nothing ordered and nobody ordering")
 
+	# 三人称で、机から 2 m 離れて電話を狙う：書割は自分の視点から消えている（office_facade.gd）ので、照準も通ってほしい
+	await stand_at_desk(desk.PHONE_AT, 2.3)
+	check(desk.aimed() == "phone", "in third person, the phone 2 m away can be aimed at past the office facade (%s)" % desk.aimed())
 	# 机の電話を見て F：自分の画面にだけ、発注の画面が開く。全体は止まらない
 	await stand_at_desk(desk.PHONE_AT)
 	refresh_hud()
@@ -697,7 +707,8 @@ func test_order() -> void:
 	game.adhesive.rebuild()
 	me.global_position = Vector3(77.5, 0.1, 9.5)
 	me.aim_yaw = PI * 0.5
-	other.global_position = Vector3(desk.PHONE_AT.x, 0.1, 1.6)
+	# 電話の人は、少し横に立つ（あとで自分が電話のすぐ前に立つので、重ならないように）
+	other.global_position = Vector3(desk.PHONE_AT.x + 0.9, 0.1, 1.4)
 	await frames(20)
 	var moved_dolly: Vector3 = dolly.global_position
 	game.h_grab(rose.pid)
@@ -770,19 +781,23 @@ func test_order() -> void:
 	await frames(3)
 	check(flow.orderer == 0 and int(game.order.get("fx", 0)) == 0 and not game.ordering(), "an orderer who leaves the game frees the desk")
 
-	# のぞき箱と発注は、同時にはできない
+	# 台本の写真を見ることと発注は、同時にはできない（台本を持って試す）
+	me.global_position = Vector3(desk.PHONE_AT.x, 0.1, 2.0)
+	await frames(2)
+	await hold_script()
 	game.h_open_order()
-	me.global_position = desk.stand_point(me)
 	await frames(2)
 	game.h_peep(true)
-	check(flow.orderer == me.peer_id and flow.peeper == 0, "while ordering, the peep box is refused")
+	check(flow.orderer == me.peer_id and flow.peeper == 0, "while ordering, the script's photos are refused")
 	game.h_order_close()
 	await frames(2)
 	game.h_peep(true)
 	await frames(3)
 	game.h_open_order()
-	check(flow.peeper == me.peer_id and flow.orderer == 0, "while peeping, ordering is refused")
+	check(flow.peeper == me.peer_id and flow.orderer == 0, "while looking at the photos, ordering is refused")
 	game.h_peep(false)
+	await frames(3)
+	game.h_release()
 	await frames(3)
 
 	# 荷台の決まった場所に先客がいたら、届いた爆弾は荷台の空いた所へ（重ねない・押しのけない）

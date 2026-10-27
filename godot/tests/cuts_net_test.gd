@@ -7,6 +7,7 @@ extends "res://tests/pair_net_base.gd"
 #           とばすと納品になり、参加者の画面でも「終」の札のあと、ギャラの読み上げが出る
 #   godot --headless --path godot res://tests/cuts_net_test.tscn -- --cuts-net-test-host   （参加者は -client）
 
+const CompanyLogo := preload("res://scripts/ui/company_logo.gd")
 const CAM_AT := Vector3(0.0, 0.0, 5.0)
 const AIM_WIDE := Vector3(0.0, 1.0, -1.6)
 const AIM_CLOSE := Vector3(0.0, 0.8, 1.8)
@@ -168,7 +169,12 @@ func client_run() -> void:
 	# ---- 試写会：参加者が納品を頼む ----
 	game.request_deliver(game.selected)
 	check(await until(func() -> bool: return premiere.screening == 0 and premiere._layer.visible, WAIT), "the participant's delivery request starts the screening on the participant's screen")
-	check(premiere._card_box.visible and premiere._card_big.text.contains(str(game.production.job()["title"])), "the participant sees the title card")
+	# 会社の紹介動画の題は「{会社} 紹介動画」（2026-10-24 から、会社の名前は看板の絵。premiere.gd の _film_name）。
+	# 看板の絵があれば絵入りの字（CompanyLogo の TWIN）で、無ければ「名無しの会社」の字で出る
+	var card_text: String = premiere._card_big.text
+	var twin: Node = premiere._card_big.get_node_or_null(CompanyLogo.TWIN)
+	var named: bool = (twin != null and twin.visible) if CompanyLogo.has_logo() else card_text.contains(CompanyLogo.NAMELESS)
+	check(premiere._card_box.visible and card_text.contains("紹介動画") and named, "the participant sees the title card (%s)" % card_text)
 	check(await until(func() -> bool: return premiere._chapter.text.begins_with("第") and premiere._chapter.modulate.a > 0.1, 10.0), "the participant sees a scene heading during the screening (%s)" % premiere._chapter.text)
 	reply = await request("skip")
 	check(int(reply["view"]["phase"]) == 5 and int(reply["view"]["payment"]) > 0, "skipping delivers the take on the host")

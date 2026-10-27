@@ -41,12 +41,16 @@ func run() -> void:
 		if prop != game.film and prop != game.clapper and prop != game.truck and prop.kind not in ["spot", "mark"]:
 			prop.set_absent(true)
 	carton.set_absent(false)
+	# 1日目の朝は軽トラが離れた所（TRUCK_AWAY）に停まっている（5dbba2b）。依頼を受けずに搬入を試すので、いつもの所へ戻す
+	game.production._move(game.truck, game.production.HOME_TRUCK, 0.0)
 	game.production.phase = 2
 	game.local_player().global_position = game.production.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	game.h_grab(carton.pid)
 	game.h_load_truck(carton.pid)
 	check(carton.rider_of == game.truck.pid, "real loading action carries cardboard")
 	game.host_unload(carton)
+	# 積み込みの置き直し（restore）は次の物理フレームで反映される。先に済ませないと、あとで動かした位置が荷台へ戻される
+	await frames(1)
 	game.production.phase = 4
 	game.local_player().global_position = Vector3(0, 0.1, 0)
 	game.host_unload(game.film)

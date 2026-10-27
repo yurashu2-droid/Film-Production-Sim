@@ -39,7 +39,10 @@ func camera_moves(game: Node, label: String) -> void:
 		var before := Vector2(player.aim_yaw, player.aim_pitch)
 		motion(point)
 		var delta: Vector2 = Vector2(player.aim_yaw, player.aim_pitch) - before
-		check(delta.is_equal_approx(Vector2(-0.104,0.039)), label + " camera responds over HUD at " + str(point))
+		# 視点の回り方は感度のつまみ（sens_scale、user://settings.cfg に残る）で変わるので、今の倍率から期待値を出す
+		var step: float = player.MOUSE_SENS * player.sens_scale
+		var want := Vector2(-40.0 * step, 15.0 * step)
+		check(delta.is_equal_approx(want), label + " camera responds over HUD at " + str(point) + " delta=" + str(delta) + " want=" + str(want))
 	await frames(2)
 	check(is_equal_approx(player.head.rotation.y, player.aim_yaw) and player.cam.current, label + " active camera follows aim")
 
@@ -91,7 +94,9 @@ func run() -> void:
 	before = Vector2(player.aim_yaw, player.aim_pitch)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	motion(Vector2(800,450), MOUSE_BUTTON_MASK_RIGHT)
-	check(is_equal_approx(player.hold_yaw-hold_before,-0.208) and Vector2(player.aim_yaw,player.aim_pitch).is_equal_approx(before), "right drag rotates held object without turning camera")
+	# 画面で見たままに回す（player.gd）：右へ動かすと上向きの軸まわりに＋へ回る。感度のつまみの倍率も掛かる
+	var hold_want: float = 40.0 * player.MOUSE_SENS * player.sens_scale * 2.0
+	check(is_equal_approx(player.hold_yaw-hold_before,hold_want) and Vector2(player.aim_yaw,player.aim_pitch).is_equal_approx(before), "right drag rotates held object without turning camera spin=" + str(player.hold_yaw-hold_before) + " want=" + str(hold_want))
 	player.held = 0
 	player.position = game.production.HOME_TRUCK + Vector3(-3,0.1,0)
 	await frames(3)
