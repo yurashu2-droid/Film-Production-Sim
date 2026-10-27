@@ -63,6 +63,15 @@ func build() -> void:
 	PropShapes.build(self, kind)
 
 
+# 荷台から落ちたかは、当たり判定の箱（土台）の中心で見る。center は寝ている板の真ん中で、
+# 土台より 0.6 m 前に出ているため、荷台の上にあっても外へはみ出して見えてしまう
+func ride_point() -> Vector3:
+	for c: Node in get_children():
+		if c is CollisionShape3D:
+			return global_transform * (c as CollisionShape3D).position
+	return center_global()
+
+
 # ギザギザの爆炎を絵に描く
 func _burst_texture() -> ImageTexture:
 	var n := 256

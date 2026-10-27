@@ -10,6 +10,14 @@ const SPAN_Y := Vector2(2.3, 8.0)          # 書割の下の端（1階の壁の�
 var game: Node
 var hidden := false           # いま、自分の視点から消しているか（確認用）
 var excluded_arm: SpringArm3D
+var solid_rid := RID()        # 書割の当たり判定（Solid）。見つけるまでは空
+
+
+# 自分の照準の線（机の物・小道具を狙う線）から外す書割の当たり判定。
+# 書割を自分の視点から消しているとき（事務所の中にいて、三人称のカメラが外にある）だけ返し、
+# それ以外（外から社屋を狙うとき）は空の RID を返す
+func aim_skip() -> RID:
+	return solid_rid if hidden else RID()
 
 
 func _process(_delta: float) -> void:
@@ -22,6 +30,7 @@ func _process(_delta: float) -> void:
 		var facade := game.find_child("OfficeFacade", true, false)
 		var solid := facade.get_node_or_null("Solid") as StaticBody3D if facade != null else null
 		if solid != null:
+			solid_rid = solid.get_rid()
 			excluded_arm = me.arm
 			excluded_arm.add_excluded_object(solid.get_rid())
 	var cam: Camera3D = me.cam

@@ -90,6 +90,12 @@ func center_global() -> Vector3:
 	return global_transform * center
 
 
+# 荷台から落ちたかを見る点。ふだんは center と同じ。
+# 見た目の中心と当たり判定の中心がずれている物（爆炎の書割など）は、当たり判定の箱の中心を返す
+func ride_point() -> Vector3:
+	return center_global()
+
+
 func _apply_freeze() -> void:
 	if not is_host() or playback:
 		freeze_mode = RigidBody3D.FREEZE_MODE_STATIC if _teleport_ticks > 0 else RigidBody3D.FREEZE_MODE_KINEMATIC
@@ -205,7 +211,7 @@ func _physics_process(delta: float) -> void:
 			rider_of = 0
 		else:
 			ride_local = d.global_transform.affine_inverse() * global_transform
-			var c: Vector3 = d.to_local(center_global())
+			var c: Vector3 = d.to_local(ride_point())
 			if absf(c.x-d.deck_c.x)>d.deck_half.x+0.25 or absf(c.z-d.deck_c.y)>d.deck_half.y+0.25 or c.y < d.deck_top-0.2:
 				rider_of = 0
 	if holder != 0 and not fixed:

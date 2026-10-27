@@ -833,7 +833,7 @@ func h_load_truck(pid: int) -> void:
 		return
 	var me: Node = players.get(Net.sender())
 	var prop: Node = props.get(pid)
-	if me == null or prop == null or prop.holder != Net.sender() or me.global_position.distance_to(Flow.HOME_TRUCK) > 4.5:
+	if me == null or prop == null or prop.holder != Net.sender() or truck == null or me.global_position.distance_to(truck.global_position) > 4.5:
 		return
 	if not host_load(prop,truck):
 		host_ev("toast",["荷台に置ける場所が無い（床がふさがっているか、物が大きすぎる）。右ドラッグで向きを変えるか、荷物を降ろそう。左クリックなら、手で好きな所に積める",1])

@@ -178,6 +178,10 @@ func _find_desk() -> String:
 	var skip: Array[RID] = []
 	if me.held != 0 and game.props.has(me.held):
 		skip.append((game.props[me.held] as CollisionObject3D).get_rid())
+	# 書割を自分の視点から消しているときは、照準もその当たり判定を通す（features/office_facade.gd）
+	var facade: Object = game.hooks.feature("office_facade") if game.get("hooks") != null else null
+	if facade != null and (facade.aim_skip() as RID).is_valid():
+		skip.append(facade.aim_skip())
 	query.exclude = skip
 	var hit: Dictionary = game.get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():

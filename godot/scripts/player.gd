@@ -704,6 +704,10 @@ func _find_target() -> void:
 	var ex: Array[RID] = []
 	if held != 0 and game.props.has(held):
 		ex.append((game.props[held] as CollisionObject3D).get_rid())
+	# 書割を自分の視点から消しているときは、物を狙う線もその当たり判定を通す（features/office_facade.gd）
+	var facade: Object = game.hooks.feature("office_facade") if game.get("hooks") != null else null
+	if facade != null and (facade.aim_skip() as RID).is_valid():
+		ex.append(facade.aim_skip())
 	q.exclude = ex
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if hit.is_empty():

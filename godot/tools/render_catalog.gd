@@ -3,9 +3,12 @@ extends SceneTree
 #   godot --path godot --script res://tools/render_catalog.gd      （画面つきで動かす）
 #   そのあと godot --headless --path godot --import で取り込む
 #   環境変数 CATALOG_NEW=1 を付けると、まだ写真の無い物だけを撮る（物を足したとき）
+#   環境変数 CATALOG_ONLY=cardboard,fish のように種類を並べると、その種類だけを撮る
 # 出力：res://assets/ui/catalog/<種類>.png（背景は透明）。モデルを差し替えたら撮り直す。
 const SIZE := 384
 const OUT := "res://assets/ui/catalog/"
+# 始めから置いていないことがある物：種類 → 作るスクリプト（build() で形ができる物）
+const EXTRA := {"cardboard": "res://scripts/cardboard_sheet.gd"}
 
 
 func _initialize() -> void:
@@ -79,10 +82,22 @@ func run() -> void:
 			var photo_name: String = "fx" if part == "bomb" else "fx_" + part
 			first[photo_name] = sample
 			groups[photo_name] = [photo_name]
+	# 始めから置いていない物（段ボール板は、看板の仕組みが出すまで無いことがある）は、ここで1つ作って撮る
+	for kind: String in EXTRA:
+		if first.has(kind):
+			continue
+		var extra: Node3D = (load(EXTRA[kind]) as GDScript).new()
+		extra.build()
+		samples.append(extra)
+		first[kind] = extra
+		groups[kind] = [kind]
 	var done := 0
 	var only_new := OS.get_environment("CATALOG_NEW") != ""
+	var only: PackedStringArray = OS.get_environment("CATALOG_ONLY").split(",", false)
 	for name: String in groups:
 		if only_new and FileAccess.file_exists(OUT + name + ".png"):
+			continue
+		if not only.is_empty() and not only.has(name):
 			continue
 		var holder := Node3D.new()
 		view.add_child(holder)
