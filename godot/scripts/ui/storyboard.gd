@@ -22,6 +22,19 @@ const PARODY := {
 	"stairs": ["_trap_1", "_climb", "_summit"],
 	"noodle": ["_pair", "_ring", "_close"],
 	"car_cm": ["_wind", "_pass", "_close"],
+	# 17〜28（2026-10-27）。今ある絵だけを組み合わせる
+	"lottery": ["_pair", "_ring", "_pr_4"],
+	"wedding": ["_pr_1", "_pair", "_pr_3", "_close"],
+	"ghost": ["_trap_1", "_trap_2", "_pair", "_close"],
+	"duel": ["_pair", "_wind", "_orbit", "_close"],
+	"western": ["_pair", "_pass", "_hit", "_close"],
+	"cooking": ["_pair", "_scorch", "_ring", "_close"],
+	"detective": ["_pair", "_ring", "_climb", "_high"],
+	"zombie": ["_trap_1", "_pair", "_high", "_pr_3"],
+	"sunset": ["_trap_1", "_cross", "_travel_2", "_close"],
+	"rocket": ["_pair", "_ring", "_pr_3", "_cross", "_close"],
+	"ninja": ["_trap_1", "_trap_2", "_climb", "_high"],
+	"meteor": ["_pair", "_trap_2", "_trap_3", "_pr_3", "_close"],
 }
 
 
@@ -486,6 +499,11 @@ static func _parody(name: String) -> String:
 		"_pass": return _pass()
 		"_travel_2": return _travel_2()
 		"_trap_1": return _trap_1()
+		"_trap_2": return _trap_2()
+		"_trap_3": return _trap_3()
+		"_pr_1": return _pr_1()
+		"_pr_3": return _pr_3()
+		"_pr_4": return _pr_4()
 	return _pair()
 
 

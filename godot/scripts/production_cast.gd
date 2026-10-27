@@ -58,6 +58,17 @@ const ROLES := {
 	# 転がる大岩・予告編の落ち（2026-10-18）：大岩をよけて飛び込む穴。入れ物（バスタブ・箱）ほどらしい。
 	# 平たい物（段ボール板）でもなれる：絵に描いた穴（cast_dress.gd が黒い穴を描く）。らしさは低い
 	"pit": {"name": "穴", "likes": ["入れ物", "水まわり"]},
+	# 17〜28 の依頼の役（2026-10-27）
+	"ghost": {"name": "おばけ", "likes": ["こわい", "紙", "光る"]},
+	"cake": {"name": "ケーキ", "likes": ["食べ物", "はで", "丸い"]},
+	"manor": {"name": "屋敷", "likes": ["建物", "紙", "おとぎ話"]},
+	"saloon": {"name": "酒場", "likes": ["建物", "街角", "食べ物"]},
+	"tumble": {"name": "回転草", "likes": ["自然", "丸い"]},
+	"dish": {"name": "料理", "likes": ["食べ物", "はで"]},
+	"stove": {"name": "コンロ", "likes": ["火", "機械", "食べ物"]},
+	"katsudon": {"name": "カツ丼", "likes": ["食べ物", "丸い"]},
+	"rocket": {"name": "宇宙船", "likes": ["宇宙", "機械", "光る"]},
+	"meteor": {"name": "隕石", "likes": ["石", "丸い", "宇宙"]},
 }
 # 台本ごとの役。怪獣映画の爆発は「怪獣の技」として撃ち出される
 const SCRIPT_ROLES := {
@@ -72,10 +83,25 @@ const SCRIPT_ROLES := {
 	"stairs": ["steps", "summit"],
 	"noodle": ["noodle", "kettle"],
 	"car_cm": ["car", "street"],
+	# 17〜28（2026-10-27）
+	"lottery": ["street", "relic"],
+	"wedding": ["cake", "boom"],
+	"ghost": ["ghost", "woods"],
+	"duel": ["manor", "woods"],
+	"western": ["saloon", "tumble"],
+	"cooking": ["dish", "stove"],
+	"detective": ["katsudon", "roof"],
+	"zombie": ["street", "boom"],
+	"sunset": ["moon", "woods"],
+	"rocket": ["rocket", "boom", "moon"],
+	"ninja": ["manor", "roof"],
+	"meteor": ["meteor", "boom", "street"],
 }
-const SCRIPT_NAMES := {"kaiju": {"boom": "怪獣の技"}}
+const SCRIPT_NAMES := {"kaiju": {"boom": "怪獣の技"},
+	# 同じ役を、台本の中では別の名前で呼ぶ（月の役の物を夕日に見立てる など）
+	"lottery": {"street": "商店街", "relic": "特賞"}, "wedding": {"boom": "クラッカー"}, "sunset": {"moon": "夕日"}}
 # 無くても撮れる役（配役表で「まだ」と急かさない）
-const OPTIONAL := ["moon", "ruins", "woods", "sea", "agent", "summit", "kettle", "street"]
+const OPTIONAL := ["moon", "ruins", "woods", "sea", "agent", "summit", "kettle", "street", "tumble", "stove"]
 
 # コンボになる属性。形や大きさ（丸い・四角い・背が高い）は入れない
 const THEMES := ["水まわり", "ばっちい", "食べ物", "火", "機械", "自然", "宇宙", "おとぎ話", "お宝", "石", "街角", "乗り物", "光る", "風"]

@@ -66,6 +66,17 @@ func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit
 		"car": _car()
 		"street": _street()
 		"pit": _pit()
+		# 17〜28 の依頼の役（2026-10-27）：隕石は大岩と同じ飾り。ほかは手書きの立て札
+		"meteor": _bigrock()
+		"manor": _door()
+		"ghost": _sign("おばけ", _top(0, 0))
+		"cake": _sign("ケーキ", _top(0, 0))
+		"saloon": _sign("酒場", _top(0, 0))
+		"tumble": _sign("回転草", _top(0, 0))
+		"dish": _sign("料理", _top(0, 0))
+		"stove": _sign("コンロ", _top(0, 0))
+		"katsudon": _sign("カツ丼", _top(0, 0))
+		"rocket": _sign("宇宙船", _top(0, 0))
 		_: _sign(r, _top(0, 0))
 
 
