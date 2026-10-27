@@ -242,7 +242,7 @@ func test_company_screens() -> void:
 	# あそびかた（Tab）にも、場面の並びは書かない
 	var sheet: Control = game.hud.help_sheet
 	sheet.set_context(game.hud.cue_list(), game.hud.scene_titles())
-	check("{scenes}" not in str(sheet.text) and str(scenes[0]) not in str(sheet._rendered()) and "のぞき箱" in str(sheet.text), "the help sheet no longer lists the scenes, and explains the peep box")
+	check("{scenes}" not in str(sheet.text) and str(scenes[0]) not in str(sheet._rendered()) and "挟まっている" in str(sheet.text) and "のぞき箱" not in str(sheet.text), "the help sheet no longer lists the scenes, and explains the photos in the script")
 	# 台本を持っていない人は、台本のページも見られない
 	check(not game.reads_script() and not game.production_hud.script_page.visible, "without the script, the casting sheet is nowhere on screen")
 
