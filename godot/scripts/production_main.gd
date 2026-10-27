@@ -1294,6 +1294,12 @@ func request_deliver(index: int) -> void:
 func h_request_deliver(index: int) -> void:
 	if not Net.is_host() or state != S.RESULT:
 		return
+	# 1場面も撮れていないテイクは、撮り直しが残っている間は納品できない（試写会も始めない）
+	var block: String = production.deliver_block(index) if production else ""
+	if block != "":
+		host_ev("toast", [block, 1])
+		host_ev("sfx", ["ui_fail", null])
+		return
 	if production and hooks.first("hook_deliver", [index]):
 		return
 	h_deliver(index)

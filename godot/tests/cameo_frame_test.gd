@@ -67,6 +67,7 @@ func run() -> void:
 	var at: float = float(notes.cameo_at.get(name, -1.0))
 	check(at > 1.2 and at < 4.5, "はっきり映った時刻を控えた（%.2f 秒）" % at)
 	check((premiere._cameo_times.get(0, []) as Array).size() == 1, "試写会の反応の予定に、映り込みが入る")
+	game.takes[0]["passed"][0] = true      # 1場面は撮れたことにする（何も撮れていないテイクは、撮り直しが残っている間は納品できない）
 	game.request_deliver(0)
 	var heard := ""
 	for i in 900:

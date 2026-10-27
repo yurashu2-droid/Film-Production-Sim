@@ -181,10 +181,13 @@ func run() -> void:
 	# 精算：ギャラと、使わなかった制作費が貯金に入る。3本目の精算では家賃を払う
 	flow.day = 3
 	flow.wallet = 1000
+	# 1場面は撮れたことにして、精算を見る（何も撮れていない納品は、tests/deliver_block_test.gd）
+	game.takes[0]["passed"][0] = true
+	var fee: int = flow.take_fee(0)
 	game.h_deliver(0)
 	check(flow.phase == 5, "delivery settles")
-	check(flow.last_payment == 150 and flow.saved == 480, "the unspent budget is kept as profit (%d)" % flow.saved)
-	check(flow.rent_paid == 1200 and flow.rent_no == 1 and flow.wallet == 1000 + 150 + 480 - 1200 and not flow.bankrupt, "rent is paid on every third job (%d left)" % flow.wallet)
+	check(flow.last_payment == fee and fee >= 400 and flow.saved == 480, "the unspent budget is kept as profit (%d / fee %d)" % [flow.saved, fee])
+	check(flow.rent_paid == 1200 and flow.rent_no == 1 and flow.wallet == 1000 + fee + 480 - 1200 and not flow.bankrupt, "rent is paid on every third job (%d left)" % flow.wallet)
 	check(flow.rent_amount() == 1800, "the next rent is higher")
 	game.h_return_office()
 	await frames(5)

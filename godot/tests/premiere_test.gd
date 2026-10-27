@@ -64,6 +64,13 @@ func run() -> void:
 	game.h_stop_replay()
 	await frames(5)
 	check(game.state == S.RESULT and flow.phase == 4, "見返しが終わっても、納品はしない")
+	# 1場面も撮れていないテイクは、撮り直しが残っている間は納品できない（試写会も始まらない）
+	game.request_deliver(0)
+	await frames(2)
+	check(game.state == S.RESULT and premiere.screening == -1 and flow.phase == 4 and flow.deliver_block(0) != "", "何も撮れていないテイクは、納品できない（撮り直しを促す）")
+	# 場面1は撮れたことにする（上の時刻と合わせる）
+	game.takes[0]["passed"][0] = true
+	check(flow.deliver_block(0) == "", "1場面でも撮れていれば、納品できる")
 	# 画面から納品を頼む：試写会が始まる
 	game.request_deliver(0)
 	await frames(2)

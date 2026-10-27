@@ -716,7 +716,7 @@ func build_tally() -> Array:
 	var takes: Array = game.takes
 	var passed: Array = takes[clampi(int(game.selected), 0, takes.size() - 1)]["passed"] if not takes.is_empty() else []
 	var titles: Array = game.scene_titles()
-	out.append(["納品の基本", 150, false, "base"])
+	out.append(["納品の基本", 150 if passed.has(true) else 0, false, "base"])      # 1場面も撮れていなければ出ない（production_flow.gd の take_fee）
 	for i in passed.size():
 		var title := _short(str(titles[i]) if i < titles.size() else "場面%d" % (i + 1))
 		out.append(["%s　%s" % [title, "撮れた" if bool(passed[i]) else "撮れていない"], 250 if bool(passed[i]) else 0, false, "scene:%d" % i if bool(passed[i]) else "tail"])

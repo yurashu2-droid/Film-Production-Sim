@@ -82,6 +82,8 @@ func run() -> void:
 	var lines: Array = flow.fee_lines(1)
 	print("SPECTACLE_MEASURE 上乗せ＝", lines)
 	check(lines.size() == 2 and int(lines[0][1]) + int(lines[1][1]) == spectacle.FILL_COINS + spectacle.CLOSE_COINS, "役者のすぐそばで、画面いっぱいに映った爆発は、両方の上乗せ")
+	# 1場面は撮れたことにする（1場面も撮れていないテイクは、ギャラの基本分が出ず、撮り直しが残っている間は納品もできない）
+	game.takes[1]["passed"][0] = true
 	var bare: int = flow.take_fee(1) - spectacle.FILL_COINS - spectacle.CLOSE_COINS
 	check(bare >= 150, "上乗せは、ギャラに入る（%d = 上乗せなしの %d ＋ %d）" % [flow.take_fee(1), bare, spectacle.FILL_COINS + spectacle.CLOSE_COINS])
 	# 試写会：その爆発のところで、依頼主がもっと驚く。とばすと納品になり、精算の文にも出る

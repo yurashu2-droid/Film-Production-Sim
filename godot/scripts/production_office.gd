@@ -342,12 +342,7 @@ static func _office(b: Look.Batch, root: Node3D) -> void:
 	b.boxp(wood, Vector3(68.2, 1.7, -7.81), Vector3(2.1, 1.3, 0.08), ALL)
 	for x: float in [67.45, 68.95]:
 		b.box(P(Color("b8a76e")), Transform3D(Basis(Vector3.BACK, 0.2), Vector3(x, 1.7, -7.7)), Vector3(0.18, 1.5, 0.025), ALL)
-	# 壁のポスター（映画の宣伝）
-	_poster(b, Vector3(65.16, 1.75, -6.6), PI * 0.5, Vector2(0.95, 1.4), Color("2f4b6e"), Color("f1d98a"), 0)
-	_poster(b, Vector3(65.16, 1.75, -4.4), PI * 0.5, Vector2(0.95, 1.4), Color("a8442e"), Color("ffe9b0"), 1)
-	_poster(b, Vector3(65.16, 1.75, -2.2), PI * 0.5, Vector2(0.95, 1.4), Color("46704f"), Color("f6f0d2"), 2)
-	_poster(b, Vector3(65.16, 1.75, -0.1), PI * 0.5, Vector2(0.95, 1.4), Color("c09a3d"), Color("3b2a22"), 0)
-	_poster(b, Vector3(72.8, 2.55, -7.85), 0.0, Vector2(1.0, 0.7), Color("e6d6a8"), Color("7a2f22"), 3)
+	# 西の壁と、奥の壁の上の段は、空けておく：納品した作品のポスターが、1枚ずつ貼られていく（features/office_wall.gd）
 	# フィルム缶とクラッパーの棚（東の壁）
 	b.boxp(wood_d, Vector3(78.6, 1.45, 0.4), Vector3(0.5, 0.06, 2.4), ALL)
 	b.boxp(wood_d, Vector3(78.6, 1.95, 0.4), Vector3(0.5, 0.06, 2.4), ALL)

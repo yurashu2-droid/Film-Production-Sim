@@ -167,6 +167,10 @@ var saved := 0                   # 今回、使わずに浮かせた制作費
 var rent_no := 0                 # これまでに家賃を払った回数
 var rent_paid := 0               # 今回の精算で払った家賃（0＝支払いの回ではない）
 var bankrupt := false            # 家賃が払えず倒産した（事務所へ戻ると、新しい会社でやり直す）
+# 紹介動画（debut）に1場面も映らなかった：誰からも電話が来ない。翌日もう一度、紹介動画だけが掲示板に来る。
+# 撮り直した日の分だけ、家賃の周期を後ろへずらす（rent_shift。家賃は、紹介動画を上げた日から数える）
+var debut_redo := false
+var rent_shift := 0
 # 評判と格：納品の出来で評判が上下し、評判で格（1〜4）が決まる。格で、掲示板に来る依頼主が変わる。倒産すると 0 から
 const RANK_AT := [0, 4, 9, 15]   # 格1〜4になる評判
 const RANK_NAMES := ["町内の制作会社", "地方で評判の制作会社", "映画会社の下請け", "大作も任される制作会社"]
@@ -180,6 +184,7 @@ var reputation := 0
 var rep_change := 0              # 今回の精算での評判の増減
 var chosen_slot := ""            # 受けた依頼の枠（SLOTS のどれか。初日の一本は ""）
 var finale_done := false         # ハリウッドの一本を撮り切った（事務所へ戻ると、エンディング）
+var films: Array = []            # 納品した作品 [{"job", "ok"＝成立した場面, "of"＝場面の数}, ...]。事務所の壁のポスター（features/office_wall.gd。倒産で空）
 var all_jobs := false            # 遊んで確かめる用：2日目から全部の依頼を出す（features/start_day.gd の --day2）
 var owned := {}                  # 買って会社の持ち物になった物（発注の id → true）。次の依頼からも最初から在る。倒産すると無くなる
 var bought_now: Array = []       # この依頼の間に買った物（発注の id）
@@ -583,10 +588,12 @@ func rent_amount() -> int:
 
 # 家賃の支払いまで、あと何本か（今回の依頼を含む。1＝今回の精算で払う）
 func rent_in() -> int:
-	return RENT_EVERY - ((day - 1) % RENT_EVERY)
+	if debut_redo and phase == 5:
+		return RENT_EVERY + 1      # 紹介動画をしくじった日の精算：この日は数えない（あすの撮り直しから、3本目で払う）
+	return RENT_EVERY - (posmod(day - 1 - rent_shift, RENT_EVERY))
 
 func snapshot() -> Dictionary:
-	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"cast_face":cast_face,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company,"reputation":reputation,"rep_change":rep_change,"chosen_slot":chosen_slot,"finale_done":finale_done,"all_jobs":all_jobs}
+	return {"phase":phase,"wallet":wallet,"lease_left":lease_left,"expired":expired,"chosen_job":chosen_job,"trip_time":trip_time,"last_payment":last_payment,"expenses":expenses,"last_flubs":last_flubs,"bonus_progress":bonus_progress,"day":day,"levels":levels,"prep_left":prep_left,"lost":lost,"saved":saved,"rent_no":rent_no,"rent_paid":rent_paid,"bankrupt":bankrupt,"casting":casting,"cast_face":cast_face,"crew_epoch":game._crew_epoch,"owned":owned,"bought_now":bought_now,"bought":bought,"sack_stock":sack_stock,"slides":slides,"peeper":peeper,"orderer":orderer,"ordered":ordered,"company":company,"reputation":reputation,"rep_change":rep_change,"chosen_slot":chosen_slot,"finale_done":finale_done,"films":films,"all_jobs":all_jobs,"debut_redo":debut_redo,"rent_shift":rent_shift}
 
 func apply(data: Dictionary) -> void:
 	game._crew_epoch = maxi(game._crew_epoch,int(data.get("crew_epoch",0)))
@@ -618,7 +625,10 @@ func apply(data: Dictionary) -> void:
 	rep_change = int(data.get("rep_change",rep_change))
 	chosen_slot = str(data.get("chosen_slot",chosen_slot))
 	finale_done = bool(data.get("finale_done",finale_done))
+	films = data.get("films",films)
 	all_jobs = bool(data.get("all_jobs",all_jobs))
+	debut_redo = bool(data.get("debut_redo",debut_redo))
+	rent_shift = int(data.get("rent_shift",rent_shift))
 	casting = data.get("casting",casting)
 	cast_face = data.get("cast_face",cast_face)
 	owned = data.get("owned",owned)
@@ -652,7 +662,7 @@ func offered() -> Array:
 # きょうの依頼 [[枠, 依頼の番号], ...]。日と評判だけで決まる（ホストと参加者で同じになる）
 func offers() -> Array:
 	var debut := debut_job()
-	if day <= 1:
+	if day <= 1 or (debut_redo and debut >= 0):
 		return [["", debut if debut >= 0 else 0]]
 	if all_jobs:
 		return range(JOBS.size()).filter(func(i: int) -> bool: return i != debut).map(func(i: int) -> Array: return ["", i])
@@ -1714,18 +1724,37 @@ func expire() -> void:
 	game.production_sync.rpc(snapshot())
 	game.host_ev("toast", ["管理人『次の予約が入ってるよ！』 いまあるテイクを選んで納品しよう",1])
 
+# そのテイクを納品できるか（"" なら納品できる。できないときは、その理由）。
+# 1場面も撮れていないテイクは、撮り直しが残っている間は納品させない。撮り直しが無い・借り時間切れなら、失敗として精算する
+func deliver_block(index: int) -> String:
+	if index < 0 or index >= (game.takes as Array).size():
+		return ""
+	if (game.takes[index]["passed"] as Array).has(true):
+		return ""
+	var left: int = int(game.MAX_TAKES) - (game.takes as Array).size()
+	if expired or left <= 0:
+		return ""
+	return "まだ1場面も撮れていない。これでは納品できない。Space で撮り直そう（あと%d回）" % left
+
+
 func settle(index: int) -> void:
 	var passed: Array = game.takes[index]["passed"]
 	var count := passed.count(true)
 	last_payment = take_fee(index)
 	var extras: Dictionary = game.takes[index].get("extras",{})
-	# 使わなかった制作費は、ギャラと一緒に会社の貯金へ入る
-	saved = maxi(0, budget() - expenses)
+	var debut: bool = bool(job().get("debut", false))
+	# 使わなかった制作費は、ギャラと一緒に会社の貯金へ入る。1場面も撮れなかったときは、依頼主へ返す（何もしないで得をしない）
+	saved = maxi(0, budget() - expenses) if count > 0 else 0
 	wallet += last_payment + saved
+	# 紹介動画に何も映らなかった：翌日、もう一度紹介動画を撮る（その日の分、家賃の周期を後ろへ）
+	if debut:
+		debut_redo = count == 0
+		if debut_redo:
+			rent_shift += 1
 	# 家賃：RENT_EVERY 本ごとに払う。払えなければ倒産
 	rent_paid = 0
 	bankrupt = false
-	if hazards and day % RENT_EVERY == 0:
+	if hazards and not debut_redo and posmod(day - rent_shift, RENT_EVERY) == 0:
 		var due := rent_amount()
 		if wallet >= due:
 			wallet -= due
@@ -1736,9 +1765,14 @@ func settle(index: int) -> void:
 	# 評判：出来で上下する。格が変わったら、新しい依頼主から電話が来る
 	var rank_before := rank()
 	rep_change = rep_delta(count, passed.size(), bool(extras.get("bonus_ok",false)), chosen_slot)
+	if debut:
+		rep_change = maxi(0, rep_change)      # 1日目の紹介動画は練習：失敗しても評判は下がらない
 	reputation = maxi(0, reputation + rep_change)
 	if bool(job().get("finale", false)) and count == passed.size() and not bankrupt:
 		finale_done = true
+	# 納品した作品を記録する（事務所の壁に、ポスターが1枚増える）。紹介動画に何も映らなかった日は貼らない（翌日に撮り直す）
+	if count > 0 or not bool(job().get("debut", false)):
+		films.append({"job": chosen_job, "ok": count, "of": passed.size()})
 	last_flubs.clear()
 	if finale_done:
 		last_flubs.append("ハリウッド監督『ブラボー！ この予算で、この画。次はハリウッドで会おう』")
@@ -1777,17 +1811,25 @@ func settle(index: int) -> void:
 		if not result["ok"]:
 			last_flubs.append(str(result["title"]) + "：" + str(result["detail"]))
 	# 最初の一本（会社の紹介動画）：ネットに上げると、テレビ局の人がコメントを書いていく（帰社すると、その人から電話が鳴る。2日目から、ほかの依頼が来る）
-	if bool(job().get("debut", false)):
+	#   1場面も映っていなければ、コメントも電話も来ない。翌日、もう一度紹介動画を撮る
+	if debut and count > 0:
 		last_flubs.append("コメント欄『地方テレビ局のランプと申します。%sさんの動画、拝見しました。のちほど、お電話します』" % COMPANY)
+		said = true
+	elif debut:
+		last_flubs.append("コメント欄は空っぽ。何も映っていない動画には、誰も書き込まない。明日、もう一度紹介動画を撮ろう")
 		said = true
 	if count == passed.size() and count > 0 and not said:
 		last_flubs.append("依頼主『あの怪獣、本物を呼んだのかと思ったよ！』" if job()["script"] == "kaiju" else "依頼主『これをこの予算で？ 次も頼むよ！』")
-	elif count == 0:
+	elif count == 0 and not debut:
 		last_flubs.append("依頼主『予告編の素材としては…味がある』")
 	phase = 5
 	game.production_sync.rpc(snapshot())
 	if bankrupt:
 		game.host_ev("toast",["納品はした。だが家賃 %d コインが払えない…会社は倒産した" % rent_amount(),1])
+	elif count == 0 and debut:
+		game.host_ev("toast",["動画を上げた。でも何も映っていない…ギャラは無し、制作費は返した。明日もう一度、紹介動画を撮ろう",1])
+	elif count == 0:
+		game.host_ev("toast",["1場面も撮れずに納品した…ギャラは無し、制作費 %d は依頼主へ返した" % maxi(0, budget() - expenses),1])
 	elif rent_paid > 0:
 		game.host_ev("toast",["納品完了！ ギャラ %d ＋ 浮かせた制作費 %d。家賃 %d を払った" % [last_payment, saved, rent_paid],0])
 	else:
@@ -1799,11 +1841,13 @@ func take_fee(index: int) -> int:
 	var passed: Array = take["passed"]
 	var count: int = passed.count(true)
 	# 場面1つにつき 250。全部そろえば上乗せ（3場面は 300。5場面の依頼は 400 で、満額が今までの 1.5 倍になる）
-	var all_in: int = int(job().get("fee_all", 300)) if count == passed.size() else 0
+	var all_in: int = int(job().get("fee_all", 300)) if count == passed.size() and count > 0 else 0
 	var extra := 0
 	for line: Array in fee_lines(index):
 		extra += int(line[1])
-	return maxi(0, 150 + count * 250 + all_in + (150 if take.get("extras",{}).get("bonus_ok",false) else 0) + cast_coins(index) + extra)
+	# 基本の 150 は、1場面でも撮れたときだけ（何も撮れずに納品しても、ギャラは出ない）
+	var base := 150 if count > 0 else 0
+	return maxi(0, base + count * 250 + all_in + (150 if take.get("extras",{}).get("bonus_ok",false) else 0) + cast_coins(index) + extra)
 
 
 # 仕組みが足すギャラの上乗せ [[文, コイン], ...]（見ごたえ など。各仕組みの hook_fee_lines）
@@ -1887,6 +1931,8 @@ func return_office() -> void:
 			levels[id] = 0
 		day = 0
 		rent_no = 0
+		rent_shift = 0
+		debut_redo = false
 		bankrupt = false
 		game.host_ev("toast", ["新しい会社を立ち上げた。貯金 %d コインからやり直し" % START_WALLET, 0])
 	saved = 0

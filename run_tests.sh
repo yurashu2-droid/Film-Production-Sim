@@ -242,6 +242,9 @@ script_case tutorial-box 120 'TUTBOX_TEST_OK' tutorial_box_test.gd --fixed-fps 6
 script_case spray-sign 120 'SPRAY_TEST_OK' spray_sign_test.gd --fixed-fps 60
 script_case hand-hold 90 'HAND_TEST_OK' hand_hold_test.gd --fixed-fps 60
 script_case company-sign 150 'CSIGN_TEST_OK' company_sign_test.gd --fixed-fps 60
+script_case office-wall 90 'OFFICE_WALL_TEST_OK' office_wall_test.gd --fixed-fps 60
+script_case deliver-block 150 'DELIVER_TEST_OK' deliver_block_test.gd --fixed-fps 60
+script_case hand-hold 90 'HAND_TEST_OK' hand_hold_test.gd --fixed-fps 60
 script_case motion-sounds 90 'MOTION_SOUNDS_TEST_OK' motion_sounds_test.gd --fixed-fps 60
 script_case music-title 60 'MUSIC_TITLE_OK' music_title_test.gd --fixed-fps 60
 script_case place-music 90 'MUSIC_TEST_OK' place_music_test.gd --fixed-fps 60

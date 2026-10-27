@@ -9,14 +9,22 @@ const RING_GAP := 1.3         # 鳴る間（秒）
 var game: Node
 var rang := 0                 # この画面で鳴った回数（確認用）
 var _pending := false         # ホスト：CMを納品して、帰社の途中
+var _quiet := false           # ホスト：CMに1場面も映らず、電話が来ない（翌日もう一度、紹介動画。production_flow.gd の debut_redo）
 
 
+## 1場面も映っていない紹介動画には、電話が来ない（コメント欄も空。production_flow.gd の settle）
 func hook_return_office() -> void:
 	var flow: Node = game.production
-	_pending = flow != null and bool(flow.job().get("debut", false)) and int(flow.phase) == 5
+	var debut: bool = flow != null and bool(flow.job().get("debut", false)) and int(flow.phase) == 5
+	_quiet = debut and bool(flow.debut_redo)
+	_pending = debut and not _quiet
 
 
 func hook_office_ready() -> void:
+	if _quiet:
+		_quiet = false
+		game.host_ev("toast", ["電話は鳴らない。何も映っていない動画では、誰も見てくれなかった。もう一度、紹介動画を撮ろう（事務所の掲示板へ）", 1])
+		return
 	if not _pending:
 		return
 	_pending = false

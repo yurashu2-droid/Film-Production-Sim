@@ -76,6 +76,7 @@ func run() -> void:
 	check(lines.any(func(l: Array) -> bool: return "看板" in str(l[0]) and int(l[1]) == sign.SIGN_COINS), "CMに看板が映ると、ギャラに上乗せ")
 	# 試写会：看板が映ったところで、依頼主が気づく
 	var premiere: Node = game.hooks.feature("premiere")
+	game.takes[0]["passed"][0] = true      # 1場面は撮れたことにする（何も撮れていないテイクは、撮り直しが残っている間は納品できない）
 	game.request_deliver(0)
 	var noticed := false
 	for i in 400:
