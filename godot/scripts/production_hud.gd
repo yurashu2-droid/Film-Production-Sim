@@ -1085,7 +1085,7 @@ func _refresh() -> void:
 		if me and game.holding_script():
 			legacy.keys.text = (("F 挟まっている写真を見る" if game.director != null and game.director.open_hours() else "F 台本を閉じる") if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
 		if me and game.props.has(me.operating) and game.props[me.operating].kind == "camera" and game.state == game.S.TAKE:
-			legacy.keys.text = "左クリック 次の合図 ／ マウス 首振り ／ ホイール ズーム ／ F 離れる\nT カット"
+			legacy.keys.text = "左クリック 次の合図 ／ ホイール ズーム ／ F 離れる\nT カット"     # 首振りはマウスを動かせば分かる。札は4枚まで（hud.gd の MAX_SIGNS）
 		if me and me.target == game.camera_switcher.monitor and me.held == 0 and me.operating == 0:
 			legacy.keys.text = "右クリック モニターを開く ／ 3台の映像を確認・切り替え"
 		if paging and game.state in [game.S.PREP, game.S.TAKE]:
@@ -1388,8 +1388,45 @@ func _sync_talent(phase: int) -> void:
 		legacy._tone(legacy.target_label, "on", FilmSet.tag_style())
 	elif str(hint["label"]) != "" and legacy.target_label.text != "" and not _on_desk():
 		legacy.target_label.text += str(hint["label"])
-	if str(hint["keys"]) != "":
+	if str(hint["keys"]) != "" and _talent_sign_wanted(hint, playing):
 		legacy.keys.text = str(hint["keys"]) + " ／ " + legacy.keys.text
+
+
+# 特技の札を、下の操作の案内に出すか。いつでも押せる特技（ランプ・手帳・止まれ・首…）の札を出しっぱなしにしない：
+#   ・いま見ている物・仲間に使える（しまう・ショール・仲間の頭から出す）、または特技の途中（頭に物がある・手帳を開いている・
+#     毛ひもや首を出している）なら出す
+#   ・ロボットのランプは、役者の顔が暗い（足りないことに「暗い」がある）ときに出す
+#   ・それ以外は、現場に着いて最初の数回（1回 TALENT_INTRO 秒）と、特技を使ってみるまで
+const TALENT_INTRO := 8.0
+const TALENT_INTRO_TIMES := 3
+var _talent_intro_until := 0
+var _talent_intro_count := 0
+var _talent_was_playing := false
+var _talent_last_keys := ""
+var _talent_uses := 0
+
+
+func _talent_sign_wanted(hint: Dictionary, playing: bool) -> bool:
+	var keys := str(hint["keys"])
+	# 特技を使った（札の文が切り替わった）回数。2回使えば、もう覚えている
+	if _talent_last_keys != "" and keys != _talent_last_keys and keys.begins_with("K ") and _talent_last_keys.begins_with("K "):
+		_talent_uses += 1
+	_talent_last_keys = keys
+	var now := Time.get_ticks_msec()
+	if playing and not _talent_was_playing and _talent_intro_count < TALENT_INTRO_TIMES:
+		_talent_intro_count += 1
+		_talent_intro_until = now + int(TALENT_INTRO * 1000.0)
+	_talent_was_playing = playing
+	if keys.begins_with("F ") or str(hint["label"]) != "" or str(hint["target"]) != "":
+		return true
+	for busy: String in ["頭から出す", "手帳を閉じる", "毛ひもをしまう", "首を戻す"]:
+		if busy in keys:
+			return true
+	if "ランプを点ける" in keys:
+		for line: Variant in game.live.get("hints", []):
+			if "暗い" in str(line):
+				return true
+	return now < _talent_intro_until and _talent_uses < 2
 
 
 # 追加注文の1行を、撮影中の依頼パネルへ（「+150」だけ黄色）

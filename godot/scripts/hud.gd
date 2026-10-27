@@ -82,6 +82,19 @@ var result_view: VBoxContainer
 var delivered_view: VBoxContainer
 var help_sheet: Control
 var help_dim: ColorRect
+# 本番中の下の黒い帯の中：左に、いま撮っている場面（カチンコのチョークの字）。右の隅に、撮影カメラのモニター
+var take_scene: Control
+var take_scene_num: Label
+var take_scene_title: Label
+var take_monitor: PanelContainer
+var take_monitor_view: TextureRect
+var take_monitor_label: Label
+var take_monitor_tally: Control
+const MAX_SIGNS := 4             # 下の操作の札は、多くてもこの枚数
+const HOLD_INTRO := 4.0          # 物を持ってから、細かい操作（回す・傾ける…）の札を出しておく秒
+var _held_pid := 0
+var _held_since := 0             # 物を持った時刻（ミリ秒）
+var _scene_paren := RegEx.new()
 
 var _toast_t := 0.0
 var _toast_slide := 0.0
@@ -112,6 +125,7 @@ var _delivered_sig := ""
 
 func build() -> void:
 	_number_prefix.compile("^\\d+[\\s　]*")
+	_scene_paren.compile("[\\s　]*(（[^）]*）|\\([^)]*\\))")
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -141,6 +155,7 @@ func build() -> void:
 	_build_order_panel()
 	_build_monitor()
 	_build_take_bar()
+	_build_take_overlay()
 	_build_toast()
 
 	cross = _Cross.new()
@@ -422,6 +437,144 @@ func _build_take_bar() -> void:
 	take_hint.visible = false
 	tv.add_child(take_hint)
 	take_bar.visible = false
+
+
+# 本番中だけ、下の黒い帯の中に出す物。
+#   ・左：いま撮っている場面。カチンコの板に書くチョークの字（SCENE と番号、場面の題）。題だけで、成立の条件は書かない
+#   ・右の隅：撮影カメラ（採用中のカメラ）の映像を映す、黒い枠の小さなモニター（現場の監督の横にある物）
+func _build_take_overlay() -> void:
+	var chalk := Color(0.95, 0.95, 0.9)
+	take_scene = HBoxContainer.new()
+	take_scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	take_scene.add_theme_constant_override("separation", 14)
+	take_scene.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	take_scene.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	take_scene.visible = false
+	root.add_child(take_scene)
+	var num_box := VBoxContainer.new()
+	num_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	num_box.add_theme_constant_override("separation", -4)
+	num_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	take_scene.add_child(num_box)
+	var cap := FilmSet.label("SCENE", 12, Color(chalk, 0.7), "mono")
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	num_box.add_child(cap)
+	take_scene_num = FilmSet.label("1", 40, chalk, "marker")
+	take_scene_num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	num_box.add_child(take_scene_num)
+	var rule := ColorRect.new()                 # 板のチョークの縦の罫線
+	rule.color = Color(chalk, 0.75)
+	rule.custom_minimum_size = Vector2(2, 50)
+	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	take_scene.add_child(rule)
+	take_scene_title = FilmSet.label("", 24, chalk, "marker")
+	take_scene_title.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	take_scene_title.custom_minimum_size.x = 300
+	take_scene_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	take_scene.add_child(take_scene_title)
+
+	take_monitor = PanelContainer.new()
+	take_monitor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bezel := StyleBoxFlat.new()             # 黒い樹脂の縁。下の縁は少し太く、カメラの名前と録画の赤いランプ
+	bezel.bg_color = Color("0c0c0d")
+	bezel.border_color = Color("2b2b2e")
+	bezel.set_border_width_all(2)
+	bezel.set_corner_radius_all(6)
+	bezel.content_margin_left = 8
+	bezel.content_margin_right = 8
+	bezel.content_margin_top = 8
+	bezel.content_margin_bottom = 4
+	bezel.shadow_color = Color(0, 0, 0, 0.45)
+	bezel.shadow_size = 6
+	bezel.anti_aliasing = true
+	take_monitor.add_theme_stylebox_override("panel", bezel)
+	take_monitor.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	take_monitor.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	take_monitor.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	take_monitor.offset_right = -22
+	take_monitor.offset_left = -22
+	take_monitor.offset_bottom = -14
+	take_monitor.offset_top = -14
+	take_monitor.visible = false
+	root.add_child(take_monitor)
+	var mv := VBoxContainer.new()
+	mv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mv.add_theme_constant_override("separation", 3)
+	take_monitor.add_child(mv)
+	take_monitor_view = TextureRect.new()
+	take_monitor_view.custom_minimum_size = Vector2(256, 144)
+	take_monitor_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	take_monitor_view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	take_monitor_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mv.add_child(take_monitor_view)
+	var foot := HBoxContainer.new()
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.add_theme_constant_override("separation", 6)
+	mv.add_child(foot)
+	take_monitor_label = FilmSet.label("", 11, Color(1, 1, 1, 0.55), "mono")
+	take_monitor_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foot.add_child(take_monitor_label)
+	take_monitor_tally = UI.Dot.new().setup(UI.STAMP_RED, 6.0)
+	foot.add_child(take_monitor_tally)
+
+
+# 場面の題から、括弧の中（成立の条件のメモ）を外す。出すのは題だけ
+func scene_name_only(title: String) -> String:
+	var t := _scene_paren.sub(title, "", true).strip_edges()
+	return t if t != "" else title.strip_edges()
+
+
+# いま撮っている場面の番号（0から）。場面の列を持つ依頼は監督がめくった場面、ほかは、まだ撮れていない最初の場面
+func current_scene(live: Dictionary) -> int:
+	var beats: Variant = game.get("beats")
+	if beats != null and beats.active():
+		return int(beats.scene)
+	var ok: Array = live.get("passed", [])
+	for i in ok.size():
+		if not ok[i]:
+			return i
+	return maxi(0, ok.size() - 1)
+
+
+func _sync_take_overlay(st: int, shooting: bool, op: Node, full: bool, live: Dictionary) -> void:
+	var amount: float = slate.bars() if slate.has_method("bars") else 0.0
+	var on: bool = shooting and st == game.S.TAKE and amount > 0.01 and not full
+	take_scene.visible = on
+	take_monitor.visible = on and not (op != null and op.kind == "camera") and not monitor_box.visible
+	if not on:
+		return
+	var bar: float = slate.bar_height()
+	# 場面の札：下の帯の中、左に寄せて、帯の高さのまん中
+	take_scene.modulate.a = amount
+	take_scene.offset_left = 30.0
+	take_scene.offset_right = 30.0 + take_scene.get_combined_minimum_size().x
+	take_scene.offset_bottom = -maxf(0.0, (bar - take_scene.get_combined_minimum_size().y) * 0.5)
+	take_scene.offset_top = take_scene.offset_bottom
+	var index := current_scene(live)
+	var titles: Array = scene_titles()
+	take_scene_num.text = str(index + 1)
+	take_scene_title.text = scene_name_only(str(titles[index])) if index < titles.size() else ""
+	# 撮影カメラのモニター
+	if take_monitor.visible:
+		take_monitor.modulate.a = amount
+		var cam: Node = game.program_camera()
+		if cam != null and cam.get("view") != null:
+			take_monitor_view.texture = cam.view.get_texture()
+			take_monitor_label.text = str(cam.get("label")) if cam.get("label") != null else ""
+		var held: bool = game.has_method("take_held") and game.take_held()
+		take_monitor_tally.modulate.a = 0.2 if held else (1.0 if int(Time.get_ticks_msec() / 450) % 2 == 0 else 0.35)
+
+
+# 本番中、下の帯の中で、場面の札とモニターが使う左右の幅（操作の札は、その間に並べる）
+func _take_side_room() -> Vector2:
+	var left := 0.0
+	var right := 0.0
+	if take_scene != null and take_scene.visible:
+		left = take_scene.offset_right + 24.0
+	if take_monitor != null and take_monitor.visible:
+		right = take_monitor.get_combined_minimum_size().x + 22.0 + 24.0
+	return Vector2(left, right)
 
 
 func _cue_style(next: bool) -> StyleBoxFlat:
@@ -774,6 +927,12 @@ func _process(delta: float) -> void:
 	monitor_marks.visible = marks_on
 	if marks_on:
 		monitor_marks.set_marks(beats.lamps(), beats.film_frac())
+	_sync_take_overlay(st, shooting, op, full, live)
+	# 物を持ち替えた時刻（持ってすぐの数秒だけ、細かい操作の札も出す）
+	var held_now: int = me.held if me != null else 0
+	if held_now != _held_pid:
+		_held_pid = held_now
+		_held_since = Time.get_ticks_msec()
 	help.visible = game.help_open
 	help_dim.visible = help.visible
 	if help.visible:
@@ -971,33 +1130,77 @@ func _sync_key_help() -> void:
 	key_help.anchor_right = keys.anchor_right
 	key_help.anchor_top = 1.0
 	key_help.anchor_bottom = 1.0
-	key_help.offset_left = keys.offset_left
-	key_help.offset_right = keys.offset_right
+	var left := keys.offset_left
+	var right := keys.offset_right
+	# 本番中は、下の帯の左右に場面の札とモニターがある。札はその間に
+	var room := _take_side_room()
+	var half := _viewport_size().x * 0.5
+	if room != Vector2.ZERO and is_equal_approx(keys.anchor_left, 0.5):
+		left = maxf(left, -half + room.x)
+		right = minf(right, half - room.y)
+	key_help.offset_left = left
+	key_help.offset_right = right
 	key_help.offset_top = 0.0
 	key_help.offset_bottom = 0.0            # 札の角材は、画面の下の端まで
 	var align := keys.horizontal_alignment
-	var sig := "%s|%d|%d" % [keys.text, align, int(keys.offset_right - keys.offset_left)]
+	var segments := key_segments(keys.text, right - left)
+	var sig := "%s|%d|%d" % ["／".join(segments), align, int(right - left)]
 	if sig == _key_sig:
 		return
 	_key_sig = sig
 	for c in key_help.get_children():
 		key_help.remove_child(c)
 		c.queue_free()
-	# 2行（いまの操作 ／ 次の一歩とあそびかた）を、1列の札に並べる。あそびかたの札は小さく
-	var lines := keys.text.split("\n", false)
-	var segments: Array = []
-	var small: Array = []
-	for li in mini(lines.size(), 2):
-		for segment in lines[li].split("／", false):
-			var s := segment.strip_edges()
-			if s != "" and s not in segments:
-				segments.append(s)
-				if s.begins_with("Tab"):
-					small.append(s)
+	var small: Array = segments.filter(func(s: String) -> bool: return s.begins_with("Tab"))
 	var row := FilmSet.signs(segments, small, 17)
 	if align == HORIZONTAL_ALIGNMENT_LEFT:
 		row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	key_help.add_child(row)
+
+
+# 操作の案内の文（1行目＝いまの操作、2行目＝次の一歩とあそびかた）から、札にする区切りを選ぶ。
+#   ・持っている物の細かい操作（回す・傾ける・奥行き・起こす…）は、持ってすぐの数秒だけ。あとは Tab の手引きにある
+#   ・多くても MAX_SIGNS 枚。1行目を先に取り、2行目の先頭（次の一歩）の分は1枚空けておく
+#   ・並べた幅が width を超えるなら、後回しの札から外す
+func key_segments(text: String, width: float = INF) -> Array:
+	var detail: Array = []
+	if game != null and game.has_method("hold_hint"):
+		var parts: PackedStringArray = str(game.hold_hint()).split("／", false)
+		for i in range(1, parts.size()):
+			detail.append(parts[i].strip_edges())
+	var fresh: bool = _held_pid != 0 and Time.get_ticks_msec() - _held_since < int(HOLD_INTRO * 1000.0)
+	var lines := text.split("\n", false)
+	var first: Array = []
+	var rest: Array = []
+	var seen: Array = []
+	for li in mini(lines.size(), 2):
+		for segment in lines[li].split("／", false):
+			var s := segment.strip_edges()
+			if s == "" or s in seen:
+				continue
+			seen.append(s)
+			if s in detail and not fresh:
+				continue
+			(first if li == 0 else rest).append(s)
+	# 選ぶ順（＝外すときは後ろから）
+	var room_first: int = MAX_SIGNS - (1 if not rest.is_empty() else 0)
+	var order: Array = first.slice(0, room_first) + rest.slice(0, 1) + first.slice(room_first) + rest.slice(1)
+	order = order.slice(0, MAX_SIGNS)
+	while order.size() > 1 and _signs_width(order) > width:
+		order.pop_back()
+	# 見せる順は、元の文の順
+	var out: Array = []
+	for s: String in first + rest:
+		if s in order:
+			out.append(s)
+	return out
+
+
+func _signs_width(segments: Array) -> float:
+	var w := 0.0
+	for s: String in segments:
+		w += FilmSet.sign_width(s, 14 if s.begins_with("Tab") else 17)
+	return w + 18.0 * float(maxi(0, segments.size() - 1))
 
 
 # ---- 確認パネル ----

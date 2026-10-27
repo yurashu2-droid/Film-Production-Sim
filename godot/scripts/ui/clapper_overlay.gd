@@ -263,6 +263,16 @@ func _update_bars(delta: float) -> void:
 		queue_redraw()
 
 
+# 帯の閉じ具合（0＝なし、1＝閉じきった）と、いまの帯1本の太さ（ピクセル）。帯の中に置く物（場面の札・モニター）が使う
+func bars() -> float:
+	return _bars
+
+
+func bar_height() -> float:
+	var e := _bars * _bars * (3.0 - 2.0 * _bars)
+	return size.y * BARS * e
+
+
 # 帯はカチンコ（子の3D）より奥に描かれる。上の帯の中にカメラの枠の帯、下の帯の中に操作の札が来る
 func _draw() -> void:
 	if _bars <= 0.0:

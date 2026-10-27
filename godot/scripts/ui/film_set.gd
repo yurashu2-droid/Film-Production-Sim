@@ -253,6 +253,12 @@ static func style_sign_button(b: Button, paint_name: String, px: int = 20, tall:
 	for key in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		b.add_theme_color_override(key, paint[1])
 	b.custom_minimum_size.y = tall
+	# 右端のキーの札（KeyCap）は、札の字と同じ色にする（クリーム色の札の上で、白いキーが消えないように）
+	if cap is UI.KeyCap:
+		var key_cap := cap as UI.KeyCap
+		key_cap.ink = paint[1]
+		key_cap.line = Color(paint[1], 0.55)
+		key_cap.queue_redraw()
 
 
 # ---- Tab の撮影の手引き：1画面に収める（流れ＝フィルムのコマ、操作＝段ボールの札、コツ＝カンペ） ----
@@ -269,7 +275,7 @@ const HELP_KEYS := ["WASD 移動", "Shift 走る", "Space ジャンプ",
 	"Q・E 傾ける", "R 起こす", "G 手元へ",
 	"N 力を抜く", "F 使う・開く", "Y 役を決める",
 	"Z 演技", "H 演技を選ぶ", "1・2・3 合図",
-	"T カット", "右クリック 画面を閉じる", "Esc メニュー",
+	"T カット", "K キャラの特技", "Esc メニュー",
 	"C キャラクター", "F2 視点", "右クリック モニターを開く"]
 const HELP_TIPS := [
 	"物の〔属性〕が役に合うほど、ギャラが増える",
@@ -827,3 +833,21 @@ static func signs(segments: Array, dim: Array = [], px: int = 17) -> HBoxContain
 			post.position = Vector2.ZERO)
 		row.add_child(slot)
 	return row
+
+
+# 札1枚の横幅の見積もり（並べる前に、画面からはみ出さない枚数を決めるため）。札の縁・キーの黒い四角・傾きのぶんも足す
+static func sign_width(segment: String, px: int = 17) -> float:
+	var w := 8.0 + 14.0 + 6.0
+	var text_run: Array[String] = []
+	var parts := 0
+	for word: String in segment.split(" ", false):
+		var key := _key_of(word)
+		if key != "":
+			w += font("stencil").get_string_size(key, HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(10, px - 3)).x + 12.0
+			parts += 1
+		else:
+			text_run.append(word)
+	if not text_run.is_empty():
+		w += font("marker").get_string_size(" ".join(text_run), HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+		parts += 1
+	return w + 6.0 * maxf(0.0, float(parts - 1))
