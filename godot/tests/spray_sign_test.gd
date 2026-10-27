@@ -103,7 +103,7 @@ func run() -> void:
 	check(can.holder == me.peer_id, "スプレー缶を持った")
 	check(str(kit.hook_hud(me, "", "").get("keys", "")).contains("スプレー"), "缶を持つと、吹き方の案内が出る")
 	var sign: Label3D = game.find_child("CompanyNameSign", true, false)
-	check(sign != null and not sign.visible, "書割の社屋の、文字の社名は出さない（会社の名前は、入口の上に掛けた段ボールの看板）")
+	check(sign != null and sign.visible, "書割の社屋の、もとの社名はそのまま出ている（会社の名前として呼ぶのは、入口の上に掛けた段ボールの看板）")
 	# 吹く：太い線を何本か
 	for row in 6:
 		var pts := PackedVector2Array()

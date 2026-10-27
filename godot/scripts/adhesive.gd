@@ -30,6 +30,7 @@ var _preview_root: Node3D
 var _preview_dots: Array[MeshInstance3D] = []
 var _preview_line: ImmediateMesh
 var _preview_time := 0.0
+var hidden_among: Array[int] = []   # この物どうしの接着の点は見せない（金具に掛けた会社の看板の板。features/company_sign.gd）
 
 func _ready() -> void:
 	# 物を持つ処理が先に動いてから、接着した物どうしの回る勢いを弱める
@@ -542,9 +543,21 @@ func show_recorded(data: Dictionary) -> void:
 	markers.clear()
 	for dot: Array in data.get("first",{}).values(): _dot(dot[0],dot[1],Color.YELLOW)
 	for pair: Dictionary in data.get("pairs",[]):
+		if _hidden_pair(pair): continue
 		var color := Color(0.3,1.0,0.45) if pair.joined else Color.YELLOW
 		_dot(pair.a,pair.pa,color)
 		_dot(pair.b,pair.pb,color)
+
+# 見せない組か（両方の物が hidden_among に入っている）
+func _hidden_pair(pair: Dictionary) -> bool:
+	return int(pair.a) in hidden_among and int(pair.b) in hidden_among
+
+## この物どうしの接着の点を見せない（空の一覧で、もとに戻す）。各自の画面の見た目だけで、接着そのものは変えない
+func hide_among(pids: Array) -> void:
+	hidden_among.assign(pids.map(func(id: Variant) -> int: return int(id)))
+	var data := _shown
+	_shown = {}
+	show_recorded(data)
 
 func _dot(pid: int, point: Vector3, color: Color) -> void:
 	var prop: Node3D = game.props.get(pid)
@@ -607,6 +620,8 @@ func dot_on_ray(origin: Vector3, direction: Vector3, body := Vector3.INF) -> Dic
 	for who: int in first:
 		spots.append([{"first": who}, first[who][0], first[who][1]])
 	for i in pairs.size():
+		if _hidden_pair(pairs[i]):
+			continue          # 見せていない点は、狙えない（はがせない）
 		spots.append([{"pair": i}, pairs[i].a, pairs[i].pa])
 		spots.append([{"pair": i}, pairs[i].b, pairs[i].pb])
 	for s: Array in spots:

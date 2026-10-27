@@ -58,6 +58,8 @@ static func show_in(label: Label, text: String) -> void:
 	var on := text.contains(TOKEN) and has_logo()
 	label.text = layout_text(text, size)
 	label.self_modulate.a = 0.0 if on else 1.0
+	# 絵の行は、字の行より高い。その差だけ Label の上を空けて、Label（＝囲みの板）の高さを、絵を入れた文にそろえる
+	_pad_top(label, maxf(0.0, image_size(size).y + label.get_theme_constant("line_spacing") - label.get_theme_font("font").get_height(size)) if on else 0.0)
 	if not on:
 		if twin != null:
 			twin.visible = false
@@ -82,6 +84,30 @@ static func show_in(label: Label, text: String) -> void:
 	twin.horizontal_alignment = label.horizontal_alignment
 	twin.vertical_alignment = label.vertical_alignment
 	write(twin, text, size)
+
+
+# Label の字の上に extra（px）の空きを足す（0 で、もとの見た目に戻す）。もとの "normal" の板は覚えておく
+const PAD := "company_logo_pad"
+static func _pad_top(label: Label, extra: float) -> void:
+	if not label.has_meta(PAD):
+		if extra <= 0.0:
+			return
+		label.set_meta(PAD, [label.get_theme_stylebox("normal") if label.has_theme_stylebox_override("normal") else null])   # null は meta に置けないので、包む
+	var orig: StyleBox = (label.get_meta(PAD) as Array)[0]
+	if extra <= 0.0:
+		if orig != null:
+			label.add_theme_stylebox_override("normal", orig)
+		else:
+			label.remove_theme_stylebox_override("normal")
+		label.remove_meta(PAD)
+		return
+	var base: StyleBox = orig
+	if base == null:
+		label.remove_theme_stylebox_override("normal")       # 前に足した空きではなく、テーマのもとの板から足す
+		base = label.get_theme_stylebox("normal")
+	var sb: StyleBox = base.duplicate() if base != null else StyleBoxEmpty.new()
+	sb.content_margin_top = (base.get_margin(SIDE_TOP) if base != null else 0.0) + extra
+	label.add_theme_stylebox_override("normal", sb)
 
 
 # RichTextLabel に、TOKEN を看板の絵に替えて書く（字は bbcode として読まない）

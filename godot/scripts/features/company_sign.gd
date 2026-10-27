@@ -18,7 +18,8 @@ const HOOK_OUT := 0.17               # 壁からフックの先まで
 const HANG_Z := 4.27                 # 掛けた板の面（壁から少し前）
 const HANG_DROP := 0.2               # フックの先から、板の上の縁まで（吊り紐の長さ）
 const REACH := 3.6                   # 金具からこの距離（水平）まで近づけば、F で掛けられる
-const SIGN_LAYER := 1 << 18          # 看板を撮るカメラだけが見る層（掛けている板の見た目に足す）
+const SIGN_LAYER := 1 << 18          # 看板を撮るカメラだけが見る層（掛けている板の見た目に足す）。自分の視点のカメラからは外す：
+                                     # 外さないと、事務所の中で書割（FACADE_LAYER）を消したときも、この層で看板だけが浮いて残る
 const SHOT_W := 512                  # 撮る絵の長い辺（ピクセル）
 const SETTLE := 0.35                 # 描き足し・掛け直しが落ち着いてから撮るまでの秒数
 
@@ -355,6 +356,10 @@ func _set_members(list: Array) -> void:
 			rows.append([vi, vi.layers])
 			vi.layers = Office.FACADE_LAYER | SIGN_LAYER
 		_layers[id] = rows
+	# 掛けている間は、看板の板どうしの接着の点を見せない（外したら、もとどおり見せる）
+	var adh: Node = game.get("adhesive")
+	if adh != null and adh.has_method("hide_among"):
+		adh.hide_among(members)
 	_due = Time.get_ticks_msec() / 1000.0 + SETTLE
 	_sig = ""
 
@@ -385,6 +390,7 @@ func _build_camera() -> void:
 
 func _process(_delta: float) -> void:
 	_update_cords()
+	_keep_sign_layer_off()
 	if not hung():
 		return
 	var sig := _signature()
@@ -395,6 +401,20 @@ func _process(_delta: float) -> void:
 	if _due > 0.0 and now >= _due and not _busy:
 		_due = -1.0
 		capture()
+
+
+# 看板を撮る層（SIGN_LAYER）は、撮るカメラだけが見る。ゲームの画面のカメラ（自分の視点・カメラ操作の視点など）からは外して、
+# 看板は書割の層（FACADE_LAYER）だけで見せる：書割を消した視点（features/office_facade.gd）では、看板も一緒に消える
+func _keep_sign_layer_off() -> void:
+	var vp := get_viewport()
+	var cams: Array = [vp.get_camera_3d() if vp != null else null]
+	var me: Node = game.local_player() if game != null else null
+	if me != null:
+		cams.append(me.get("cam"))
+	for c: Variant in cams:
+		var cam := c as Camera3D
+		if cam != null and cam != _cam and cam.cull_mask & SIGN_LAYER:
+			cam.cull_mask &= ~SIGN_LAYER
 
 
 # 板の絵の版と置き場所。変わったら撮り直す

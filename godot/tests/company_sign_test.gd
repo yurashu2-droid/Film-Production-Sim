@@ -9,6 +9,7 @@ extends SceneTree
 #   ・紹介動画の「看板の前に全員集合」：掛けたままの看板が、撮影カメラに看板として映る
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/company_sign_test.gd
 const Logo := preload("res://scripts/ui/company_logo.gd")
+const Office := preload("res://scripts/production_office.gd")
 var game: Node
 var failed := false
 
@@ -44,6 +45,25 @@ func paint(sheet: RigidBody3D, color: Color, seed: int) -> void:
 			w.append(6.0)
 		sheet.spray(pts, w, color, seed + row)
 	sheet.revision += 1
+
+
+# 接着剤の点（adhesive.gd の markers）のうち、この物に付いている数
+func dots_on(list: Array) -> int:
+	var n := 0
+	for m: Node3D in game.adhesive.markers:
+		if is_instance_valid(m) and m.get_parent() in list and m.visible:
+			n += 1
+	return n
+
+
+# その板の見た目のうち、cull_mask のカメラに映る物の数
+func sign_seen(sheet: Node, mask: int) -> int:
+	var n := 0
+	var look: Node = sheet.get("visual") if sheet.get("visual") != null else sheet
+	for vi: VisualInstance3D in look.find_children("*", "VisualInstance3D", true, false):
+		if vi.visible and vi.layers & mask:
+			n += 1
+	return n
 
 
 func run() -> void:
@@ -129,6 +149,12 @@ func run() -> void:
 	var gap_c: float = a.to_global(pa2).distance_to(c.to_global(pc))
 	check(gap_b < 0.03 and gap_c < 0.03, "つないだ点は、離れない（%.3f・%.3f m）" % [gap_b, gap_c])
 	check(old == null or old.visible, "看板が掛かっても、もとの社名はそのまま")
+	check(dots_on([a, b, c]) == 0, "掛けている看板には、板どうしの接着の点（緑）を見せない（%d個）" % dots_on([a, b, c]))
+	var cam: Camera3D = me.cam
+	await frames(2)
+	check(cam.cull_mask & sign.SIGN_LAYER == 0, "自分の視点のカメラは、看板を撮る層を見ない")
+	var face_mask := cam.cull_mask & ~Office.FACADE_LAYER       # 事務所の中から見て、書割を消した視点
+	check(sign_seen(a, face_mask) == 0 and sign_seen(a, cam.cull_mask | Office.FACADE_LAYER) > 0, "書割を消した視点では、看板も一緒に消える（浮いて残らない）")
 	# ---- 撮る ----
 	await wait_sec(sign.SETTLE + 0.3)
 	await frames(3)
@@ -175,6 +201,7 @@ func run() -> void:
 	check(not sign.hung() and b.holder == me.peer_id and not a.fixed, "掛かった看板をクリックすると、外れて手に持つ")
 	check(adh.connected_ids(b.pid).size() == 3, "依頼を受けて接着剤が片づけられても、外した看板の板はつながったまま")
 	check(Logo.has_logo(), "外しても、会社の名前の絵はそのまま（持ち運べる）")
+	check(dots_on([a, b, c]) == 4, "外した看板は、接着の点がまた見える（%d個）" % dots_on([a, b, c]))
 	sign.h_hang(b.pid)
 	await frames(3)
 	check(sign.members.size() == 3 and sign.members[0] == b.pid and b.global_basis.z.dot(Vector3.BACK) > 0.999, "外した看板を、持っている板で掛け直せる")
