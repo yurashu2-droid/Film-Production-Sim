@@ -400,6 +400,18 @@ static func fit(kind: String, role: String, tags: Array = []) -> int:
 	return 1 if grade == 0 and "shawl" in tags and ROLES.has(role) else grade
 
 
+# ショールを数えない、もとのらしさ（0..2）
+static func plain_fit(kind: String, role: String, tags: Array = []) -> int:
+	return _plain_fit(kind, role, tags)
+
+
+# 見立ての飾りの段（cast_dress.gd の level：1 立て札 / 2 ひと手間 / 3 本気）
+#   段 = もとのらしさ + 1、 役を付けた人が小道具作りの腕（裏方 Lv CRAFT_LEVEL 以上）なら +1、 ショールがかかっていれば +1（それっぽくする特技）。1〜3 に収める
+const CRAFT_LEVEL := 3
+static func dress_level(plain: int, crafty: bool, shawled: bool) -> int:
+	return clampi(plain + 1 + (1 if crafty else 0) + (1 if shawled else 0), 1, 3)
+
+
 static func _plain_fit(kind: String, role: String, tags: Array = []) -> int:
 	if not ROLES.has(role):
 		return 0

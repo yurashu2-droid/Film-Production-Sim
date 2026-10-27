@@ -14,8 +14,10 @@ var face := 0
 var fit := true                  # 改良版（標準。場所を細かく選ぶ・平たい飾りはデカール）。false は前の方式（くらべる用。tests/cast_dress_compare.gd）
 ## それっぽさの段（新しい8役だけ：おばけ・ケーキ・酒場・回転草・料理・コンロ・カツ丼・宇宙船）。build() の lv で決める。
 ##   1 = 手書きの立て札だけ / 2 = ひと手間（札なしで分かる、手作りの部品を1〜2つ） / 3 = 本気（2 に部品と細かい所を足す）
-## いまはゲームでは 3（build() の標準）。らしさ（grade）と結びつけるなら、production_main.gd の build() 呼び出しで lv を渡す。
+## ゲームでは production_main.gd の _sync_cast_dress が、段 = もとのらしさ（ショール抜き 0..2）+ 1、役を付けた人が裏方 Lv3 以上なら +1、
+## ショールがかかっていれば +1（1〜3 に収める。production_cast.gd の dress_level）で lv を渡す。build() の標準は 3。
 ## 見本の並べ撮り：tests/cast_dress_levels_shot.gd
+const LEVELED := ["ghost", "cake", "saloon", "tumble", "dish", "stove", "katsudon", "rocket"]
 var level := 3
 var prop: Node3D
 var font: Font

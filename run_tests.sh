@@ -206,6 +206,7 @@ run_pair kaiju5-net 150 'KAIJU5_NET_TEST_OK' 'KAIJU5_NET_TEST_OK'
 script_case cast 150 'CASTTEST_OK' casttest.gd --fixed-fps 60
 script_case cast-talent 120 'CAST_TALENT_TEST_OK' cast_talent_test.gd --fixed-fps 60
 script_case view 90 'VIEW_TEST_OK' view_test.gd --fixed-fps 60
+script_case dress-level 120 'DRESS_LEVEL_TEST_OK' dress_level_test.gd --fixed-fps 60
 script_case standin 80 'STANDIN_TEST_OK' standin_test.gd --fixed-fps 60
 script_case bomb 180 'BOMB_TEST_OK' bomb_test.gd --fixed-fps 60
 script_case rope-grab 180 'ROPE_GRAB_TEST_OK' rope_grab_test.gd --fixed-fps 60

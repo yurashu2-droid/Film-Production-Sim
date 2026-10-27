@@ -648,7 +648,7 @@ func h_cast(pid: int, role: String) -> void:
 	if prop.holder != Net.sender() and me.reach_base().distance_to(prop.center_global()) > Player.REACH + 2.0:
 		return
 	var before: Array = (production.cast_sheet()["combos"] as Array).map(func(c: Dictionary) -> String: return str(c["name"]))
-	if not production.cast_set(pid, role, cast_face_side(prop, me.global_position)):
+	if not production.cast_set(pid, role, cast_face_side(prop, me.global_position), Net.sender()):
 		return
 	var story: String = production.story()
 	if role == "":
@@ -802,7 +802,7 @@ func _sync_cast_dress() -> void:
 				want[pid] = role
 	for pid: int in _cast_dress.keys():
 		var dress: Node = _cast_dress[pid]
-		if not want.has(pid) or not is_instance_valid(dress) or dress.role != want[pid] or dress.grade != production.cast_fit(props[pid], want[pid]) or dress.face != int(production.cast_face.get(pid, 0)) or (want[pid] == "pit" and dress.turned()):
+		if not want.has(pid) or not is_instance_valid(dress) or dress.role != want[pid] or dress.grade != production.cast_fit(props[pid], want[pid]) or dress.face != int(production.cast_face.get(pid, 0)) or dress.level != _cast_dress_level(props[pid], want[pid]) or (want[pid] == "pit" and dress.turned()):
 			if is_instance_valid(dress):
 				dress.queue_free()
 			_cast_dress.erase(pid)
@@ -813,8 +813,13 @@ func _sync_cast_dress() -> void:
 		var dress := CastDress.new()
 		dress.name = "CastDress"
 		prop.add_child(dress)
-		dress.build(prop, want[pid], production.cast_fit(prop, want[pid]), font, pid, int(production.cast_face.get(pid, 0)))
+		dress.build(prop, want[pid], production.cast_fit(prop, want[pid]), font, pid, int(production.cast_face.get(pid, 0)), true, _cast_dress_level(prop, want[pid]))
 		_cast_dress[pid] = dress
+
+
+# 飾りの段（1 立て札 / 2 ひと手間 / 3 本気）。段のある8役だけ（cast_dress.gd の LEVELED）。ほかの役は段が無いので 3 のまま
+func _cast_dress_level(prop: Node, role: String) -> int:
+	return production.dress_level(prop, role) if role in CastDress.LEVELED else 3
 
 
 # 物のどの側が、その位置から見えている側か（0 = 物の +z、1 = +x、2 = -z、3 = -x。外形の大きさで割って比べる）
