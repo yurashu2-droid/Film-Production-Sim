@@ -12,6 +12,11 @@ var role := ""
 var grade := 2
 var face := 0
 var fit := true                  # 改良版（標準。場所を細かく選ぶ・平たい飾りはデカール）。false は前の方式（くらべる用。tests/cast_dress_compare.gd）
+## それっぽさの段（新しい8役だけ：おばけ・ケーキ・酒場・回転草・料理・コンロ・カツ丼・宇宙船）。build() の lv で決める。
+##   1 = 手書きの立て札だけ / 2 = ひと手間（札なしで分かる、手作りの部品を1〜2つ） / 3 = 本気（2 に部品と細かい所を足す）
+## いまはゲームでは 3（build() の標準）。らしさ（grade）と結びつけるなら、production_main.gd の build() 呼び出しで lv を渡す。
+## 見本の並べ撮り：tests/cast_dress_levels_shot.gd
+var level := 3
 var prop: Node3D
 var font: Font
 var u := 0.1                     # 飾りの大きさの単位（m）。物の大きさから決める
@@ -25,8 +30,9 @@ const PAPER := Color(0.78, 0.62, 0.42)     # 段ボール
 const INK := Color(0.12, 0.1, 0.1)
 
 
-func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit_style := true) -> void:
+func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit_style := true, lv := 3) -> void:
 	fit = fit_style
+	level = clampi(lv, 1, 3)
 	prop = p
 	role = r
 	grade = g
@@ -66,18 +72,26 @@ func build(p: Node3D, r: String, g: int, fnt: Font, seed_id: int, side := 0, fit
 		"car": _car()
 		"street": _street()
 		"pit": _pit()
-		# 17〜28 の依頼の役（2026-10-27）：隕石は大岩と同じ飾り。ほかは手書きの立て札
+		# 17〜28 の依頼の役（2026-10-27）：隕石は大岩と同じ飾り、屋敷は玄関と同じ飾り
 		"meteor": _bigrock()
 		"manor": _door()
-		"ghost": _sign("おばけ", _top(0, 0))
-		"cake": _sign("ケーキ", _top(0, 0))
-		"saloon": _sign("酒場", _top(0, 0))
-		"tumble": _sign("回転草", _top(0, 0))
-		"dish": _sign("料理", _top(0, 0))
-		"stove": _sign("コンロ", _top(0, 0))
-		"katsudon": _sign("カツ丼", _top(0, 0))
-		"rocket": _sign("宇宙船", _top(0, 0))
+		# この8役は、それっぽさの段（level）で飾りを変える。1 は手書きの立て札
+		"ghost": _leveled("おばけ", _ghost)
+		"cake": _leveled("ケーキ", _cake)
+		"saloon": _leveled("酒場", _saloon)
+		"tumble": _leveled("回転草", _tumble)
+		"dish": _leveled("料理", _dish)
+		"stove": _leveled("コンロ", _stove)
+		"katsudon": _leveled("カツ丼", _katsudon)
+		"rocket": _leveled("宇宙船", _rocket)
 		_: _sign(r, _top(0, 0))
+
+
+func _leveled(text: String, dress: Callable) -> void:
+	if level <= 1:
+		_sign(text, _top(0, 0))
+	else:
+		dress.call()
 
 
 # ---- 役ごとの飾り ----
@@ -394,6 +408,512 @@ func _pit() -> void:
 	_decal(_tex("hole"), Vector2(r, r), hit)
 
 
+# ---- それっぽさの段のある役（2 = ひと手間、3 = 本気） ----
+
+const SHEET := Color(0.95, 0.95, 0.92)    # 白い布
+const CREAM := Color(0.98, 0.96, 0.9)
+const WOOD := Color(0.56, 0.37, 0.21)
+const WOOD_DARK := Color(0.33, 0.21, 0.12)
+const FLAME := Color(1.0, 0.55, 0.12)
+const FLAME_IN := Color(1.0, 0.88, 0.35)
+
+
+# おばけ：白いシーツをかぶせて、黒い目を2つ（2）。すそをぎざぎざに切って、口と、たれた手（3）
+func _ghost() -> void:
+	var e := _hull()
+	var a: float = e[0] * 1.06 + 0.01
+	var b: float = e[1] * 1.06 + 0.01
+	var top := _c.y + _h.y
+	var low := _c.y - _h.y * (0.5 if level >= 3 else 0.6)
+	var tall := top - low
+	var flare := 1.15
+	# 頭：ふくらんだ布（半球）
+	var dome := SphereMesh.new()
+	dome.radius = 1.0
+	dome.height = 1.0
+	dome.is_hemisphere = true
+	dome.radial_segments = 20
+	dome.rings = 8
+	var head := _mesh(dome, SHEET, Vector3(_c.x, top - 0.002, _c.z))
+	head.scale = Vector3(a, minf(a, b) * 0.75 + u * 0.2, b)
+	add_child(head)
+	# すそ：下へ広がる筒
+	var tube := CylinderMesh.new()
+	tube.top_radius = 1.0
+	tube.bottom_radius = flare
+	tube.height = tall
+	tube.radial_segments = 20
+	tube.rings = 1
+	tube.cap_top = false
+	tube.cap_bottom = false
+	var skirt := _mesh(tube, SHEET, Vector3(_c.x, (top + low) * 0.5, _c.z))
+	skirt.scale = Vector3(a, 1, b)
+	add_child(skirt)
+	# 目：たての黒い楕円（布の上、頭のすぐ下）
+	var er := clampf(minf(a * 0.3, tall * 0.12), 0.03, 0.2)
+	var ey := top - er * 1.4
+	for s: float in [-1.0, 1.0]:
+		var eye := Node3D.new()
+		var dot := _mesh(_sphere(er), INK)
+		dot.scale = Vector3(0.75, 1.15, 0.25)
+		eye.add_child(dot)
+		_put(eye, _on_sheet(s * 0.36, ey, a, b, low, tall, flare))
+	if level < 3:
+		return
+	# 口：まるく開いた口
+	var mouth := Node3D.new()
+	var hole := _mesh(_sphere(er * 0.8), INK)
+	hole.scale = Vector3(0.9, 1.2, 0.25)
+	mouth.add_child(hole)
+	_put(mouth, _on_sheet(0.0, ey - er * 2.6, a, b, low, tall, flare))
+	# すそ：ぎざぎざに切った布（長さを変えて、波打たせる）
+	var n := 16
+	for i in n:
+		var t := TAU * (float(i) + 0.5) / float(n)
+		var p := Vector3(_c.x + cos(t) * a * flare, low + 0.004, _c.z + sin(t) * b * flare)
+		var out := Vector3(cos(t) / (a * flare), 0, sin(t) / (b * flare)).normalized()
+		var side := Vector3.UP.cross(out)
+		var w := TAU * sqrt((a * a + b * b) * 0.5) * flare / float(n) * 1.25
+		var hang := tall * (0.22 if i % 2 == 0 else 0.14)
+		var flap := _mesh(_prism(Vector3(w, hang, 0.01)), SHEET)
+		flap.transform = Transform3D(Basis(-side, Vector3.DOWN, out), p + Vector3.DOWN * hang * 0.5)
+		add_child(flap)
+	# 手：両脇に、たれた布のふくらみ
+	for s: float in [-1.0, 1.0]:
+		var hand := Node3D.new()
+		var lump := _mesh(_sphere(er * 1.8), SHEET, Vector3(0, -er * 0.8, er * 0.3))
+		lump.scale = Vector3(0.55, 1.5, 0.7)
+		lump.rotation.z = -s * 0.35
+		hand.add_child(lump)
+		var y := ey - tall * 0.25
+		var k := clampf((top - y) / tall, 0.0, 1.0)
+		var r := lerpf(1.0, flare, k)
+		_put(hand, [Vector3(_c.x + s * a * r, y, _c.z), Vector3(s, 0, 0)])
+
+
+# シーツの表の点（正面の向き）：横の割合 fx、高さ y。[位置, 外向き]
+func _on_sheet(fx: float, y: float, a: float, b: float, low: float, tall: float, flare: float) -> Array:
+	var k := clampf(1.0 - (y - low) / tall, 0.0, 1.0)
+	var r := lerpf(1.0, flare, k)
+	var x := fx * a * r
+	var z := b * r * sqrt(maxf(1.0 - fx * fx, 0.0))
+	var out := Vector3(x / (a * a), 0, z / (b * b)).normalized()
+	return [Vector3(_c.x + x, y, _c.z + z) + out * 0.004, out]
+
+
+# 物のまわりを光線で測って、物をすっぽり包む楕円の半径 [x, z]（飾りの向き）
+func _hull() -> Array:
+	var pts: Array = []
+	for fy: float in [0.8, 0.3, -0.2, -0.6]:
+		for p: Array in _ring(fy, 12):
+			pts.append(p[0])
+	var ax := 0.01
+	var az := 0.01
+	for p: Vector3 in pts:
+		ax = maxf(ax, absf(p.x - _c.x))
+		az = maxf(az, absf(p.z - _c.z))
+	var k := 1.0
+	for p: Vector3 in pts:
+		k = maxf(k, Vector2((p.x - _c.x) / ax, (p.z - _c.z) / az).length())
+	return [ax * k, az * k]
+
+
+# ケーキ：上のふちに生クリームをぐるり、ろうそく3本（2）。ろうそくに火、クリームにいちご、横にたれるピンクの糖衣、根元にもクリーム（3）
+func _cake() -> void:
+	var n := 10
+	var r := clampf(minf(_h.x, _h.z) * 0.16, u * 0.12, u * 0.3)
+	for i in n:
+		var t := TAU * (float(i) + 0.5) / float(n)
+		var puff := Node3D.new()
+		var cream := _mesh(_sphere(r), CREAM, Vector3(0, 0, r * 0.5))
+		cream.scale = Vector3(1, 1, 0.8)
+		puff.add_child(cream)
+		puff.add_child(_mesh(_cone(r * 0.55, r * 0.7, 6), CREAM, Vector3(0, 0, r * 1.2), Vector3(PI * 0.5, 0, 0)))
+		if level >= 3 and i % 2 == 0:
+			puff.add_child(_strawberry(r * 0.75, Vector3(0, 0, r * 1.45)))
+		_put(puff, _top(cos(t) * 0.78, sin(t) * 0.78))
+	var hues := [Color(0.95, 0.5, 0.65), Color(0.45, 0.7, 0.95), Color(0.98, 0.85, 0.35)]
+	var spots := [Vector2(-0.32, 0.1), Vector2(0.0, -0.22), Vector2(0.32, 0.1)]
+	var tall := clampf(_h.y * 0.9, u * 0.5, u * 1.0)
+	for i in spots.size():
+		var candle := Node3D.new()
+		candle.add_child(_along(_cyl(r * 0.28, tall), hues[i]))
+		var wick := _mesh(_cyl(r * 0.06, r * 0.3), INK, Vector3(0, 0, tall + r * 0.15), Vector3(PI * 0.5, 0, 0))
+		candle.add_child(wick)
+		if level >= 3:
+			# 細いしま
+			for k in 3:
+				candle.add_child(_mesh(_cyl(r * 0.3, tall * 0.07), CREAM, Vector3(0, 0, tall * (0.25 + 0.25 * k)), Vector3(PI * 0.5, 0, 0)))
+			var fire := _mesh(_sphere(r * 0.42), FLAME, Vector3(0, 0, tall + r * 0.7), Vector3.ZERO, 2.5)
+			fire.scale = Vector3(0.75, 0.75, 1.6)
+			candle.add_child(fire)
+			var core := _mesh(_sphere(r * 0.24), FLAME_IN, Vector3(0, 0, tall + r * 0.6), Vector3.ZERO, 3.0)
+			core.scale = Vector3(0.8, 0.8, 1.5)
+			candle.add_child(core)
+		_put(candle, _top(spots[i].x, spots[i].y))
+	if level < 3:
+		return
+	# 横にたれる、ピンクの糖衣
+	var size := Vector2(_h.x * 2.1, maxf(_h.y * 1.6, u * 0.8))
+	_decal(_tex("drip"), size, _front(0, 0.45))
+	for s: float in [-1.0, 1.0]:
+		_decal(_tex("drip"), Vector2(_h.z * 2.1, size.y), _side(s, 0.45, 0))
+	# 根元：しぼり出したクリームの粒
+	for p: Array in _ring(-0.82, 18, r * 0.2):
+		if p[2]:
+			continue   # 脚のすき間など、当たらなかった所には付けない（宙に浮くので）
+		var bead := _mesh(_sphere(r * 0.55), CREAM, p[0])
+		add_child(bead)
+
+
+func _strawberry(r: float, at: Vector3) -> Node3D:
+	var g := Node3D.new()
+	g.position = at
+	var berry := _mesh(_sphere(r), Color(0.88, 0.12, 0.15), Vector3(0, 0, r * 0.8))
+	berry.scale = Vector3(0.9, 0.9, 1.1)
+	g.add_child(berry)
+	g.add_child(_mesh(_star(r * 0.7), Color(0.25, 0.55, 0.2), Vector3(0, 0, r * 1.85)))
+	return g
+
+
+# 酒場：正面の上に、西部の店の「見せかけの正面」（大きな板の看板）、入口に腰の高さの両開きの戸（2）。
+# 看板に板目とジョッキの絵、戸の上に小さなひさし、両脇にランプ（3）
+func _saloon() -> void:
+	var w := _h.x * 1.9
+	var tall := clampf(_h.y * 0.55, u * 1.0, u * 3.5)
+	var below := _h.y * 0.18
+	var board := Node3D.new()
+	var mid := Vector3(0, tall * 0.5 - below, 0.016)
+	board.add_child(_mesh(_box(Vector3(w, tall, 0.025)), WOOD, mid))
+	board.add_child(_mesh(_box(Vector3(w * 0.45, tall * 0.22, 0.025)), WOOD, Vector3(0, tall * 1.11 - below, 0.016)))
+	# ふちどり（濃い木）
+	for k: float in [-1.0, 1.0]:
+		board.add_child(_mesh(_box(Vector3(w, tall * 0.07, 0.01)), WOOD_DARK, mid + Vector3(0, k * tall * 0.465, 0.016)))
+		board.add_child(_mesh(_box(Vector3(w * 0.035, tall, 0.01)), WOOD_DARK, mid + Vector3(k * w * 0.4825, 0, 0.016)))
+	if level >= 3:
+		# 板目
+		for k in 3:
+			board.add_child(_mesh(_box(Vector3(w * 0.93, 0.006, 0.006)), WOOD_DARK, mid + Vector3(0, tall * (-0.25 + 0.25 * k), 0.031)))
+		# ジョッキの絵（黄色いビール、白い泡、取っ手）
+		var m := tall * 0.48
+		var mug := Node3D.new()
+		mug.position = mid + Vector3(0, -tall * 0.02, 0.036)
+		mug.add_child(_mesh(_box(Vector3(m * 0.7, m, 0.008)), Color(0.98, 0.72, 0.15)))
+		for fx: float in [-0.22, 0.0, 0.22]:
+			var foam := _mesh(_sphere(m * 0.2), CREAM, Vector3(fx * m, m * 0.52, 0.004))
+			foam.scale = Vector3(1, 0.8, 0.3)
+			mug.add_child(foam)
+		mug.add_child(_mesh(_torus(m * 0.14, m * 0.24), Color(0.92, 0.9, 0.85), Vector3(m * 0.4, 0, 0), Vector3(PI * 0.5, 0, 0)))
+		board.add_child(mug)
+	_put(board, _front(0, 0.82))
+	# 両開きの戸（よろい戸の板つき）。蝶番の側から、少し手前へ開いている
+	var ww := _h.x * 0.34
+	var hh := _h.y * 0.55
+	for s: float in [-1.0, 1.0]:
+		var wing := Node3D.new()
+		var pivot := Node3D.new()
+		pivot.rotation.y = s * 0.55
+		wing.add_child(pivot)
+		var c := Vector3(-s * ww * 0.5, 0, 0.012)
+		pivot.add_child(_mesh(_box(Vector3(ww, hh, 0.02)), WOOD, c))
+		for k in 4:
+			pivot.add_child(_mesh(_box(Vector3(ww * 0.8, hh * 0.06, 0.008)), WOOD_DARK, c + Vector3(0, hh * (-0.3 + 0.18 * k), 0.013)))
+		# 上の端は、内側が低い弓なり
+		var cap := _mesh(_sphere(ww * 0.5), WOOD, c + Vector3(0, hh * 0.5, 0))
+		cap.scale = Vector3(1, 0.35, 0.04 / ww)
+		pivot.add_child(cap)
+		_put(wing, _front(s * 0.34, -0.3))
+	if level < 3:
+		return
+	# 戸の上のひさし
+	var awning := Node3D.new()
+	var slope := Node3D.new()
+	slope.rotation.x = -0.5
+	awning.add_child(slope)
+	slope.add_child(_mesh(_box(Vector3(_h.x * 0.95, u * 0.4, 0.015)), WOOD_DARK, Vector3(0, -u * 0.2, 0.01)))
+	_put(awning, _front(0, 0.3))
+	# 両脇のランプ（腕木の先に、ともる玉）
+	for s: float in [-1.0, 1.0]:
+		var lamp := Node3D.new()
+		lamp.add_child(_along(_cyl(u * 0.025, u * 0.3), WOOD_DARK))
+		lamp.add_child(_mesh(_sphere(u * 0.13), Color(1.0, 0.8, 0.4), Vector3(0, -u * 0.06, u * 0.32), Vector3.ZERO, 2.0))
+		lamp.add_child(_mesh(_cone(u * 0.14, u * 0.1, 8), INK, Vector3(0, u * 0.1, u * 0.32)))
+		_put(lamp, _front(s * 0.7, -0.05))
+
+
+# 回転草：茶色い針金を、物のまわりにゆるく巻いた輪（2）。輪を増やして形をゆがめ、小枝を突き出す（3）
+func _tumble() -> void:
+	var hues := [Color(0.5, 0.36, 0.2), Color(0.63, 0.49, 0.28), Color(0.42, 0.3, 0.17)]
+	var n := 7 if level < 3 else 14
+	var e := _h * 1.08
+	for i in n:
+		var ring := _torus(1.0 - 0.025, 1.0 + 0.025)
+		ring.rings = 40
+		ring.ring_segments = 5
+		var spin := Basis.from_euler(Vector3(_rng.randf_range(0, TAU), _rng.randf_range(0, TAU), _rng.randf_range(0, TAU)))
+		var k := 1.0 if level < 3 else _rng.randf_range(0.9, 1.15)
+		var loop := _mesh(ring, hues[i % hues.size()])
+		loop.transform = Transform3D(Basis.from_scale(e * k) * spin, _c)
+		add_child(loop)
+	if level < 3:
+		return
+	for i in 16:
+		var v := Vector3(_rng.randf_range(-1, 1), _rng.randf_range(-0.6, 1), _rng.randf_range(-1, 1)).normalized()
+		var base := _c + v * e
+		var tip := base + (v + Vector3(_rng.randf_range(-0.5, 0.5), _rng.randf_range(-0.3, 0.5), _rng.randf_range(-0.5, 0.5))).normalized() * u * _rng.randf_range(0.35, 0.7)
+		add_child(_rod(base - v * u * 0.1, tip, u * 0.022, hues[i % hues.size()]))
+
+
+# 料理：下に白いお皿、上から湯気（綿）（2）。お皿のふちに青い線、付け合わせ（パセリとレモン）、ナイフとフォーク、湯気を増やす（3）
+func _dish() -> void:
+	var a := _h.x * 1.3 + u * 0.35
+	var b := _h.z * 1.3 + u * 0.35
+	var y := _c.y - _h.y
+	var th := clampf(u * 0.1, 0.01, 0.03)
+	var plate := Node3D.new()
+	plate.position = Vector3(_c.x, y, _c.z)
+	var disc := _mesh(_cyl(1.0, th), Color(0.97, 0.97, 0.95), Vector3(0, th * 0.5 + 0.002, 0))
+	disc.scale = Vector3(a, 1, b)
+	plate.add_child(disc)
+	var rim := _torus(1.0 - 0.06, 1.0)
+	rim.ring_segments = 8
+	rim.rings = 36
+	var lip := _mesh(rim, Color(0.98, 0.98, 0.97), Vector3(0, th + 0.002, 0))
+	lip.scale = Vector3(a, th * 8.0, b)
+	plate.add_child(lip)
+	if level >= 3:
+		var line := _torus(0.86, 0.9)
+		line.rings = 36
+		var blue := _mesh(line, Color(0.2, 0.35, 0.75), Vector3(0, th + 0.003, 0))
+		blue.scale = Vector3(a, 0.3, b)
+		plate.add_child(blue)
+	add_child(plate)
+	var wisps := [Vector2(-0.3, 0.0), Vector2(0.25, 0.2)]
+	if level >= 3:
+		wisps.append(Vector2(0.05, -0.3))
+	for at: Vector2 in wisps:
+		_put(_steam(), _top(at.x, at.y))
+	if level < 3:
+		return
+	# 付け合わせ：お皿の手前の右に、パセリとレモン
+	var top := y + th + 0.004
+	for i in 4:
+		var leaf := _mesh(_sphere(u * 0.13), Color(0.2, 0.5, 0.18), Vector3(_c.x + a * 0.72 + _rng.randf_range(-1, 1) * u * 0.1, top + u * 0.05, _c.z + b * 0.55 + _rng.randf_range(-1, 1) * u * 0.1))
+		leaf.scale = Vector3(1, 0.6, 1)
+		add_child(leaf)
+	var lemon := _mesh(_prism(Vector3(u * 0.45, u * 0.25, u * 0.12)), Color(0.98, 0.88, 0.25), Vector3(_c.x - a * 0.7, top + u * 0.12, _c.z + b * 0.6), Vector3(0, 0.6, 0))
+	add_child(lemon)
+	# ナイフとフォーク：お皿の両脇の床
+	var silver := Color(0.78, 0.8, 0.83)
+	var span := clampf(b * 1.3, u * 1.0, u * 4.0)
+	for s: float in [-1.0, 1.0]:
+		var x := _c.x + s * (a + u * 0.35)
+		add_child(_mesh(_box(Vector3(u * 0.12, 0.012, span)), silver, Vector3(x, y + 0.008, _c.z + b * 0.1)))
+		if s < 0.0:
+			for k in 3:
+				add_child(_mesh(_box(Vector3(u * 0.025, 0.01, span * 0.22)), silver, Vector3(x + (float(k) - 1.0) * u * 0.05, y + 0.008, _c.z + b * 0.1 - span * 0.6)))
+
+
+# 湯気：白い綿を、ゆらゆらと縦に重ねる（面の外向き +z へのびる）
+func _steam() -> Node3D:
+	var g := Node3D.new()
+	var phase := _rng.randf_range(0, TAU)
+	for k in 5:
+		var t := float(k)
+		var puff := _mesh(_sphere(u * (0.17 - 0.022 * t)), Color(0.96, 0.96, 0.97), Vector3(sin(phase + t * 1.3) * u * 0.14, 0, u * (0.15 + 0.27 * t)))
+		g.add_child(puff)
+	return g
+
+
+# コンロ：上に黒い五徳の輪を2つ、正面につまみ（2）。青い火、鉄の五徳の棒、つまみの台と赤い印（3）
+func _stove() -> void:
+	var br := clampf(minf(_h.x * 0.36, _h.z * 0.6), u * 0.3, u * 1.3)
+	var tube := br * 0.14
+	for s: float in [-1.0, 1.0]:
+		var burner := Node3D.new()
+		burner.add_child(_mesh(_torus(br - tube * 2.0, br), Color(0.1, 0.1, 0.1), Vector3(0, 0, tube), Vector3(PI * 0.5, 0, 0)))
+		var cap := _mesh(_cyl(br * 0.35, tube * 1.5), Color(0.2, 0.2, 0.22), Vector3(0, 0, tube * 0.75), Vector3(PI * 0.5, 0, 0))
+		burner.add_child(cap)
+		if level >= 3:
+			for k in 12:
+				var t := TAU * float(k) / 12.0
+				var fire := _mesh(_cone(br * 0.09, br * 0.32, 5), Color(0.3, 0.55, 1.0), Vector3(cos(t) * br * 0.45, sin(t) * br * 0.45, tube * 1.5 + br * 0.16), Vector3(PI * 0.5, 0, 0), 2.5)
+				burner.add_child(fire)
+			for k in 4:
+				var bar := _mesh(_box(Vector3(br * 2.1, tube * 0.8, tube * 0.8)), Color(0.18, 0.18, 0.2), Vector3(0, 0, tube * 2.4), Vector3(0, 0, PI * 0.25 * k))
+				burner.add_child(bar)
+		_put(burner, _top(s * 0.48, 0.0))
+	var kr := clampf(u * 0.14, 0.015, 0.06)
+	var lift := 0.0
+	if level >= 3:
+		var panel := Node3D.new()
+		panel.add_child(_mesh(_box(Vector3(_h.x * 1.6, kr * 3.4, 0.012)), Color(0.72, 0.74, 0.77), Vector3(0, 0, 0.006)))
+		_put(panel, _front(0, 0.6))
+		lift = 0.012
+	for s: float in [-1.0, 1.0]:
+		var knob := Node3D.new()
+		var stem := _along(_cyl(kr, kr * 0.9), Color(0.1, 0.1, 0.1))
+		stem.position.z += lift
+		knob.add_child(stem)
+		knob.add_child(_mesh(_box(Vector3(kr * 0.25, kr * 1.4, 0.006)), Color(0.85, 0.15, 0.12) if level >= 3 else Color(0.9, 0.9, 0.9), Vector3(0, 0, lift + kr * 0.9 + 0.003)))
+		_put(knob, _front(s * 0.48, 0.6))
+
+
+# カツ丼：丼のふち（濃い赤の輪）と、上にふわっと卵とじ（2）。卵の上にカツの切り身と三つ葉、丼に金の線、割りばし（3）
+func _katsudon() -> void:
+	var rim_fy := _rim_fy()
+	var pts := _ring(rim_fy, 18, u * 0.03)
+	var rim_r := clampf(u * 0.07, 0.008, 0.03)
+	_hoop(pts, rim_r, Color(0.45, 0.08, 0.06))
+	var ra := 0.01
+	var rb := 0.01
+	for p: Array in pts:
+		ra = maxf(ra, absf((p[0] as Vector3).x - _c.x))
+		rb = maxf(rb, absf((p[0] as Vector3).z - _c.z))
+	var rim_y: float = (pts[0][0] as Vector3).y
+	var heap := maxf(u * 0.22, _h.y * 0.13)
+	var egg := _mesh(_sphere(1.0), Color(0.98, 0.8, 0.28), Vector3(_c.x, rim_y, _c.z))
+	egg.scale = Vector3(ra * 0.97, heap, rb * 0.97)
+	add_child(egg)
+	if level < 3:
+		# 白身のところ
+		for i in 3:
+			var white := _mesh(_sphere(u * 0.16), Color(0.99, 0.96, 0.85), Vector3(_c.x + _rng.randf_range(-0.5, 0.5) * ra, rim_y + heap * 0.8, _c.z + _rng.randf_range(-0.5, 0.5) * rb))
+			white.scale = Vector3(1, 0.3, 1)
+			add_child(white)
+		return
+	# カツ：切り身を5枚、少しずつ傾けて並べる
+	var sw := ra * 0.28
+	for i in 5:
+		var x := (float(i) - 2.0) * sw * 1.2
+		var slice := _mesh(_box(Vector3(sw * 0.9, heap * 0.45, rb * 1.0)), Color(0.78, 0.5, 0.2), Vector3(_c.x + x, rim_y + heap * 0.98, _c.z - rb * 0.05), Vector3(0, 0, -0.18))
+		add_child(slice)
+		# 切り口：白い身の線
+		add_child(_mesh(_box(Vector3(sw * 0.06, heap * 0.3, rb * 0.95)), Color(0.97, 0.92, 0.8), Vector3(_c.x + x + sw * 0.43, rim_y + heap * 0.92, _c.z - rb * 0.05), Vector3(0, 0, -0.18)))
+		# 卵がかかったところ（ところどころ）
+		if i % 2 == 1:
+			var drip := _mesh(_sphere(sw * 0.4), Color(0.99, 0.85, 0.35), Vector3(_c.x + x, rim_y + heap * 1.18, _c.z + _rng.randf_range(-0.3, 0.3) * rb))
+			drip.scale = Vector3(1, 0.25, 1.6)
+			add_child(drip)
+	# 三つ葉
+	for i in 3:
+		var leaf := Node3D.new()
+		leaf.add_child(_mesh(_star(u * 0.14), Color(0.25, 0.6, 0.22), Vector3(0, 0, 0.004)))
+		var at := Vector3(_c.x + (float(i) - 1.0) * ra * 0.3, rim_y + heap * 1.3, _c.z + rb * 0.25)
+		leaf.transform = Transform3D(Basis(Vector3.RIGHT, Vector3.FORWARD, Vector3.UP), at)
+		add_child(leaf)
+	# 丼の金の線
+	_hoop(_ring(rim_fy - 0.3, 18, u * 0.01), rim_r * 0.45, Color(0.9, 0.72, 0.25), 0.3)
+	# 割りばし：ふちに渡して置く
+	for k: float in [-1.0, 1.0]:
+		var x := _c.x + ra * 0.62 + k * u * 0.05
+		add_child(_rod(Vector3(x, rim_y + rim_r * 1.5 + heap * 0.5, _c.z - rb * 1.0), Vector3(x + u * 0.08, rim_y + rim_r * 1.5, _c.z + rb * 1.0 + u * 0.6), u * 0.03, Color(0.9, 0.78, 0.55)))
+
+
+# 宇宙船：てっぺんに赤いとんがり、下の4方に羽（2）。丸窓、赤い帯、根元から噴き出す炎と煙（3）
+func _rocket() -> void:
+	var red := Color(0.86, 0.15, 0.12)
+	var rr := clampf(minf(_h.x, _h.z) * 0.85, u * 0.3, u * 1.6)
+	var nose := Node3D.new()
+	nose.add_child(_along(_cone(rr, rr * 2.4, 12), red))
+	if level >= 3:
+		nose.add_child(_mesh(_cyl(rr * 1.03, rr * 0.2), Color(0.85, 0.86, 0.9), Vector3(0, 0, rr * 0.1), Vector3(PI * 0.5, 0, 0)))
+	_put(nose, _top(0, 0))
+	var fin_out := clampf(maxf(_h.x, _h.z) * 0.9, u * 0.5, u * 2.0)
+	var fin_tall := _h.y * 0.55
+	for i in 4:
+		var a := TAU * float(i) / 4.0
+		var fin := Node3D.new()
+		fin.add_child(_mesh(_prism(Vector3(fin_out, fin_tall, 0.035), 0.0), red, Vector3(0, 0, fin_out * 0.5 - 0.005), Vector3(0, -PI * 0.5, 0)))
+		_put(fin, _around(a, -0.5))
+	if level < 3:
+		return
+	# 丸窓
+	var wr := clampf(_girth(0.4) * 0.6, u * 0.2, u * 0.9)
+	var win := Node3D.new()
+	win.add_child(_mesh(_torus(wr * 0.78, wr), Color(0.8, 0.82, 0.86), Vector3(0, 0, wr * 0.11), Vector3(PI * 0.5, 0, 0)))
+	var glass := _mesh(_sphere(wr * 0.8), Color(0.45, 0.75, 0.95), Vector3(0, 0, 0.004), Vector3.ZERO, 0.6)
+	glass.scale = Vector3(1, 1, 0.12)
+	win.add_child(glass)
+	win.add_child(_mesh(_sphere(wr * 0.18), Color(0.95, 0.98, 1.0), Vector3(-wr * 0.3, wr * 0.3, wr * 0.1), Vector3.ZERO, 0.8))
+	_put(win, _front(0, 0.4))
+	# 赤い帯
+	_hoop(_ring(-0.1, 20, u * 0.02), clampf(u * 0.08, 0.01, 0.04), red)
+	# 根元：外へ吹き出す紙の炎と、綿の煙
+	for i in 8:
+		var a := TAU * float(i) / 8.0
+		var jet := Node3D.new()
+		var lean := Node3D.new()
+		lean.rotation.x = 0.45
+		jet.add_child(lean)
+		var big := 1.0 if i % 2 == 0 else 0.7
+		lean.add_child(_along(_cone(u * 0.4, u * 1.6 * big, 4), FLAME, 1.6))
+		lean.add_child(_along(_cone(u * 0.22, u * 1.0 * big, 4), FLAME_IN, 2.2))
+		_put(jet, _around(a, -0.86))
+	for i in 10:
+		var a := TAU * (float(i) + 0.3) / 10.0
+		var d := Vector3(cos(a), 0, sin(a))
+		var puff := _mesh(_sphere(u * _rng.randf_range(0.3, 0.45)), Color(0.88, 0.88, 0.86), Vector3(_c.x, _c.y - _h.y + u * 0.12, _c.z) + Vector3(d.x * (_h.x + u * 1.1), 0, d.z * (_h.z + u * 1.1)))
+		puff.scale = Vector3(1, 0.65, 1)
+		add_child(puff)
+
+
+# 胴のふちの高さ（割合）：上から下へ測って、胴の太さ（真ん中の高さ）に届いた所。かごの取っ手のような細い物は飛ばす
+func _rim_fy() -> float:
+	var body := _girth(0.2)
+	var fy := 0.92
+	while fy > 0.2:
+		if _girth(fy) >= body * 0.75:
+			return fy
+		fy -= 0.08
+	return 0.5
+
+
+# 高さ fy での、中心からの平均の距離（水平）
+func _girth(fy: float) -> float:
+	var sum := 0.0
+	var pts := _ring(fy, 8)
+	for p: Array in pts:
+		var d: Vector3 = (p[0] as Vector3) - _c
+		sum += Vector2(d.x, d.z).length()
+	return sum / float(pts.size())
+
+
+# 物のまわりを、高さ fy でぐるりと光線で測った点（飾りの向き）。点は面から lift だけ外へ。[位置, 外向き（水平）, 当たらなかった] の並び
+func _ring(fy: float, n: int, lift := 0.0) -> Array:
+	var out: Array = []
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		var hit := _around(a, fy)
+		var miss := hit.size() > 2
+		var nrm: Vector3 = hit[1]
+		nrm.y = 0.0
+		if nrm.length() < 0.2:
+			nrm = Vector3(cos(a), 0, sin(a))
+		nrm = nrm.normalized()
+		out.append([(hit[0] as Vector3) + nrm * lift, nrm, miss])
+	return out
+
+
+# 点を順につないだ輪（細い棒と、つなぎ目の玉）
+func _hoop(pts: Array, r: float, col: Color, glow := 0.0) -> void:
+	for i in pts.size():
+		var a: Vector3 = pts[i][0]
+		var b: Vector3 = pts[(i + 1) % pts.size()][0]
+		add_child(_rod(a, b, r, col, glow))
+		add_child(_mesh(_sphere(r), col, a, Vector3.ZERO, glow))
+
+
+# a から b への棒（飾りの向きのまま置く）
+func _rod(a: Vector3, b: Vector3, r: float, col: Color, glow := 0.0) -> MeshInstance3D:
+	var d := b - a
+	var mi := _mesh(_cyl(r, maxf(d.length(), 0.001)), col, (a + b) * 0.5, Vector3.ZERO, glow)
+	var y := d.normalized()
+	var x := y.cross(Vector3.UP if absf(y.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT).normalized()
+	mi.basis = Basis(x, y, x.cross(y))
+	return mi
+
+
 var _up0 := Vector3.UP
 
 
@@ -574,7 +1094,7 @@ func _around(a: float, fy: float) -> Array:
 	var hit := _cast(p, Vector3(c.x, y, c.z))
 	if not hit.is_empty():
 		return hit
-	return [Vector3(c.x + d.x * h.x, y, c.z + d.z * h.z), d]
+	return [Vector3(c.x + d.x * h.x, y, c.z + d.z * h.z), d, true]   # 3つめ：当たらなかった（外形の箱の面）
 
 
 # 改良版の場所選び：狙った所のまわり（5×5）に光線を打つ。
@@ -594,11 +1114,11 @@ func _probe(at: Vector3, ray: Vector3, a: Vector3, b: Vector3, out: Vector3) -> 
 		return []
 	if grid.has(Vector2i.ZERO):
 		var depth: float = (grid[Vector2i.ZERO][0] as Vector3).dot(out)
-		var level := 0
+		var flat := 0
 		for n: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 			if grid.has(n) and (grid[n][0] as Vector3).dot(out) <= depth + u * 0.25:
-				level += 1
-		if level >= 2:
+				flat += 1
+		if flat >= 2:
 			return grid[Vector2i.ZERO]
 	var front := -INF
 	for hit: Array in hits:
@@ -737,6 +1257,15 @@ static func _tex(key: String) -> Texture2D:
 			_rect(img, Rect2(40, 20, 48, 26), Color(0.7, 0.85, 0.95))
 			_rect(img, Rect2(44, 58, 40, 12), Color(0.95, 0.93, 0.86))
 			_rect(img, Rect2(22, 80, 84, 3), wood)
+		"drip":
+			# 上からたれる、ピンクの糖衣（長さのちがうしずく）
+			var pink := Color(0.98, 0.7, 0.78)
+			_rect(img, Rect2(0, 0, 128, 30), pink)
+			var drops := [44.0, 70.0, 52.0, 84.0, 58.0, 76.0, 48.0]
+			for i in drops.size():
+				var x := 9.0 + float(i) * 18.3
+				_seg(img, Vector2(x, 24), Vector2(x, drops[i]), 5.0, pink)
+				_disc(img, Vector2(x, drops[i]), 6.5, pink)
 	var tex := ImageTexture.create_from_image(img)
 	_textures[key] = tex
 	return tex
