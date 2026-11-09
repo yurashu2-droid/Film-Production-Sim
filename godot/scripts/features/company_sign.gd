@@ -544,6 +544,8 @@ func hook_hud(me: Node, _label: String, keys: String) -> Dictionary:
 	var out := keys
 	if step == "box":
 		var open := "F 宅配の箱を開ける（代金引換）" if box.near(me) and me.held == 0 else "届いた宅配の箱を開けよう"
+		if not bool(box.get("landed")):
+			open = ""             # 箱が落ちてくるまでは、何も案内しない（空っぽの事務所を見せる間）
 		out = out.replace("F 依頼を見る", open).replace("事務所の掲示板で、今日の依頼を選ぼう", open)
 	else:
 		if box != null and int(box.line) >= 0 and box.near(me) and not out.contains("講師"):

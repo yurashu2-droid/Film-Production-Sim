@@ -98,6 +98,69 @@ func run() -> void:
 		box.hook_f(me)
 	await frames(60)
 	check(box.line == -1 and not box._teacher.visible, "最後まで飛ばすと、講師は消える")
+	# ---- 箱は、空から落ちてくる ----
+	me.global_position = Vector3(72.0, 0.1, 5.0)          # 起きる所（production_office.gd の SPAWN_POINT）
+	box.start(true)
+	await frames(5)
+	check(not box.landed and not box.box.visible and box.hook_hud(me, "", "").is_empty(), "落ちてくる前は、箱は見えず、開ける案内も出ない")
+	var waited := 0
+	while not box.box.visible and waited < 400:
+		await frames(1)
+		waited += 1
+	check(box.box.visible and box.box.global_position.y > 3.0 and not box.landed, "少しすると、箱が空の高い所に現れる（%d コマ待った・高さ %.1f）" % [waited, box.box.global_position.y])
+	await frames(24)
+	check(box.box.global_position.y > 0.5 and box.box.global_position.y < box.DROP_H, "箱は落ちている途中（高さ %.1f）" % box.box.global_position.y)
+	# 絵は、遊ぶ人の画面のまま撮る（床の近くまで落ちてきた所・床に当たった拍子）
+	while box.box.global_position.y > 1.7:
+		await frames(1)
+	await shot(cam, box.AT + Vector3(-1.6, 1.5, 4.6), box.AT + Vector3(0, 2.6, 0), "box_falling")
+	while box.box.global_position.y > 0.02:
+		await frames(1)
+	await frames(4)
+	await shot(cam, box.AT + Vector3(-1.6, 1.5, 4.6), box.AT + Vector3(0, 0.6, 0), "box_landed")
+	await frames(70)
+	check(box.landed and box.box.global_position.distance_to(box.AT) < 0.05, "落ちた箱は、起きた所の目の前の床に止まる")
+	check(str(box.hook_hud(me, "", "").get("keys", "")) == "" and not box.near(me), "少し離れていると、まだ開ける案内は出ない")
+	# 開けるまで、ガタガタして、中から声がする
+	var spoke := ""
+	var glowed := 0.0
+	for i in 240:
+		await frames(1)
+		if box._mutter.text != "":
+			spoke = box._mutter.text
+		glowed = maxf(glowed, box._glow.light_energy)
+	check(spoke.contains("箱の中から"), "落ちた箱の中から、声がする（%s）" % spoke)
+	check(glowed > 0.8, "ガタッと動くたびに、ふたのすき間から青い光がもれる（%.1f）" % glowed)
+	box._rattle(1.0)
+	await frames(3)
+	await shot(cam, box.AT + Vector3(-1.2, 1.3, 2.6), box.AT + Vector3(0, 0.45, 0), "box_rattle")
+	# すぐそばに立つと、その人に呼びかける
+	me.global_position = box.box.global_position + Vector3(0, 0.1, 1.5)
+	box._mutter.text = ""
+	box._mutter_t = 0.0
+	box._far_i = 2                # はじめの2つを言い終えたあと
+	await frames(4)
+	check(box.NEAR.any(func(l: String) -> bool: return box._mutter.text.contains(l)), "そばに立つと、その人に呼びかける（%s）" % box._mutter.text)
+	# みんなが離れると、跳ねてついて来る
+	var hop_from: Vector3 = box.box.global_position
+	me.global_position = Vector3(72.0, 0.1, 10.5)
+	await frames(60 * 7)
+	var moved: float = box.box.global_position.distance_to(hop_from)
+	var gap: float = Vector2(me.global_position.x - box.box.global_position.x, me.global_position.z - box.box.global_position.z).length()
+	check(moved > 1.0 and not box.opened, "みんなが離れると、箱が跳ねてついて来る（%.1f m 動いた）" % moved)
+	check(gap > 1.6 and gap < box.FOLLOW_FAR, "ついて来た箱は、人の手前で止まる（あと %.1f m）" % gap)
+	await shot(cam, box.box.global_position + Vector3(-2.4, 1.6, 2.4), box.box.global_position + Vector3(0, 0.4, 0), "box_followed")
+	# 追いついた箱を開ける：ふたが弾けて、数字が真ん中に大きく出る
+	me.global_position = box.box.global_position + Vector3(0, 0.1, 1.5)
+	await frames(3)
+	check(box.hook_f(me), "ついて来た箱も、そばで F を押すと開けられる")
+	await frames(50)
+	check(box.opened and flow.wallet == 600, "開けると、100万が引き落とされる（%d）" % flow.wallet)
+	check(box._big.visible and box._big.text.contains(","), "引き落としの間、貯金の数字が画面の真ん中に大きく出る（%s）" % box._big.text)
+	await shot(cam, box.box.global_position + Vector3(-0.6, 1.5, 2.6), box.box.global_position + Vector3(0, 0.9, 0), "box_open_big")
+	await frames(200)
+	check(not box._big.visible and hud.wallet_shown == -1 and hud._wallet_num.text == "600", "大きな数字は消えて、貯金の表示は 600 に止まる（%s）" % hud._wallet_num.text)
+	await frames(60)
 	# ---- 開けずに買い物をしても、そこで払う ----
 	box.start()
 	await frames(5)
