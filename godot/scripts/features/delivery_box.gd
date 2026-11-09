@@ -72,7 +72,7 @@ const CHASE := [
 # ---- ついて来る ----
 const FOLLOW_FAR := 4.5              # いちばん近い人がこれより遠いと、追いかけ始める
 const FOLLOW_WAIT := 3.0             # 離れてから、追いかけ始めるまでの秒数
-const HOP_REST := 0.9                # 続けて跳ねるときの間
+const HOP_REST := 0.55               # 続けて跳ねるときの間
 const HOP_LEN := 1.5                 # 1回で跳ねる距離
 const HOP_STOP := 2.2                # 人にここまで近づいたら、止まる
 const HOP_SEC := 0.42                # 1回跳ねるのにかかる秒数
