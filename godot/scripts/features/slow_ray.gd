@@ -74,7 +74,12 @@ func setup() -> void:
 	_fx = SlowField.new()
 	_fx.name = "SlowField"
 	game.add_child(_fx)
-	_fx.setup(RANGE, HALF_ANGLE)
+	# 見た目の型：project.godot の vfx/slow_ray_style（無ければ clock）。起動の引数 --slow-style=psychic でも替えられる
+	var look := str(ProjectSettings.get_setting("vfx/slow_ray_style", "clock"))
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--slow-style="):
+			look = arg.get_slice("=", 1)
+	_fx.setup(RANGE, HALF_ANGLE, look)
 	if Net.is_host() and game.production != null:
 		game.production._home_layout[ray.pid] = ray.get_state()
 

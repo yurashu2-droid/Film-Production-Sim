@@ -20,6 +20,19 @@ const GHOST := preload("res://vfx/shaders/slow_ghost.gdshader")
 const MOTE := preload("res://vfx/shaders/slow_mote.gdshader")
 const CONE := preload("res://vfx/shaders/slow_cone.gdshader")
 const FLOOR := preload("res://vfx/shaders/slow_floor.gdshader")
+const WARP := preload("res://vfx/shaders/slow_warp.gdshader")
+const EsperAura := preload("res://vfx/esper/esper_aura.gd")
+# ---- もう1つの型「psychic」：超能力・空間のゆがみ（2026-11-10 ユーザー「超能力っぽい感じとか空間のゆがみとかで表現するパターンも見てみたい」）----
+# 浴びている物・人：輪郭そのものが膜になって、ゆっくり沸く（念力のオーラ shaders/psychic_aura。ゆらぎの型）。
+#   まわりの景色がゆがみ、色が少しずれる。輪郭と同じ形の波紋が、1.15秒ごとに、のろのろ広がる（遅い鼓動）。
+#   出る時：懐中電灯に近い側から、膜が物をなめるように広がる。終わる時：同じ側から、ぬぐわれるように消える。
+# 届く範囲：円すいを通して見える景色が、ゆっくり波打つ（光る筋や粒は出さない）。床の扇形は同じ。
+const PSY_LOOK := {"band": 0.03, "amp": 0.12, "jag": 0.0, "rise": 0.3, "split": 0.02, "haze": 0.4,
+	"ring_gain": 1.0, "ring_reach": 0.6, "ring_width": 0.02, "warp": 1.0, "tint": Color(0.62, 0.48, 1.0)}
+const PSY_RING_SEC := 1.6            # 波紋1本が広がり切るまで（遅い）
+const PSY_PULSE := 1.15              # 波紋を出す間隔
+const PSY_APPEAR := 0.35
+const PSY_LEAVE := 0.5
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const STEP := 1.0 / 12.0             # コマ打ち（目盛りと針）
 const APPEAR := 0.3                  # 目盛りが出そろう秒数
@@ -35,6 +48,7 @@ const CONE_MOTES := 72               # 範囲の円すいの中を流れるほ�
 const GROW := 0.25                   # 円すいが根元から先へ伸びる秒数
 const EATEN := 0.45                  # 円すいが根元から先へ消える秒数
 
+var style := "clock"                 # 見た目の型："clock"（時計の目盛り・残像・ほこり）／"psychic"（輪郭のオーラ・波紋・空間のゆがみ）
 var _t := 0.0
 var _range := 9.0
 var _half := 0.17
@@ -42,6 +56,8 @@ var _marks := {}                     # 浴びている物・人 → {ring, mat, 
 var _motes: MultiMesh
 var _cone_pivot: Node3D
 var _cone_mat: ShaderMaterial
+var _cone_mesh: MeshInstance3D
+var _warp_mat: ShaderMaterial
 var _floor: MeshInstance3D           # 床に映る扇形
 var _floor_mat: ShaderMaterial
 var _floor_y := 0.0
@@ -55,7 +71,8 @@ var _cone_from := Vector3.ZERO
 var _cone_dir := Vector3.FORWARD
 
 
-func setup(reach: float, half_angle: float) -> void:
+func setup(reach: float, half_angle: float, look: String = "clock") -> void:
+	style = look
 	_range = reach
 	_half = half_angle
 	_motes = _mote_cloud(MOTE_MAX, 1)
@@ -79,7 +96,11 @@ func setup(reach: float, half_angle: float) -> void:
 	_cone_mat = ShaderMaterial.new()
 	_cone_mat.shader = CONE
 	_cone_mat.set_shader_parameter("height", reach)
-	cone.material_override = _cone_mat
+	_warp_mat = ShaderMaterial.new()
+	_warp_mat.shader = WARP
+	_warp_mat.set_shader_parameter("height", reach)
+	_cone_mesh = cone
+	cone.material_override = _warp_mat if style == "psychic" else _cone_mat
 	cone.layers = CREW_LAYER
 	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_cone_pivot.add_child(cone)
@@ -121,6 +142,15 @@ func _mote_cloud(count: int, layers: int) -> MultiMesh:
 	return mm
 
 
+# 見た目の型を替える（出ている物は、いったん片づける）
+func set_style(look: String) -> void:
+	for body: Variant in _marks.keys():
+		_drop(body)
+	style = look
+	_cone_mesh.material_override = _warp_mat if style == "psychic" else _cone_mat
+	_motes.visible_instance_count = 0
+
+
 # 決まった乱数（0〜1）
 static func h(a: int, b: int) -> float:
 	var n: int = (a * 374761393 + b * 668265263) & 0xffffffff
@@ -145,6 +175,9 @@ func sync(targets: Dictionary) -> void:
 
 
 func _begin(body: Node3D, info: Array) -> void:
+	if style == "psychic":
+		_begin_psychic(body, info)
+		return
 	var seed_value := float(body.get_instance_id() % 997) / 997.0
 	var ring := MeshInstance3D.new()
 	ring.name = "SlowAura"
@@ -190,14 +223,64 @@ func _begin(body: Node3D, info: Array) -> void:
 func _end(body: Variant) -> void:
 	var m: Dictionary = _marks[body]
 	m["leave"] = _t
-	m["hand0"] = _hand(m)
+	if not m.has("aura"):
+		m["hand0"] = _hand(m)
 	if is_instance_valid(m["ring"]):
 		(m["ring"] as Node).name = "SlowAuraEnding"
+
+
+# 超能力の型：輪郭のオーラを付ける（物は、見た目の外形に沿う。人は、頭と足をつないだ丸い形）
+func _begin_psychic(body: Node3D, info: Array) -> void:
+	var marker := Node3D.new()            # 「浴びている」の印（中身は無い。オーラは、この仕組みの子）
+	marker.name = "SlowAura"
+	body.add_child(marker)
+	var visual: Node3D = info[2] as Node3D
+	var opts: Dictionary = PSY_LOOK.duplicate()
+	var aura: MeshInstance3D
+	if visual != null:
+		aura = EsperAura.around(self, visual, opts)
+	else:
+		opts["pad"] = 0.42
+		aura = EsperAura.at(self, PackedVector3Array([body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, 1.45, 0)]), opts)
+	aura.ring_sec = PSY_RING_SEC
+	aura.p("reveal", 0.0)
+	_marks[body] = {"ring": marker, "aura": aura, "person": visual == null, "born": _t, "leave": -1.0, "pulse": _t + 0.25,
+		"center": info[0], "radius": float(info[1]), "ghosts": []}
+
+
+# 超能力の型の1コマ：オーラを相手に沿わせ、のろい波紋を出す。出入りは、懐中電灯に近い側から
+func _psychic_step(body: Node3D, m: Dictionary) -> void:
+	var aura: MeshInstance3D = m["aura"]
+	if not is_instance_valid(aura):
+		_drop(body)
+		return
+	if bool(m["person"]):
+		aura.move(PackedVector3Array([body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, 1.45, 0)]))
+	aura.place(_t, 0.0)
+	var centre: Vector3 = body.to_global(m["center"])
+	var radius: float = float(m["radius"])
+	var toward: Vector3 = _cone_from - centre
+	aura.p("grip", centre + (toward.normalized() if toward.length() > 0.01 else Vector3.UP) * radius)
+	var span := radius * 2.0 + 1.6
+	if float(m["leave"]) < 0.0:
+		var k := clampf((_t - float(m["born"])) / PSY_APPEAR, 0.0, 1.0)
+		aura.p("reveal", (1.0 - pow(1.0 - k, 2.0)) * span)
+		aura.p("drain", -1.0)
+		if _t >= float(m["pulse"]):
+			aura.ring(_t)
+			m["pulse"] = _t + PSY_PULSE
+	else:
+		var k := clampf((_t - float(m["leave"])) / PSY_LEAVE, 0.0, 1.0)
+		aura.p("drain", k * k * span)
+		if _t - float(m["leave"]) > PSY_LEAVE + 0.05:
+			_drop(body)
 
 
 func _drop(body: Variant) -> void:
 	var m: Dictionary = _marks[body]
 	_marks.erase(body)
+	if m.has("aura") and is_instance_valid(m["aura"]):
+		(m["aura"] as Node).queue_free()
 	if is_instance_valid(m["ring"]):
 		(m["ring"] as Node).queue_free()
 	for g: Variant in m["ghosts"]:
@@ -222,6 +305,9 @@ func _process(delta: float) -> void:
 		var m: Dictionary = _marks[body]
 		if not is_instance_valid(body) or not is_instance_valid(m["ring"]):
 			_drop(body)
+			continue
+		if m.has("aura"):
+			_psychic_step(body as Node3D, m)
 			continue
 		var mat: ShaderMaterial = m["mat"]
 		var leaving: bool = float(m["leave"]) >= 0.0
@@ -342,6 +428,10 @@ func _cone_step(delta: float) -> void:
 	_cone_mat.set_shader_parameter("eaten", _cone_eaten)
 	_cone_mat.set_shader_parameter("power", _cone_power)
 	_cone_mat.set_shader_parameter("t", _t)
+	_warp_mat.set_shader_parameter("grow", _cone_grow)
+	_warp_mat.set_shader_parameter("eaten", _cone_eaten)
+	_warp_mat.set_shader_parameter("power", _cone_power)
+	_warp_mat.set_shader_parameter("t", _t)
 	_floor.global_position = Vector3(_cone_from.x, _floor_y + 0.03, _cone_from.z)
 	_floor_mat.set_shader_parameter("from", _cone_from)
 	_floor_mat.set_shader_parameter("dir", _cone_dir)
@@ -354,7 +444,7 @@ func _cone_step(delta: float) -> void:
 	var up: Vector3 = facing.z
 	var spread := tan(_half)
 	var n := 0
-	var motes_on := clampf((_cone_power - 0.5) / 0.4, 0.0, 1.0)
+	var motes_on := clampf((_cone_power - 0.5) / 0.4, 0.0, 1.0) if style != "psychic" else 0.0
 	if motes_on > 0.0:
 		for j in CONE_MOTES:
 			var size := lerpf(0.035, 0.085, h(j, 11))
