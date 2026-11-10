@@ -62,7 +62,11 @@ func run() -> void:
 		for id: String in got:
 			all_seen[id] = true
 	check(not clash, "「予算半分」と「借り物なし」は、いっしょには出ない（200回引いて）")
-	check(all_seen.size() == (f.CARDS as Dictionary).size(), "どの札も出る（%d 種類）" % all_seen.size())
+	check(all_seen.size() == (f.CARDS as Dictionary).size() - 1 and not all_seen.has("all_cast"), "どの札も出る（%d 種類。「みんな出てよ」は、ひとり遊びでは出ない）" % all_seen.size())
+	for s in 200:
+		var got2: Array = ids(f.draw(s))
+		clash = clash or ("zoom_ban" in got2 and "dolly_zoom" in got2) or ("low_angle" in got2 and "top_down" in got2)
+	check(not clash, "逆向きの撮り方（ズーム禁止とめまい・低い所と真上）は、いっしょには出ない")
 	flow.chosen_job = crew
 	var cameo := false
 	for s in 200:
@@ -126,6 +130,73 @@ func run() -> void:
 	game.hooks.feature("stand_ins").plan = ["pro", "none", "none", "none"]
 	take["dur"] = 41.0
 	check(not f.met(0, take) and not f.met(1, take) and not f.met(2, take) and not f.met(3, take), "どれも、外れると守れていない")
+	# ---- 撮り方の札：撮影カメラの動きと向きを数える ----
+	var film: Node3D = game.film
+	var o: Vector3 = flow.site_center()
+	var names := ["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt"]
+	f.cards = names.map(func(id: String) -> Dictionary: return {"id": id, "need": "", "coins": 100, "ref": 0, "shown": true})
+	var kept := func() -> Array:
+		var out: Array = []
+		for i in names.size():
+			if f.met(i, take):
+				out.append(names[i])
+		return out
+	# 低い所に置いたまま、動かさない（三脚なしのカメラ。三脚があると、レンズは 1.5m の高さになる）
+	flow.daily = true              # 自動確認の中では、いつも三脚ありの扱いなので
+	flow.levels["camera"] = 0
+	game.hooks.feature("camera_kit").apply()
+	await frames(5)
+	f.hook_take_start()
+	film.restore([o + Vector3(0, 0.2, 5), Quaternion.IDENTITY, true])
+	film.fov = 50.0
+	await frames(10)
+	for i in 120:
+		await frames(1)
+		await process_frame
+		f._watch_camera(1.0 / 60.0)
+	var low_y: float = film.view_cam.global_position.y - o.y
+	check(kept.call() == ["zoom_ban", "low_angle"], "低い所に置いて動かさない：「ズーム禁止」「低い所から」だけ守れる（%s・高さ %.2f）" % [str(kept.call()), low_y])
+	# 下がりながら、ズームで寄る（めまい）。カメラは動き続けている
+	f.hook_take_start()
+	var ahead: Vector3 = -film.view_cam.global_transform.basis.z
+	var at: Vector3 = o + Vector3(0, 1.4, 5)
+	for i in 120:
+		at -= ahead * 0.012
+		film.restore([at, Quaternion.IDENTITY, true])
+		film.fov = 50.0 - float(i) * 0.1
+		await frames(1)
+		await process_frame
+		f._watch_camera(1.0 / 60.0)
+	check("dolly_zoom" in kept.call() and "always_moving" in kept.call() and "zoom_ban" not in kept.call() and "low_angle" not in kept.call(),
+		"下がりながらズームで寄る：「めまい」「じっとさせないで」が守れて、「ズーム禁止」は外れる（%s）" % str(kept.call()))
+	# 真下へ向ける
+	f.hook_take_start()
+	film.restore([o + Vector3(0, 3.0, 2), Quaternion(Vector3.RIGHT, -1.25), true])
+	await frames(10)
+	for i in 130:
+		await frames(1)
+		await process_frame
+		f._watch_camera(1.0 / 60.0)
+	check("top_down" in kept.call() and "tilt" not in kept.call(), "真下へ向けて2秒：「真上から」が守れる（%s・下向き %.2f）" % [str(kept.call()), (-film.view_cam.global_transform.basis.z).y])
+	# 横へ傾ける
+	f.hook_take_start()
+	film.restore([o + Vector3(0, 1.4, 5), Quaternion(Vector3.FORWARD, 0.5), true])
+	await frames(10)
+	for i in 130:
+		await frames(1)
+		await process_frame
+		f._watch_camera(1.0 / 60.0)
+	check("tilt" in kept.call() and "top_down" not in kept.call(), "カメラを傾けて2秒：「斜めに」が守れる（%s）" % str(kept.call()))
+	film.restore([o + Vector3(0, 0.05, 5), Quaternion.IDENTITY, false])
+	# 役者の札：等身大パネルを役者に・全員が役に
+	f.cards = [{"id": "panel_actor", "need": "", "coins": 120, "ref": 0, "shown": true}, {"id": "all_cast", "need": "", "coins": 150, "ref": 0, "shown": true}]
+	var stand: Node = game.hooks.feature("stand_ins")
+	var me: Node = game.local_player()
+	stand.holders = [["", 0], ["", 0], ["", 0], ["", 0]]
+	check(not f.met(0, take) and not f.met(1, take), "誰も役に入っていなければ、どちらも守れていない")
+	stand.holders = [["player", int(me.peer_id)], ["prop", 7], ["", 0], ["", 0]]
+	check(f.met(0, take) and f.met(1, take), "パネルが役者・自分も役に入っている：どちらも守れている")
+	stand.holders = [["", 0], ["", 0], ["", 0], ["", 0]]
 	# ---- 帰社すると、札は片づく ----
 	game.takes = []
 	flow.phase = 5

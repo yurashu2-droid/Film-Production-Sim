@@ -14,6 +14,19 @@ const CAMEO_SEC := 1.5               # 「スタッフも出して」：映り�
 const QUICK_LEFT := 300.0            # 「巻きで」：撮影時間をこれだけ残す
 const SHORT_PER_SCENE := 8.0         # 「短くまとめて」：1場面あたりの秒数
 const GEAR_KINDS := ["spot", "monitor", "clapper", "script"]
+# 撮り方の札：撮影カメラ（いま映している1台）の動きと向きを、本番中に毎コマ見る
+const LOW_HEIGHT := 0.7              # 「低い所から」：床からカメラまでの高さ
+const LOW_SHARE := 0.9               # 　　〃　　：本番のこの割合、低いまま
+const TOP_DOWN := -0.8               # 「真上から」：カメラの向きの下向きの成分（これより下を向く）
+const TOP_SEC := 2.0
+const MOVE_SPEED := 0.15             # 「じっとさせないで」：カメラが動いていると数える速さ（m/秒）
+const MOVE_SHARE := 0.6
+const TILT_ROLL := 0.26              # 「斜めに」：カメラの傾き（ラジアン。約15度）
+const TILT_SEC := 2.0
+const ZOOM_STILL := 0.5              # 「ズーム禁止」：動いてよい画角の幅（度）
+const DOLLY_SPEED := 0.25            # 「めまい」：前後に動く速さ（m/秒）
+const DOLLY_ZOOM := 2.0              # 　　〃　：画角が変わる速さ（度/秒）
+const DOLLY_SEC := 1.0
 # 札：say＝依頼主のひとこと／need＝守る事／coins＝守れたときの上乗せ。"%s" は、札ごとの物の名前
 const CARDS := {
 	"half_budget": {"say": "予算、半分しか出せなくなった", "need": "制作費の半分までで撮る", "coins": 150},
@@ -24,9 +37,17 @@ const CARDS := {
 	"rookie": {"say": "うちの甥を出してやって。劇団の新人なんだ", "need": "劇団の新人を1人、役者に使う", "coins": 150},
 	"show_item": {"say": "これ、スポンサーの私物。映しておいて", "need": "「%s」を2秒、映す", "coins": 150},
 	"hide_gear": {"say": "機材が映るのは、素人だよ", "need": "ライト・モニター・カチンコ・台本を映さない", "coins": 120},
+	"zoom_ban": {"say": "ズームは、目が回るからやめて", "need": "本番中、ズームを動かさない", "coins": 100},
+	"low_angle": {"say": "子どもの目線で撮って", "need": "カメラを、ひざより低く置いたまま撮る", "coins": 120},
+	"top_down": {"say": "1回でいいから、真上から", "need": "真下を見下ろす向きで、合計2秒撮る", "coins": 150},
+	"always_moving": {"say": "カメラは、じっとさせないで", "need": "本番中の6割、カメラが動いている", "coins": 150},
+	"dolly_zoom": {"say": "あの、背景だけ伸びるやつ、やって", "need": "カメラを引きながらズームで寄る（か、その逆）を1秒", "coins": 200},
+	"tilt": {"say": "不安な感じに。画面を斜めにして", "need": "カメラを傾けたまま、合計2秒撮る", "coins": 120},
+	"panel_actor": {"say": "うちの社長、忙しくてね。パネルでいいから", "need": "等身大パネルを1枚、役者にする", "coins": 120},
+	"all_cast": {"say": "社員さん、みんな出てよ", "need": "班の全員が、役に入っている", "coins": 150},
 }
 # いっしょには引かない組
-const CLASH := [["half_budget", "no_rental"]]
+const CLASH := [["half_budget", "no_rental"], ["zoom_ban", "dolly_zoom"], ["low_angle", "top_down"], ["cameo", "all_cast"]]
 
 var game: Node
 var force := false                   # 自動確認でも引く
@@ -34,6 +55,10 @@ var cards: Array = []                # 引いた札 [{"id", "need", "coins", "re
 var _by_take := {}                   # テイクの番号 → [[依頼主のひとこと, コイン, 守れたか], ...]（ホスト）
 var _item_sec := {}                  # 札の番号 → 映った秒数（「これを映して」）
 var _gear_sec := 0.0
+var _cam := {}                       # 撮り方の札のための数え（本番ごと）：t・low・top・move・tilt・dolly・fov_min・fov_max
+var _cam_prev: Node                  # 前のコマに映していたカメラ（切り替えた瞬間は、動きに数えない）
+var _cam_pos := Vector3.ZERO
+var _cam_fov := 0.0
 var _layer: CanvasLayer
 var _paper: PanelContainer
 var _rows: VBoxContainer
@@ -110,6 +135,9 @@ func _candidates() -> Array:
 		out.append("cameo")          # 「映り込み0.5秒以内」の依頼には、逆の注文は出さない
 	if not _items().is_empty():
 		out.append("show_item")
+	out.append_array(["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt", "panel_actor"])
+	if (game.players as Dictionary).size() >= 2:
+		out.append("all_cast")       # ひとり遊びでは、言うまでもない
 	return out
 
 
@@ -159,11 +187,48 @@ func _physics_process(delta: float) -> void:
 		if prop != null and str(prop.kind) in GEAR_KINDS and not bool(prop.absent) and bool(notes._seen(prop.center_global(), prop.get_rid())):
 			_gear_sec += delta
 			break
+	_watch_camera(delta)
+
+
+# 撮影カメラ（いま映している1台）の動きと向きを数える
+func _watch_camera(delta: float) -> void:
+	var film: Node3D = game.program_camera() as Node3D
+	if film == null or film.get("view_cam") == null or delta <= 0.0:
+		return
+	var cam: Camera3D = film.view_cam
+	var pos: Vector3 = cam.global_position
+	var fov: float = cam.fov
+	var ahead: Vector3 = -cam.global_transform.basis.z
+	if _cam.is_empty():
+		_cam = {"t": 0.0, "low": 0.0, "top": 0.0, "move": 0.0, "tilt": 0.0, "dolly": 0.0, "fov_min": fov, "fov_max": fov}
+		_cam_prev = null
+	_cam["t"] = float(_cam["t"]) + delta
+	_cam["fov_min"] = minf(float(_cam["fov_min"]), fov)
+	_cam["fov_max"] = maxf(float(_cam["fov_max"]), fov)
+	if pos.y - float(game.production.site_center().y) < LOW_HEIGHT:
+		_cam["low"] = float(_cam["low"]) + delta
+	if ahead.y < TOP_DOWN:
+		_cam["top"] = float(_cam["top"]) + delta
+	if absf(asin(clampf(cam.global_transform.basis.x.y, -1.0, 1.0))) > TILT_ROLL:
+		_cam["tilt"] = float(_cam["tilt"]) + delta
+	if _cam_prev == film:
+		var step: Vector3 = pos - _cam_pos
+		if step.length() / delta > MOVE_SPEED:
+			_cam["move"] = float(_cam["move"]) + delta
+		# めまい：前へ出ながら画角を広げる（引く）か、下がりながら画角を狭める（寄る）
+		var forward := step.dot(ahead) / delta
+		var zoom := (fov - _cam_fov) / delta
+		if absf(forward) > DOLLY_SPEED and absf(zoom) > DOLLY_ZOOM and signf(forward) == signf(zoom):
+			_cam["dolly"] = float(_cam["dolly"]) + delta
+	_cam_prev = film
+	_cam_pos = pos
+	_cam_fov = fov
 
 
 func hook_take_start() -> void:
 	_item_sec.clear()
 	_gear_sec = 0.0
+	_cam = {}
 
 
 func hook_take_cut() -> void:
@@ -206,6 +271,29 @@ func met(i: int, take: Dictionary) -> bool:
 			return float(_item_sec.get(i, 0.0)) >= ITEM_SEC
 		"hide_gear":
 			return _gear_sec <= GEAR_SEC
+		"zoom_ban":
+			return not _cam.is_empty() and float(_cam["fov_max"]) - float(_cam["fov_min"]) <= ZOOM_STILL
+		"low_angle":
+			return float(_cam.get("t", 0.0)) > 1.0 and float(_cam["low"]) >= LOW_SHARE * float(_cam["t"])
+		"top_down":
+			return float(_cam.get("top", 0.0)) >= TOP_SEC
+		"always_moving":
+			return float(_cam.get("t", 0.0)) > 1.0 and float(_cam["move"]) >= MOVE_SHARE * float(_cam["t"])
+		"dolly_zoom":
+			return float(_cam.get("dolly", 0.0)) >= DOLLY_SEC
+		"tilt":
+			return float(_cam.get("tilt", 0.0)) >= TILT_SEC
+		"panel_actor":
+			var stands: Node = game.hooks.feature("stand_ins")
+			return stands != null and (stands.holders as Array).any(func(h: Array) -> bool: return str(h[0]) == "prop")
+		"all_cast":
+			var cast: Node = game.hooks.feature("stand_ins")
+			if cast == null:
+				return false
+			for who: Variant in (game.players as Dictionary).keys():
+				if not (cast.holders as Array).any(func(h: Array) -> bool: return str(h[0]) == "player" and int(h[1]) == int(who)):
+					return false
+			return true
 	return false
 
 
