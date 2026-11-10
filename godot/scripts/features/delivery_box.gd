@@ -379,8 +379,9 @@ func _process(delta: float) -> void:
 		if not opened and (int(flow.phase) != 0 or str(flow.levels) != _levels0):
 			host_open()
 		elif _await_drop:
-			# 画面が見えて、動けるようになってから数える（タイトルからの切り替えの間は待つ）
-			if bool(game.get("startup_complete")) and not bool(game.get("input_locked")):
+			# 画面が見えて、動けるようになってから数える（タイトルからの切り替えの間・最初のムービーの間は待つ）
+			var movie: Node = game.hooks.feature("opening_movie")
+			if bool(game.get("startup_complete")) and not bool(game.get("input_locked")) and not (movie != null and bool(movie.playing)):
 				_wait += delta
 				if _wait >= DROP_WAIT:
 					_await_drop = false
