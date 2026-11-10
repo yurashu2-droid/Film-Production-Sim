@@ -20,6 +20,21 @@ const RANGE := 9.0                   # 光線の届く距離
 const HALF_ANGLE := 0.17             # 光線の広がり（ラジアン。約10度）
 const JOLT := 3.0                    # 浴びている物の速さが1コマでこれより変わったら（爆風・ぶつかった）、その分もゆっくりにする
 const SlowField := preload("res://vfx/vfx_slow_field.gd")
+const SOUND_PITCH := 0.55            # 光線の中で鳴る音の高さ（低く、間延びする）
+const CUE_SHADER := """shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, repeat_disable, filter_linear;
+uniform float k = 0.0;
+uniform float t = 0.0;
+void fragment() {
+	vec2 uv = SCREEN_UV;
+	vec2 c = uv - 0.5;
+	float edge = smoothstep(0.22, 0.72, length(c * vec2(1.0, 0.85)) * 1.25);
+	vec2 off = vec2(sin(uv.y * 6.0 + t * 0.6), cos(uv.x * 5.0 - t * 0.5)) * 0.014 * edge * k;
+	vec3 col = texture(screen, uv + off).rgb;
+	col = mix(col, col * vec3(1.06, 0.98, 0.84) + vec3(0.05, 0.035, 0.0), edge * k * 0.7);
+	COLOR = vec4(col, 1.0);
+}
+"""
 
 var game: Node
 var ray: RigidBody3D
@@ -34,6 +49,13 @@ var _slowed := {}                    # ゆっくりにしてある物（物のID
 var _prev := {}                      # ゆっくりにしている人 → 前のコマの場所
 var _anim_slow := {}                 # 体の動きをゆっくりにしてある人（見た目）
 var _fx: Node3D                      # 見た目（vfx/vfx_slow_field.gd）
+var _cue_layer: CanvasLayer          # 自分が浴びている間の、画面のふちのたわみ
+var _cue: ColorRect
+var _cue_mat: ShaderMaterial
+var _cue_k := 0.0
+var _cue_t := 0.0
+var _bus := -1                       # 効果音の音の通り道（自分が浴びている間、こもらせる）
+var _filter := -1
 
 
 func setup() -> void:
@@ -75,11 +97,14 @@ func setup() -> void:
 	_fx.name = "SlowField"
 	game.add_child(_fx)
 	# 見た目の型：project.godot の vfx/slow_ray_style（無ければ clock）。起動の引数 --slow-style=psychic でも替えられる
-	var look := str(ProjectSettings.get_setting("vfx/slow_ray_style", "clock"))
+	var look := str(ProjectSettings.get_setting("vfx/slow_ray_style", "syrup"))
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--slow-style="):
 			look = arg.get_slice("=", 1)
 	_fx.setup(RANGE, HALF_ANGLE, look)
+	# 光線の中で鳴った音は、低く間延びする（scripts/sfx.gd の pitch_zone）
+	Sfx.pitch_zone = _pitch_at
+	_build_cue()
 	if Net.is_host() and game.production != null:
 		game.production._home_layout[ray.pid] = ray.get_state()
 
@@ -193,6 +218,57 @@ func _in_beam(b: Array, point: Vector3) -> bool:
 
 # ---- 誰が浴びているか（ホスト）----
 
+# その場所で鳴る音の高さの倍率（光線の中は低い）
+func _pitch_at(at: Vector3) -> float:
+	var b := beam()
+	return SOUND_PITCH if not b.is_empty() and _in_beam(b, at) else 1.0
+
+
+func _exit_tree() -> void:
+	Sfx.pitch_zone = Callable()
+	if _bus >= 0 and _filter >= 0:
+		AudioServer.set_bus_effect_enabled(_bus, _filter, false)
+
+
+# 自分が浴びている間の手がかり（自分の画面だけ）：画面のふちが、濃い液体ごしのようにたわむ。音がこもる
+func _build_cue() -> void:
+	_cue_layer = CanvasLayer.new()
+	_cue_layer.name = "SlowSelfCue"
+	_cue_layer.layer = 0
+	add_child(_cue_layer)
+	_cue = ColorRect.new()
+	_cue.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_cue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shader := Shader.new()
+	shader.code = CUE_SHADER
+	_cue_mat = ShaderMaterial.new()
+	_cue_mat.shader = shader
+	_cue.material = _cue_mat
+	_cue.visible = false
+	_cue_layer.add_child(_cue)
+	_bus = AudioServer.get_bus_index("SFX")
+	if _bus >= 0:
+		var low := AudioEffectLowPassFilter.new()
+		low.cutoff_hz = 1100.0
+		AudioServer.add_bus_effect(_bus, low)
+		_filter = AudioServer.get_bus_effect_count(_bus) - 1
+		AudioServer.set_bus_effect_enabled(_bus, _filter, false)
+
+
+func _process(delta: float) -> void:
+	if _cue == null or game.production == null:
+		return
+	var me: Node = game.local_player()
+	var soaked: bool = me != null and int(me.peer_id) in players_in and not game.replaying
+	_cue_k = move_toward(_cue_k, 1.0 if soaked else 0.0, delta / 0.35)
+	_cue_t += delta
+	_cue.visible = _cue_k > 0.001
+	_cue_mat.set_shader_parameter("k", _cue_k)
+	_cue_mat.set_shader_parameter("t", _cue_t)
+	if _bus >= 0 and _filter >= 0:
+		AudioServer.set_bus_effect_enabled(_bus, _filter, _cue_k > 0.5)
+
+
 func _physics_process(_delta: float) -> void:
 	if ray == null or game.production == null:
 		return
@@ -253,6 +329,10 @@ func _slow_props(now: Array) -> void:
 			var jolt: Vector3 = body.linear_velocity - before
 			if jolt.length() > JOLT:
 				body.linear_velocity = before + jolt * SLOW
+			# スローの中で着地した：土ぼこりが、ゆっくり舞う
+			if before.y < -0.45 and body.linear_velocity.y > before.y * 0.3:
+				var foot: Vector3 = body.center_global() - Vector3(0.0, float((body.half as Vector3).y), 0.0)
+				game.host_ev("slow_dust", [foot, clampf((body.half as Vector3).length() * 1.3, 0.6, 1.5)])
 		body.gravity_scale = SLOW * SLOW
 		_slowed[pid] = body.linear_velocity
 	for pid: int in _slowed.keys():
@@ -316,11 +396,11 @@ func _anim_speed(body: Node, speed: float) -> void:
 # ---- 全員の画面 ----
 
 func hook_events() -> Array:
-	return ["slow_on", "slow_set"]
+	return ["slow_on", "slow_set", "slow_dust"]
 
 
 func hook_rec_events() -> Array:
-	return ["slow_on", "slow_set"]
+	return ["slow_on", "slow_set", "slow_dust"]
 
 
 func hook_event(n: String, a: Array) -> void:
@@ -328,6 +408,8 @@ func hook_event(n: String, a: Array) -> void:
 		"slow_on":
 			on = bool(a[0])
 			Sfx.play("ui_select" if on else "ui_back", ray.global_position if ray != null else null, -6.0)
+		"slow_dust":
+			_fx.dust(a[0] as Vector3, float(a[1]))
 		"slow_set":
 			props_in = (a[0] as Array).duplicate()
 			players_in = (a[1] as Array).duplicate()

@@ -94,6 +94,19 @@ func run() -> void:
 	f._slow_people()
 	var moved: float = me.global_position.distance_to(from)
 	check(moved > 0.2 and moved < 0.4, "動いた分は、0.3 倍になる（%.2f m）" % moved)
+	# 自分が浴びている間：画面のふちの手がかりが出る。光線の中で鳴る音は低い
+	await frames(30)
+	check(f._cue.visible and f._cue_k > 0.9, "自分が浴びている間は、自分の画面に手がかりが出る（%.2f）" % f._cue_k)
+	check(absf(f._pitch_at(ground + Vector3(0.0, 0.9, 0.0)) - f.SOUND_PITCH) < 0.001 and absf(f._pitch_at(ground + Vector3(0.0, 0.9, 6.0)) - 1.0) < 0.001,
+		"光線の中で鳴る音は低く、外で鳴る音はそのまま")
+	check((root.get_node("Sfx").pitch_zone as Callable).is_valid(), "音の高さを決める関数が、効果音の仕組みに入っている")
+	# スローの中の着地：土ぼこりが、ゆっくり舞う（0.68秒の煙が、2秒たっても残っている）
+	var puffs_before: int = f._fx._dusts.size()
+	game.host_ev("slow_dust", [ground + Vector3(2.0, 0.0, 0.0), 1.0])
+	await frames(120)
+	check(f._fx._dusts.size() > puffs_before, "着地の土ぼこりは、2秒たっても舞っている（%d 個）" % (f._fx._dusts.size() - puffs_before))
+	await frames(60)
+	check(f._fx._dusts.size() == puffs_before, "土ぼこりは、ゆっくり消え切る")
 	# 持っている人自身には効かない
 	f.ray.holder = int(me.peer_id)
 	await frames(5)

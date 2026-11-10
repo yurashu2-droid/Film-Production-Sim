@@ -1,6 +1,7 @@
-// スロー光線・超能力の型：届く範囲の円すいを、空間のゆがみで見せる（制作班にだけ見える層に置く）。
-// 円すいの面を通して見える景色が、ゆっくり波打つ。縁ほど強く、色も少しずれる。光る筋や粒は出さない。
+// スロー光線：届く範囲の円すいを、空間のゆがみで見せる（制作班にだけ見える層に置く）。
+// 円すいの面を通して見える景色が、ゆっくり波打つ。縁ほど強い。光る筋や粒は出さない。
 //   grow：0→1 で、根元から先へ伸びる／eaten：0→1 で、根元から先へ消える／power：強さ
+//   pace：うねりの速さ／grain：うねりの細かさ／chroma：色ずれの量（水あめの型は、遅く・大きく・色ずれなし）
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled;
 
@@ -11,6 +12,9 @@ uniform float power = 1.0;
 uniform float t = 0.0;
 uniform float height = 9.0;
 uniform float bend = 0.022;            // ゆがみの大きさ（画面の幅を 1 として）
+uniform float pace = 1.0;
+uniform float grain = 1.0;
+uniform float chroma = 1.0;
 uniform vec3 tint = vec3(0.62, 0.5, 1.0);
 
 varying float along;
@@ -44,16 +48,17 @@ void fragment() {
 	if (k < 0.004) {
 		discard;
 	}
+	float tt = t * pace;
 	// 大きいうねりは遅く、細かいうねりは速く。根元から先へ流れる
-	vec2 big = vec2(vn(vec2(ang * 5.0 + 1.7, along * 3.5 - t * 0.09)), vn(vec2(ang * 5.0 + 8.3, along * 3.5 - t * 0.075))) - 0.5;
-	vec2 fine = vec2(vn(vec2(ang * 13.0 - 4.1, along * 9.0 - t * 0.2)), vn(vec2(ang * 13.0 + 2.9, along * 9.0 - t * 0.17))) - 0.5;
+	vec2 big = vec2(vn(vec2(ang * 5.0 * grain + 1.7, along * 3.5 * grain - tt * 0.09)), vn(vec2(ang * 5.0 * grain + 8.3, along * 3.5 * grain - tt * 0.075))) - 0.5;
+	vec2 fine = vec2(vn(vec2(ang * 13.0 * grain - 4.1, along * 9.0 * grain - tt * 0.2)), vn(vec2(ang * 13.0 * grain + 2.9, along * 9.0 * grain - tt * 0.17))) - 0.5;
 	vec2 off = (big * 0.75 + fine * 0.25) * bend * k * 2.0;
 	vec3 c;
-	c.r = texture(screen_tex, SCREEN_UV + off * 1.35).r;
+	c.r = texture(screen_tex, SCREEN_UV + off * (1.0 + 0.35 * chroma)).r;
 	c.g = texture(screen_tex, SCREEN_UV + off).g;
-	c.b = texture(screen_tex, SCREEN_UV + off * 0.65).b;
-	// 縁にだけ、うすい紫（面の中は、ほぼ素通し）
-	c = mix(c, c * vec3(0.93, 0.88, 1.1) + tint * 0.05, clamp(rim * k * 1.4, 0.0, 0.7));
+	c.b = texture(screen_tex, SCREEN_UV + off * (1.0 - 0.35 * chroma)).b;
+	// 縁にだけ、うすい色（面の中は、ほぼ素通し）
+	c = mix(c, c * mix(vec3(1.0), tint, 0.25) + tint * 0.05, clamp(rim * k * 1.4, 0.0, 0.7));
 	ALBEDO = c;
 	ALPHA = 1.0;
 }

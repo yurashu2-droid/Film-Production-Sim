@@ -37,6 +37,8 @@ const MUSIC_DB: float = 0.0
 const SILENT_DB: float = -60.0
 
 var muted: bool = false
+# 場所ごとの音の高さ：呼ぶと、その場所で鳴る音の高さの倍率が返る関数（スロー光線の中は低く。features/slow_ray.gd が入れる）
+var pitch_zone: Callable
 var synth_ms: int = 0
 
 var _streams: Dictionary = {}
@@ -151,6 +153,8 @@ func play(sound: String, position: Variant = null, volume_db: float = 0.0) -> vo
 		stream = list[randi() % list.size()]
 		if sound not in FIXED_PITCH:
 			pitch = randf_range(1.0 - PITCH_SPREAD, 1.0 + PITCH_SPREAD)
+	if position is Vector3 and pitch_zone.is_valid():
+		pitch *= float(pitch_zone.call(position))
 	if position is Vector3:
 		var p3: AudioStreamPlayer3D = AudioStreamPlayer3D.new()
 		p3.stream = stream
