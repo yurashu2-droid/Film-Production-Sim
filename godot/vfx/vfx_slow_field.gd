@@ -21,34 +21,27 @@ const MOTE := preload("res://vfx/shaders/slow_mote.gdshader")
 const CONE := preload("res://vfx/shaders/slow_cone.gdshader")
 const FLOOR := preload("res://vfx/shaders/slow_floor.gdshader")
 const WARP := preload("res://vfx/shaders/slow_warp.gdshader")
-const EsperAura := preload("res://vfx/esper/esper_aura.gd")
-# ---- もう1つの型「psychic」：超能力・空間のゆがみ（2026-11-10 ユーザー「超能力っぽい感じとか空間のゆがみとかで表現するパターンも見てみたい」）----
-# 浴びている物・人：輪郭そのものが膜になって、ゆっくり沸く（念力のオーラ shaders/psychic_aura。ゆらぎの型）。
-#   まわりの景色がゆがみ、色が少しずれる。輪郭と同じ形の波紋が、1.15秒ごとに、のろのろ広がる（遅い鼓動）。
-#   出る時：懐中電灯に近い側から、膜が物をなめるように広がる。終わる時：同じ側から、ぬぐわれるように消える。
-# 届く範囲：円すいを通して見える景色が、ゆっくり波打つ（光る筋や粒は出さない）。床の扇形は同じ。
-const PSY_LOOK := {"band": 0.03, "amp": 0.12, "jag": 0.0, "rise": 0.3, "split": 0.02, "haze": 0.4,
-	"ring_gain": 1.0, "ring_reach": 0.6, "ring_width": 0.02, "warp": 1.0, "tint": Color(0.62, 0.48, 1.0)}
-const PSY_RING_SEC := 1.6            # 波紋1本が広がり切るまで（遅い）
-# ---- 3つ目の型「syrup」：光線の中だけ、空気が水あめになる（2026-11-10。浴びた物ではなく、物が入っている「場」を見せる）----
-# 素材：        濃い液体のような空気（透明。光らない）。その中に浮くほこり
+# ---- いまの型「mirage」：蜃気楼（2026-11-10 ユーザー：「光の速度も遅くて、歪んで見えるとかぐらいでいい」
+#      「物体の真ん中と外側で追従速度が違うとかにしたら、いい感じにゆがませれないかね」「蜃気楼的な」）----
+# 浴びた物・人に、色も線も足さない。その物の「像」だけをゆがめる（カメラを向く板で、画面の絵をずらして描き直す。shaders/slow_lens）。
+# 念力のオーラ（輪郭の膜・波紋）は使わない（ユーザー：「超能力で持ち上げているのか、どっちか分かりづらい」）。
+# 素材：        光が遅い空気。物から来る光が、遅れて届く
 # どこから来る： 懐中電灯の頭から先へ、円すいの形に満ちる
-# 先に動く部分： 物そのもの（境目を越えた瞬間に、ぷるんと縮む）
-# 遅れて追う部分：物の輪郭にまとわりつく膜と、動いた後ろに残る引き波。着地の土ぼこりは、ゆっくり広がる
-# 形の変化：     入った瞬間：輪郭の形の波紋が1つ立つ・物がぷるんと縮んで戻る（0.6秒）／中で動く：膜が後ろへ伸びる／
-#                場は、大きくのろいうねり（細かく震えない）。ほこりは、ほぼ止まって、ゆっくり沈む
-# 終わり：       出た瞬間：波紋がもう1つ・物がぷるんと伸びて戻る。膜は、懐中電灯に近い側からぬぐわれる。
+# 先に動く部分： 物の真ん中の像（遅れない）
+# 遅れて追う部分：物の外側の像（ばねで遅れて追う。行きすぎて、揺れて、追いつく）
+# 形の変化：     入った瞬間：外側の像が、前の速さのまま行きすぎて、戻る（ぷるん）／動いている間：外側が後ろへ引きずられる／
+#                止まっている間も：横に長い帯ごとに、像が左右にゆっくりゆれる（蜃気楼）
+# 終わり：       ゆがみが、ばねの揺れのまま収まっていく（像が、本当の場所に追いつく）。0.5秒
 #                場は、根元から先へ消える。ほこりは、沈みながら見えなくなる
-# 映画に映る物：物の小さなぷるんと、ゆっくり舞う土ぼこりだけ。膜・波紋・場のゆがみ・ほこり・床の扇形は、制作班にだけ見える
-const SYRUP_LOOK := {"band": 0.014, "amp": 0.04, "jag": 0.0, "rise": 0.0, "split": 0.0, "haze": 0.22,
-	"ring_gain": 0.9, "ring_reach": 0.5, "ring_width": 0.02, "warp": 0.85, "opacity": 0.62, "tint": Color(1.0, 0.8, 0.46), "layers": 1 << 11}
-const SYRUP_RING_SEC := 1.1
-const POP_SEC := 0.6                 # ぷるんの長さ
-const POP_SIZE := 0.1                # ぷるんの大きさ（1 に対して）
+# 映画に映る物：ゆっくり舞う土ぼこりだけ。像のゆがみ・場のゆがみ・ほこり・床の扇形は、制作班にだけ見える
+const LENS := preload("res://vfx/shaders/slow_lens.gdshader")
+const LENS_SPRING := 70.0            # 外側の像が追う、ばねの強さ
+const LENS_DAMP := 7.0               # 　　〃　　　　、揺れの収まりやすさ（小さいほど、長く揺れる）
+const LENS_IN := 0.15
+const LENS_KICK := 1.8               # 入った瞬間、外側の像が行きすぎる強さ（いまの速さの何倍で進もうとするか）
+const LENS_REACH := 0.42             # 外側の像が遅れる長さの上限（物の大きさに対して）
+const LENS_OUT := 0.5
 const Dust := preload("res://scripts/toon_dust.gd")
-const PSY_PULSE := 1.15              # 波紋を出す間隔
-const PSY_APPEAR := 0.35
-const PSY_LEAVE := 0.5
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const STEP := 1.0 / 12.0             # コマ打ち（目盛りと針）
 const APPEAR := 0.3                  # 目盛りが出そろう秒数
@@ -64,7 +57,7 @@ const CONE_MOTES := 72               # 範囲の円すいの中を流れるほ�
 const GROW := 0.25                   # 円すいが根元から先へ伸びる秒数
 const EATEN := 0.45                  # 円すいが根元から先へ消える秒数
 
-var style := "clock"                 # 見た目の型："clock"（時計の目盛り・残像・ほこり）／"psychic"（輪郭のオーラ・波紋・空間のゆがみ）
+var style := "clock"                 # 見た目の型："mirage"（蜃気楼。像のゆがみ。いまの既定）／"clock"（時計の目盛り・残像・ほこり。前の型）
 var _t := 0.0
 var _range := 9.0
 var _half := 0.17
@@ -118,7 +111,7 @@ func setup(reach: float, half_angle: float, look: String = "clock") -> void:
 	_warp_mat.shader = WARP
 	_warp_mat.set_shader_parameter("height", reach)
 	_cone_mesh = cone
-	cone.material_override = _warp_mat if style != "clock" else _cone_mat
+	cone.material_override = _warp_mat if style == "mirage" else _cone_mat
 	cone.layers = CREW_LAYER
 	cone.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_cone_pivot.add_child(cone)
@@ -142,12 +135,13 @@ func setup(reach: float, half_angle: float, look: String = "clock") -> void:
 
 # 型ごとの色と、ゆがみの性格
 func _palette() -> void:
-	var syrup := style == "syrup"
+	var syrup := style == "mirage"
 	_warp_mat.set_shader_parameter("tint", Vector3(1.0, 0.8, 0.45) if syrup else Vector3(0.62, 0.5, 1.0))
-	_warp_mat.set_shader_parameter("pace", 0.45 if syrup else 1.0)
-	_warp_mat.set_shader_parameter("grain", 0.55 if syrup else 1.0)
-	_warp_mat.set_shader_parameter("chroma", 0.0 if syrup else 1.0)
-	_warp_mat.set_shader_parameter("bend", 0.034 if syrup else 0.022)
+	_warp_mat.set_shader_parameter("pace", 0.45)
+	_warp_mat.set_shader_parameter("grain", 0.55)
+	_warp_mat.set_shader_parameter("chroma", 0.0)
+	_warp_mat.set_shader_parameter("bend", 0.026)
+	_warp_mat.set_shader_parameter("bands", 0.6)
 	_floor_mat.set_shader_parameter("tint", Vector3(0.95, 0.68, 0.25) if syrup else Vector3(0.42, 0.3, 0.86))
 	_floor_mat.set_shader_parameter("ink", Vector3(0.5, 0.32, 0.1) if syrup else Vector3(0.22, 0.14, 0.42))
 	for mat: ShaderMaterial in _mote_mats:
@@ -182,7 +176,7 @@ func set_style(look: String) -> void:
 	for body: Variant in _marks.keys():
 		_drop(body)
 	style = look
-	_cone_mesh.material_override = _warp_mat if style != "clock" else _cone_mat
+	_cone_mesh.material_override = _warp_mat if style == "mirage" else _cone_mat
 	_motes.visible_instance_count = 0
 	_palette()
 
@@ -211,8 +205,8 @@ func sync(targets: Dictionary) -> void:
 
 
 func _begin(body: Node3D, info: Array) -> void:
-	if style != "clock":
-		_begin_psychic(body, info)
+	if style == "mirage":
+		_begin_mirage(body, info)
 		return
 	var seed_value := float(body.get_instance_id() % 997) / 997.0
 	var ring := MeshInstance3D.new()
@@ -259,96 +253,70 @@ func _begin(body: Node3D, info: Array) -> void:
 func _end(body: Variant) -> void:
 	var m: Dictionary = _marks[body]
 	m["leave"] = _t
-	if not m.has("aura"):
+	if not m.has("lens"):
 		m["hand0"] = _hand(m)
-	elif bool(m.get("syrup", false)):
-		# 境目を出た：波紋がもう1つ。物は、伸びて戻る
-		if is_instance_valid(m["aura"]):
-			(m["aura"] as MeshInstance3D).ring(_t)
-		if m.has("base"):
-			m["pop"] = _t
-			m["pop_dir"] = -1.0
 	if is_instance_valid(m["ring"]):
 		(m["ring"] as Node).name = "SlowAuraEnding"
 
 
-# 超能力の型・水あめの型：輪郭に沿う膜を付ける（物は、見た目の外形に沿う。人は、頭と足をつないだ丸い形）
-func _begin_psychic(body: Node3D, info: Array) -> void:
-	var marker := Node3D.new()            # 「浴びている」の印（中身は無い。膜は、この仕組みの子）
+# 蜃気楼の型：浴びた物・人の像をゆがめる板を1枚、その物の場所に置く
+func _begin_mirage(body: Node3D, info: Array) -> void:
+	var marker := Node3D.new()            # 「浴びている」の印（中身は無い）
 	marker.name = "SlowAura"
 	body.add_child(marker)
-	var syrup := style == "syrup"
-	var visual: Node3D = info[2] as Node3D
-	var opts: Dictionary = (SYRUP_LOOK if syrup else PSY_LOOK).duplicate()
-	var aura: MeshInstance3D
-	if visual != null:
-		aura = EsperAura.around(self, visual, opts)
-	else:
-		opts["pad"] = 0.42
-		aura = EsperAura.at(self, PackedVector3Array([body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, 1.45, 0)]), opts)
-	aura.ring_sec = SYRUP_RING_SEC if syrup else PSY_RING_SEC
-	aura.p("reveal", 0.0)
-	_marks[body] = {"ring": marker, "aura": aura, "person": visual == null, "born": _t, "leave": -1.0, "pulse": _t + 0.25,
-		"center": info[0], "radius": float(info[1]), "ghosts": [], "syrup": syrup, "last": body.global_position, "speed": Vector3.ZERO}
-	if syrup:
-		aura.ring(_t)                     # 境目を越えた：波紋が1つ
-		if visual != null:
-			_marks[body]["visual"] = visual
-			_marks[body]["base"] = visual.scale
-			_marks[body]["pop"] = _t
-			_marks[body]["pop_dir"] = 1.0
+	var lens := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(2.0, 2.0)
+	lens.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = LENS
+	mat.set_shader_parameter("seed", float(body.get_instance_id() % 997) / 997.0)
+	mat.set_shader_parameter("gain", 0.0)
+	lens.material_override = mat
+	lens.layers = CREW_LAYER
+	lens.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lens.extra_cull_margin = 8.0
+	lens.scale = Vector3.ONE * float(info[1]) * 1.1
+	add_child(lens)
+	var centre: Vector3 = body.to_global(info[0])
+	lens.global_position = centre
+	_marks[body] = {"ring": marker, "lens": lens, "mat": mat, "born": _t, "leave": -1.0, "center": info[0], "radius": float(info[1]),
+		"ghosts": [], "follow": centre, "speed": Vector3.ZERO, "last": centre, "kick": true}
 
 
-# 膜の1コマ：相手に沿わせる。出入りは、懐中電灯に近い側から。
-# 超能力の型は、のろい波紋を出し続ける。水あめの型は、動いた後ろへ膜を伸ばし（引き波）、出入りの瞬間に物をぷるんとさせる
-func _psychic_step(body: Node3D, m: Dictionary, delta: float) -> void:
-	var aura: MeshInstance3D = m["aura"]
-	if not is_instance_valid(aura):
+# 蜃気楼の1コマ：外側の像が、ばねで遅れて追う。その遅れを、板に渡す
+func _mirage_step(body: Node3D, m: Dictionary, delta: float) -> void:
+	var lens: MeshInstance3D = m["lens"]
+	if not is_instance_valid(lens):
 		_drop(body)
 		return
-	if bool(m["person"]):
-		aura.move(PackedVector3Array([body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, 1.45, 0)]))
-	aura.place(_t, 0.0)
 	var centre: Vector3 = body.to_global(m["center"])
-	var radius: float = float(m["radius"])
-	var toward: Vector3 = _cone_from - centre
-	aura.p("grip", centre + (toward.normalized() if toward.length() > 0.01 else Vector3.UP) * radius)
-	var span := radius * 2.0 + 1.6
-	var syrup: bool = bool(m["syrup"])
-	if syrup:
-		# 引き波：動く向きの後ろへ、膜が伸びる（急に変えず、なめらかに追う）
-		if delta > 0.0:
-			var now: Vector3 = (body.global_position - (m["last"] as Vector3)) / delta
-			m["speed"] = (m["speed"] as Vector3).lerp(now, 0.2)
-			m["last"] = body.global_position
-		aura.p("trail_world", (m["speed"] as Vector3).limit_length(1.6) / 1.6)
-		_pop(m)
-	if float(m["leave"]) < 0.0:
-		var k := clampf((_t - float(m["born"])) / PSY_APPEAR, 0.0, 1.0)
-		aura.p("reveal", (1.0 - pow(1.0 - k, 2.0)) * span)
-		aura.p("drain", -1.0)
-		if not syrup and _t >= float(m["pulse"]):
-			aura.ring(_t)
-			m["pulse"] = _t + PSY_PULSE
-	else:
-		var k := clampf((_t - float(m["leave"])) / PSY_LEAVE, 0.0, 1.0)
-		aura.p("drain", k * k * span)
-		if _t - float(m["leave"]) > maxf(PSY_LEAVE, POP_SEC if syrup else 0.0) + 0.05:
+	var step := minf(delta, 0.05)
+	if step > 0.0:
+		if bool(m["kick"]) and centre.distance_to(m["last"]) > 0.0001:
+			# 入った瞬間：外側の像は、スローになる前の速さ（いまの約3.3倍）のまま進もうとする
+			m["speed"] = (centre - (m["last"] as Vector3)) / step * LENS_KICK
+			m["kick"] = false
+		var follow: Vector3 = m["follow"]
+		var speed: Vector3 = m["speed"]
+		speed += ((centre - follow) * LENS_SPRING - speed * LENS_DAMP) * step
+		follow += speed * step
+		m["follow"] = follow
+		m["speed"] = speed
+		m["last"] = centre
+	var lag: Vector3 = (centre - (m["follow"] as Vector3)).limit_length(float(m["radius"]) * LENS_REACH)
+	var mat: ShaderMaterial = m["mat"]
+	var gain := clampf((_t - float(m["born"])) / LENS_IN, 0.0, 1.0)
+	if float(m["leave"]) >= 0.0:
+		var out := clampf((_t - float(m["leave"])) / LENS_OUT, 0.0, 1.0)
+		gain *= 1.0 - out * out
+		if out >= 1.0:
 			_drop(body)
-
-
-# ぷるん：境目を越えた瞬間に、物の見た目が少し縮んで（出る時は伸びて）、揺れながら戻る
-func _pop(m: Dictionary) -> void:
-	if not m.has("base") or not is_instance_valid(m.get("visual")):
-		return
-	var visual: Node3D = m["visual"]
-	var age: float = _t - float(m["pop"])
-	var base: Vector3 = m["base"]
-	if age >= POP_SEC:
-		visual.scale = base
-		return
-	var w := sin(age * 20.0) * exp(-age * 6.5) * POP_SIZE * float(m["pop_dir"])
-	visual.scale = base * Vector3(1.0 + w * 0.6, 1.0 - w, 1.0 + w * 0.6)
+			return
+	lens.global_position = centre
+	mat.set_shader_parameter("lag", lag)
+	mat.set_shader_parameter("gain", gain)
+	mat.set_shader_parameter("t", _t)
 
 
 # ゆっくり舞う土ぼこり（スローの中で着地した時）。煙の進み方を、こちらで 0.3 倍にして進める
@@ -381,10 +349,8 @@ func _dust_step(delta: float) -> void:
 func _drop(body: Variant) -> void:
 	var m: Dictionary = _marks[body]
 	_marks.erase(body)
-	if m.has("aura") and is_instance_valid(m["aura"]):
-		(m["aura"] as Node).queue_free()
-	if m.has("base") and is_instance_valid(m.get("visual")):
-		(m["visual"] as Node3D).scale = m["base"]          # ぷるんの途中で片づけても、元の大きさに戻す
+	if m.has("lens") and is_instance_valid(m["lens"]):
+		(m["lens"] as Node).queue_free()
 	if is_instance_valid(m["ring"]):
 		(m["ring"] as Node).queue_free()
 	for g: Variant in m["ghosts"]:
@@ -410,8 +376,8 @@ func _process(delta: float) -> void:
 		if not is_instance_valid(body) or not is_instance_valid(m["ring"]):
 			_drop(body)
 			continue
-		if m.has("aura"):
-			_psychic_step(body as Node3D, m, delta)
+		if m.has("lens"):
+			_mirage_step(body as Node3D, m, delta)
 			continue
 		var mat: ShaderMaterial = m["mat"]
 		var leaving: bool = float(m["leave"]) >= 0.0
@@ -549,8 +515,8 @@ func _cone_step(delta: float) -> void:
 	var up: Vector3 = facing.z
 	var spread := tan(_half)
 	var n := 0
-	var motes_on := clampf((_cone_power - 0.5) / 0.4, 0.0, 1.0) if style != "psychic" else 0.0
-	if motes_on > 0.0 and style == "syrup":
+	var motes_on := clampf((_cone_power - 0.5) / 0.4, 0.0, 1.0)
+	if motes_on > 0.0 and style == "mirage":
 		# 水あめの型：ほこりは流れない。ほぼ止まって、ゆっくり沈む。数秒ごとに、別の場所に生まれ直す
 		for j in CONE_MOTES:
 			var life := 4.0 + 3.0 * h(j, 21)

@@ -15,6 +15,7 @@ uniform float bend = 0.022;            // ゆがみの大きさ（画面の幅�
 uniform float pace = 1.0;
 uniform float grain = 1.0;
 uniform float chroma = 1.0;
+uniform float bands = 1.0;             // 蜃気楼の帯（横に長い帯ごとに、像が上下に伸び縮みする）
 uniform vec3 tint = vec3(0.62, 0.5, 1.0);
 
 varying float along;
@@ -53,6 +54,7 @@ void fragment() {
 	vec2 big = vec2(vn(vec2(ang * 5.0 * grain + 1.7, along * 3.5 * grain - tt * 0.09)), vn(vec2(ang * 5.0 * grain + 8.3, along * 3.5 * grain - tt * 0.075))) - 0.5;
 	vec2 fine = vec2(vn(vec2(ang * 13.0 * grain - 4.1, along * 9.0 * grain - tt * 0.2)), vn(vec2(ang * 13.0 * grain + 2.9, along * 9.0 * grain - tt * 0.17))) - 0.5;
 	vec2 off = (big * 0.75 + fine * 0.25) * bend * k * 2.0;
+	off.y += (vn(vec2(SCREEN_UV.x * 2.5 + 3.1, SCREEN_UV.y * 24.0 - tt * 0.7)) - 0.5) * 0.014 * bands * k;
 	vec3 c;
 	c.r = texture(screen_tex, SCREEN_UV + off * (1.0 + 0.35 * chroma)).r;
 	c.g = texture(screen_tex, SCREEN_UV + off).g;
