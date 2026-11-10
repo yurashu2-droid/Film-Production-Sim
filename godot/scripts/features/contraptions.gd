@@ -16,7 +16,9 @@ extends Node
 ##     （FAN_SEC 秒）。正面（＋Z）へ風が出て、軽い物を押し、風の筋が見える。名場面の「風を受ける」場面で使う（production_beats.gd の wind）
 ##   ・目覚まし時計：手ぶらで F を押すたびに、ねじを巻く（巻くほど長く。文字盤の赤い針が、残りを指す）。針が上に戻ると鳴って、
 ##     ケーブルでつないだ装置が動く（押しボタンと同じ。つなぎ方も同じ）。役を演じている間に、仕掛けを動かせる
-## 決めるのはホスト。ロープの張り（引く力）は、ホストだけが毎コマ計算する。
+##   ・ハーネス（features/harness.gd）：人に着ける帯。ロープの端をハーネスに結ぶと、着けた人が引かれる（吊り上がる・ぶら下がる）
+##   ・吊りクレーン（features/crane_tower.gd）：腕と塔に付いた滑車にも、ロープを掛けられる（通り道の番号が負の数）
+## 決めるのはホスト。ロープの張り（引く力）は、ホストが毎コマ計算する（ハーネスを着けた人の体だけは、その人の画面でも同じ式で引く）。
 ## 結び目・長さ・燃えている所・留めた滑車・ケーブル・炎は、"rig" の合図で全員へ配る（本番中は記録にも残り、見返しでも焼き切れる・鳴る・燃える）
 const Prop := preload("res://scripts/prop.gd")
 const VfxFire := preload("res://vfx/vfx_fire.gd")
@@ -39,6 +41,7 @@ const BETA := 0.25                                   # ロープの伸びを、1
 const MAX_PULL := 40.0                               # 1コマに加える引きの上限（N・s）
 const PRESS_MASS := 0.3                              # ボタンを押せる、いちばん軽い物（kg）
 const PRESS_GAP := 0.5                               # 押してから、次に押せるまで（秒）
+const GUEST_LAG := 0.6                               # 参加者の体が、ロープの先からこれより遅れたら「ついて来ていない」（つかえている）
 # 会社の備品の置き場所（はさみの隣の作業台の前の床）[種類, 場所, 向き]
 const HOME := [
 	["pulley", Vector3(70.15, 0.05, 18.45), 0.3], ["pulley", Vector3(70.15, 0.05, 18.95), 0.3],
@@ -88,6 +91,9 @@ var _playback := false
 var _send_t := 0.0
 var _dirty := false
 var _was_held := false                               # ホスト：前のコマで、場転でフィルムを止めていたか
+var _hz: Node                                        # ハーネス（features/harness.gd）。無ければ null
+var _cz: Node                                        # 吊りクレーン（features/crane_tower.gd）。無ければ null
+var _guests: Dictionary = {}                         # ホスト：ロープの端にいる参加者の、ロープに沿った速さの見積もり（ロープの番号 → {端の番号: 速さ}）
 # 見た目
 var _ropes: MultiMeshInstance3D
 var _cables: MultiMeshInstance3D
@@ -301,11 +307,57 @@ func _end_at(end: Array) -> Vector3:
 	var pid := int(end[0])
 	if pid == 0:
 		return end[1]
+	if _worn(pid):
+		return _hz.attach_at(pid)          # 着けているハーネス：その人の背中の輪
 	var p := _prop(pid)
 	return p.global_transform * (end[1] as Vector3) if p != null else end[1]
 
 
+func _harness() -> Node:
+	if _hz == null and game != null and game.get("hooks") != null:
+		_hz = game.hooks.feature("harness")
+	return _hz
+
+
+# その物は、誰かが着けているハーネスか
+func _worn(pid: int) -> bool:
+	var hz := _harness()
+	return pid != 0 and hz != null and (hz.worn as Dictionary).has(pid)
+
+
+func _crane() -> Node:
+	if _cz == null and game != null and game.get("hooks") != null:
+		_cz = game.hooks.feature("crane_tower")
+	return _cz
+
+
+# 視線の先にある、吊りクレーンの滑車（通り道の番号。負の数）。見ていなければ 0
+func _aim_guide(me: Node) -> int:
+	var cz := _crane()
+	var view := _view(me)
+	if cz == null or view.is_empty():
+		return 0
+	var best := 0
+	var best_off := INF
+	for p: RigidBody3D in cz.cranes:
+		if p.absent or p.pid == me.held:
+			continue
+		for k in (cz.GUIDES as Array).size():
+			var c: Vector3 = cz.guide_at(p, k)
+			var along := (c - (view[0] as Vector3)).dot(view[1])
+			if along < 0.2 or not _reach_ok(me, c):
+				continue
+			var off := (c - (view[0] as Vector3) - (view[1] as Vector3) * along).length()
+			if off < PART_AIM + 0.02 * along and off < best_off:
+				best = cz.via_id(p.pid, k)
+				best_off = off
+	return best
+
+
+# ロープが通る所：滑車の車の中心。負の数は、吊りクレーンの滑車
 func _wheel(pid: int) -> Vector3:
+	if pid < 0:
+		return _crane().via_at(pid) if _crane() != null else Vector3.ZERO
 	var p := _prop(pid)
 	return p.global_transform * WHEEL_AT if p != null else Vector3.ZERO
 
@@ -491,9 +543,18 @@ func f_action(me: Node) -> Dictionary:
 		if not row.is_empty() and not mine:
 			row["do"] = "untie"
 			return row
+		var guide := _aim_guide(me)
+		if guide != 0:
+			# 吊りクレーンの滑車：結んでいる途中なら掛ける。最初の端なら、そこに結ぶ
+			if mine:
+				return {"do": "via", "pid": guide, "point": _wheel(guide), "name": _cz.guide_name(_cz.via_k(guide))}
+			return {"do": "tie", "pid": _cz.via_pid(guide), "point": _wheel(guide), "name": _cz.guide_name(_cz.via_k(guide))}
 		var pulley := _aim_part(me, ["pulley"])
 		if pulley != null:
 			return {"do": "via" if mine else "tie", "pid": pulley.pid, "point": _wheel(pulley.pid), "pulley": true}
+		var worn_pid: int = _harness().aimed_harness(me) if _harness() != null else 0
+		if worn_pid != 0:
+			return {"do": "tie", "pid": worn_pid, "point": _end_at([worn_pid, Vector3.ZERO]), "worn": true}
 		var at := _aim_surface(me)
 		if at.is_empty() or (int(at["pid"]) == 0 and (at["normal"] as Vector3).y > 0.7):
 			return {"do": "hold_rope"} if mine else {}
@@ -584,9 +645,10 @@ func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
 		"tie":
 			if pending.has(int(me.peer_id)):
 				return {"keys_all": "F もう一方の端を結ぶ" + put}
-			return {"label": "滑車" if bool(act.get("pulley", false)) else _label, "keys_all": "F ロープの端を結ぶ（仕掛け）" + put}
+			var what: String = "滑車" if bool(act.get("pulley", false)) else ("ハーネス" if bool(act.get("worn", false)) else str(act.get("name", _label)))
+			return {"label": what, "keys_all": "F ロープの端を結ぶ（仕掛け）" + put}
 		"via":
-			return {"label": "滑車", "keys_all": "F 滑車にロープを掛ける" + put}
+			return {"label": str(act.get("name", "滑車")), "keys_all": "F 滑車にロープを掛ける" + put}
 		"hold_rope":
 			return {"keys_all": "ロープの先を結ぶ物を見て F" + put}
 		"untie":
@@ -659,6 +721,8 @@ func _use(amount: float) -> void:
 
 # 端の記録：物なら、その物から見た位置
 func _end_of(pid: int, at: Vector3) -> Array:
+	if _worn(pid):
+		return [pid, Vector3(0, 0.3, -0.3)]          # 脱いだあとは、ハーネスの背中の輪のあたり
 	var p := _prop(pid)
 	return [pid, p.global_transform.affine_inverse() * at] if p != null else [0, at]
 
@@ -669,7 +733,7 @@ func h_tie(pid: int, at: Vector3, on_wheel: bool) -> void:
 	var who := Net.sender()
 	if not _host_ok() or not at.is_finite() or not _holding_coil(who) or not _near(who, at):
 		return
-	if pid != 0 and _prop(pid) == null:
+	if pid != 0 and _prop(pid) == null and not _worn(pid):
 		return
 	var end: Array = [pid, WHEEL_AT] if on_wheel and pid != 0 else _end_of(pid, at)
 	if not pending.has(who):
@@ -716,8 +780,9 @@ func host_add_row(a: Array, b: Array, via: Array) -> int:
 @rpc("any_peer", "call_local", "reliable")
 func h_via(pid: int) -> void:
 	var who := Net.sender()
-	var p := _prop(pid)
-	if not _host_ok() or p == null or p.kind != "pulley" or not pending.has(who) or not _near(who, _wheel(pid)):
+	var p := _prop(pid) if pid > 0 else null
+	var guide: bool = pid < 0 and _crane() != null and _cz.via_ok(pid)
+	if not _host_ok() or not (guide or (p != null and p.kind == "pulley")) or not pending.has(who) or not _near(who, _wheel(pid)):
 		return
 	var via: Array = pending[who]["via"]
 	if not via.is_empty() and int(via[via.size() - 1]) == pid:
@@ -1011,7 +1076,24 @@ func _physics_process(delta: float) -> void:
 	if Net.is_host() and not _playback and not game.replaying:
 		_host_tick(delta)
 		_note_resume()
+	elif not Net.is_host() and not game.replaying:
+		_own_tick(delta)
 	_tick_fire(delta)
+
+
+# 参加者の画面：自分が着けているハーネスに結んだロープは、自分の体を、ここで引く（自分の体は、自分の画面で動かしているため）
+func _own_tick(delta: float) -> void:
+	var hz := _harness()
+	var me: Node = game.local_player()
+	if hz == null or me == null or not _usable():
+		return
+	var mine: int = hz.harness_of(int(me.peer_id))
+	if mine == 0:
+		return
+	for id: int in rows:
+		var row: Dictionary = rows[id]
+		if not bool(row["cut"]) and (int(row["a"][0]) == mine or int(row["b"][0]) == mine):
+			_pull(row, delta, id)
 
 
 # 場転のあと、フィルムを回し直した瞬間：止めている間に結んだ・留めた・つないだ物を、見返しの記録に残し直す
@@ -1050,7 +1132,7 @@ func _host_tick(delta: float) -> void:
 	for id: int in rows.keys():
 		var row: Dictionary = rows[id]
 		for end: Array in [row["a"], row["b"]]:
-			if int(end[0]) != 0 and _prop(int(end[0])) == null:
+			if int(end[0]) != 0 and _prop(int(end[0])) == null and not _worn(int(end[0])):
 				if not bool(row["cut"]):
 					_use(-float(row["len"]))
 				rows.erase(id)
@@ -1059,7 +1141,7 @@ func _host_tick(delta: float) -> void:
 	# 引く
 	for id: int in rows:
 		if not bool(rows[id]["cut"]):
-			_pull(rows[id], delta)
+			_pull(rows[id], delta, id)
 	# 引かれていない台車は、もとの止まりやすさに戻す
 	for pid: int in _rolling.keys():
 		_rolling[pid][1] = float(_rolling[pid][1]) - delta
@@ -1101,52 +1183,128 @@ func _host_tick(delta: float) -> void:
 		_broadcast()
 
 
-# ロープの張り：道すじが長さより伸びていれば、端の物（と、留めていない滑車）を、ロープの向きへ引く。押しはしない
-func _pull(row: Dictionary, delta: float) -> void:
+# ロープの張り：道すじが長さより伸びていれば、端の物（と、留めていない滑車）を、ロープの向きへ引く。押しはしない。
+# 端がハーネスを着けた人なら、その人の体を引く（人の重さは harness.gd の PERSON_MASS）。
+# 物を動かすのはホストだけ。人の体を動かすのは、その体を動かしている画面だけ（harness.gd の tug）：
+#   ・ホストの画面：自分の体・雇った役者は、物と同じ式でいっしょに解く。参加者の体は、重さだけを数える（_pull_with_guests）
+#   ・参加者の画面：自分の体だけを引く。ほかの物は、壁と同じ（届いた場所のまま）。ロープの先が動けば、体がついて行く
+func _pull(row: Dictionary, delta: float, id: int = 0) -> void:
 	var pts := _path(row)
 	var over := _length(pts) - float(row["len"])
 	if over <= 0.0:
+		_guests.erase(id)
 		return
 	var n := pts.size()
-	var items: Array = []        # [物, 点, 引く向き]
-	items.append([_end_body(row["a"]), pts[0], (pts[1] - pts[0]).normalized()])
+	var items: Array = []        # [物, 点, 引く向き, 次の点までの長さ（端だけ）]
+	items.append([_end_body(row["a"]), pts[0], (pts[1] - pts[0]).normalized(), pts[0].distance_to(pts[1])])
 	var via: Array = row["via"]
 	for k in via.size():
 		var at := pts[k + 1]
 		items.append([_via_body(int(via[k])), at, (pts[k] - at).normalized() + (pts[k + 2] - at).normalized()])
-	items.append([_end_body(row["b"]), pts[n - 1], (pts[n - 2] - pts[n - 1]).normalized()])
+	items.append([_end_body(row["b"]), pts[n - 1], (pts[n - 2] - pts[n - 1]).normalized(), pts[n - 1].distance_to(pts[n - 2])])
+	# この画面で動かしていない人（ホストから見た、参加者の体）
+	var guests: Array = []       # items の番号
+	for i in items.size():
+		if items[i][0] is CharacterBody3D and not _hz.owns(items[i][0]):
+			guests.append(i)
 	var rate := 0.0
 	var k_sum := 0.0
-	for it: Array in items:
-		var body: RigidBody3D = it[0]
-		if body == null:
+	for i in items.size():
+		var it: Array = items[i]
+		var body: PhysicsBody3D = it[0]
+		if body == null or i in guests:
 			continue
 		var r: Vector3 = (it[1] as Vector3) - body.global_position
 		var dir: Vector3 = it[2]
-		rate -= (body.linear_velocity + body.angular_velocity.cross(r)).dot(dir)
+		if body is CharacterBody3D:
+			rate -= (body as CharacterBody3D).velocity.dot(dir)
+			k_sum += dir.length_squared() / float(_hz.PERSON_MASS)
+			continue
+		var rb := body as RigidBody3D
+		rate -= (rb.linear_velocity + rb.angular_velocity.cross(r)).dot(dir)
 		var rn := r.cross(dir)
 		var inv_i := Basis.IDENTITY.scaled(Vector3.ZERO)
-		var state := PhysicsServer3D.body_get_direct_state(body.get_rid())
+		var state := PhysicsServer3D.body_get_direct_state(rb.get_rid())
 		if state != null:
 			inv_i = state.inverse_inertia_tensor
-		k_sum += dir.length_squared() / maxf(body.mass, 0.05) + rn.dot(inv_i * rn)
-	if k_sum <= 0.0:
-		return
-	var lam := clampf((rate + minf(over, 0.3) * BETA / delta) / k_sum, 0.0, MAX_PULL)
+		k_sum += dir.length_squared() / maxf(rb.mass, 0.05) + rn.dot(inv_i * rn)
+	var lam := 0.0
+	if guests.is_empty():
+		_guests.erase(id)
+		if k_sum <= 0.0:
+			return
+		lam = clampf((rate + minf(over, 0.3) * BETA / delta) / k_sum, 0.0, MAX_PULL)
+	else:
+		lam = _pull_with_guests(id, items, guests, rate, k_sum, over, delta)
 	if lam <= 0.0:
 		return
-	for it: Array in items:
-		var body: RigidBody3D = it[0]
-		if body == null:
+	for i in items.size():
+		var it: Array = items[i]
+		var body: PhysicsBody3D = it[0]
+		if body == null or i in guests:
 			continue
-		body.sleeping = false
-		body.apply_impulse((it[2] as Vector3) * lam, (it[1] as Vector3) - body.global_position)
-		if body.rolls:
-			_roll(body)
+		if body is CharacterBody3D:
+			_hz.tug(body, (it[2] as Vector3) * (lam / float(_hz.PERSON_MASS)), it[2], over, float(it[3]))
+			continue
+		var rb := body as RigidBody3D
+		rb.sleeping = false
+		rb.apply_impulse((it[2] as Vector3) * lam, (it[1] as Vector3) - rb.global_position)
+		if rb.rolls:
+			_roll(rb)
 
 
-# 引ける物（自由に動く物）。持っている・固定した・動かせない物は、引かれない（壁と同じ）
-func _end_body(end: Array) -> RigidBody3D:
+# ホスト：ロープの端に、参加者の体がある。その体は参加者の画面が動かす（ロープの先に、ついて行く）ので、ここでは動かさない。
+# 代わりに、その人の「ロープに沿った速さ」をホストが見積もって持っておき、重さのある物として、いっしょに解く
+# （重りが軽ければ人が下がり、重ければ人が上がる、を決めるのはホスト。届く場所の遅れには頼らない）。
+#   ・床に立っていて、引く力が体の重さより弱い間／上がりきった（JAM）／ついて来ていない（伸びが GUEST_LAG より大きい）：壁と同じ
+#   ・それ以外：重さ PERSON_MASS の物。伸びの戻し（BETA）は入れない（参加者の場所は遅れて届くので、入れると粘って動かなくなる）
+# 返すのは、物に加える引き（N・s）
+func _pull_with_guests(id: int, items: Array, guests: Array, rate: float, k_sum: float, over: float, delta: float) -> float:
+	var mass := float(_hz.PERSON_MASS)
+	var fall := float(_hz.GRAVITY) * delta                     # 人が1コマで得る、落ちる速さ
+	var as_wall := clampf((rate + minf(over, 0.3) * BETA / delta) / k_sum, 0.0, MAX_PULL) if k_sum > 0.0 else 0.0
+	var speeds: Dictionary = _guests.get(id, {})               # items の番号 → ロープに沿った速さ（滑車へ近づく向きが正）
+	var free: Array = []
+	var free_rate := 0.0
+	for i: int in guests:
+		var it: Array = items[i]
+		var up: float = (it[2] as Vector3).y
+		var stands := _stands(it[0])
+		var v := float(speeds.get(i, 0.0))
+		if not stands:
+			v -= fall * up
+		elif v < 0.0:
+			v = 0.0
+		var held: bool = float(it[3]) < float(_hz.JAM) or over > GUEST_LAG or (stands and v <= 0.0 and as_wall * maxf(up, 0.0) <= mass * fall)
+		speeds[i] = 0.0 if held else v
+		if not held:
+			free.append(i)
+			free_rate -= v
+	_guests[id] = speeds
+	if free.is_empty():
+		return as_wall
+	var lam := clampf((rate + free_rate) / (k_sum + float(free.size()) / mass), 0.0, MAX_PULL)
+	for i: int in free:
+		speeds[i] = float(speeds[i]) + lam / mass
+	return lam
+
+
+# その人が、何かの上に立っているか（足もとの少し下まで、床か物がある）
+func _stands(body: Node3D) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, -0.12, 0), Prop.L_WORLD | Prop.L_PROP)
+	q.exclude = [(body as CollisionObject3D).get_rid()]
+	return not body.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+
+# 引ける物（自由に動く物）。持っている・固定した・動かせない物は、引かれない（壁と同じ）。
+# 着けているハーネスなら、着けている人の体。
+# 参加者の画面では、自分の体のほかは、全部「壁と同じ」（物も、よその人も、届いた場所のまま。動かすのはホストや、その人の画面）
+func _end_body(end: Array) -> PhysicsBody3D:
+	if _worn(int(end[0])):
+		var body: CharacterBody3D = _hz.pull_body(int(end[0]))
+		return body if body != null and (Net.is_host() or _hz.owns(body)) else null
+	if not Net.is_host():
+		return null
 	var p := _prop(int(end[0])) if int(end[0]) != 0 else null
 	if p == null or p.freeze or p.holder != 0 or p.immovable:
 		return null
@@ -1154,7 +1312,9 @@ func _end_body(end: Array) -> RigidBody3D:
 
 
 # 滑車：留めてあれば、留めた先の物が引かれる。留めていなければ、滑車そのものが引かれる（動く滑車）
-func _via_body(pid: int) -> RigidBody3D:
+func _via_body(pid: int) -> PhysicsBody3D:
+	if pid < 0:
+		return _end_body([_cz.via_pid(pid), Vector3.ZERO]) if _crane() != null else null      # 吊りクレーンの滑車：クレーンごと引かれる
 	if mounts.has(pid):
 		var m: Array = mounts[pid]
 		return _end_body([int(m[0]), Vector3.ZERO]) if int(m[0]) != 0 else null
