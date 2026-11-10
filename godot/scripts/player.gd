@@ -101,6 +101,7 @@ var _performance_length := 0.0
 var down := 0.0                 # のびている残り（秒）。その間は、歩けない・跳べない・物を持てない（見回すことはできる）
 var impact := 0.0               # 何かにぶつかった強さ（面へ向かっていた速さ m/秒）。stunts.gd が読んで 0 に戻す
 var impact_normal := Vector3.UP # そのときの面の向き
+var knocked := 0.0              # 爆風で飛ばされてからの残り（秒）。この間にぶつかったら「爆風で吹っ飛んだ」と数える
 
 
 func setup(cast_tag: String) -> void:
@@ -272,6 +273,7 @@ func flat_forward() -> Vector3:
 func knock(impulse: Vector3) -> void:
 	if is_local and operating == 0:
 		velocity += impulse
+		knocked = 4.0
 		vis.set_face("shock")
 		_face_t = 1.6
 
@@ -282,6 +284,8 @@ func _note_impact(before: Vector3) -> void:
 	for i in get_slide_collision_count():
 		var normal := get_slide_collision(i).get_normal()
 		var hit := -before.dot(normal)
+		if normal.y > 0.5:
+			hit = maxf(hit, -before.y)        # 着地：箱の角に降りても、落ちてきた速さで数える
 		if hit > impact:
 			impact = hit
 			impact_normal = normal
@@ -467,6 +471,7 @@ func _physics_process(delta: float) -> void:
 	var iv := Vector2.ZERO
 	if not blocked:
 		iv = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	knocked = maxf(knocked - delta, 0.0)
 	if down > 0.0:
 		down -= delta
 		iv = Vector2.ZERO

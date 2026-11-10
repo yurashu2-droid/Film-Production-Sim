@@ -644,6 +644,15 @@ func _unflat() -> void:
 	game.host_ev("sfx", ["whoosh_soft", global_position])
 
 
+# 強くぶつかって、のびる（ホスト。決めるのは features/stunts.gd）。大岩につぶされた時と同じ形で、同じように戻る
+func stunt_flat(secs: float) -> void:
+	_flat_t = secs
+	set_body_pose("flat")
+	collision_layer = 0
+	velocity = Vector3.ZERO
+	vis.play("flinch", 0.05, true)
+
+
 # 穴へ跳び込む（ホスト）：印に近づいたら、近くの穴の物を通り抜けられるようにして、ひと跳び
 func _dive(dist: float, dir: Vector3) -> void:
 	if dist > DIVE_AT * 1.8:

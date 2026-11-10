@@ -1858,7 +1858,7 @@ func settle(index: int) -> void:
 			said = true
 	# 仕組みが足した上乗せ（見ごたえ など）
 	for line: Array in fee_lines(index):
-		last_flubs.append("%s +%d コイン" % [str(line[0]), int(line[1])])
+		last_flubs.append("%s %+d コイン" % [str(line[0]), int(line[1])])        # 引かれる分（のびた姿が映った など）は「-40」と出る
 	var liked: Dictionary = cast.get("liked",{})
 	if int(liked.get("roles",0)) > 0:
 		last_flubs.append("依頼主の好み %s を %d役で使った +%d コイン" % [Cast.chips(liked["attrs"]),int(liked["roles"]),int(liked["coins"])])

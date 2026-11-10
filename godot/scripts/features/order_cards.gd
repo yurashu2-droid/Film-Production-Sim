@@ -45,6 +45,7 @@ const CARDS := {
 	"tilt": {"say": "不安な感じに。画面を斜めにして", "need": "カメラを傾けたまま、合計2秒撮る", "coins": 120},
 	"panel_actor": {"say": "うちの社長、忙しくてね。パネルでいいから", "need": "等身大パネルを1枚、役者にする", "coins": 120},
 	"all_cast": {"say": "社員さん、みんな出てよ", "need": "班の全員が、役に入っている", "coins": 150},
+	"stunt": {"say": "どこかで1回、体を張って", "need": "役者が、高い所から飛び降りる（か、爆風で吹っ飛ぶ）所を映す。のびないこと", "coins": 200},
 }
 # いっしょには引かない組
 const CLASH := [["half_budget", "no_rental"], ["zoom_ban", "dolly_zoom"], ["low_angle", "top_down"], ["cameo", "all_cast"]]
@@ -138,6 +139,8 @@ func _candidates() -> Array:
 	out.append_array(["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt", "panel_actor"])
 	if (game.players as Dictionary).size() >= 2:
 		out.append("all_cast")       # ひとり遊びでは、言うまでもない
+	if int(flow.job_rank(flow.chosen_job)) >= 2 and game.hooks.feature("stunts") != null:
+		out.append("stunt")          # 体を張る注文は、格2から（features/stunts.gd）
 	return out
 
 
@@ -294,6 +297,9 @@ func met(i: int, take: Dictionary) -> bool:
 				if not (cast.holders as Array).any(func(h: Array) -> bool: return str(h[0]) == "player" and int(h[1]) == int(who)):
 					return false
 			return true
+		"stunt":
+			var stunts: Node = game.hooks.feature("stunts")
+			return stunts != null and not (stunts.filmed() as Array).is_empty()
 	return false
 
 
