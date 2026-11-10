@@ -2,8 +2,10 @@ extends Node
 ## スロー光線（2026-11-10 ユーザーの案）：手で持って向ける光線。浴びている物と人だけが、ゆっくりになる。
 ## カメラの設定でスローにするのではなく、現場で誰かが狙う道具（狙いがずれる・仲間を巻き込む、が起きる）。
 ##   ・会社の備品（懐中電灯の形。夜用フィルターの隣）。持って F で、出す・止める。置いたままでも出続ける（頭のほうへ出る）
-##   ・光線そのものは見えない。浴びている物と人に、うすい紫の光がぼんやり出る（フィルムにも映る）。
-##     どこを狙えているかは、何がぼんやりしたかで知る。出している間は、懐中電灯の頭が光る
+##   ・浴びている物と人には、時計の目盛りと針・少し前の姿のコマ（残像）・浮くほこりが出る（フィルムにも映る）。
+##     見た目は vfx/vfx_slow_field.gd。出している間は、懐中電灯の頭が光る
+##   ・届く範囲は、うすい円すいと、その中をゆっくり流れるほこりで見える（制作班にだけ。フィルムには映らない）。
+##     持っているだけ（まだ出していない）の間も、円すいがうすく出る（どこへ向いているかの下見）
 ##   ・物（落ちる物・転がる岩・爆風で飛ぶ物・投げた物）：速さが 0.3 倍になり、落ち方もゆっくりになる。光線から出ると、元の速さに戻る
 ##   ・人（制作班・雇った役者）：歩く・跳ぶ・落ちるが 0.3 倍になり、体の動きもゆっくりになる
 ##   ・持っている人自身と、誰かが持っている物・固定した物には効かない
@@ -17,16 +19,7 @@ const SLOW := 0.3                    # 浴びている間の速さの倍率
 const RANGE := 9.0                   # 光線の届く距離
 const HALF_ANGLE := 0.17             # 光線の広がり（ラジアン。約10度）
 const JOLT := 3.0                    # 浴びている物の速さが1コマでこれより変わったら（爆風・ぶつかった）、その分もゆっくりにする
-const AURA := Color(0.62, 0.5, 1.0, 1.0)
-const AURA_SHADER := """shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_back, shadows_disabled;
-uniform vec4 tint : source_color = vec4(0.62, 0.5, 1.0, 1.0);
-void fragment() {
-	float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.2);
-	ALBEDO = tint.rgb;
-	ALPHA = (0.05 + rim * 0.5) * (0.8 + 0.2 * sin(TIME * 3.0));
-}
-"""
+const SlowField := preload("res://vfx/vfx_slow_field.gd")
 
 var game: Node
 var ray: RigidBody3D
@@ -40,8 +33,7 @@ var _lens: MeshInstance3D
 var _slowed := {}                    # ゆっくりにしてある物（物のID → 前のコマの速さ）（ホスト）
 var _prev := {}                      # ゆっくりにしている人 → 前のコマの場所
 var _anim_slow := {}                 # 体の動きをゆっくりにしてある人（見た目）
-var _auras := {}                     # 浴びている物・人に付けた光
-var _aura_mat: ShaderMaterial
+var _fx: Node3D                      # 見た目（vfx/vfx_slow_field.gd）
 
 
 func setup() -> void:
@@ -79,11 +71,10 @@ func setup() -> void:
 	_lens.position = p.center + _axis * (p.half[long_axis] - 0.02)
 	_lens.visible = false
 	ray.add_child(_lens)
-	var shader := Shader.new()
-	shader.code = AURA_SHADER
-	_aura_mat = ShaderMaterial.new()
-	_aura_mat.shader = shader
-	_aura_mat.set_shader_parameter("tint", AURA)
+	_fx = SlowField.new()
+	_fx.name = "SlowField"
+	game.add_child(_fx)
+	_fx.setup(RANGE, HALF_ANGLE)
 	if Net.is_host() and game.production != null:
 		game.production._home_layout[ray.pid] = ray.get_state()
 
@@ -153,7 +144,12 @@ func h_switch() -> void:
 
 # 光線の [出どころ, 向き]。出していなければ、空
 func beam() -> Array:
-	if not on or ray == null or ray.absent:
+	return aim() if on else []
+
+
+# 懐中電灯が向いている [出どころ, 向き]（出していなくても）。しまってあれば、空
+func aim() -> Array:
+	if ray == null or ray.absent:
 		return []
 	if not beam_override.is_empty():
 		return beam_override
@@ -166,6 +162,20 @@ func beam() -> Array:
 		if d.length() > 0.2:
 			return [at, d.normalized()]
 	return [at, (ray.global_transform.basis * _axis).normalized()]
+
+
+# その場所の真下の床の高さ（届く範囲を床に映すため）。床が見つからなければ、足もとの高さとして 1m 下
+func _floor_under(at: Vector3) -> float:
+	var query := PhysicsRayQueryParameters3D.create(at, at + Vector3(0.0, -8.0, 0.0), 1)
+	query.exclude = [ray.get_rid()]
+	var holder: Node3D = game.players.get(int(ray.holder)) as Node3D
+	if holder != null:
+		query.exclude = [ray.get_rid(), (holder as CollisionObject3D).get_rid()]
+	var hit: Dictionary = ray.get_world_3d().direct_space_state.intersect_ray(query)
+	# 物の上ではなく、床の高さがほしい：物（RigidBody）に当たったら、その下の床を探さずに、いまの床の見当（0）へ
+	if hit.is_empty() or hit["collider"] is RigidBody3D:
+		return minf(at.y - 1.0, 0.0) if hit.is_empty() else 0.0
+	return float((hit["position"] as Vector3).y)
 
 
 func _in_beam(b: Array, point: Vector3) -> bool:
@@ -185,6 +195,10 @@ func _physics_process(_delta: float) -> void:
 	if Net.is_host() and not game.replaying:
 		_host_scan()
 	_slow_people()
+	# 届く範囲（制作班だけ）：出している間と、誰かが持っている間（うすく）
+	var showing: bool = on or int(ray.holder) != 0
+	var where: Array = aim() if showing else []
+	_fx.cone(where, 1.0 if on else 0.3, _floor_under(where[0]) if not where.is_empty() else 0.0)
 
 
 func _host_scan() -> void:
@@ -327,37 +341,18 @@ func hook_return_office() -> void:
 		game.host_ev("slow_on", [false])
 
 
-# 浴びている物と人に、うすい光の玉をかぶせる（その物・人の子にするので、いっしょに動く）
+# 浴びている物と人を、見た目（目盛り・コマの残像・ほこり）へ渡す
 func _sync_auras() -> void:
 	var want := {}
 	for pid: Variant in props_in:
 		var body: Node3D = game.props.get(int(pid)) as Node3D
 		if body != null:
-			want[body] = [body.center as Vector3, clampf((body.half as Vector3).length() * 1.05, 0.25, 2.6)]
+			want[body] = [body.center as Vector3, clampf((body.half as Vector3).length() * 1.35, 0.4, 2.6), body.get("visual")]
 	for id: Variant in players_in:
 		var pl: Node3D = game.players.get(int(id)) as Node3D
 		if pl != null:
-			want[pl] = [Vector3(0.0, 0.95, 0.0), 1.05]
+			want[pl] = [Vector3(0.0, 0.95, 0.0), 1.2, null]
 	for a: Variant in game.actors:
 		if a != null and int(a.aid) in actors_in:
-			want[a] = [Vector3(0.0, 0.95, 0.0), 1.05]
-	for body: Variant in _auras.keys():
-		if not want.has(body):
-			var old: Node = _auras[body]
-			_auras.erase(body)
-			if is_instance_valid(old):
-				old.queue_free()
-	for body: Variant in want:
-		if _auras.has(body):
-			continue
-		var aura := MeshInstance3D.new()
-		aura.name = "SlowAura"
-		var ball := SphereMesh.new()
-		ball.radius = float(want[body][1])
-		ball.height = float(want[body][1]) * 2.0
-		aura.mesh = ball
-		aura.material_override = _aura_mat
-		aura.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		aura.position = want[body][0]
-		(body as Node3D).add_child(aura)
-		_auras[body] = aura
+			want[a] = [Vector3(0.0, 0.95, 0.0), 1.2, null]
+	_fx.sync(want)
