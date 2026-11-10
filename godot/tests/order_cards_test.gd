@@ -198,6 +198,44 @@ func run() -> void:
 	stand.holders = [["player", int(me.peer_id)], ["prop", 7], ["", 0], ["", 0]]
 	check(f.met(0, take) and f.met(1, take), "パネルが役者・自分も役に入っている：どちらも守れている")
 	stand.holders = [["", 0], ["", 0], ["", 0], ["", 0]]
+	# 「宙に浮かせて」：役者が、足を何にも着けないまま、続けて2秒、映る
+	f.cards = [{"id": "float", "need": "", "coins": 180, "ref": 0, "shown": true}]
+	var flyer: CharacterBody3D = game.actors[0]
+	flyer.set_grade("pro")
+	flyer.set_state(flyer.St.IDLE)
+	film.restore([o + Vector3(0, 1.4, 6), Quaternion.IDENTITY, true])
+	f.hook_take_start()
+	flyer.velocity = Vector3.ZERO
+	flyer.global_position = o + Vector3(0, 0.05, 0)
+	await frames(20)
+	check(f._on_something(flyer), "床に立っている役者は、浮いていない")
+	for i in 130:
+		await frames(1)
+		f._watch_float(1.0 / 60.0)
+	check(not f.met(0, take) and f._float_best <= 0.0, "立ったまま映っても、「宙に浮かせて」は守れていない")
+	for i in 100:
+		flyer.velocity = Vector3.ZERO
+		flyer.global_position = o + Vector3(0, 1.2, 0)
+		await frames(1)
+		f._watch_float(1.0 / 60.0)
+	check(not f._on_something(flyer) and f._float_best > 1.0 and not f.met(0, take), "浮いて映って 1.6秒：まだ守れていない（%.2f 秒）" % f._float_best)
+	for i in 40:
+		flyer.velocity = Vector3.ZERO
+		flyer.global_position = o + Vector3(0, 1.2, 0)
+		await frames(1)
+		f._watch_float(1.0 / 60.0)
+	check(f.met(0, take), "続けて2秒、浮いて映った：守れた（%.2f 秒）" % f._float_best)
+	f.hook_take_start()
+	film.restore([o + Vector3(0, 1.4, 6), Quaternion(Vector3.UP, PI), true])
+	await frames(10)
+	for i in 140:
+		flyer.velocity = Vector3.ZERO
+		flyer.global_position = o + Vector3(0, 1.2, 0)
+		await frames(1)
+		f._watch_float(1.0 / 60.0)
+	check(not f.met(0, take), "浮いていても、カメラが向いていなければ守れない（%.2f 秒）" % f._float_best)
+	film.restore([o + Vector3(0, 0.05, 5), Quaternion.IDENTITY, false])
+	flyer.global_position = o + Vector3(6, 0.05, 6)
 	# 火の札：数えた爆発を出した物が、本物の爆弾（fx）か、ほかの物か
 	f.cards = [{"id": "real_fire", "need": "", "coins": 150, "ref": 0, "shown": true}, {"id": "no_fire", "need": "", "coins": 120, "ref": 0, "shown": true}]
 	var bomb: Node = game.fx

@@ -28,6 +28,8 @@ const ZOOM_STILL := 0.5              # 「ズーム禁止」：動いてよい�
 const DOLLY_SPEED := 0.25            # 「めまい」：前後に動く速さ（m/秒）
 const DOLLY_ZOOM := 2.0              # 　　〃　：画角が変わる速さ（度/秒）
 const DOLLY_SEC := 1.0
+const FLOAT_SEC := 2.0               # 「宙に浮かせて」：役者が、足を何にも着けないまま映る秒数（続けて）
+const FLOAT_GAP := 0.25              # 　　〃　　　　：足の下が、これだけ空いていれば「浮いている」（m）
 # 札：say＝依頼主のひとこと／need＝守る事／coins＝守れたときの上乗せ。"%s" は、札ごとの物の名前
 const CARDS := {
 	"half_budget": {"say": "予算、半分しか出せなくなった", "need": "制作費の半分までで撮る", "coins": 150},
@@ -48,6 +50,7 @@ const CARDS := {
 	"all_cast": {"say": "社員さん、みんな出てよ", "need": "班の全員が、役に入っている", "coins": 150},
 	"real_fire": {"say": "書割の爆発は、見れば分かる。本物でやって", "need": "爆発は、本物の爆弾で（火薬を入れて鳴らす）", "coins": 150},
 	"no_fire": {"say": "町内会がうるさくて。本物の火は使わないで", "need": "爆発は、爆弾を使わずに（書割や、爆発に見立てた物で）", "coins": 120},
+	"float": {"say": "主役を、宙に浮かせて。飛んでるみたいに", "need": "役者が、足を何にも着けないまま2秒、映る（吊る・ゆっくり跳ぶ、やり方は自由）", "coins": 180},
 	"stunt": {"say": "どこかで1回、体を張って", "need": "役者が、高い所から飛び降りる（か、爆風で吹っ飛ぶ）所を映す。のびないこと", "coins": 200},
 }
 # いっしょには引かない組
@@ -60,6 +63,8 @@ var cards: Array = []                # 引いた札 [{"id", "need", "coins", "re
 var _by_take := {}                   # テイクの番号 → [[依頼主のひとこと, コイン, 守れたか], ...]（ホスト）
 var _item_sec := {}                  # 札の番号 → 映った秒数（「これを映して」）
 var _gear_sec := 0.0
+var _float := {}                     # 「宙に浮かせて」：役者の番号 → いま、続けて浮いて映っている秒数
+var _float_best := 0.0               # 　　〃　　　　：このテイクで、いちばん長かった秒数
 var _cam := {}                       # 撮り方の札のための数え（本番ごと）：t・low・top・move・tilt・dolly・fov_min・fov_max
 var _cam_prev: Node                  # 前のコマに映していたカメラ（切り替えた瞬間は、動きに数えない）
 var _cam_pos := Vector3.ZERO
@@ -140,7 +145,7 @@ func _candidates() -> Array:
 		out.append("cameo")          # 「映り込み0.5秒以内」の依頼には、逆の注文は出さない
 	if not _items().is_empty():
 		out.append("show_item")
-	out.append_array(["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt", "panel_actor"])
+	out.append_array(["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt", "panel_actor", "float"])
 	if (game.players as Dictionary).size() >= 2:
 		out.append("all_cast")       # ひとり遊びでは、言うまでもない
 	if "boom" in Cast.roles_for(str(flow.job().get("script", ""))):
@@ -197,6 +202,30 @@ func _physics_process(delta: float) -> void:
 			_gear_sec += delta
 			break
 	_watch_camera(delta)
+	_watch_float(delta)
+
+
+# 「宙に浮かせて」：役者（役に入った人・雇った役者）が、足を何にも着けないまま、撮影カメラに映っている秒数を数える。
+# 吊る（features/harness.gd）・スロー光線の中で跳ぶ、など、やり方は見ない。箱の上に立っているのは、浮いていない
+func _watch_float(delta: float) -> void:
+	var stunts: Node = game.hooks.feature("stunts")
+	if stunts == null or not cards.any(func(c: Dictionary) -> bool: return str(c["id"]) == "float"):
+		return
+	var notes: RefCounted = game.production.notes
+	for row: Array in stunts.cast_bodies():
+		var who := int(row[0])
+		var body: Node3D = row[1]
+		var vis: Node3D = body.vis
+		var up: bool = not _on_something(body) and (bool(notes._seen(vis.head_pos(), body.get_rid())) or bool(notes._seen(vis.chest_pos(), body.get_rid())))
+		_float[who] = (float(_float.get(who, 0.0)) + delta) if up else 0.0
+		_float_best = maxf(_float_best, float(_float[who]))
+
+
+# 足の下に、床か物があるか（FLOAT_GAP まで）
+func _on_something(body: Node3D) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(body.global_position + Vector3(0, 0.3, 0), body.global_position + Vector3(0, -FLOAT_GAP, 0), 1 | 2)
+	q.exclude = [(body as CollisionObject3D).get_rid()]
+	return not body.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 # 撮影カメラ（いま映している1台）の動きと向きを数える
@@ -237,6 +266,8 @@ func _watch_camera(delta: float) -> void:
 func hook_take_start() -> void:
 	_item_sec.clear()
 	_gear_sec = 0.0
+	_float.clear()
+	_float_best = 0.0
 	_cam = {}
 
 
@@ -309,6 +340,8 @@ func met(i: int, take: Dictionary) -> bool:
 			if src == null:
 				return false
 			return (str(src.kind) == "fx") == (str(cards[i]["id"]) == "real_fire")
+		"float":
+			return _float_best >= FLOAT_SEC
 		"stunt":
 			var stunts: Node = game.hooks.feature("stunts")
 			return stunts != null and not (stunts.filmed() as Array).is_empty()
