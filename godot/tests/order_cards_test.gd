@@ -66,6 +66,7 @@ func run() -> void:
 	for s in 200:
 		var got2: Array = ids(f.draw(s))
 		clash = clash or ("zoom_ban" in got2 and "dolly_zoom" in got2) or ("low_angle" in got2 and "top_down" in got2)
+		clash = clash or ("real_fire" in got2 and "no_fire" in got2) or ("real_fire" in got2 and "no_rental" in got2)
 	check(not clash, "逆向きの撮り方（ズーム禁止とめまい・低い所と真上）は、いっしょには出ない")
 	flow.chosen_job = crew
 	var cameo := false
@@ -197,6 +198,29 @@ func run() -> void:
 	stand.holders = [["player", int(me.peer_id)], ["prop", 7], ["", 0], ["", 0]]
 	check(f.met(0, take) and f.met(1, take), "パネルが役者・自分も役に入っている：どちらも守れている")
 	stand.holders = [["", 0], ["", 0], ["", 0], ["", 0]]
+	# 火の札：数えた爆発を出した物が、本物の爆弾（fx）か、ほかの物か
+	f.cards = [{"id": "real_fire", "need": "", "coins": 150, "ref": 0, "shown": true}, {"id": "no_fire", "need": "", "coins": 120, "ref": 0, "shown": true}]
+	var bomb: Node = game.fx
+	var other: Node = null
+	for p: Node in game.props.values():
+		if str(p.kind) != "fx" and other == null:
+			other = p
+	game.judge.boom_src = 0
+	check(not f.met(0, take) and not f.met(1, take), "爆発が数えられていなければ、火の札は、どちらも守れていない")
+	game.judge.boom_src = int(bomb.pid)
+	check(str(bomb.kind) == "fx" and f.met(0, take) and not f.met(1, take), "本物の爆弾の爆発：「本物でやって」だけ守れる")
+	game.judge.boom_src = int(other.pid)
+	check(not f.met(0, take) and f.met(1, take), "爆弾ではない物の爆発：「本物の火は使わないで」だけ守れる")
+	game.judge.boom_src = 0
+	var calm := -1
+	for j in (flow.JOBS as Array).size():
+		if calm < 0 and "boom" not in f.Cast.roles_for(str(flow.JOBS[j].get("script", ""))) and not bool(flow.JOBS[j].get("debut", false)):
+			calm = j
+	flow.chosen_job = calm
+	var fire := false
+	for s in 100:
+		fire = fire or "real_fire" in ids(f.draw(s)) or "no_fire" in ids(f.draw(s))
+	check(calm >= 0 and not fire, "爆発の無い台本には、火の札は出ない（依頼 %d・%s）" % [calm, str(flow.JOBS[maxi(calm, 0)].get("script", ""))])
 	# ---- 帰社すると、札は片づく ----
 	game.takes = []
 	flow.phase = 5

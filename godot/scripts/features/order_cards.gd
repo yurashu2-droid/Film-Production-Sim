@@ -7,6 +7,7 @@ extends Node
 ##   ・札は、画面の左下の FAX の紙に並ぶ（事務所での準備から、撮影が終わるまで）
 ## 引く・数える・達成を決めるのはホスト。札の中身は、全員の画面に届く。
 ## ふつうに遊ぶときだけ引く（自動確認の中では引かない。確認は force を立てるか、draw() を呼ぶ）
+const Cast := preload("res://scripts/production_cast.gd")
 const COUNT_BY_RANK := [1, 1, 2, 3]
 const ITEM_SEC := 2.0                # 「これを映して」：この秒数、撮影カメラに映す
 const GEAR_SEC := 0.3                # 「機材を映すな」：映ってよい秒数の合計
@@ -45,10 +46,13 @@ const CARDS := {
 	"tilt": {"say": "不安な感じに。画面を斜めにして", "need": "カメラを傾けたまま、合計2秒撮る", "coins": 120},
 	"panel_actor": {"say": "うちの社長、忙しくてね。パネルでいいから", "need": "等身大パネルを1枚、役者にする", "coins": 120},
 	"all_cast": {"say": "社員さん、みんな出てよ", "need": "班の全員が、役に入っている", "coins": 150},
+	"real_fire": {"say": "書割の爆発は、見れば分かる。本物でやって", "need": "爆発は、本物の爆弾で（火薬を入れて鳴らす）", "coins": 150},
+	"no_fire": {"say": "町内会がうるさくて。本物の火は使わないで", "need": "爆発は、爆弾を使わずに（書割や、爆発に見立てた物で）", "coins": 120},
 	"stunt": {"say": "どこかで1回、体を張って", "need": "役者が、高い所から飛び降りる（か、爆風で吹っ飛ぶ）所を映す。のびないこと", "coins": 200},
 }
 # いっしょには引かない組
-const CLASH := [["half_budget", "no_rental"], ["zoom_ban", "dolly_zoom"], ["low_angle", "top_down"], ["cameo", "all_cast"]]
+const CLASH := [["half_budget", "no_rental"], ["zoom_ban", "dolly_zoom"], ["low_angle", "top_down"], ["cameo", "all_cast"],
+	["real_fire", "no_fire"], ["real_fire", "no_rental"]]          # 爆弾は、借りるか買うかしないと無い
 
 var game: Node
 var force := false                   # 自動確認でも引く
@@ -139,6 +143,8 @@ func _candidates() -> Array:
 	out.append_array(["zoom_ban", "low_angle", "top_down", "always_moving", "dolly_zoom", "tilt", "panel_actor"])
 	if (game.players as Dictionary).size() >= 2:
 		out.append("all_cast")       # ひとり遊びでは、言うまでもない
+	if "boom" in Cast.roles_for(str(flow.job().get("script", ""))):
+		out.append_array(["real_fire", "no_fire"])      # 爆発のある台本だけ。同じ手（無料の書割）が、いつも通るとは限らない
 	if int(flow.job_rank(flow.chosen_job)) >= 2 and game.hooks.feature("stunts") != null:
 		out.append("stunt")          # 体を張る注文は、格2から（features/stunts.gd）
 	return out
@@ -297,6 +303,12 @@ func met(i: int, take: Dictionary) -> bool:
 				if not (cast.holders as Array).any(func(h: Array) -> bool: return str(h[0]) == "player" and int(h[1]) == int(who)):
 					return false
 			return true
+		"real_fire", "no_fire":
+			# 数えた爆発（場面が見ている爆発）を出した物が、本物の爆弾か
+			var src: Node = game.props.get(int(game.judge.boom_src))
+			if src == null:
+				return false
+			return (str(src.kind) == "fx") == (str(cards[i]["id"]) == "real_fire")
 		"stunt":
 			var stunts: Node = game.hooks.feature("stunts")
 			return stunts != null and not (stunts.filmed() as Array).is_empty()
