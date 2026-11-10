@@ -95,10 +95,9 @@ func run() -> void:
 	check(keys.contains("宅配の箱") and not keys.contains("依頼を見る"), "箱を開ける前は、掲示板の前でも「依頼を見る」ではなく、箱を開ける案内（%s）" % keys)
 	box.host_open()
 	await frames(5)
-	check(sign.tutorial_step() == "sign", "箱を開けたら、次は看板")
-	keys = str(sign.hook_hud(me, "", "事務所の掲示板で、今日の依頼を選ぼう").get("keys_all", ""))
-	check(keys.contains("看板") and keys.contains("金具"), "看板を作って金具に掛ける案内（%s）" % keys)
-	check(box.LINES.any(func(l: String) -> bool: return l.contains("看板") and l.contains("段ボール")), "講師が、まず看板を作れと言う")
+	check(sign.tutorial_step() == "", "箱を開けたあと、看板は急がせない（掲示板へ）")
+	var guide: Node = game.hooks.feature("day1_guide")
+	check(guide != null and str(guide.SAY["hold3"]).contains("看板") and str(guide.SAY["hold3"]).contains("段ボール"), "講師は、4カット目の前に、看板の作り方を言う")
 	# ---- 板を3枚：A（フックに掛ける）・B（右に、少し傾けてつなぐ）・C（Aの下に、1点でつないで垂れている） ----
 	var a: RigidBody3D = kit.sheets[0]
 	var b: RigidBody3D = kit.sheets[1]

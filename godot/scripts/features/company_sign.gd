@@ -563,4 +563,5 @@ func tutorial_step() -> String:
 	var box: Node = game.hooks.feature("delivery_box")
 	if box != null and bool(box.on) and not bool(box.opened):
 		return "box"
-	return "" if hung() else "sign"
+	# 看板づくりは、箱の直後には急がせない（最初の課題として重い）。4カット目の前に、講師が教える（features/day1_guide.gd）
+	return ""
