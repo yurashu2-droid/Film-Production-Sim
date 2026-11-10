@@ -146,7 +146,8 @@ func run() -> void:
 	check(game.host_load(out[0], game.truck), "a sack is loaded on the deck")
 	await shoot_and_deliver([dolly])
 	check(dolly.global_position.x < 40.0 and out[0].global_position.x < 40.0, "the dolly and a sack travel to the location (%s %s)" % [str(dolly.global_position), str(out[0].global_position)])
-	check(flow.phase == 5 and flow.saved == budget - 440 and flow.wallet == 280 + flow.last_payment + flow.saved, "settlement keeps the unspent budget; the purchase was already paid (%d)" % flow.wallet)
+	# この確認は、1場面も撮らずに納品している。そのときは、使わなかった制作費を依頼主へ返す（production_flow.gd の settle。2026-10-27 からの決まり）
+	check(flow.phase == 5 and flow.saved == 0 and flow.wallet == 280 + flow.last_payment, "nothing was filmed, so the unspent budget goes back to the client; the purchase was already paid (savings %d, budget was %d)" % [flow.wallet, budget])
 	for i in 6:
 		await process_frame
 	var bought_row: Label = game.production_hud._settled_bought
