@@ -31,7 +31,7 @@ void fragment() {
 	float edge = smoothstep(0.22, 0.72, length(c * vec2(1.0, 0.85)) * 1.25);
 	vec2 off = vec2(sin(uv.y * 6.0 + t * 0.6), cos(uv.x * 5.0 - t * 0.5)) * 0.014 * edge * k;
 	vec3 col = texture(screen, uv + off).rgb;
-	col = mix(col, col * vec3(1.06, 0.98, 0.84) + vec3(0.05, 0.035, 0.0), edge * k * 0.7);
+	col = mix(col, col * vec3(0.95, 0.9, 1.08) + vec3(0.03, 0.01, 0.06), edge * k * 0.7);
 	COLOR = vec4(col, 1.0);
 }
 """

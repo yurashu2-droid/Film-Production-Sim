@@ -3,7 +3,8 @@
 //   lag    ：物のいまの場所 − 遅れて追う場所（ワールド）。外側ほど、この分だけ像が遅れて見える（真ん中は遅れない）
 //   shimmer：蜃気楼のゆらぎ（横に長い帯ごとに、像が左右にゆれ、上下に少し伸び縮みする。ゆっくり）
 //   gain   ：全体の強さ（出入りで 0〜1）
-// 色は足さない。板のふちでは、ずらす量を 0 にして、まわりの絵とつなぐ
+//   haze   ：ほんのり紫のもや（うすい煙が、ゆっくり昇る。線や光は足さない）
+// 板のふちでは、ずらす量ともやを 0 にして、まわりの絵とつなぐ
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled, shadows_disabled;
 
@@ -13,6 +14,8 @@ uniform float gain = 1.0;
 uniform float shimmer = 1.0;
 uniform float t = 0.0;
 uniform float seed = 0.0;
+uniform float haze = 1.0;
+uniform vec3 haze_tint = vec3(0.62, 0.44, 1.0);
 
 varying vec2 lag_uv;
 
@@ -55,6 +58,13 @@ void fragment() {
 	float fine = vn(vec2(p.x * 1.5 + seed * 3.0, p.y * 12.0 + t * 0.55)) - 0.5;
 	vec2 wave = vec2(band * 0.012 + fine * 0.004, fine * 0.006) * shimmer * hold;
 	vec2 uv = SCREEN_UV + (lag_uv * outer + wave) * gain;
-	ALBEDO = texture(screen_tex, uv).rgb;
+	vec3 col = texture(screen_tex, uv).rgb;
+	// ほんのり紫：全体をうすく染め、その上に、ゆっくり昇るもや（大きい塊は遅く、小さい塊は少し速く）
+	float soft = 1.0 - smoothstep(0.5, 1.0, r);
+	float puff = vn(p * 1.5 + vec2(seed * 5.0, t * 0.11)) * 0.62 + vn(p * 3.3 + vec2(seed * 9.0 - t * 0.04, t * 0.2)) * 0.38;
+	float smoke = smoothstep(0.36, 0.74, puff) * soft;
+	float amount = (0.14 * soft + 0.46 * smoke) * haze * gain;
+	col = mix(col, col * mix(vec3(1.0), haze_tint, 0.7) + haze_tint * 0.2, amount);
+	ALBEDO = col;
 	ALPHA = 1.0;
 }

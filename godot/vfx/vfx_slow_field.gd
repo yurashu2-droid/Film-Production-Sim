@@ -135,18 +135,18 @@ func setup(reach: float, half_angle: float, look: String = "clock") -> void:
 
 # 型ごとの色と、ゆがみの性格
 func _palette() -> void:
-	var syrup := style == "mirage"
-	_warp_mat.set_shader_parameter("tint", Vector3(1.0, 0.8, 0.45) if syrup else Vector3(0.62, 0.5, 1.0))
+	# 色は、どの型もほんのり紫（あめ色はやめた。2026-11-10 ユーザー）
+	_warp_mat.set_shader_parameter("tint", Vector3(0.62, 0.5, 1.0))
 	_warp_mat.set_shader_parameter("pace", 0.45)
 	_warp_mat.set_shader_parameter("grain", 0.55)
 	_warp_mat.set_shader_parameter("chroma", 0.0)
 	_warp_mat.set_shader_parameter("bend", 0.026)
 	_warp_mat.set_shader_parameter("bands", 0.6)
-	_floor_mat.set_shader_parameter("tint", Vector3(0.95, 0.68, 0.25) if syrup else Vector3(0.42, 0.3, 0.86))
-	_floor_mat.set_shader_parameter("ink", Vector3(0.5, 0.32, 0.1) if syrup else Vector3(0.22, 0.14, 0.42))
+	_floor_mat.set_shader_parameter("tint", Vector3(0.42, 0.3, 0.86))
+	_floor_mat.set_shader_parameter("ink", Vector3(0.22, 0.14, 0.42))
 	for mat: ShaderMaterial in _mote_mats:
-		mat.set_shader_parameter("light", Vector3(1.0, 0.95, 0.8) if syrup else Vector3(0.95, 0.92, 1.0))
-		mat.set_shader_parameter("ink", Vector3(0.45, 0.3, 0.12) if syrup else Vector3(0.24, 0.17, 0.4))
+		mat.set_shader_parameter("light", Vector3(0.95, 0.92, 1.0))
+		mat.set_shader_parameter("ink", Vector3(0.24, 0.17, 0.4))
 
 
 func _mote_cloud(count: int, layers: int) -> MultiMesh:
