@@ -97,6 +97,10 @@ var _wheel_dust_distance := 0.0
 var _performance := ""
 var _performance_left := 0.0
 var _performance_length := 0.0
+# スタント（features/stunts.gd）
+var down := 0.0                 # のびている残り（秒）。その間は、歩けない・跳べない・物を持てない（見回すことはできる）
+var impact := 0.0               # 何かにぶつかった強さ（面へ向かっていた速さ m/秒）。stunts.gd が読んで 0 に戻す
+var impact_normal := Vector3.UP # そのときの面の向き
 
 
 func setup(cast_tag: String) -> void:
@@ -272,6 +276,17 @@ func knock(impulse: Vector3) -> void:
 		_face_t = 1.6
 
 
+# いちばん強くぶつかった面と、その強さを控える（硬い所に落ちる・壁に叩きつけられる。features/stunts.gd が読む）。
+# 歩いて壁に当たる（5.8 m/秒まで）・跳んで降りる（同じ）くらいでは、stunts.gd のしきい値に届かない
+func _note_impact(before: Vector3) -> void:
+	for i in get_slide_collision_count():
+		var normal := get_slide_collision(i).get_normal()
+		var hit := -before.dot(normal)
+		if hit > impact:
+			impact = hit
+			impact_normal = normal
+
+
 func _input(event: InputEvent) -> void:
 	if is_local and face_picker != null and face_picker.handle_key(event):
 		get_viewport().set_input_as_handled()
@@ -316,6 +331,8 @@ func _handle_gameplay_input(event: InputEvent) -> void:
 	# 表情えらびを開いている間、マウスは頭を選ぶのに使う（歩くのはそのまま）
 	if face_picker != null and face_picker.handle_input(event):
 		get_viewport().set_input_as_handled()
+		return
+	if down > 0.0 and not (event is InputEventMouseMotion):
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var rel: Vector2 = (event as InputEventMouseMotion).relative
@@ -450,6 +467,9 @@ func _physics_process(delta: float) -> void:
 	var iv := Vector2.ZERO
 	if not blocked:
 		iv = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
+	if down > 0.0:
+		down -= delta
+		iv = Vector2.ZERO
 	var op: Node3D = game.props.get(operating) if operating != 0 else null
 	var carried: Node = game.props.get(held)
 	var pose := ""
@@ -478,12 +498,14 @@ func _physics_process(delta: float) -> void:
 		velocity.x = lerpf(velocity.x, dir.x * speed, k)
 		velocity.z = lerpf(velocity.z, dir.z * speed, k)
 		if is_on_floor():
-			if not blocked and op == null and Input.is_action_just_pressed("jump") and _can_jump_from_floor():
+			if not blocked and op == null and down <= 0.0 and Input.is_action_just_pressed("jump") and _can_jump_from_floor():
 				velocity.y = JUMP
 		else:
 			velocity.y -= GRAVITY * delta
 		game.update_hold_collision(self)
+		var before := velocity
 		move_and_slide()
+		_note_impact(before)
 		_push_light_props()
 		if global_position.y < -20.0:
 			game.recover_player(self)
@@ -600,6 +622,14 @@ func _animate_movement(delta: float, pose: String, dir: Vector3, blocked: bool) 
 	var moving := dir.length() > 0.1
 	var crouching := Input.is_action_pressed("crouch") and not blocked
 	var wants_run := moving and Input.is_action_pressed("run") and held == 0 and operating == 0 and not blocked and not crouching and neck <= 0.01
+	if down > 0.0:
+		# のびている（features/stunts.gd が、体を平たくする）
+		cancel_performance()
+		_motion = ""
+		_run_requested = false
+		vis.play("idle", 0.06)
+		_update_running_dust(delta, false)
+		return
 	if performance_active():
 		_performance_left -= delta
 		if moving or blocked or not is_on_floor() or operating != 0 or held != 0 or crouching or _performance_left <= 0.0:
