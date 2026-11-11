@@ -129,7 +129,8 @@ func run() -> void:
 		if box._mutter.text != "":
 			spoke = box._mutter.text
 		glowed = maxf(glowed, box._glow.light_energy)
-	check(spoke.contains("箱の中から"), "落ちた箱の中から、声がする（%s）" % spoke)
+	# 「箱の中から」は、吹き出しの名札に出る（scripts/guide_speech.gd）。控えの字は、せりふだけ
+	check(spoke != "" and (box.FAR as Array).has(spoke), "落ちた箱の中から、声がする（%s）" % spoke)
 	check(glowed > 0.8, "ガタッと動くたびに、ふたのすき間から青い光がもれる（%.1f）" % glowed)
 	box._rattle(1.0)
 	await frames(3)

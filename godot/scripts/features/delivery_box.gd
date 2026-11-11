@@ -14,6 +14,7 @@ const Carton := preload("res://scripts/carton.gd")
 const CastVisual := preload("res://scripts/cast_visual.gd")
 const Dust := preload("res://scripts/toon_dust.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
+const Speech := preload("res://scripts/guide_speech.gd")
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const PRICE := 1000000               # 情報商材の代金
 const AT := Vector3(73.1, 0.0, 3.3)  # 箱が落ちる所（事務所の中。起きた所の目の前、机の手前）
@@ -281,9 +282,21 @@ func _build() -> void:
 	_subs.name = "TeacherSubtitles"
 	_subs.layer = 20
 	add_child(_subs)
-	_bubble = _subtitle(26, Color(0.85, 0.95, 1.0), Color(0.02, 0.06, 0.16, 0.95))
-	# 箱の中の声は、講師のせりふより小さく、くすんだ色で（こもって聞こえる）
-	_mutter = _subtitle(22, Color(0.72, 0.78, 0.84), Color(0.05, 0.06, 0.08, 0.9))
+	# せりふは吹き出し（scripts/guide_speech.gd）。講師のせりふは講師へ、箱の中の声は箱へ寄る
+	var talk: Control = Speech.new()
+	_subs.add_child(talk)
+	talk.setup(game.font, "講師 バズ山")
+	talk.anchor = _teacher
+	talk.anchor_up = 1.25
+	_bubble = talk.label
+	# 箱の中の声は、くすんだ色で、小刻みに震える（こもって聞こえる）
+	var muffled: Control = Speech.new()
+	_subs.add_child(muffled)
+	muffled.setup(game.font, "箱の中から", true)
+	muffled.anchor = box
+	muffled.anchor_up = 1.15
+	muffled.shaky = 1.6
+	_mutter = muffled.label
 	_mutter.visible = false
 	# 引き落としの大きな数字（画面の真ん中の上寄り）と、その下の但し書き
 	_big = Label.new()
@@ -636,7 +649,7 @@ func _speak(me: Node3D) -> void:
 
 
 func _voice(words: String) -> void:
-	_mutter.text = "箱の中から「%s」" % words
+	_mutter.text = words
 	_mutter_t = MUTTER_SEC
 
 
@@ -869,7 +882,7 @@ func _say(i: int) -> void:
 		out.tween_callback(_teacher_gone)
 		return
 	line = i
-	_bubble.text = "バズ山「%s」" % LINES[i]
+	_bubble.text = str(LINES[i])
 	_vis.play("ORDER" if i % 2 == 0 else "idle", 0.15, true)
 	_vis.set_face("happy")
 	Sfx.play("ui_select", box.global_position, -8.0)

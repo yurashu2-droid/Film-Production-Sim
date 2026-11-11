@@ -1,8 +1,9 @@
 extends Node
 ## 1日目の講師の案内（docs/production/tutorial-cm.md の「講師は、一度に1つだけ教える」）。
 ## 宅配の箱（features/delivery_box.gd）を開けて、講師のあいさつが済んだあと、紹介動画を納品するまで：
-##   ・講師（青いホログラム）が、次に使う物・行く場所のそばへ先に行って立つ。その物・場所には、青い輪と矢印が出る
-##   ・言うのは、いまやる事を1つだけ（画面の下の字幕）。できたら次を言う。しばらく進まなければ、同じ事をもう一度言う
+##   ・小型のドローン（scripts/holo_drone.gd）が、次に使う物・行く場所のそばへ先に飛んで行く。
+##     講師（青いホログラム）は、ドローンが真下に映す像（少し遅れてついて来る）。目当ての物・場所は、ドローンのライトが照らす
+##   ・言うのは、いまやる事を1つだけ（吹き出し。scripts/guide_speech.gd）。できたら次を言う。しばらく進まなければ、同じ事をもう一度言う
 ##   ・画面の下の案内の先頭にも、いまやる事を1枚だけ出す
 ##   ・順番を飛ばしても進む（先に済ませた事は、済みとして数える）
 ##   ・本番中は、場面が変わるたびにひとこと。撮れないままなら、何が足りないか（採点の理由そのまま）を言う
@@ -12,6 +13,8 @@ extends Node
 ## 講師・輪・矢印は、映画には映らない（制作班にだけ見える層）。ふつうに遊ぶときの1日目だけ（確認では force を立てる）
 const CastVisual := preload("res://scripts/cast_visual.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
+const Drone := preload("res://scripts/holo_drone.gd")
+const Speech := preload("res://scripts/guide_speech.gd")
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const BLUE := Color(0.3, 0.7, 1.0)
 const TEACHER := "06"                # 講師の見た目（宅配の箱の講師と同じ）
@@ -64,9 +67,10 @@ var on := false                      # いま案内している
 var step := ""                       # 何の番か（SAY の名前。"" なら、いまは言う事が無い）
 var said := ""                       # いま出しているせりふ
 var teacher: Node3D
-var marker: Node3D                   # 目当ての青い輪と矢印
-var _ring: MeshInstance3D
-var _arrow: MeshInstance3D
+var marker: Node3D                   # 目当ての場所（照らすのは、ドローンのライト）
+var drone: Node3D                    # 講師を映すドローン（scripts/holo_drone.gd）
+var _speech: Control                 # せりふの吹き出し（scripts/guide_speech.gd）
+var _fade_v := 1.0                   # 出てくる・消えるときの、像の濃さ
 var _vis: Node3D
 var _mats: Array[ShaderMaterial] = []
 var _subs: CanvasLayer
@@ -77,7 +81,6 @@ var _same_t := 0.0                   # 同じ番のまま、たった秒数
 var _hint_t := 0.0
 var _ended := false                  # 最後のあいさつまで済んだ
 var _stand := Vector3.INF            # 講師が向かっている所
-var _glide: Tween
 var _t := 0.0
 
 
@@ -102,69 +105,25 @@ func _build() -> void:
 		mesh.layers = CREW_LAYER
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_mats.append(mat)
-	# 目当て：床の青い輪と、その上で上下する矢印
+	# 目当ての場所（見た目は無い。ここを、ドローンのライトが照らす：光の筒と、床の光の輪）
 	marker = Node3D.new()
 	marker.name = "GuideMarker"
 	marker.visible = false
 	game.add_child(marker)
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color(BLUE.r, BLUE.g, BLUE.b, 0.8)
-	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glow.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_ring = MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.5
-	torus.outer_radius = 0.58
-	torus.rings = 40
-	torus.ring_segments = 8
-	_ring.mesh = torus
-	_arrow = MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.28
-	cone.bottom_radius = 0.0
-	cone.height = 0.5
-	cone.radial_segments = 4
-	_arrow.mesh = cone
-	# 遠くからでも場所が分かるように、細い光の柱を立てる
-	var beam := MeshInstance3D.new()
-	var pole := CylinderMesh.new()
-	pole.top_radius = 0.05
-	pole.bottom_radius = 0.05
-	pole.height = 7.0
-	pole.radial_segments = 6
-	beam.mesh = pole
-	beam.position.y = 2.6 + 3.5
-	var faint := glow.duplicate() as StandardMaterial3D
-	faint.albedo_color = Color(BLUE.r, BLUE.g, BLUE.b, 0.3)
-	beam.material_override = faint
-	beam.layers = CREW_LAYER
-	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	marker.add_child(beam)
-	for part: MeshInstance3D in [_ring, _arrow]:
-		part.material_override = glow
-		part.layers = CREW_LAYER
-		part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		marker.add_child(part)
-	_ring.position.y = 0.04
-	# せりふは画面の下の字幕（宅配の箱の講師と同じ見た目）
+	drone = Drone.new()
+	drone.name = "GuideDrone"
+	drone.visible = false
+	game.add_child(drone)
+	# せりふは、ドローンへ寄る吹き出し（宅配の箱の講師と同じ見た目）
 	_subs = CanvasLayer.new()
 	_subs.name = "GuideSubtitles"
 	_subs.layer = 20
 	add_child(_subs)
-	_label = Label.new()
-	_label.add_theme_font_override("font", game.font)
-	_label.add_theme_font_size_override("font_size", 26)
-	_label.add_theme_color_override("font_color", Color(0.85, 0.95, 1.0))
-	_label.add_theme_color_override("font_outline_color", Color(0.02, 0.06, 0.16, 0.95))
-	_label.add_theme_constant_override("outline_size", 10)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_label.offset_bottom = -170
-	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_subs.add_child(_label)
+	_speech = Speech.new()
+	_subs.add_child(_speech)
+	_speech.setup(game.font, "講師 バズ山")
+	_speech.anchor = drone
+	_label = _speech.label
 
 
 # いま案内する回か：1日目の紹介動画で、箱を開けて、講師のあいさつが済んだあと
@@ -209,9 +168,9 @@ func _process(delta: float) -> void:
 			_vis.play("idle", 0.2)
 			if step == "bye":
 				_ended = true      # 最後のひとことを言い終えたら、消える
-	_label.text = "" if said == "" else "バズ山「%s」" % said
+	_label.text = said
 	_label.visible = said != "" and not game.ui_blocking()
-	_place()
+	_place(delta)
 
 
 # ---- 何の番か ----
@@ -344,22 +303,27 @@ func target() -> Vector3:
 
 
 # 講師と、輪・矢印を、いまの番の目当てへ
-func _place() -> void:
+func _place(delta: float) -> void:
 	var flow: Node = game.production
 	var at := target()
 	marker.visible = at != Vector3.INF and not game.ui_blocking()
 	if at != Vector3.INF:
-		var floor_y := 0.0
-		marker.global_position = Vector3(at.x, floor_y, at.z)
-		_ring.scale = Vector3.ONE * (1.0 + 0.08 * sin(_t * 4.0))
-		_arrow.position.y = maxf(at.y, 0.0) + 1.7 + 0.14 * sin(_t * 3.0)
-		_arrow.rotation.y = _t * 1.5
+		marker.global_position = Vector3(at.x, 0.0, at.z)
+	drone.aim(marker.global_position if marker.visible else Vector3.INF)
 	# 目当てが無い番（役に入る・本番中など）は、カメラの影のわきに立つ
 	var guides: Node = game.hooks.feature("holo_guides")
 	var base: Vector3 = at if at != Vector3.INF else flow.HOME_SET + (guides.CAM_AT if guides != null else Vector3(0, 0, 5)) + Vector3(0.9, 0.0, 0.6)
 	var stand := Vector3(base.x, 0.0, base.z) + BESIDE
 	if _stand == Vector3.INF or stand.distance_to(_stand) > 1.4:
 		_go(stand)
+	# 講師の像は、ドローンの真下。少し遅れてついて来て、飛んでいる間は乱れる
+	var under: Vector3 = drone.under()
+	var lag := teacher.global_position.distance_to(under)
+	teacher.global_position = under if lag > 9.0 or not is_inside_tree() else teacher.global_position.lerp(under, 1.0 - exp(-7.0 * delta))
+	var moving := clampf(float(drone.moving) + lag * 0.5, 0.0, 1.0)
+	for m: ShaderMaterial in _mats:
+		m.set_shader_parameter("strength", _fade_v * (1.0 - 0.55 * moving))
+		m.set_shader_parameter("flicker", 0.35 + 0.6 * moving)
 	# いつも、自分のほうを向く
 	var me: Node3D = game.local_player() as Node3D
 	if me != null:
@@ -368,19 +332,13 @@ func _place() -> void:
 			teacher.rotation.y = lerp_angle(teacher.rotation.y, atan2(d.x, d.z), 0.15)
 
 
-# 講師が、ふわっと浮いて、その場所へ先に行く
+# ドローンが、その場所へ先に飛んで行く（講師の像は、あとからついて来る）
 func _go(stand: Vector3) -> void:
 	var first := _stand == Vector3.INF
 	_stand = stand
-	if _glide != null:
-		_glide.kill()
-	if first or not is_inside_tree():
+	drone.fly_to(stand, first)
+	if first:
 		teacher.global_position = stand
-		return
-	var from := teacher.global_position
-	var sec := clampf(from.distance_to(stand) / 9.0, 0.35, 1.4)
-	_glide = create_tween()
-	_glide.tween_method(func(t: float) -> void: teacher.global_position = from.lerp(stand, t) + Vector3(0.0, sin(t * PI) * 0.7, 0.0), 0.0, 1.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 # ---- 出る・言う・消える ----
@@ -389,11 +347,15 @@ func _appear() -> void:
 	step = ""
 	_stand = Vector3.INF
 	teacher.visible = true
-	# 箱の上から現れる
+	drone.visible = true
+	# 箱の中から、ドローンが飛び立つ
 	var box: Node = game.hooks.feature("delivery_box")
 	if box != null and box.box != null and bool(box.box.visible):
-		teacher.global_position = box.box.global_position + Vector3(0.0, 0.7, 0.0)
-		_stand = teacher.global_position
+		var from: Vector3 = box.box.global_position
+		teacher.global_position = Vector3(from.x, 0.0, from.z)
+		drone.global_position = from + Vector3(0.0, 0.6, 0.0)
+		_stand = Vector3(from.x, 0.0, from.z)
+		drone.fly_to(_stand)
 	_fade(0.0)
 	if is_inside_tree():
 		create_tween().tween_method(_fade, 0.0, 1.0, 0.5)
@@ -407,19 +369,25 @@ func _leave() -> void:
 	said = ""
 	_label.visible = false
 	marker.visible = false
-	if _glide != null:
-		_glide.kill()
+	drone.aim(Vector3.INF)
 	if not teacher.visible:
+		drone.visible = false
 		return
 	if not is_inside_tree():
 		teacher.visible = false
+		drone.visible = false
 		return
+	# 像が消えてから、ドローンは空へ飛び去る
 	var out := create_tween()
 	out.tween_method(_fade, 1.0, 0.0, 0.6)
 	out.tween_callback(teacher.hide)
+	out.tween_callback(func() -> void: drone.fly_to(drone.under() + Vector3(0.0, 14.0, -6.0)))
+	out.tween_interval(2.2)
+	out.tween_callback(drone.hide)
 
 
 func _fade(v: float) -> void:
+	_fade_v = v
 	for m: ShaderMaterial in _mats:
 		m.set_shader_parameter("strength", v)
 
