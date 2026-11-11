@@ -15,6 +15,7 @@ const CastVisual := preload("res://scripts/cast_visual.gd")
 const Dust := preload("res://scripts/toon_dust.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
 const Speech := preload("res://scripts/guide_speech.gd")
+const WalletBoard := preload("res://scripts/wallet_board.gd")
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const PRICE := 1000000               # 情報商材の代金
 const AT := Vector3(73.1, 0.0, 3.3)  # 箱が落ちる所（事務所の中。起きた所の目の前、机の手前）
@@ -91,8 +92,7 @@ var _teacher: Node3D
 var _vis: Node3D
 var _bubble: Label                  # せりふの字幕（画面の下。空中の吹き出しは出さない）
 var _mutter: Label                  # 箱の中の声の字幕
-var _big: Label                     # 引き落としの間、画面の真ん中に出す大きな数字
-var _big_sub: Label
+var _big: Control                   # 引き落としの間、画面の真ん中に出す大きな数字（scripts/wallet_board.gd）
 var _subs: CanvasLayer
 var _mats: Array[ShaderMaterial] = []
 var _line_t := 0.0
@@ -299,27 +299,13 @@ func _build() -> void:
 	_mutter = muffled.label
 	_mutter.visible = false
 	# 引き落としの大きな数字（画面の真ん中の上寄り）と、その下の但し書き
-	_big = Label.new()
+	_big = WalletBoard.new()
 	_big.name = "BigWallet"
-	_big.add_theme_font_override("font", game.font)
-	_big.add_theme_font_size_override("font_size", 92)
-	_big.add_theme_color_override("font_color", Color(1.0, 0.95, 0.72))
-	_big.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02, 0.95))
-	_big.add_theme_constant_override("outline_size", 18)
-	_big.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_big.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_big.caption = "会社の貯金"
+	_big.debit_label = "代金引換"
+	_big.debit = "−1,000,000"
 	_big.visible = false
 	_subs.add_child(_big)
-	_big_sub = Label.new()
-	_big_sub.add_theme_font_override("font", game.font)
-	_big_sub.add_theme_font_size_override("font_size", 30)
-	_big_sub.add_theme_color_override("font_color", Color(1.0, 0.42, 0.36))
-	_big_sub.add_theme_color_override("font_outline_color", Color(0.12, 0.02, 0.02, 0.95))
-	_big_sub.add_theme_constant_override("outline_size", 10)
-	_big_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_big_sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_big_sub.text = "代金引換　−1,000,000 コイン"
-	_big.add_child(_big_sub)
 
 
 # 画面の下の字幕を1つ作る
@@ -810,17 +796,16 @@ func _roll_wallet(from: int, to: int) -> void:
 	var me: Node3D = game.local_player() as Node3D
 	_big.visible = me != null and me.global_position.distance_to(box.global_position) < HEAR
 	var view: Vector2 = _big.get_viewport_rect().size
-	_big.size = Vector2(1000.0, 120.0)
-	_big.position = Vector2((view.x - 1000.0) * 0.5, view.y * 0.2)
+	var k := view.y / 720.0
+	_big.size = Vector2(1000.0, 300.0) * k
+	_big.position = Vector2((view.x - _big.size.x) * 0.5, view.y * 0.3)
 	_big.scale = Vector2.ONE
 	_big.modulate.a = 1.0
-	_big_sub.size = Vector2(1000.0, 44.0)
-	_big_sub.position = Vector2(0.0, 124.0)
-	_big_sub.modulate.a = 0.0
+	_big.debit_a = 0.0
 	_show_wallet(float(from))
 	_roll = create_tween()
 	_roll.tween_interval(0.35)
-	_roll.tween_property(_big_sub, "modulate:a", 1.0, 0.15)
+	_roll.tween_property(_big, "debit_a", 1.0, 0.18)
 	_roll.parallel().tween_method(_show_wallet, float(from), float(to), 1.8).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN_OUT)
 	_roll.tween_interval(0.4)
 	_roll.tween_callback(_wallet_done)
@@ -857,7 +842,7 @@ func _fly_big(t: float) -> void:
 	var centre: Vector2 = (_fly_from + _big.size * 0.5).lerp(_fly_to, t)
 	_big.position = centre - _big.size * 0.5 * s
 	_big.modulate.a = 1.0 - t * t * t
-	_big_sub.modulate.a = 1.0 - t
+	_big.debit_a = 1.0 - t
 
 
 func _fade(v: float) -> void:
