@@ -2,7 +2,7 @@ extends Control
 ## 講師や箱の「せりふ」の出し方（features/day1_guide.gd・features/delivery_box.gd が使う）。
 ## 2026-11-11：青い字に黒いふちの字幕は、世界に合っていない・手抜きに見える（ユーザー）ので、作り直した。
 ## 型は4つ。project.godot の ui/guide_speech_style（無ければ banner）。起動の引数 --speech-style=tape でも替えられる：
-##   banner：画面の上の決まった場所に出る、斜めに切った墨色の帯（2026-11-12 ユーザーが選んだ型。ゲームのUIらしい形）。
+##   banner：画面の下寄りの決まった場所（操作の札のすぐ上。上は、依頼の札とメモのお知らせが出るので使わない）に出る、斜めに切った墨色の帯（2026-11-12 ユーザーが選んだ型。ゲームのUIらしい形）。
 ##           細い線の枠・左に差し色の棒と話し手の印・小さな名前・せりふ。字にふちは付けない。出るときは横から滑り込み、字は順に出る
 ##   bubble：通販番組ふうの吹き出し。話している物（ドローン・箱）の画面上の場所へ寄って、しっぽが指す。
 ##           話している物が画面の外なら、画面の下の真ん中に出る（読み落とさない）
@@ -96,7 +96,7 @@ func _draw() -> void:
 	# 出るとき：左から滑り込む
 	var slide := 1.0 - clampf(_since / 0.16, 0.0, 1.0)
 	slide = slide * slide
-	var o := Vector2((screen.x - w) * 0.5 - 36.0 * k * slide, 92.0 * k)
+	var o := Vector2((screen.x - w) * 0.5 - 36.0 * k * slide, screen.y - (HUD_ROOM - 56.0) * k - h)
 	var fade := 1.0 - slide
 	var quad := func(x0: float, x1: float, y0: float, y1: float) -> PackedVector2Array:
 		return PackedVector2Array([o + Vector2(x0 + lean * (1.0 - 2.0 * y0 / h), y0), o + Vector2(x1 + lean * (1.0 - 2.0 * y0 / h), y0), o + Vector2(x1 + lean * (1.0 - 2.0 * y1 / h), y1), o + Vector2(x0 + lean * (1.0 - 2.0 * y1 / h), y1)])
