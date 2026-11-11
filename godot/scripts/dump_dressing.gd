@@ -363,7 +363,14 @@ static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color
 static func _junk(b: Look.Batch) -> void:
 	var dark := Look.plain(Color("3a3d40"), 0.5)
 	# ブラウン管テレビ（集積所の横、少し斜め）
-	var tv := Transform3D(Basis(Vector3.UP, 0.25), Vector3(-8.9, 0.0, 13.15))
+	crt_tv(b, Transform3D(Basis(Vector3.UP, 0.25), Vector3(-8.9, 0.0, 13.15)), true)
+	_junk_rest(b, dark)
+
+
+# ブラウン管テレビ（原点は底のまん中、＋Z が画面の側）。事務所に置く1台も、同じ作り（features/opening_movie.gd）。
+# 画面のガラスは、高さ 0.33 を中心に 0.46 x 0.34（4:3）。ticket：粗大ごみの処理券を貼るか
+static func crt_tv(b: Look.Batch, tv: Transform3D, ticket: bool) -> void:
+	var dark := Look.plain(Color("3a3d40"), 0.5)
 	# 古い木目調キャビネットは角を落とし、画面より奥に厚いブラウン管を持たせる。
 	b.extrude(Look.mat("wood", Color("6b5a48")), tv, [Vector2(-0.3, 0.0), Vector2(0.3, 0.0), Vector2(0.32, 0.035), Vector2(0.32, 0.52), Vector2(0.28, 0.56), Vector2(-0.28, 0.56), Vector2(-0.32, 0.52), Vector2(-0.32, 0.035)], 0.44)
 	b.solid(tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.28, 0)), Vector3(0.64, 0.56, 0.44))
@@ -382,7 +389,11 @@ static func _junk(b: Look.Batch) -> void:
 	b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.05, 0.585, -0.05)), Vector3(0.12, 0.03, 0.08), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
 		b.bar(Look.plain(Color("c8ccce"), 0.3, 0.8), ant, tv * Vector3(0.05 + s * 0.28, 0.98, -0.12), 0.012)
-	_ticket(b, tv * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.17, 0.562, 0.08)))
+	if ticket:
+		_ticket(b, tv * Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(-0.17, 0.562, 0.08)))
+
+
+static func _junk_rest(b: Look.Batch, dark: Look.Tint) -> void:
 	# 縦型の洗濯機（フタが半開き）
 	var wm := Transform3D(Basis(Vector3.UP, -0.15), Vector3(8.4, 0.0, 13.1))
 	var enamel := Look.plain(Color("e9ebea"), 0.42)
