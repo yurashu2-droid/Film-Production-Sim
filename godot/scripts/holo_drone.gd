@@ -11,7 +11,7 @@ const BLUE := Color(0.3, 0.7, 1.0)
 const HOVER := 1.95                  # 浮く高さ（床から）
 const SPEED := 7.5                   # 飛ぶ速さ（m/秒）
 const POOL_R := 0.62                 # 目当てを照らす、床の光の輪の半径
-const BODY_SCALE := 1.5              # 機体の大きさ（遠くからでも見えるよう、おもちゃより大きめ）
+const BODY_SCALE := 1.15             # 機体の大きさ（羽根の囲いまで入れて、幅 85cm ほど）
 const CONE_SHADER := """shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled;
 uniform vec4 tint : source_color = vec4(0.3, 0.7, 1.0, 1.0);
@@ -89,86 +89,192 @@ func _build() -> void:
 	_body = Node3D.new()
 	_body.scale = Vector3.ONE * BODY_SCALE
 	add_child(_body)
-	var shell := _flat(Color(0.93, 0.92, 0.88), 0.45)
-	var dark := _flat(Color(0.16, 0.16, 0.18))
-	var red := _flat(Color(0.86, 0.17, 0.13), 0.5)
-	# 胴：安い白いプラスチックの丸い箱。腹に赤い帯、前に黒い目（カメラ）
-	var hull := CapsuleMesh.new()
-	hull.radius = 0.085
-	hull.height = 0.34
-	var hull_mi := _mesh(_body, hull, shell)
-	hull_mi.rotation.x = PI * 0.5
-	var belt := CylinderMesh.new()
-	belt.top_radius = 0.089
-	belt.bottom_radius = 0.089
-	belt.height = 0.07
-	var belt_mi := _mesh(_body, belt, red)
-	belt_mi.rotation.x = PI * 0.5
-	var eye := SphereMesh.new()
-	eye.radius = 0.035
-	eye.height = 0.07
-	_mesh(_body, eye, dark, Vector3(0, 0.0, 0.165))
-	# 腕4本と、回る羽根
+	var shell := _flat(Color(0.95, 0.94, 0.9), 0.35)
+	var under := _flat(Color(0.56, 0.58, 0.62), 0.5)
+	var dark := _flat(Color(0.13, 0.13, 0.15), 0.5)
+	var red := _flat(Color(0.88, 0.16, 0.12), 0.45)
+	var yellow := _flat(Color(1.0, 0.82, 0.16), 0.5)
+	var steel := _flat(Color(0.72, 0.74, 0.78), 0.3)
+	steel.metallic = 0.7
+	# 胴：ずんぐりした卵形。上は白い殻、下は灰色の腹。腰に赤い帯と、黄色い細い帯
+	var dome := SphereMesh.new()
+	dome.radius = 0.13
+	dome.height = 0.13
+	dome.is_hemisphere = true
+	var top := _mesh(_body, dome, shell)
+	top.scale = Vector3(1.0, 0.95, 1.25)
+	var belly := _mesh(_body, dome, under)
+	belly.scale = Vector3(0.97, -0.7, 1.21)
+	var waist := TorusMesh.new()
+	waist.inner_radius = 0.118
+	waist.outer_radius = 0.136
+	waist.rings = 32
+	waist.ring_segments = 8
+	var band := _mesh(_body, waist, red, Vector3(0, 0.004, 0))
+	band.scale = Vector3(1.0, 1.4, 1.25)
+	var pin := _mesh(_body, waist, yellow, Vector3(0, 0.03, 0))
+	pin.scale = Vector3(0.93, 0.35, 1.17)
+	# 顔：大きな一つ目のカメラ（黒い枠・青い輪・濃いレンズ・白い照り返し）と、ひさし
+	var face := Vector3(0, 0.035, 0.135)
+	var rim := CylinderMesh.new()
+	rim.top_radius = 0.062
+	rim.bottom_radius = 0.068
+	rim.height = 0.05
+	_mesh(_body, rim, dark, face).rotation.x = PI * 0.5
+	var iris := TorusMesh.new()
+	iris.inner_radius = 0.036
+	iris.outer_radius = 0.05
+	iris.rings = 24
+	iris.ring_segments = 6
+	_mesh(_body, iris, _glow(BLUE, 1.6), face + Vector3(0, 0, 0.026)).rotation.x = PI * 0.5
+	var pupil := SphereMesh.new()
+	pupil.radius = 0.04
+	pupil.height = 0.05
+	var glass := _flat(Color(0.03, 0.05, 0.1), 0.08)
+	glass.metallic = 0.6
+	_mesh(_body, pupil, glass, face + Vector3(0, 0, 0.022))
+	var shine := SphereMesh.new()
+	shine.radius = 0.011
+	shine.height = 0.022
+	_mesh(_body, shine, _glow(Color.WHITE, 1.5), face + Vector3(-0.016, 0.018, 0.05))
+	var visor := BoxMesh.new()
+	visor.size = Vector3(0.15, 0.014, 0.05)
+	_mesh(_body, visor, red, face + Vector3(0, 0.068, 0.012)).rotation.x = 0.25
+	# 耳のようなアンテナ2本（先に赤い玉）
+	for sx: float in [-1.0, 1.0]:
+		var rod := CylinderMesh.new()
+		rod.top_radius = 0.004
+		rod.bottom_radius = 0.006
+		rod.height = 0.11
+		var stick := _mesh(_body, rod, dark, Vector3(sx * 0.055, 0.155, -0.05))
+		stick.rotation = Vector3(-0.25, 0, -sx * 0.3)
+		var ball := SphereMesh.new()
+		ball.radius = 0.013
+		ball.height = 0.026
+		_mesh(_body, ball, red, Vector3(sx * 0.072, 0.207, -0.064))
+	# 背中の放熱の溝と、横の名前
+	for k in 3:
+		var slit := BoxMesh.new()
+		slit.size = Vector3(0.07, 0.006, 0.012)
+		_mesh(_body, slit, dark, Vector3(0, 0.085 - 0.012 * float(k), -0.105 - 0.014 * float(k)))
+	for sx: float in [-1.0, 1.0]:
+		var logo := Label3D.new()
+		logo.text = "BUZZ"
+		logo.font_size = 40
+		logo.pixel_size = 0.0011
+		logo.outline_size = 0
+		logo.modulate = Color(0.88, 0.16, 0.12)
+		logo.shaded = false
+		logo.double_sided = false
+		logo.layers = CREW_LAYER
+		logo.position = Vector3(sx * 0.118, 0.062, -0.02)
+		logo.rotation = Vector3(0, sx * PI * 0.5, 0)
+		_body.add_child(logo)
+	# 腕4本：先に発動機、羽根（2枚を十字に）、羽根の囲いの輪
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
-			var tip := Vector3(sx * 0.23, 0.03, sz * 0.19)
-			var arm := BoxMesh.new()
-			arm.size = Vector3(0.035, 0.022, tip.length())
-			var arm_mi := _mesh(_body, arm, dark, tip * 0.5)
-			arm_mi.rotation.y = atan2(tip.x, tip.z)
+			var tip := Vector3(sx * 0.25, 0.035, sz * 0.2)
+			var root := Vector3(sx * 0.09, 0.02, sz * 0.09)
+			var span := tip - root
+			var arm := CylinderMesh.new()
+			arm.top_radius = 0.011
+			arm.bottom_radius = 0.019
+			arm.height = span.length()
+			var arm_mi := _mesh(_body, arm, shell, (root + tip) * 0.5)
+			arm_mi.basis = Basis(Quaternion(Vector3.UP, span.normalized()))
 			var motor := CylinderMesh.new()
-			motor.top_radius = 0.026
+			motor.top_radius = 0.024
 			motor.bottom_radius = 0.03
-			motor.height = 0.05
-			_mesh(_body, motor, shell, tip + Vector3(0, 0.02, 0))
+			motor.height = 0.055
+			_mesh(_body, motor, dark, tip + Vector3(0, 0.012, 0))
+			var cap := SphereMesh.new()
+			cap.radius = 0.02
+			cap.height = 0.026
+			_mesh(_body, cap, yellow, tip + Vector3(0, 0.05, 0))
+			var guard := TorusMesh.new()
+			guard.inner_radius = 0.118
+			guard.outer_radius = 0.13
+			guard.rings = 28
+			guard.ring_segments = 6
+			_mesh(_body, guard, shell, tip + Vector3(0, 0.03, 0))
+			# 囲いを支える細い棒（発動機から輪へ、3本）
+			for k in 3:
+				var turn := float(k) * TAU / 3.0 + 0.5
+				var spoke := BoxMesh.new()
+				spoke.size = Vector3(0.007, 0.007, 0.095)
+				var spoke_mi := _mesh(_body, spoke, shell, tip + Vector3(sin(turn), 0, cos(turn)) * 0.074 + Vector3(0, 0.022, 0))
+				spoke_mi.rotation.y = turn
 			var hub := Node3D.new()
-			hub.position = tip + Vector3(0, 0.052, 0)
+			hub.position = tip + Vector3(0, 0.043, 0)
 			_body.add_child(hub)
-			var blade := BoxMesh.new()
-			blade.size = Vector3(0.26, 0.004, 0.026)
-			_mesh(hub, blade, dark)
+			for turn: float in [0.0, PI * 0.5]:
+				var blade := BoxMesh.new()
+				blade.size = Vector3(0.21, 0.003, 0.024)
+				_mesh(hub, blade, dark).rotation.y = turn
 			# 回っている羽根のぼけ（うすい円盤）
 			var blur := CylinderMesh.new()
-			blur.top_radius = 0.13
-			blur.bottom_radius = 0.13
+			blur.top_radius = 0.108
+			blur.bottom_radius = 0.108
 			blur.height = 0.003
 			var haze := StandardMaterial3D.new()
 			haze.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			haze.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			haze.albedo_color = Color(0.2, 0.2, 0.22, 0.22)
+			haze.albedo_color = Color(0.85, 0.87, 0.9, 0.3)
 			_mesh(hub, blur, haze)
 			_rotors.append(hub)
-	# 足（そり）
+	# 足（そり）：ハの字に開いた脚と、前後の先が丸い横木
 	for sx: float in [-1.0, 1.0]:
-		var skid := BoxMesh.new()
-		skid.size = Vector3(0.014, 0.014, 0.26)
-		_mesh(_body, skid, dark, Vector3(sx * 0.1, -0.13, 0))
+		var rail := CapsuleMesh.new()
+		rail.radius = 0.009
+		rail.height = 0.26
+		_mesh(_body, rail, dark, Vector3(sx * 0.115, -0.15, 0.0)).rotation.x = PI * 0.5
 		for sz: float in [-1.0, 1.0]:
-			var leg := BoxMesh.new()
-			leg.size = Vector3(0.012, 0.07, 0.012)
-			_mesh(_body, leg, dark, Vector3(sx * 0.1, -0.095, sz * 0.09))
-	# 腹の投影機（青く光る）と、首振りライト
+			var leg := CylinderMesh.new()
+			leg.top_radius = 0.007
+			leg.bottom_radius = 0.007
+			leg.height = 0.09
+			var leg_mi := _mesh(_body, leg, dark, Vector3(sx * 0.095, -0.108, sz * 0.075))
+			leg_mi.rotation.z = sx * 0.45
+	# 腹の投影機（黒い台・鉄の輪・青く光るレンズ）
+	var mount := CylinderMesh.new()
+	mount.top_radius = 0.05
+	mount.bottom_radius = 0.042
+	mount.height = 0.04
+	_mesh(_body, mount, dark, Vector3(0, -0.085, -0.01))
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.034
+	ring.outer_radius = 0.045
+	ring.rings = 20
+	ring.ring_segments = 6
+	_mesh(_body, ring, steel, Vector3(0, -0.106, -0.01))
 	var lens := SphereMesh.new()
-	lens.radius = 0.05
-	lens.height = 0.06
-	_mesh(_body, lens, _glow(BLUE, 2.4), Vector3(0, -0.085, 0.0))
+	lens.radius = 0.035
+	lens.height = 0.04
+	_mesh(_body, lens, _glow(BLUE, 2.4), Vector3(0, -0.106, -0.01))
+	# 首振りライト（あごの下。支えの板2枚・黄色い笠・明るい玉）
 	_lamp = Node3D.new()
-	_lamp.position = Vector3(0, -0.075, 0.12)
+	_lamp.position = Vector3(0, -0.05, 0.115)
 	_body.add_child(_lamp)
+	for sx: float in [-1.0, 1.0]:
+		var yoke := BoxMesh.new()
+		yoke.size = Vector3(0.006, 0.05, 0.02)
+		_mesh(_lamp, yoke, steel, Vector3(sx * 0.036, -0.02, 0))
 	var can := CylinderMesh.new()
-	can.top_radius = 0.028
-	can.bottom_radius = 0.04
-	can.height = 0.07
-	_mesh(_lamp, can, dark, Vector3(0, -0.03, 0))
+	can.top_radius = 0.022
+	can.bottom_radius = 0.036
+	can.height = 0.06
+	_mesh(_lamp, can, yellow, Vector3(0, -0.035, 0))
 	var bulb := SphereMesh.new()
-	bulb.radius = 0.034
-	bulb.height = 0.04
-	_mesh(_lamp, bulb, _glow(Color(0.75, 0.92, 1.0), 2.6), Vector3(0, -0.07, 0))
-	# 尻の赤いランプ（ちかちか）
+	bulb.radius = 0.03
+	bulb.height = 0.036
+	_mesh(_lamp, bulb, _glow(Color(0.75, 0.92, 1.0), 2.6), Vector3(0, -0.066, 0))
+	# 左右の小さな灯（左が赤・右が緑）と、尻の赤いランプ（ちかちか）
 	var dot := SphereMesh.new()
-	dot.radius = 0.016
-	dot.height = 0.032
-	_led = _mesh(_body, dot, _glow(Color(1.0, 0.2, 0.15), 3.0), Vector3(0, 0.03, -0.17))
+	dot.radius = 0.011
+	dot.height = 0.022
+	_mesh(_body, dot, _glow(Color(1.0, 0.2, 0.15), 2.0), Vector3(-0.132, 0.02, 0.03))
+	_mesh(_body, dot, _glow(Color(0.2, 1.0, 0.4), 2.0), Vector3(0.132, 0.02, 0.03))
+	_led = _mesh(_body, dot, _glow(Color(1.0, 0.2, 0.15), 3.0), Vector3(0, 0.05, -0.155))
 	# 光の筒と、床の光（どれも、世界の向きのまま置く）
 	_throw = _cone(0.03, 0.34, 0.16)
 	_spot = _cone(0.04, POOL_R, 0.62)
@@ -248,7 +354,7 @@ func _process(delta: float) -> void:
 		_rotors[i].rotation.y += delta * (46.0 + 6.0 * float(i % 2)) * (1.0 if i % 2 == 0 else -1.0)
 	_led.visible = fmod(_t, 1.1) < 0.16
 	# 講師を映す光の筒：腹の投影機から、真下の床へ
-	var lens: Vector3 = _body.global_transform * Vector3(0, -0.11, 0)
+	var lens: Vector3 = _body.global_transform * Vector3(0, -0.12, -0.01)
 	_place_cone(_throw, lens, under() + Vector3(0, 0.02, 0))
 	_throw.visible = visible
 	(_throw.material_override as ShaderMaterial).set_shader_parameter("power", 0.16 * (1.0 - 0.55 * moving))
@@ -259,7 +365,7 @@ func _process(delta: float) -> void:
 	_spot.visible = lit
 	_pool.visible = lit
 	if lit:
-		var from: Vector3 = _lamp.global_transform * Vector3(0, -0.08, 0)
+		var from: Vector3 = _lamp.global_transform * Vector3(0, -0.07, 0)
 		var floor_at := Vector3(_aim.x, 0.03, _aim.z)
 		_place_cone(_spot, from, floor_at)
 		(_spot.material_override as ShaderMaterial).set_shader_parameter("power", 0.62 * _aim_k)
