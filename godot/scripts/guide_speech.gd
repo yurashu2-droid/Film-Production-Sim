@@ -16,6 +16,9 @@ const YELLOW := Color(1.0, 0.88, 0.2)
 const PAPER := Color(1.0, 0.98, 0.93)
 const HUD_ROOM := 190.0              # 画面の下の案内（操作の札）に重ならないよう、空けておく高さ
 const TAIL_MAX := 260.0              # しっぽが届く長さ。これより遠ければ、しっぽは出さない
+# 顔の絵の表情（assets/ui/portraits/<名前>_<画風>_<表情>.png。画像生成で描いた絵。docs/art/image_prompts.md）
+const FACES := ["normal", "happy", "surprised", "troubled", "stern"]
+const PORTRAITS := "res://assets/ui/portraits/"
 
 var label: Label                     # 使う側が書く控え（見えない）
 var anchor: Node3D                   # 話している物。null なら、画面の下の真ん中
@@ -27,6 +30,8 @@ var _tag := ""
 var _accent := Color(0.38, 0.75, 1.0)
 var _head: Font
 var _body: Font
+var face := "normal"                 # いまの表情（FACES のどれか）。使う側が、せりふと一緒に入れる
+var _faces := {}                     # 表情 → 顔の絵
 var _since := 0.0                    # いまのせりふが出てからの秒数
 var _last := ""
 var _speaker := ""
@@ -81,6 +86,20 @@ func setup(font: Font, who: String, muted: bool = false) -> void:
 	visible = false
 
 
+# 話し手の顔の絵を読み込む（who：絵の名前。例 "buzzyama"）。画風は ui/guide_portrait_style（flat＝平たい塗り／duo＝2色刷り）。
+# 絵が無ければ、人の影の印のまま
+func set_portrait(who: String) -> void:
+	var look := str(ProjectSettings.get_setting("ui/guide_portrait_style", "flat"))
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--portrait-style="):
+			look = arg.get_slice("=", 1)
+	_faces = {}
+	for f: String in FACES:
+		var path := "%s%s_%s_%s.png" % [PORTRAITS, who, look, f]
+		if ResourceLoader.exists(path):
+			_faces[f] = load(path)
+
+
 # ---- banner：自分で描く ----
 
 func _draw() -> void:
@@ -112,10 +131,28 @@ func _draw() -> void:
 	frame.append(frame[0])
 	draw_polyline(frame, Color(white.r, white.g, white.b, 0.55 * fade), maxf(1.0, 1.4 * k), true)
 	# 話し手の印（差し色の斜めの四角に、人の影）
-	draw_colored_polygon(quad.call(34.0 * k, 112.0 * k, 16.0 * k, h - 16.0 * k), Color(_accent.r, _accent.g, _accent.b, fade))
-	var c := o + Vector2(73.0 * k, h * 0.5)
-	draw_circle(c + Vector2(0, -8.0 * k), 13.0 * k, Color(ink.r, ink.g, ink.b, fade))
-	draw_colored_polygon(PackedVector2Array([c + Vector2(-22.0 * k, 30.0 * k), c + Vector2(-16.0 * k, 12.0 * k), c + Vector2(0, 7.0 * k), c + Vector2(16.0 * k, 12.0 * k), c + Vector2(22.0 * k, 30.0 * k)]), Color(ink.r, ink.g, ink.b, fade))
+	var pic: Texture2D = _faces.get(face, _faces.get("normal"))
+	if pic != null:
+		# 顔の絵：斜めの四角で切り抜く（絵そのものは傾けない）。まわりに差し色の細い枠
+		var win: PackedVector2Array = quad.call(22.0 * k, 118.0 * k, 9.0 * k, h - 9.0 * k)
+		var lo := win[0]
+		var hi := win[0]
+		for p: Vector2 in win:
+			lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.y))
+			hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.y))
+		# 絵は正方形。横は真ん中を使い、縦は上から（顔が上にある）
+		var side := hi.x - lo.x
+		var uvs := PackedVector2Array()
+		for p: Vector2 in win:
+			uvs.append(Vector2((p.x - lo.x) / side, 0.04 + (p.y - lo.y) / side))
+		draw_colored_polygon(win, Color(1, 1, 1, fade), uvs, pic)
+		win.append(win[0])
+		draw_polyline(win, Color(_accent.r, _accent.g, _accent.b, fade), maxf(1.5, 2.0 * k), true)
+	else:
+		draw_colored_polygon(quad.call(34.0 * k, 112.0 * k, 16.0 * k, h - 16.0 * k), Color(_accent.r, _accent.g, _accent.b, fade))
+		var c := o + Vector2(73.0 * k, h * 0.5)
+		draw_circle(c + Vector2(0, -8.0 * k), 13.0 * k, Color(ink.r, ink.g, ink.b, fade))
+		draw_colored_polygon(PackedVector2Array([c + Vector2(-22.0 * k, 30.0 * k), c + Vector2(-16.0 * k, 12.0 * k), c + Vector2(0, 7.0 * k), c + Vector2(16.0 * k, 12.0 * k), c + Vector2(22.0 * k, 30.0 * k)]), Color(ink.r, ink.g, ink.b, fade))
 	# 名前（小さく、字間を空けて）と肩書き、その下の細い線
 	var x := o.x + 138.0 * k
 	var name_size := int(15.0 * k)

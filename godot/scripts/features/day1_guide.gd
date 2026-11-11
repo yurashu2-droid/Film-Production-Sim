@@ -122,6 +122,7 @@ func _build() -> void:
 	_speech = Speech.new()
 	_subs.add_child(_speech)
 	_speech.setup(game.font, "講師 バズ山")
+	_speech.set_portrait("buzzyama")
 	_speech.anchor = drone
 	_label = _speech.label
 
@@ -397,6 +398,17 @@ func _say(words: String) -> void:
 		return
 	said = words
 	_line_t = 0.0
+	# 顔の絵の表情：叱る（撮れていない・三脚をねだるな）／得意げ（うまくいった・送り出す）／驚く（爆発）／ふだん
+	var look := "normal"
+	if words.begins_with("まだ撮れていない") or step == "camera":
+		look = "stern"
+	elif step in ["take", "deliver", "bye", "role"]:
+		look = "happy"
+	elif step == "scene2":
+		look = "surprised"
+	elif step.begins_with("hold"):
+		look = "troubled" if step == "hold3" else "normal"
+	_speech.face = look
 	_vis.play("ORDER", 0.15, true)
 	Sfx.play("ui_select", teacher.global_position, -8.0)
 

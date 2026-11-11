@@ -59,3 +59,11 @@
 - 敷地の目地（2.5m ごと）とフェンス際の雑草、2.5m 角の敷石の色むら
 - 水たまりは縁がくっきりした空色（暗い板だと穴に見える）
 - 色調：明るい所を暖かく、暗い所を少し青く（`production_look.gd` の色の補正。太陽は撮影現場と共有なので触らない）
+
+### 2026-11-12 せりふの帯の、話し手の顔（バズ山）
+
+- 置き場所：`godot/assets/ui/portraits/buzzyama_<画風>_<表情>.png`（256px。画風は flat＝平たい塗り／duo＝白と青の2色刷り。表情は normal・happy・surprised・troubled・stern）
+- もとの絵：`godot/assets/concept/portrait_styles_buzzyama.png`（画風の見本3つ）・`buzzyama_faces_flat.png`・`buzzyama_faces_duo.png`（表情5つを横に並べた絵。5等分して使う）
+- 作り方：Codex（gpt-6-sol・medium）。参考に、ゲームのモデルを単体で撮った絵と、画風の見本を渡す。
+  「5等分の正方形を横に並べる・枠なし・同じ向きと大きさ・表情だけ変える・字は入れない」と指定する。
+- 使う所：`scripts/guide_speech.gd` の set_portrait（`ui/guide_portrait_style` で画風を選ぶ。既定は flat）

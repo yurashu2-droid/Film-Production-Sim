@@ -93,6 +93,7 @@ var _vis: Node3D
 var _bubble: Label                  # せりふの字幕（画面の下。空中の吹き出しは出さない）
 var _mutter: Label                  # 箱の中の声の字幕
 var _big: Control                   # 引き落としの間、画面の真ん中に出す大きな数字（scripts/wallet_board.gd）
+var _talk: Control                  # 講師のせりふの帯（scripts/guide_speech.gd）
 var _subs: CanvasLayer
 var _mats: Array[ShaderMaterial] = []
 var _line_t := 0.0
@@ -286,6 +287,8 @@ func _build() -> void:
 	var talk: Control = Speech.new()
 	_subs.add_child(talk)
 	talk.setup(game.font, "講師 バズ山")
+	talk.set_portrait("buzzyama")
+	_talk = talk
 	talk.anchor = _teacher
 	talk.anchor_up = 1.25
 	_bubble = talk.label
@@ -868,6 +871,7 @@ func _say(i: int) -> void:
 		return
 	line = i
 	_bubble.text = str(LINES[i])
+	_talk.face = ["happy", "normal", "stern", "normal"][i % 4]
 	_vis.play("ORDER" if i % 2 == 0 else "idle", 0.15, true)
 	_vis.set_face("happy")
 	Sfx.play("ui_select", box.global_position, -8.0)
