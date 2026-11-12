@@ -123,7 +123,17 @@ func run() -> void:
 	var boom: Node = of_kind("boomflat")[0]
 	place(boom, O + guides.FLAT_AT)
 	await frames(60)
-	check(guide.step == "script" and str(guide.said).contains("台本"), "書割を立てると、次は台本（%s）" % guide.step)
+	check(guide.step == "sign_paint" and str(guide.said).contains("看板"), "書割を立てると、次は看板を書く（%s）" % guide.step)
+	check(of_kind("spray_paint").any(func(c: Node) -> bool: return flat(guide.target(), c.global_position) < 0.1), "目当ては、スプレー缶")
+	var sheet: Node = of_kind("cardboard")[0]
+	for i in 6:
+		sheet.draw_line(Vector2(80, 80 + i * 60), Vector2(900, 100 + i * 60), Color.BLACK, 22.0)
+	await frames(30)
+	check(guide.step == "sign_stand" and str(guide.said).contains("立てかける"), "段ボール板に書くと、次は立てかける（%s）" % guide.step)
+	check(flat(guide.target(), sheet.global_position) < 0.1, "目当ては、書いた板")
+	place(sheet, O + guide.SIGN_AT + Vector3(0, 0.05, 0), 0.0, true)
+	await frames(30)
+	check(guide.step == "script" and str(guide.said).contains("台本"), "看板を立てると、次は台本（%s）" % guide.step)
 	var book: Node3D = flow.script_prop
 	check(flat(guide.target(), book.global_position) < 0.1, "目当ては、事務所の机の上の台本")
 	place(book, O + Vector3(3.0, 0.0, 6.0))

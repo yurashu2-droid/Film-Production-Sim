@@ -31,6 +31,8 @@ const SAY := {
 	"camera": "その上に、カメラを載せる。\n三脚？　成功してから買いなさい",
 	"castle": "次は、お城。その板を、\n奥の青い影に立てる",
 	"blast": "爆発は、この板で十分。\n城のとなりの影に立てる",
+	"sign_paint": "最後のカットは、会社の看板。\nスプレー缶で、段ボール板に会社の名前を書く",
+	"sign_stand": "書いた看板を、城のとなりに立てかける。\n表を、カメラのほうへ",
 	"script": "事務所の机の上に、台本がある。\n持ってきて、撮る場所のそばに置く",
 	"role": "主役の社長は、あなた。\n何も持たず、何も見ずに Y",
 	"take": "カチンコを持って F で本番。\n鳴らしたら、カメラの前へ走る！",
@@ -41,7 +43,7 @@ const SAY := {
 	"hold0": "カット！　でも、まだ続く。\nカメラを次の人へ寄せ直して、台本のそばで 1",
 	"hold1": "カット！　まだ続く。止まっている間に、次の用意。\nできたら、台本のそばで 1",
 	"hold2": "カット！　次は爆発。書割が後ろに映るかを見て、\n台本のそばで 1",
-	"hold3": "最後は看板。段ボール箱を Shift+F でたたんで、\nスプレーで社名を書く。立てたら、1",
+	"hold3": "最後は、看板の前に全員集合。\n看板が映るかを見て、台本のそばで 1",
 	"deliver": "撮れた！　『このテイクを納品』を選べば、\nネットに上がる",
 	"retake": "まだ途中で終わっている！　4カット全部撮れたら、\n今日の撮影はおしまい。Space で撮り直す",
 	"bye": "以上！　あとは、バズるのを待つだけ。\n……たぶん",
@@ -53,17 +55,21 @@ const TASK := {
 	"camera": "積んだ段ボールの上に、カメラを載せよう",
 	"castle": "城の板を、奥の青い影に立てよう",
 	"blast": "爆炎の書割を、城のとなりの影に立てよう",
+	"sign_paint": "スプレー缶を持って、段ボール板に会社の名前を書こう（F を押している間、吹く）",
+	"sign_stand": "書いた看板を、城のとなりに立てかけよう（表をカメラへ）",
 	"script": "机の上の台本を、撮る場所のそばに置こう",
 	"role": "何も持たず、何も見ずに Y で、社長の役に入ろう",
 	"take": "カチンコを持って F で本番",
 	"hold0": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
 	"hold1": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
 	"hold2": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
-	"hold3": "看板を作って立てたら、台本のそばで 1（これが最後のカット）",
+	"hold3": "看板がカメラに映るかを見て、台本のそばで 1（これが最後のカット）",
 	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
-const PREP := ["boxes", "camera", "castle", "blast", "script", "role"]
+const PREP := ["boxes", "camera", "castle", "blast", "sign_paint", "sign_stand", "script", "role"]
+const SIGN_AT := Vector3(-1.9, 0.0, -2.3)    # 看板を立てかける所（撮る場所の中心から。城の、爆炎の書割と反対のとなり）
+const SIGN_PAINTED := 0.02                   # 描いたと数える、塗った所の割合（features/signboard.gd の PAINTED と同じ）
 # もとの案内のうち、いまやる事と重なる文（これを含む札は外して、いまやる事の札に替える）
 const REPLACED := ["今日の依頼を選ぼう", "青い影に合わせて置こう", "軽トラへ運ぼう"]
 
@@ -233,9 +239,31 @@ func _is_done(id: String) -> bool:
 		"role":
 			var stand: Node = game.hooks.feature("stand_ins")
 			ok = stand != null and str((stand.holders as Array)[0][0]) != ""
+		"sign_paint":
+			ok = _sign_board(false) != null
+		"sign_stand":
+			ok = _sign_board(true) != null
 	if ok:
 		_done[id] = true
 	return ok
+
+
+# 何か描いてある板（段ボール板・カンペ・等身大パネル）。standing なら、誰も持っていなくて、撮る場所のそばで立っている物だけ
+func _sign_board(standing: bool) -> Node3D:
+	var cards: Node = game.get("cue_cards")
+	if cards == null:
+		return null
+	var flow: Node = game.production
+	for b: Variant in (cards.boards as Dictionary).values():
+		var board := b as Node3D
+		if board == null or bool(board.get("absent")) or not board.has_method("painted") or float(board.painted()) < SIGN_PAINTED:
+			continue
+		if standing:
+			var c: Vector3 = flow.site_center()
+			if int(board.get("holder")) != 0 or board.global_basis.y.normalized().y < 0.6 or Vector2(board.global_position.x - c.x, board.global_position.z - c.z).length() > 9.0:
+				continue
+		return board
+	return null
 
 
 func _has_guide(guides: Node, gname: String) -> bool:
@@ -309,6 +337,19 @@ func target() -> Vector3:
 		"script":
 			var book: Node3D = flow.script_prop
 			return o + guides.CAM_AT + Vector3(1.8, 0.0, 0.6) if book == null or int(book.holder) != 0 else book.global_position
+		"sign_paint":
+			# スプレー缶を持つまでは缶、持ったら段ボール板
+			if _holding(["spray_paint"]):
+				var sheet := _nearest("cardboard", o)
+				return sheet.global_position if sheet != null else Vector3.INF
+			var can := _nearest("spray_paint", o)
+			return can.global_position if can != null else Vector3.INF
+		"sign_stand":
+			var board := _sign_board(false)
+			var me: Node = game.local_player()
+			if board == null:
+				return Vector3.INF
+			return o + SIGN_AT if me != null and int(me.held) == int(board.get("pid")) else board.global_position
 		"take":
 			var clap: Node3D = game.clapper
 			return clap.global_position if clap != null and int(clap.holder) == 0 else Vector3.INF
