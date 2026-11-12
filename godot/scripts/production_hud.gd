@@ -1053,7 +1053,7 @@ func _refresh() -> void:
 		elif here == "order":
 			line = "F 発注する" if production.orderer == 0 else "発注は、いま別の人が使用中"
 		else:
-			line = "左クリック 持つ ／ 事務所の前の物を、青い影に合わせて置こう" if bool(production.job().get("debut", false)) and production.shoots_home() else "左クリック 持つ ／ 廃材置き場で使える物を探して、軽トラへ運ぼう"
+			line = _grab_hint(me) + ("事務所の前の物を、青い影に合わせて置こう" if bool(production.job().get("debut", false)) and production.shoots_home() else "廃材置き場で使える物を探して、軽トラへ運ぼう")
 		# 机の上の物（のぞき箱・発注の電話）を見ている：名前と、できることを出す
 		var desk: String = game.director.aimed() if game.director != null else ""
 		if desk != "":
@@ -1081,7 +1081,7 @@ func _refresh() -> void:
 		# 1日目：青い影がまだ残っていれば、まずそれを案内する（影は、事務所の前の舞台の上。事務所を背にして見る）
 		var guides: Object = game.hooks.feature("holo_guides") if game.get("hooks") != null else null
 		if guides != null and guides.active() and guides.left() > 0 and not game.is_action_prop(action_prop):
-			legacy.keys.text = ("左クリック 置く" if me and me.held != 0 else "左クリック 持つ") + " ／ 事務所の前の物を、舞台の青い影に合わせて置こう（あと %d）" % guides.left()
+			legacy.keys.text = ("左クリック 置く ／ " if me and me.held != 0 else _grab_hint(me)) + "事務所の前の物を、舞台の青い影に合わせて置こう（あと %d）" % guides.left()
 		if me and game.holding_script():
 			legacy.keys.text = (("F 挟まっている写真を見る" if game.director != null and game.director.open_hours() else "F 台本を閉じる") if game.script_open else "F 台本を開く") + "\n" + game.hold_hint()
 		if me and game.props.has(me.operating) and game.props[me.operating].kind == "camera" and game.state == game.S.TAKE:
@@ -1554,3 +1554,11 @@ func _button(text: String, kind: String = "slate", font_size: int = 20, tall: in
 	button.focus_mode = Control.FOCUS_NONE
 	UI.style_button(button, kind, font_size, tall)
 	return button
+
+
+# 「左クリック 持つ」は、持てる物に照準が合っている時だけ出す（いつも出ていると、何が持てるのか分からない。2026-11-11 ユーザー）
+func _grab_hint(me: Node) -> String:
+	var aimed: Node = me.target if me != null else null
+	if aimed == null or bool(aimed.get("immovable")) or bool(aimed.get("absent")):
+		return ""
+	return "左クリック 持つ ／ "

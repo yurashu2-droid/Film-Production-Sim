@@ -35,6 +35,7 @@ const SAY := {
 	"sign_stand": "書いた看板を、城のとなりに立てかける。\n表を、カメラのほうへ",
 	"script": "事務所の机の上に、台本がある。\n持ってきて、撮る場所のそばに置く",
 	"role": "主役の社長は、あなた。\n何も持たず、何も見ずに Y",
+	"act": "本番の前に、決めポーズの練習。\nZ で、ポーズ！",
 	"take": "カチンコを持って F で本番。\n鳴らしたら、カメラの前へ走る！",
 	"scene0": "1カット目、社員紹介。\nカメラに近づいて、胸から上を大きく映す",
 	"scene1": "2カット目。お城が後ろに映るように、\n少し下がって立つ",
@@ -51,14 +52,15 @@ const SAY := {
 # 画面の下の案内に出す、いまやる事（本番中は出さない。場面の知らせが出る）
 const TASK := {
 	"board": "掲示板で、自分の会社の依頼を受けよう",
-	"boxes": "段ボールを2つ、青い影の所に積もう",
-	"camera": "積んだ段ボールの上に、カメラを載せよう",
-	"castle": "城の板を、奥の青い影に立てよう",
+	"boxes": "段ボールを2つ、青い影の所に積もう（持ったまま ホイールで、近づける・離す）",
+	"camera": "積んだ段ボールの上に、カメラを載せよう（F2 で一人称にすると、載せやすい）",
+	"castle": "城の板を、奥の青い影に立てよう（持ったまま 右ドラッグで、向きを回す）",
 	"blast": "爆炎の書割を、城のとなりの影に立てよう",
 	"sign_paint": "スプレー缶を持って、段ボール板に会社の名前を書こう（F を押している間、吹く）",
 	"sign_stand": "書いた看板を、城のとなりに立てかけよう（表をカメラへ）",
 	"script": "机の上の台本を、撮る場所のそばに置こう",
 	"role": "何も持たず、何も見ずに Y で、社長の役に入ろう",
+	"act": "Z で決めポーズを1回やってみよう（H で、ほかの演技を選べる）",
 	"take": "カチンコを持って F で本番",
 	"hold0": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
 	"hold1": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
@@ -67,7 +69,7 @@ const TASK := {
 	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
-const PREP := ["boxes", "camera", "castle", "blast", "sign_paint", "sign_stand", "script", "role"]
+const PREP := ["boxes", "camera", "castle", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
 const SIGN_AT := Vector3(-1.9, 0.0, -2.3)    # 看板を立てかける所（撮る場所の中心から。城の、爆炎の書割と反対のとなり）
 const SIGN_PAINTED := 0.02                   # 描いたと数える、塗った所の割合（features/signboard.gd の PAINTED と同じ）
 # もとの案内のうち、いまやる事と重なる文（これを含む札は外して、いまやる事の札に替える）
@@ -239,6 +241,10 @@ func _is_done(id: String) -> bool:
 		"role":
 			var stand: Node = game.hooks.feature("stand_ins")
 			ok = stand != null and str((stand.holders as Array)[0][0]) != ""
+		"act":
+			# 役に入ったあと、自分で決めポーズを 1 回やった（言わないと絶対に分からない操作なので、本番の前に 1 回やらせる）
+			var me: Node = game.local_player()
+			ok = me != null and bool(me.performance_active())
 		"sign_paint":
 			ok = _sign_board(false) != null
 		"sign_stand":
@@ -466,7 +472,7 @@ func _say(words: String) -> void:
 		look = "stern"
 	elif step == "retake":
 		look = "troubled"
-	elif step in ["take", "deliver", "bye", "role"]:
+	elif step in ["take", "deliver", "bye", "role", "act"]:
 		look = "happy"
 	elif step == "scene2":
 		look = "surprised"

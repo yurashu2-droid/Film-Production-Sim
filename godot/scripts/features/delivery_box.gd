@@ -104,6 +104,8 @@ var _levels0 := ""                   # 箱を開ける前の会社の段階（�
 var _roll: Tween
 var _top_y := 0.5                    # 箱の上の高さ（箱の中）
 var drone: Node3D                    # 箱から飛び出して、講師を映すドローン（話が済んだら、day1_guide が同じ場所から引き継ぐ）
+var _look_from := NAN                # 箱が落ちた時の、自分の向き（見回したかを見る）
+var _looked := false                 # 見回した（次は、歩くことを教える）
 var _await_drop := false             # 落とすのを待っている（ホスト）
 var _wait := 0.0
 var _moving := false                 # 落ちている・跳ねている途中
@@ -436,6 +438,13 @@ func hook_f(me: Node) -> bool:
 
 
 func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	# 箱が落ちてから開けるまで：操作を 1 つずつ。まず見回す、見回したら歩く（2026-11-11 ユーザー「操作の説明が無い」）
+	if on and landed and not opened and me != null and me.held == 0 and not near(me):
+		if not is_nan(_look_from) and absf(wrapf(float(me.aim_yaw) - _look_from, -PI, PI)) > 0.6:
+			_looked = true
+		if is_nan(_look_from):
+			_look_from = float(me.aim_yaw)
+		return {"keys_all": "WASD 歩く ／ 宅配の箱のそばへ行こう" if _looked else "マウスを動かして、まわりを見回そう"}
 	if not near(me):
 		return {}
 	if not opened and me.held == 0:
