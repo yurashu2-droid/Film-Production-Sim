@@ -1,6 +1,7 @@
 extends Node3D
 ## 講師バズ山の見た目：サングラスのモアイ（assets/cast/castBZ_game.glb）と、縄を引く小石たち（castBZP_game.glb）。
 ##   ・足が無い。頭に巻いた縄を、左右の小石が交互に引いて、体を左右に揺らしながら歩かせる（モアイを縄で歩かせた、という説が元）
+##   ・立っている間は、小石は頭の上で休み、縄は体に沿って垂れる（横に広がらない。宅配の箱に収まる）。歩く時だけ、飛び降りて左右へ開く
 ##   ・呼び方は cast_visual.gd に合わせてある（setup・play・set_face）。講師を出す側は、どちらの見た目でも同じ書き方で使える
 ##   ・動きは全部ここで付ける（モデルに入っているのは、腕を前に出した構え 1 つだけ）
 ##       moving（0〜1）を外から入れると、歩く揺れになる。play("ORDER") で、売り込みの身ぶりを 1 回
@@ -11,7 +12,10 @@ const PEBBLE := "res://assets/cast/castBZP_game.glb"
 const HOLO_FIGURE := preload("res://shaders/hologram_figure.gdshader")
 const SCALE := 0.66                  # モデルの大きさ（cast_visual.gd は 0.62。少しだけ大きく見せる）
 const HALF_BASE := 0.79              # 底の半分の幅（モデルの単位）。揺れる時、こっちの角を軸にする
-const ROPE_OUT := 0.42               # 縄が外へ開く角度（rad）。小石が持つ所まで
+const ROPE_OUT := 0.42               # 歩く時に、縄が外へ開く角度（rad）。小石が持つ所まで
+const ROPE_IN := -0.055              # 立っている時の縄の角度（体の横に沿って、まっすぐ垂れる）
+const TAIL_TUCK := 1.25              # 立っている時、床に寝た縄の先を、前へ巻き込む角度（rad）
+const TOP := 3.6                     # 頭のてっぺんの高さ（モデルの単位）。立っている間、小石はここで休む
 const ROPE_END := Vector3(1.52, 0.10, 0.30)   # 縄の先（モデルの中の場所。左。右は x が逆）
 const ARMS := ["UPPER_ARM", "FOREARM", "HAND", "FINGERS", "THUMB"]
 
@@ -130,31 +134,42 @@ func _pose(_delta: float) -> void:
 			var side := 1.0 if skel.get_bone_name(i).ends_with(".L") else -1.0
 			q = Quaternion(Vector3.RIGHT, -0.55 * push) * Quaternion(Vector3.FORWARD, side * tilt * 1.4) * q
 		skel.set_bone_pose_rotation(i, q)
-	# 縄：外へ開いて、小石の手元へ。体が傾いても、縄の下の端は床の近くに残す。引かれている側は張り、反対側はたるむ
+	# 縄と小石：立っている間は、横に広がらない（宅配の箱からはみ出さない）。
+	#   立っている時：縄は体の横にまっすぐ垂れ、先は前へ巻き込む。小石は 4 つとも、平らな頭の上に乗って休む
+	#   歩く時：小石が飛び降りて左右へ開き、縄を外へ張って交互に引く。止まると、また頭へ飛び乗る
+	var g := smoothstep(0.12, 0.6, _walk)                              # 0＝休む 〜 1＝引いている
 	for side: String in ["L", "R"]:
 		var chain: Array = _rope[side]
 		if chain.size() < 3:
 			continue
 		var s := 1.0 if side == "L" else -1.0
 		var pull := clampf(-s * tilt / 0.17, -1.0, 1.0) * _walk          # 体が向こうへ傾く時、こっちが引いている
-		var open := s * (ROPE_OUT + 0.10 * pull) - tilt
-		var angles := [open, open, -tilt]
-		var before := 0.0
+		var open := s * lerpf(ROPE_IN, ROPE_OUT + 0.10 * pull, g) - tilt
+		# 骨組みの中での、3 本の骨の回し方（上 2 本は横へ開くだけ。先の 1 本は床と平行に戻し、休む時は前へ巻く）
+		var turns: Array[Basis] = [Basis(Vector3.BACK, open), Basis(Vector3.BACK, open),
+				Basis(Vector3.UP, -s * TAIL_TUCK * (1.0 - g)) * Basis(Vector3.BACK, -tilt)]
+		var before := Basis.IDENTITY
 		for n in 3:
 			var idx: int = chain[n]
 			var parent := skel.get_bone_parent(idx)
 			var parent_rest: Basis = skel.get_bone_global_rest(parent).basis if parent >= 0 else Basis.IDENTITY
-			var b: Basis = parent_rest.inverse() * Basis(Vector3.BACK, float(angles[n]) - before) * (_rest[idx] as Basis)
+			var b: Basis = parent_rest.inverse() * before.inverse() * turns[n] * (_rest[idx] as Basis)
 			skel.set_bone_pose_rotation(idx, b.get_rotation_quaternion())
-			before = float(angles[n])
-		# 小石：縄の先の真下に立って、こっち（モアイ）を向く。引く時は後ろへ反り、歩く時は跳ねる
+			before = turns[n]
 		var end_rest := Vector3(ROPE_END.x * s, ROPE_END.y, ROPE_END.z)
 		var last: int = chain[2]
 		var end_now: Vector3 = _model.transform * (skel.get_bone_global_pose(last) * (skel.get_bone_global_rest(last).affine_inverse() * end_rest))
 		for k in 2:
 			var p := _pebbles[(0 if side == "L" else 2) + k]
+			# 引く時の場所：縄の先の真下で、モアイの方を向く。引く時は後ろへ反り、歩く時は跳ねる
 			var out := 0.10 + 0.50 * float(k)
 			var hop := absf(sin(_t * 5.2 + float(k) * 0.9 + (0.0 if side == "L" else PI))) * 0.05 * _walk
-			p.position = Vector3(end_now.x + s * out, hop, end_now.z + (0.0 if k == 0 else -0.28) - 0.12)
-			p.rotation = Vector3(0.0, -s * PI * 0.5 + (0.0 if k == 0 else s * 0.35), 0.0)
-			p.rotate_object_local(Vector3.RIGHT, -(0.10 + 0.22 * maxf(pull, 0.0)))
+			var ground := Vector3(end_now.x + s * out, hop, end_now.z + (0.0 if k == 0 else -0.28) - 0.12)
+			# 休む時の場所：頭の上（体が揺れても、一緒に揺れる）。前を向いて、小さく息をする
+			var seat: Vector3 = _model.transform * Vector3(s * 0.36, TOP + 0.02 * sin(_t * 1.7 + float(k) + s), 0.30 - 0.56 * float(k))
+			# 飛び降りる・飛び乗る：1 つずつ、少しずらして、山なりに
+			var gk := smoothstep(0.0, 1.0, clampf(g * 1.5 - 0.25 * float(k) - (0.0 if side == "L" else 0.12), 0.0, 1.0))
+			p.position = seat.lerp(ground, gk) + Vector3(0.0, sin(gk * PI) * 0.35, 0.0)
+			p.rotation = Vector3(0.0, lerp_angle(s * 0.25, -s * PI * 0.5 + (0.0 if k == 0 else s * 0.35), gk), 0.0)
+			p.rotate_object_local(Vector3.RIGHT, -(0.10 + 0.22 * maxf(pull, 0.0)) * gk)
+			p.rotate_object_local(Vector3.BACK, tilt * (1.0 - gk))
