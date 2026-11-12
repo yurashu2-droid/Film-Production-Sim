@@ -414,5 +414,23 @@ func run() -> void:
 	key(KEY_F3, false)
 	game.set_character_menu(false)
 
+	# ---- しゃがむと、視点も下がる（三人称・一人称とも。持った物の基準も） ----
+	for fp: bool in [false, true]:
+		me.set_first_person(fp)
+		me.aim_pitch = 0.0
+		await frames(20)
+		var stand_eye: float = me.cam.global_position.y
+		var stand_anchor: float = game.hold_view_anchor(me).origin.y
+		Input.action_press("crouch")
+		await frames(40)
+		var low_eye: float = me.cam.global_position.y
+		var low_anchor: float = game.hold_view_anchor(me).origin.y
+		Input.action_release("crouch")
+		await frames(40)
+		var back_eye: float = me.cam.global_position.y
+		check(stand_eye - low_eye > 0.1 and stand_anchor - low_anchor > 0.1 and absf(back_eye - stand_eye) < 0.02,
+			"%s：しゃがむと視点が下がり（%.2f m）、持つ物の基準も下がり、立つと戻る" % ["一人称" if fp else "三人称", stand_eye - low_eye])
+	me.set_first_person(false)
+
 	print("VIEW_TEST_OK" if not failed else "VIEW_TEST_FAIL")
 	quit(0 if not failed else 1)

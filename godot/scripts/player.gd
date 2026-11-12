@@ -39,6 +39,7 @@ const VIEW_BACK := 4.0
 # 一人称のとき、自分の体だけを置く描画の層。自分の視点カメラはこの層を映さない（撮影カメラや他人の画面には映る）。
 const SELF_LAYER := 1 << 12
 const HEAD_Y := 1.85          # 頭の基準の高さ（視点の軸）
+const CROUCH_MAX := 0.9       # しゃがんで視点が下がる量の上限（m）
 
 # 一人称で見ているか（F2 で切り替え。その回の間だけ覚えておく。保存はしない）
 static var first_person := false
@@ -79,6 +80,8 @@ var _view_rise := VIEW_RISE
 # 伸ばした首の高さ（m。ベレー帽の人の特技。cast_talent.gd が、全員の画面で決める）。
 # この分だけ、視点（三人称でも一人称でも）と、物に手が届く基準が上がる。伸ばしている間は走れない
 var neck := 0.0
+var _head_stand := 0.0           # 立っている間の、頭の骨の足元からの高さ（しゃがんだ量を測る基準）
+var crouch_drop := 0.0          # しゃがんで下がった頭の高さ（m）。視点と、持った物の基準が、その分だけ下がる（全員の画面で、体の動きの名前から決める）
 
 var _vehicle_ride: RefCounted
 
@@ -187,7 +190,26 @@ func eye_height() -> float:
 func set_neck(rise: float) -> void:
 	neck = rise
 	if head != null:
-		head.position.y = HEAD_Y + rise
+		head.position.y = HEAD_Y + rise - crouch_drop
+
+
+# しゃがんでいる間（体の動きが crouch_〜）は、頭の骨が下がった分だけ、視点の軸も下げる。
+# 下がる量は、そのキャラの動きから測る（キャラごとに背の高さが違うため）。急に跳ねないよう、なめらかに
+func _update_crouch(delta: float) -> void:
+	var target := 0.0
+	var bone: int = vis.skel.find_bone("HEAD")
+	if bone >= 0:
+		# 頭の骨の、足元からの高さ（世界の m）。立っている間の高さを覚えておき、しゃがんだら、その差だけ下げる
+		var h: float = (vis.skel.global_transform * vis.skel.get_bone_global_pose(bone).origin).y - global_position.y
+		if not str(vis.current).contains("crouch"):
+			_head_stand = h if _head_stand <= 0.0 else lerpf(_head_stand, h, 1.0 - exp(-4.0 * delta))
+		elif _head_stand > 0.0:
+			target = clampf(_head_stand - h, 0.0, CROUCH_MAX)
+	crouch_drop = lerpf(crouch_drop, target, 1.0 - exp(-10.0 * delta))
+	if absf(crouch_drop - target) < 0.002:
+		crouch_drop = target
+	if head != null:
+		head.position.y = HEAD_Y + neck - crouch_drop
 
 
 # 物に手が届くかを測る基準（足元。首を伸ばしていれば、その分だけ高い）
@@ -576,6 +598,8 @@ func _process(delta: float) -> void:
 	# 物を持っている間は、キャラが元から手に持っている小道具を外す（全員の画面で。持っている物は全員に届いている）
 	if vis != null and vis.has_method("hide_hand_props"):
 		vis.hide_hand_props(held != 0)
+	if vis != null and vis.skel != null:
+		_update_crouch(delta)
 	if is_local:
 		# 視点は、描画のコマごとに向きを変える（物理のコマごとだけだと、速い画面では視点を振ったときにカクつく）
 		if head != null:
