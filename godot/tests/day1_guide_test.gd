@@ -158,6 +158,18 @@ func run() -> void:
 		await physics_frame
 	await frames(10)
 	check(beats.holding and str(guide.step).begins_with("hold") and str(guide.said).contains("カット"), "止めると（場転）、次の用意を言う（%s）" % guide.step)
+	check(str(guide.hook_hud(me, "", "").get("keys_all", "")).contains("まだ続く"), "止まっている間は、画面の下の案内に、続け方（まだ続く）")
+	# ---- 途中でカット：1回目は止めずに知らせる。もう一度で終わり、結果の画面では撮り直しを案内する ----
+	game.h_take()
+	await frames(5)
+	check(game.state == S.TAKE and str(guide.said).contains("カットはまだ"), "途中でカットしかけると、止めずに、まだ続くと言う（%s）" % str(guide.said).replace("\n", " "))
+	game.h_take()
+	for i in 120:
+		if game.state == S.RESULT:
+			break
+		await physics_frame
+	await frames(10)
+	check(game.state == S.RESULT and guide.step == "retake" and str(guide.said).contains("撮り直す"), "もう一度カットすると終わり、途中のテイクなので撮り直しを言う（%s）" % guide.step)
 	# ---- 2日目からは出ない ----
 	flow.day = 2
 	await frames(90)

@@ -38,11 +38,12 @@ const SAY := {
 	"scene1": "2カット目。お城が後ろに映るように、\n少し下がって立つ",
 	"scene2": "3カット目、爆発。\n何があっても、動じない！",
 	"scene3": "最後。会社の名前を書いた看板の前に、\n全員集合！",
-	"hold0": "カット！　カメラを次の人へ寄せ直して、\n台本のそばで 1 を押す",
-	"hold1": "カット！　止まっている間に、次の用意。\nできたら、台本のそばで 1 を押す",
+	"hold0": "カット！　でも、まだ続く。\nカメラを次の人へ寄せ直して、台本のそばで 1",
+	"hold1": "カット！　まだ続く。止まっている間に、次の用意。\nできたら、台本のそばで 1",
 	"hold2": "カット！　次は爆発。書割が後ろに映るかを見て、\n台本のそばで 1",
 	"hold3": "最後は看板。段ボール箱を Shift+F でたたんで、\nスプレーで社名を書く。立てたら、1",
 	"deliver": "撮れた！　『このテイクを納品』を選べば、\nネットに上がる",
+	"retake": "まだ途中で終わっている！　4カット全部撮れたら、\n今日の撮影はおしまい。Space で撮り直す",
 	"bye": "以上！　あとは、バズるのを待つだけ。\n……たぶん",
 }
 # 画面の下の案内に出す、いまやる事（本番中は出さない。場面の知らせが出る）
@@ -55,6 +56,11 @@ const TASK := {
 	"script": "机の上の台本を、撮る場所のそばに置こう",
 	"role": "何も持たず、何も見ずに Y で、社長の役に入ろう",
 	"take": "カチンコを持って F で本番",
+	"hold0": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
+	"hold1": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
+	"hold2": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
+	"hold3": "看板を作って立てたら、台本のそばで 1（これが最後のカット）",
+	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
 const PREP := ["boxes", "camera", "castle", "blast", "script", "role"]
@@ -190,6 +196,11 @@ func _now() -> String:
 			return "bye"
 	var beats: Node = game.get("beats")
 	if st == int(S.RESULT):
+		# 全部の場面が撮れていないテイク（途中でカットした・フィルムが切れた）：納品ではなく、撮り直しを案内する
+		var takes: Array = game.takes
+		var got: Array = takes[clampi(int(game.selected), 0, takes.size() - 1)]["passed"] if not takes.is_empty() else []
+		if (got.is_empty() or false in got) and takes.size() < int(game.MAX_TAKES):
+			return "retake"
 		return "deliver"
 	if st in [int(S.REPLAY), int(S.DELIVERED), int(S.ORDER)]:
 		return ""
@@ -412,6 +423,8 @@ func _say(words: String) -> void:
 	var look := "normal"
 	if words.begins_with("まだ撮れていない") or step == "camera":
 		look = "stern"
+	elif step == "retake":
+		look = "troubled"
 	elif step in ["take", "deliver", "bye", "role"]:
 		look = "happy"
 	elif step == "scene2":
@@ -448,7 +461,8 @@ func hook_events() -> Array:
 
 func hook_event(n: String, a: Array) -> void:
 	if n == "guide_say" and on:
-		_say("まだ撮れていない！\n" + str(a[0]))
+		# "raw" が付いていれば、そのまま言う（本番の途中でカットしかけた時。production_main.gd の _take_or_cut）
+		_say(str(a[0]) if a.size() > 1 and str(a[1]) == "raw" else "まだ撮れていない！\n" + str(a[0]))
 
 
 # 画面の下の案内：いまやる事を、先頭に1枚出す（もとの案内のうち、同じ事を言っている札は外す）

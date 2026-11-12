@@ -1227,6 +1227,8 @@ func _deliver_to_bed(p: RigidBody3D, local: Transform3D) -> void:
 		p.restore([Flow.HOME_TRUCK + Vector3(-2.6 - 0.7 * float(_beside), 0.05, -1.7), Quaternion.IDENTITY, false])
 		_beside = (_beside + 1) % 4
 
+var _cut_asked := -100000          # 1日目、途中でカットしかけた時刻（ミリ秒）
+
 func _take_or_cut(who: int) -> void:
 	if production and (production.phase != 4 or production.expired):
 		ev.rpc_id(who,"toast",["撮影は現場に着いてから。期限後は撮れたテイクを納品しよう",1])
@@ -1234,6 +1236,16 @@ func _take_or_cut(who: int) -> void:
 	if state == S.PREP:
 		# 各仕組みの hook_take_ready：箱の中身を覚える（撮り直しで戻す）・通し稽古を終える（役者は最初の立ち位置へ戻る）
 		hooks.run("hook_take_ready")
+	# 1日目（講師が案内している間）：本番の途中、まだ撮れていない場面が残っているのにカットしたら、1回目は止めずに知らせる。
+	# 1カット目のあとにカットして、テイクが終わり、その日が終わったように見えた（2026-11-11 ユーザー）。4秒のうちに、もう一度押せば終わる
+	var guide: Node = hooks.feature("day1_guide")
+	if state == S.TAKE and guide != null and bool(guide.on) and beats != null and beats.active():
+		var got: Array = judge.passed()
+		if false in got and Time.get_ticks_msec() - _cut_asked > 4000:
+			_cut_asked = Time.get_ticks_msec()
+			ev.rpc_id(who, "toast", ["まだ途中（%d / %d カット）。ここで終えるなら、もう一度 %s" % [got.count(true), got.size(), Keybinds.label("cut")], 1])
+			host_ev("guide_say", ["カットはまだ！　テイクは%dカット続けて撮る。\n止まっている間に用意して、台本のそばで 1" % got.size(), "raw"])
+			return
 	super._take_or_cut(who)
 
 
