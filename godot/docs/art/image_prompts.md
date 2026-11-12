@@ -137,3 +137,9 @@
 - 描き直し（同日、ユーザー「先に絵を直す」）：1枚目は `buzzyama_sheet_v1.png` に残した。`buzzyama_sheet.png` は、なめらかな面・砂色のより縄・顔が背の半分以上、に直した版
   - 効いた書き方：選んだ絵を「正」、1枚目を「並べ方だけ正しい」として両方付け、違う所を SURFACE / ROPE / PROPORTIONS の3項目で名指しした
   - まだ違う所：胴がかなり短い・紫の布が斜めでなく腰の横帯・縄が二重巻き
+
+### 2026-11-12 バズ山のモデル（1版）
+- 作る物：リポジトリ直下の `build_castBZ_claude.py`（モアイ）と `build_castBZP_claude.py`（小石）。ほかのキャラと同じ castlib の道具。直下は git の外
+- 手順：`blender -b --python build_castBZ_claude.py -- --render` → `blender -b --python make_game.py -- BZ 12000 2048`（小石は `BZP 2500 1024`）→ `game/castBZ_game.glb` を `godot/assets/cast/` へ
+- 骨：共通の腕の骨＋縄の骨（`ROPE1〜3.L/R`、頭から床へ）。石は 1 つの塊なので、頭だけは回らない
+- まだ：ゲームへの登録（講師は今も 06 のモップ王）・動き・立ち絵・割れ方・石の斑点
