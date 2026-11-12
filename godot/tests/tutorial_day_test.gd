@@ -1,6 +1,6 @@
 extends SceneTree
 # 1日目の段取り（scripts/features/tutorial_day.gd）：会社の紹介動画を受けても、廃材置き場の門は開かない。
-# 使いそうな物（城の書割・爆炎の書割・等身大パネル・カンペ・箱馬）は、事務所の前に出してある。2日目の依頼では、門が開く。
+# 使いそうな物（城の書割・爆炎の書割・等身大パネル・カンペ・台にする段ボール箱）は、事務所の前に出してある。2日目の依頼では、門が開く。
 #   godot --headless --path godot --fixed-fps 60 --script res://tests/tutorial_day_test.gd
 var game: Node
 var failed := false

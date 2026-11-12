@@ -269,14 +269,14 @@ func target() -> Vector3:
 			return flow.Office.CONTRACT_POINT
 		"boxes":
 			var spot: Vector3 = o + guides.CAM_AT
-			if _holding(["applebox"]):
+			if _holding(["carton"]):
 				return spot
-			# 影の所にまだ無い段ボール
+			# 影の所にまだ無い段ボール箱（ふたを閉じてある物。開いた箱は、上に物が載らないので、指さない）
 			var far: Node3D = null
 			var far_d := INF
 			for p: Variant in game.props.values():
 				var prop := p as Node3D
-				if prop == null or str(prop.get("kind")) != "applebox" or bool(prop.get("absent")) or int(prop.get("holder")) != 0:
+				if prop == null or str(prop.get("kind")) != "carton" or bool(prop.get("absent")) or int(prop.get("holder")) != 0 or bool(prop.get("opened")):
 					continue
 				if Vector2(prop.global_position.x - spot.x, prop.global_position.z - spot.z).length() < 0.9:
 					continue

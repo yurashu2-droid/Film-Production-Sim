@@ -94,7 +94,8 @@ func run() -> void:
 	var O: Vector3 = flow.site_center()
 	# ---- 段ボールの台 → カメラ → 城 → 書割 → 台本 → 役 → カチンコ ----
 	check(flow.phase == 4 and guide.step == "boxes", "依頼を受けると、まず段ボールの台（%s）" % guide.step)
-	var boxes: Array = of_kind("applebox")
+	var boxes: Array = of_kind("carton").filter(func(b: Node) -> bool: return not b.opened)
+	check(boxes.size() >= 2 and of_kind("applebox").all(func(b: Node) -> bool: return flat(b.global_position, flow.site_center()) > 12.0), "台にするのは、ふたを閉じた段ボール箱 2 つ（箱馬は出ていない）")
 	check(boxes.any(func(b: Node) -> bool: return flat(guide.target(), b.global_position) < 0.1), "目当ては、まだ影の所に無い段ボール")
 	keys = str(guide.hook_hud(me, "", "左クリック 持つ ／ 事務所の前の物を、舞台の青い影に合わせて置こう（あと 5）").get("keys_all", ""))
 	check(keys.begins_with("段ボールを2つ") and not keys.contains("合わせて置こう") and keys.contains("左クリック 持つ"), "もとの「青い影に合わせて置こう」は、いまやる事の札に替わる（%s）" % keys)

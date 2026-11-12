@@ -190,7 +190,7 @@ func run() -> void:
 	var o: Vector3 = flow.HOME_SET
 	await shot(cam, o + Vector3(3.2, 2.4, 9.0), o + Vector3(0, 0.4, 0.5), "guides_blue")
 	# 箱を2つ積んで、その上にカメラ
-	var boxes: Array = game.props.values().filter(func(p: Node) -> bool: return p.kind == "applebox" and not p.absent)
+	var boxes: Array = game.props.values().filter(func(p: Node) -> bool: return p.kind == "carton" and not p.absent and not p.opened)
 	var spot: Vector3 = o + guides.CAM_AT
 	var top := 0.0
 	for k in 2:

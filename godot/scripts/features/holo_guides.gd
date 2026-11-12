@@ -16,6 +16,8 @@ const CASTLE_AT := Vector3(0.0, 0.0, -2.2)
 const FLAT_AT := Vector3(1.9, 0.0, -2.3)
 const NEAR := 0.6                    # この距離（横）まで寄せたら、合っている
 const STACK := 2                     # カメラを載せる箱の数
+const BOX_H := 0.2905                # 閉じた段ボール箱の高さ（拡大率 1 のとき。carton.gd のふたの上の面）
+const Carton := preload("res://scripts/carton.gd")
 
 var game: Node
 var force := false                   # 自動確認でも出す
@@ -58,11 +60,14 @@ func _build() -> void:
 	_tripod = film.get("tripod") == null or bool(film.tripod)
 	_stack_top = 0.0
 	if not _tripod:
-		var box: Node = _one("applebox")
+		# 台は、ふたを閉じた段ボール箱（影の形も、閉じた箱）
+		var box: Node = _one("carton")
 		if box != null:
+			var shape: Node3D = Carton.closed_model(float(game.stage.DEFS["carton"]["scale"]))
 			for k in STACK:
-				_add("box%d" % k, box.visual, o + CAM_AT + Vector3(0, _stack_top, 0), 0.0, "" if k > 0 else "段ボールを積む")
-				_stack_top += float(box.half.y) * 2.0
+				_add("box%d" % k, shape, o + CAM_AT + Vector3(0, _stack_top, 0), 0.0, "" if k > 0 else "段ボールを積む")
+				_stack_top += BOX_H * float(game.stage.DEFS["carton"]["scale"])
+			shape.free()
 	_add("camera", film.visual, o + CAM_AT + Vector3(0, _stack_top, 0), 0.0, "カメラ" if _tripod else "カメラを箱の上に")
 	# 役者の立ち位置（印）は、1日目の案内に入れない（2026-10-24 ユーザー：分かりづらく、意味がない）
 	var flat: Node = _one("flat")
@@ -132,7 +137,8 @@ func _check() -> void:
 	var cam_spot: Vector3 = o + CAM_AT
 	var boxes := 0
 	for p: Node3D in game.props.values():
-		if p.kind == "applebox" and not p.absent and _flat_dist(p.global_position, cam_spot) < NEAR + 0.2:
+		# ふたの開いた箱は、数えない（上に物が載らない）
+		if p.kind == "carton" and not p.absent and not bool(p.opened) and _flat_dist(p.global_position, cam_spot) < NEAR + 0.2:
 			boxes += 1
 	var film: Node3D = game.film
 	for g: Dictionary in guides:
