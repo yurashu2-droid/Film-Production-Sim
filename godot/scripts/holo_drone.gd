@@ -9,6 +9,7 @@ extends Node3D
 const CREW_LAYER := 1 << 11
 const BLUE := Color(0.3, 0.7, 1.0)
 const HOVER := 1.95                  # 浮く高さ（床から）
+const HOVER_LOOP := 3.0               # 浮いている揺れが、ひと回りする秒数
 const SPEED := 7.5                   # 飛ぶ速さ（m/秒）
 const POOL_R := 0.62                 # 目当てを照らす、床の光の輪の半径
 const BODY_SCALE := 1.0              # 機体の大きさ（羽根の囲いまで入れて、幅 72cm ほど）
@@ -54,6 +55,8 @@ var _goal := Vector3.INF
 var _aim := Vector3.INF
 var _aim_k := 0.0
 var _t := 0.0
+var _yaw := 0.0                      # 機体の向き（首ふりの揺れを足す前）
+var _lean := 0.0                     # 進む向きへの傾き（揺れを足す前）
 
 
 func _ready() -> void:
@@ -180,18 +183,22 @@ func _process(delta: float) -> void:
 			vel = to / dist * (step / maxf(delta, 0.0001))
 			global_position += to / dist * step
 	moving = lerpf(moving, clampf(vel.length() / SPEED * 1.6, 0.0, 1.0), clampf(delta * 8.0, 0.0, 1.0))
-	# 浮いている揺れ・進む向きへ傾く・羽根が回る
-	_body.position = Vector3(0, sin(_t * 2.3) * 0.035 + sin(_t * 5.1) * 0.008, 0)
+	# 浮いている揺れ：ユーザーが Blender で付けた動きと同じ式（遊び場/drone_bot/drone_pop.py の hover。3 秒でひと回り）。
+	#   横へ 3cm・前後へ 2cm・上下へ 3cm（上下だけ 2 倍の速さ）、前後に 4 度・左右に 5 度かしぎ、首を 9 度ふる。
+	#   飛んでいる間は、揺れを小さくする（進む向きへの傾きのほうを見せる）
+	var ph := TAU * _t / HOVER_LOOP
+	var calm := 1.0 - 0.7 * moving
+	_body.position = Vector3(0.03 * sin(ph), 0.03 * sin(2.0 * ph + 0.7), -0.02 * sin(ph + 1.3)) * calm
 	var flat := Vector3(vel.x, 0, vel.z)
 	if flat.length() > 0.4:
-		_body.rotation.y = lerp_angle(_body.rotation.y, atan2(flat.x, flat.z), clampf(delta * 6.0, 0.0, 1.0))
+		_yaw = lerp_angle(_yaw, atan2(flat.x, flat.z), clampf(delta * 6.0, 0.0, 1.0))
 	elif _aim != Vector3.INF:
 		# 止まっている間は、カメラの目を目当てへ向ける
 		var see := _aim - global_position
 		if Vector2(see.x, see.z).length() > 0.3:
-			_body.rotation.y = lerp_angle(_body.rotation.y, atan2(see.x, see.z), clampf(delta * 4.0, 0.0, 1.0))
-	_body.rotation.x = lerpf(_body.rotation.x, clampf(flat.length() / SPEED, 0.0, 1.0) * 0.42, clampf(delta * 6.0, 0.0, 1.0))
-	_body.rotation.z = sin(_t * 1.7) * 0.03
+			_yaw = lerp_angle(_yaw, atan2(see.x, see.z), clampf(delta * 4.0, 0.0, 1.0))
+	_lean = lerpf(_lean, clampf(flat.length() / SPEED, 0.0, 1.0) * 0.42, clampf(delta * 6.0, 0.0, 1.0))
+	_body.rotation = Vector3(_lean - deg_to_rad(4.0) * cos(ph + 1.3) * calm, _yaw + deg_to_rad(9.0) * sin(ph) * calm, deg_to_rad(5.0) * cos(ph) * calm)
 	for i in _rotors.size():
 		_rotors[i].rotate_object_local(Vector3.UP, delta * (46.0 + 6.0 * float(i % 2)) * (1.0 if i % 2 == 0 else -1.0))
 	# 講師を映す光の筒：腹の投影機から、真下の床へ
