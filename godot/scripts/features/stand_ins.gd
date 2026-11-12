@@ -2,7 +2,8 @@ extends Node
 ## 役に入る（兼任）：台本の役者 A・B を、班の誰か（プレイヤー）か等身大パネルが演じる。
 ##   ・役に入るのは Y（見立てと同じキー。準備中だけ）。何も狙っていない・持っていないときの Y で、自分が A → B → やめる。
 ##     等身大パネルを狙って（持って）Y：A → B → 物の役の見立てへ戻る（城・怪獣など）
-##   ・役に入った人には、役の色のたすきが掛かる（映画にも映る衣装）。頭の上には、班にだけ見える「役者A」の札
+##   ・役に入った人には、役ごとの安い作り物（帽子・ネクタイ・社員証など。scripts/role_props.gd）が、ぽんと付く（映画にも映る衣装）。
+##     何を付けるかは、台本の役の名前で決める（社長＝シルクハットとネクタイ など）。名前の無い役は、役の色の紙の帽子
 ##   ・役に入っている間、NPC の役者は姿を消して、その人に付いていく（actor.gd の stand_in）。
 ##     判定・場面の進め方・試写会は、その人の位置と動きで数える。役に入った人は「映り込み」に数えない（production_notes.gd）
 ##   ・誰も入っていない役は、発注（電話）で雇った役者が演じる。ベテラン（高い・確実）か、劇団の新人（安い・出遅れる・通り過ぎる・
@@ -11,12 +12,14 @@ extends Node
 ## 決めるのはホスト（h_cast_actor）。誰が何の役かは、"stand_in" の合図で全員へ配る
 const CREW_LAYER := 1 << 11
 const ROLE_NAMES := ["A", "B", "C", "D"]          # 役者は台本ごとに最大4人。何人かは台本の "cast"（production_beats.gd の cast_count）
+const RoleProps := preload("res://scripts/role_props.gd")
+const Scripts := preload("res://scripts/production_script.gd")
 const SASH := [Color("e8768f"), Color("4f8fd1"), Color("6fca7f"), Color("f2a64a")]     # 役の印の色（A＝桃・B＝青・C＝緑・D＝橙）とそろえる
 const REACH := 3.8 + 2.0                            # 等身大パネルに役を付けられる距離（見立てと同じ。player.gd の REACH ＋ 2m）
 
 var game: Node
 var holders: Array = [["", 0], ["", 0], ["", 0], ["", 0]]     # 役ごとに [種類（"player"・"prop"・""）, 番号（プレイヤーの番号・物のID）]
-var _marks := {}                            # 役に入っている人・物 → [たすき, 札]
+var _marks := {}                            # 役に入っている人・物 → [付けた物の入れ物, 札（使わない）, 役, 帽子, 額の物, 頭からてっぺんまで]
 var plan: Array = ["pro", "pro", "none", "none"]     # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
 
 
@@ -152,7 +155,7 @@ func _resolve(kind: String, ref: int) -> Node3D:
 	return null
 
 
-# たすきと札を付け直す（役から抜けた人・物からは外す）
+# 役の小物を付け直す（役から抜けた人・物からは外す）
 func _refresh_marks() -> void:
 	var want := {}
 	for i in holders.size():
@@ -170,26 +173,117 @@ func _refresh_marks() -> void:
 			_marks[body] = _wear(body, int(want[body]))
 
 
-# 役の色のたすき（体の前を斜めに）と、班にだけ見える札
+# 役の名前（台本の "cast"。無ければ ""）
+func _role_name(role: int) -> String:
+	var flow: Node = game.production
+	if flow == null or game.get("beats") == null or not bool(game.beats.active()):
+		return ""
+	var names: Array = Scripts.cast(flow.chosen_job)
+	return str(names[role]) if role < names.size() else ""
+
+
+# 役の小物を付ける：帽子は頭のてっぺん、胸の物は胸の前、額の物は額（_process で頭について行く）。付く時は、ぽんとはずむ
 func _wear(body: Node3D, role: int) -> Array:
 	var holder: Node3D = body.get("vis") if body.get("vis") is Node3D else body
-	var sash := MeshInstance3D.new()
-	sash.name = "RoleSash"
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.11, 1.0, 0.035)
-	sash.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = SASH[role]
-	mat.roughness = 0.85
-	sash.material_override = mat
-	holder.add_child(sash)
-	var chest: Vector3 = holder.chest_pos() if holder.has_method("chest_pos") else body.global_position + Vector3(0, 1.1, 0)
+	var box := Node3D.new()
+	box.name = "RoleProps"
+	holder.add_child(box)
+	var parts: Dictionary = RoleProps.make(_role_name(role), SASH[role])
 	var front: Vector3 = holder.global_basis.z.normalized()
-	sash.global_position = chest + front * 0.2
-	sash.global_rotation = holder.global_rotation
-	sash.rotate_object_local(Vector3.FORWARD, 0.75)
-	# 頭の上の「役者A」の札は出さない（たすきの色で分かる。狙えば名前も出る）
-	return [sash, null, role]
+	var chest_item: Node3D = parts["chest"]
+	if chest_item != null:
+		box.add_child(chest_item)
+		chest_item.global_position = chest_at(holder, body) + front * _front_reach(holder, 0.16)
+		chest_item.global_rotation = holder.global_rotation
+	for key: String in ["hat", "brow"]:
+		if parts[key] != null:
+			box.add_child(parts[key])
+	var mark := [box, null, role, parts["hat"], parts["brow"], _top_offset(holder, body)]
+	_follow_head(holder, body, mark)
+	for n: Node in box.get_children():
+		var item := n as Node3D
+		var size := item.scale
+		item.scale = size * 0.01
+		if is_inside_tree():
+			var pop := create_tween()
+			pop.tween_property(item, "scale", size, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		else:
+			item.scale = size
+	if is_inside_tree() and not box.get_children().is_empty():
+		Sfx.play("ui_select", holder.global_position + Vector3(0, 1.2, 0), -10.0)
+	return mark
+
+
+# 胸の物（ネクタイ・社員証）を下げる所：腰の骨と頭の骨の間の 7 割の高さ（襟元のあたり）。
+# cast_visual.gd の chest_pos は、キャラによっては顔の高さになった（黒いコートのキャラで、ネクタイが顔に掛かった）
+func chest_at(holder: Node3D, body: Node3D) -> Vector3:
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var head := skel.find_bone("HEAD") if skel != null else -1
+	var hips := skel.find_bone("BODY") if skel != null else -1
+	if head < 0 or hips < 0:
+		return holder.chest_pos() if holder.has_method("chest_pos") else body.global_position + Vector3(0, 1.1, 0)
+	var h: Vector3 = skel.global_transform * skel.get_bone_global_pose(head).origin
+	var w: Vector3 = skel.global_transform * skel.get_bone_global_pose(hips).origin
+	return w.lerp(h, 0.7)
+
+
+# 体の前の面までの距離のめやす（胸の物・額の物を、体にめり込ませない）
+func _front_reach(holder: Node3D, fallback: float) -> float:
+	var depth := 0.0
+	for mi: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null:
+			continue
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		depth = maxf(depth, b.size.z * 0.5)
+	return clampf(depth * 0.85, fallback * 0.6, 0.45) if depth > 0.0 else fallback
+
+
+# 頭の骨から、頭のてっぺんまでの高さ（m）。骨の無い物（等身大パネル）は、足元からてっぺんまで
+func _top_offset(holder: Node3D, body: Node3D) -> float:
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var bone := skel.find_bone("HEAD") if skel != null else -1
+	if bone < 0:
+		return float(body.get("center").y + body.get("half").y) if body.get("half") != null else 1.8
+	var top := -INF
+	for mi: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null:
+			continue
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		top = maxf(top, b.end.y)
+	var head: float = (skel.global_transform * skel.get_bone_global_rest(bone).origin).y
+	return maxf(top - head, 0.06) if top > -INF else 0.25
+
+
+# 帽子と額の物を、いまの頭の場所へ（しゃがむ・跳ねるにもついて行く）
+func _follow_head(holder: Node3D, body: Node3D, mark: Array) -> void:
+	var hat: Node3D = mark[3]
+	var brow: Node3D = mark[4]
+	if hat == null and brow == null:
+		return
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var bone := skel.find_bone("HEAD") if skel != null else -1
+	var up := Vector3.UP
+	var top: Vector3
+	if bone >= 0:
+		top = skel.global_transform * skel.get_bone_global_pose(bone).origin + up * (float(mark[5]) - 0.035)
+	else:
+		top = body.global_position + up * float(mark[5])
+	var yaw := Basis(Vector3.UP, holder.global_rotation.y)
+	if hat != null and is_instance_valid(hat):
+		hat.global_transform = Transform3D(yaw, top) * Transform3D(Basis.from_scale(hat.scale), Vector3.ZERO)
+	if brow != null and is_instance_valid(brow):
+		var front: Vector3 = holder.global_basis.z.normalized()
+		var at := top - up * (float(mark[5]) * 0.42) + front * _front_reach(holder, 0.12) * 0.9
+		brow.global_transform = Transform3D(yaw, at) * Transform3D(Basis.from_scale(brow.scale), Vector3.ZERO)
+
+
+func _process(_delta: float) -> void:
+	for body: Object in _marks:
+		if not is_instance_valid(body):
+			continue
+		var b := body as Node3D
+		var holder: Node3D = b.get("vis") if b.get("vis") is Node3D else b
+		_follow_head(holder, b, _marks[body])
 
 
 # ---- 自分の操作：Y ----

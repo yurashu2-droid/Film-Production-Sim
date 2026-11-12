@@ -58,7 +58,7 @@ func run() -> void:
 	check(roles.hook_key(press_y(), me), "何も狙っていない Y は、役に入る操作になる")
 	await frames(3)
 	check(a.stand_in == me and not a.vis.visible, "役者 A は姿を消して、自分に付いていく")
-	check(me.vis.find_child("RoleSash", true, false) != null, "自分に、役の色のたすきが掛かる")
+	check(me.vis.find_child("RoleProps", true, false) != null and me.vis.find_child("RoleProps", true, false).get_child_count() > 0, "自分に、役の小物が付く")
 	me.global_position = me.global_position + Vector3(2.0, 0, 0)
 	await frames(4)
 	check(a.global_position.distance_to(me.global_position) < 0.05, "役者 A の位置は、自分の位置に重なる（判定は役者を見るので、自分の位置で数えられる）")
@@ -119,7 +119,7 @@ func run() -> void:
 	me.target = null
 	roles.hook_key(press_y(), me)
 	await frames(3)
-	check(roles.role_of("player", int(me.peer_id)) == -1 and me.vis.find_child("RoleSash", true, false) == null, "もう一度 Y でやめる（たすきも外れる）")
+	check(roles.role_of("player", int(me.peer_id)) == -1 and me.vis.find_child("RoleProps", true, false) == null, "もう一度 Y でやめる（小物も外れる）")
 	# 帰社すると、みんな役から抜ける
 	me.target = null
 	roles.hook_key(press_y(), me)
