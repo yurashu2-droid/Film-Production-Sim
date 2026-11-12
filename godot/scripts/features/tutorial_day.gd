@@ -5,6 +5,10 @@ extends Node
 ##     城に見立てる書割・爆炎の書割・等身大パネル・看板にする段ボール板2枚とスプレー缶と接着剤・カメラの台にする段ボール箱2つ
 ##     （段ボール箱は、ふたを閉じて出す。2つ積むと 1.5m で、三脚とほぼ同じ高さ。箱馬は、1日目には出さない）
 ##     その日、廃材置き場にしまってある物でも出す（日替わりの廃材から外す）
+##   ・ふつうに遊ぶ 1 日目は、その日に使わない会社の備品（滑車・押しボタン・点火トーチ・時計・ハーネス・背景の缶・
+##     夜用フィルター・スロー光線・吊りクレーン・台車類・ロープとはさみ・清掃カート）をしまっておく。デバッグ用の物が並んで見えて、
+##     始まりの邪魔だった（2026-11-11 ユーザー）。2 日目の朝（production_flow.gd の restock）で、元の場所に戻る。
+##     確認では、tidy_force を立てたときだけしまう（ほかの確認は、備品がある前提で書いてある）
 ## 決めるのはホスト。置き場所は、ほかの物と同じに全員へ配られる
 const PILE := [
 	["flat", Vector3(65.9, 0.05, 16.8), 0.4],
@@ -18,7 +22,12 @@ const PILE := [
 	["carton", Vector3(66.5, 0.05, 18.9), -0.5],
 ]
 
+# 1 日目にしまう、会社の備品の種類
+const SPARE := ["lift_cart", "dolly", "pulley", "buzzer", "igniter", "timer", "harness", "rope", "scissors",
+	"bgcan_castle", "bgcan_space", "bgcan_sea", "nightgel", "slowray", "crane", "cleaning_cart"]
+
 var game: Node
+var tidy_force := false              # 自動確認でも、備品をしまう
 
 
 func hook_new_job() -> void:
@@ -35,6 +44,10 @@ func hook_new_job() -> void:
 		used[p.pid] = true
 		hidden.erase(p.pid)
 		placed.append([p, row[1], float(row[2])])
+	if bool(flow.daily) or tidy_force:
+		for p: RigidBody3D in game.props.values():
+			if str(p.kind) in SPARE and not p.absent and p.holder == 0 and p.rider_of == 0 and not hidden.has(p.pid):
+				hidden.append(p.pid)
 	game.host_ev("stash", [hidden])
 	for item: Array in placed:
 		var turn := Quaternion(Vector3.UP, float(item[2]))

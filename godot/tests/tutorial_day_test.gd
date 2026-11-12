@@ -34,6 +34,8 @@ func run() -> void:
 	flow.daily = true
 	flow.restock()
 	await frames(5)
+	# 依頼を受ける前に出ていた備品（借りていない物は、はじめから出ていない）
+	var spare: Array = game.props.values().filter(func(p: Node) -> bool: return str(p.kind) in day.SPARE and not p.absent)
 	game.h_accept_job(flow.debut_job())
 	await frames(150)
 	check(day != null and flow.phase >= 1, "会社の紹介動画を受けた")
@@ -42,12 +44,17 @@ func run() -> void:
 		var near: bool = game.props.values().any(func(p: Node) -> bool:
 			return p.kind == row[0] and not p.absent and Vector2(p.global_position.x - row[1].x, p.global_position.z - row[1].z).length() < 0.8)
 		check(near, "事務所の前に「%s」が出してある" % row[0])
+	# ふつうに遊ぶ 1 日目は、その日に使わない会社の備品をしまう
+	check(not spare.is_empty() and spare.all(func(p: Node) -> bool: return p.absent), "1日目は、会社の備品（滑車・押しボタンなど %d 個）をしまってある" % spare.size())
 	# 2日目の依頼では、門が開く
 	game.h_return_office() if flow.phase == 5 else null
 	flow.phase = 0
 	flow.day = 2
 	game.h_accept_job(0)
 	await frames(150)
+	flow.restock()
+	await frames(5)
+	check(spare.all(func(p: Node) -> bool: return not p.absent), "2日目の朝には、備品が元に戻る")
 	check(float(flow._gate) > 0.9, "2日目の依頼では、門が開く")
 	print("TUTDAY_TEST_FAIL" if failed else "TUTDAY_TEST_OK")
 	await frames(2)
