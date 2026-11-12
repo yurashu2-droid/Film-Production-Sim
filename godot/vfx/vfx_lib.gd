@@ -17,8 +17,17 @@ static func warm() -> void:
 		cloud_mesh(i)
 
 
+# シェーダーと、粒子の動きの設定（項目の組ごとに 1 つ）は、作ったら手元に残す。
+# 使う物が全部消えると、Godot はシェーダーを捨てて、次に出す時に作り直す。爆発を出すたびに 45ms 止まっていた
+# （試写会・本番の爆発。2026-11-12 測った。TODO R）
+static var _keep := {}
+
+
 static func shader(shader_name: String) -> Shader:
-	return load(SHADER_DIR + shader_name + ".gdshader") as Shader
+	var key := "shader:" + shader_name
+	if not _keep.has(key):
+		_keep[key] = load(SHADER_DIR + shader_name + ".gdshader") as Shader
+	return _keep[key]
 
 
 static func material(shader_name: String, params: Dictionary = {}) -> ShaderMaterial:
@@ -198,6 +207,11 @@ static func process(props: Dictionary) -> ParticleProcessMaterial:
 	for key: String in props:
 		assert(key in m, "ParticleProcessMaterial に無い項目: " + key)
 		m.set(key, props[key])
+	var names: Array = props.keys()
+	names.sort()
+	var kept := "process:" + ",".join(names)
+	if not _keep.has(kept):
+		_keep[kept] = m.duplicate()
 	return m
 
 

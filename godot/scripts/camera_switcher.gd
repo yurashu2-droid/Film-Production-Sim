@@ -111,6 +111,8 @@ func _refresh_views() -> void:
 		var me: Node = game.local_player()
 		if me != null and me.operating == c.pid: size = c.VIEW_SIZE
 		if c.view.size != size: c.view.size = size
-		c.view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if showing or c.operator != 0 else SubViewport.UPDATE_DISABLED
+		# 見返し・試写会の間は、いま映しているカメラだけ描く（ほかの2台の映像は誰も見ていない。影の計算ごと 1 台ぶん重かった。TODO R）
+		var needed: bool = showing and (game.state != game.S.REPLAY or c.pid == active_pid)
+		c.view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if needed or c.operator != 0 else SubViewport.UPDATE_DISABLED
 		c.tally.visible = c.pid == active_pid and game.state == game.S.TAKE
 	monitor.set_on_air(index(),game.state == game.S.TAKE)
