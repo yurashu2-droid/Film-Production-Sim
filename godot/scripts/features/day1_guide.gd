@@ -357,7 +357,15 @@ func _appear() -> void:
 		var from: Vector3 = box.box.global_position
 		teacher.global_position = Vector3(from.x, 0.0, from.z)
 		drone.global_position = from + Vector3(0.0, 0.6, 0.0)
-		_stand = Vector3(from.x, 0.0, from.z)
+		# 箱の講師を映していたドローンが残っていれば、それを引き継ぐ（同じ場所から、同じ 1 台に見えるように）
+		var prev: Node3D = box.get("drone") as Node3D
+		if prev != null and prev.visible:
+			drone.global_position = prev.global_position
+			prev.visible = false
+			var under: Vector3 = prev.under()
+			teacher.global_position = Vector3(under.x, 0.0, under.z)
+		# 引き継いだ時は、講師が映っていた所（箱の前）から始める。箱の上へ戻らない
+		_stand = teacher.global_position
 		drone.fly_to(_stand)
 	_fade(0.0)
 	if is_inside_tree():

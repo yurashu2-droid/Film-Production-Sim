@@ -14,6 +14,7 @@ const Carton := preload("res://scripts/carton.gd")
 const TeacherVisual := preload("res://scripts/buzzyama_visual.gd")
 const Dust := preload("res://scripts/toon_dust.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
+const Drone := preload("res://scripts/holo_drone.gd")
 const Speech := preload("res://scripts/guide_speech.gd")
 const WalletBoard := preload("res://scripts/wallet_board.gd")
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
@@ -25,6 +26,8 @@ const REACH := 1.8                   # この距離まで近づくと、F で開
 const HEAR := 14.0                   # この距離までなら、講師のせりふ・箱の中の声が字幕で出る
 const TEACHER := "BZ"                # 講師の見た目（サングラスのモアイを、青いホログラムにする）
 const TEACHER_SCALE := 0.62
+const STAGE := Vector3(0.0, 0.0, 1.15)   # 講師が映る所（箱から見て。箱の前の床）
+const DRONE_RISE := 1.1              # ドローンが箱から出て、上で止まるまでの秒数（そのあと、講師が映る）
 const LINE_SEC := 4.2                # 1つのせりふを見せる秒数
 const LINES := [
 	"お買い上げ、ありがとうございます！\n代金引換、100万コイン、たしかに",
@@ -100,6 +103,7 @@ var _line_t := 0.0
 var _levels0 := ""                   # 箱を開ける前の会社の段階（買い物をしたら、そこで開く）
 var _roll: Tween
 var _top_y := 0.5                    # 箱の上の高さ（箱の中）
+var drone: Node3D                    # 箱から飛び出して、講師を映すドローン（話が済んだら、day1_guide が同じ場所から引き継ぐ）
 var _await_drop := false             # 落とすのを待っている（ホスト）
 var _wait := 0.0
 var _moving := false                 # 落ちている・跳ねている途中
@@ -140,6 +144,7 @@ func start(drop: bool = false) -> void:
 	opened = false
 	line = -1
 	_teacher.visible = false
+	drone.visible = false
 	_bubble.text = ""
 	_mutter.text = ""
 	_big.visible = false
@@ -260,7 +265,12 @@ func _build() -> void:
 	_glow.shadow_enabled = false
 	_glow.position = Vector3(body.get_center().x, lid_top + 0.2, 0.0)
 	box.add_child(_glow)
-	# 講師（青いホログラム）。箱が開くまでは、箱の中に隠しておく
+	# 講師を映すドローン。箱が開くまでは、隠しておく
+	drone = Drone.new()
+	drone.name = "BoxDrone"
+	drone.visible = false
+	game.add_child(drone)
+	# 講師（青いホログラム）。箱が開いて、ドローンが上で止まってから、映る
 	_teacher = Node3D.new()
 	_teacher.name = "Teacher"
 	_teacher.visible = false
@@ -777,15 +787,22 @@ func _open(before: int, show: bool) -> void:
 	Sfx.play("whoosh_soft", box.global_position, -4.0)
 	Sfx.play("coin_drain", null)
 	_roll_wallet(before, maxi(0, before - PRICE))
+	# 講師が映るのは、箱の前の床（箱の上だと、頭がひさしに届いて、ドローンが屋根に隠れた）
 	_teacher.visible = true
-	_teacher.position = Vector3(0, -0.6, 0)
+	_teacher.global_position = Vector3(box.global_position.x, 0.0, box.global_position.z) + STAGE
 	_pulse(6.0)
 	for m: ShaderMaterial in _mats:
 		m.set_shader_parameter("strength", 0.0)
-	var rise := create_tween().set_parallel(true)
-	rise.tween_property(_teacher, "position:y", _top_y * 0.95, 1.0).set_delay(0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	rise.tween_method(_fade, 0.0, 1.0, 0.8).set_delay(0.5)
-	rise.chain().tween_callback(_say.bind(0))
+	# 先に、ドローンが箱から飛び出して、箱の前の上で止まる。それから、下へ光を投げて、講師が映る
+	var stage: Vector3 = _teacher.global_position
+	drone.visible = true
+	drone.global_position = box.global_position + Vector3(0.0, 0.15, 0.0)
+	drone.fly_to(stage)
+	var rise := create_tween()
+	rise.tween_interval(DRONE_RISE)
+	rise.tween_callback(Sfx.play.bind("ui_select", box.global_position, -6.0))
+	rise.tween_method(_fade, 0.0, 1.0, 0.45)
+	rise.tween_callback(_say.bind(0))
 	_bubble.text = ""
 
 
@@ -858,6 +875,21 @@ func _fade(v: float) -> void:
 func _teacher_gone() -> void:
 	_teacher.visible = false
 	_pulse(0.0)
+	# ドローンは、そのまま残す（1 日目の案内が、同じ場所から引き継ぐ）。少し待っても引き継がれなければ、空へ飛び去る
+	if drone.visible and is_inside_tree():
+		var away := create_tween()
+		away.tween_interval(1.0)
+		away.tween_callback(_drone_leave)
+
+
+# 引き継ぐ人が居なかった時：ドローンは空へ飛び去る
+func _drone_leave() -> void:
+	if not drone.visible:
+		return
+	drone.fly_to(drone.under() + Vector3(0.0, 14.0, -6.0))
+	var out := create_tween()
+	out.tween_interval(2.2)
+	out.tween_callback(drone.hide)
 
 
 # 次のせりふ（最後まで話したら、講師は消える）
