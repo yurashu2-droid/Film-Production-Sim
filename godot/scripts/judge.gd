@@ -113,6 +113,10 @@ func look() -> Dictionary:
 		"monster": {"exists": false, "in": false, "seen": false, "up": false, "size": 0.0, "pid": 0},
 		"monster_down": false, "city_n": 0, "city_max": 0.0, "roles_in": {}, "present": []}
 
+	# 日なたで撮る依頼（1日目の紹介動画。依頼の "daylight"）：顔は日の光で明るいとして、ライトを問わない。
+	# 晴れた昼の外なのに「ライトを持ってこい」と言われるのが変だった（2026-11-11 ユーザー）
+	var flow: Variant = game.get("production")
+	var daylight: bool = flow != null and bool(flow.job().get("daylight", false))
 	for a: CharacterBody3D in game.actors:
 		var head: Vector3 = a.head_pos()
 		var pts: Array = [head, a.chest_pos(), a.global_position + Vector3(0, 0.35, 0)]
@@ -131,7 +135,7 @@ func look() -> Dictionary:
 			"in": n_in >= 2,
 			"seen": n_seen >= 2,
 			"size": size >= MIN_SIZE,
-			"lit": light >= MIN_LIGHT,
+			"lit": daylight or light >= MIN_LIGHT,
 			"head": _in_frame(cam, vs, head + Vector3(0, 0.12, 0)),     # 頭のてっぺんまで画面に入っている（入っていなければ、見切れ）
 			"depth": (a.chest_pos() - cam_pos).dot(fwd),
 			# 画面の高さに対する、身長の大きさ（寄りの見分けに使う。動きで頭が上下しても変わらない）
