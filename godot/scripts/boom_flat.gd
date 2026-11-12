@@ -76,7 +76,9 @@ func build() -> void:
 
 # 絵の板の当たりを、いまの板に重ねる。板の高さの向きが上を向いていれば（立っていれば）効かせる
 func _place_board_shape() -> void:
-	board_shape.transform = visual.transform * board.transform * Transform3D(Basis.IDENTITY, Vector3(0, 1.1, -0.005))
+	var want := visual.transform * board.transform * Transform3D(Basis.IDENTITY, Vector3(0, 1.1, -0.005))
+	if not board_shape.transform.is_equal_approx(want):
+		board_shape.transform = want          # 変わった時だけ書く（止まっている書割が、眠れるように）
 	var up: Vector3 = (visual.basis * board.basis).y
 	if is_inside_tree():
 		up = global_basis * up

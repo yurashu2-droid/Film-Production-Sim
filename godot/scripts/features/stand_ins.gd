@@ -227,8 +227,10 @@ func chest_at(holder: Node3D, body: Node3D) -> Vector3:
 	return w.lerp(h, 0.7)
 
 
-# 体の前の面までの距離のめやす（胸の物・額の物を、体にめり込ませない）
+# 体の前の面までの距離のめやす（胸の物・額の物を、体にめり込ませない）。骨の無い物（等身大パネル）は、板の表のすぐ前
 func _front_reach(holder: Node3D, fallback: float) -> float:
+	if holder.get("skel") == null:
+		return 0.05
 	var depth := 0.0
 	for mi: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null:
@@ -256,6 +258,8 @@ func _top_offset(holder: Node3D, body: Node3D) -> float:
 
 # 帽子と額の物を、いまの頭の場所へ（しゃがむ・跳ねるにもついて行く）
 func _follow_head(holder: Node3D, body: Node3D, mark: Array) -> void:
+	if not is_instance_valid(mark[0]):
+		return
 	var hat: Node3D = mark[3]
 	var brow: Node3D = mark[4]
 	if hat == null and brow == null:
@@ -273,17 +277,24 @@ func _follow_head(holder: Node3D, body: Node3D, mark: Array) -> void:
 		hat.global_transform = Transform3D(yaw, top) * Transform3D(Basis.from_scale(hat.scale), Vector3.ZERO)
 	if brow != null and is_instance_valid(brow):
 		var front: Vector3 = holder.global_basis.z.normalized()
-		var at := top - up * (float(mark[5]) * 0.42) + front * _front_reach(holder, 0.12) * 0.9
+		if mark.size() < 7:
+			mark.append(_front_reach(holder, 0.12))          # 体の前までの距離は、最初の 1 回だけ測る
+		var at := top - up * (float(mark[5]) * 0.42) + front * float(mark[6]) * 0.9
 		brow.global_transform = Transform3D(yaw, at) * Transform3D(Basis.from_scale(brow.scale), Vector3.ZERO)
 
 
 func _process(_delta: float) -> void:
-	for body: Object in _marks:
+	for body: Object in _marks.keys():
 		if not is_instance_valid(body):
 			continue
 		var b := body as Node3D
+		var mark: Array = _marks[body]
+		if not is_instance_valid(mark[0]):
+			# キャラを替えた（C）：見た目ごと作り直されて、小物も一緒に消えた。新しい見た目に付け直す
+			_marks[body] = _wear(b, int(mark[2]))
+			mark = _marks[body]
 		var holder: Node3D = b.get("vis") if b.get("vis") is Node3D else b
-		_follow_head(holder, b, _marks[body])
+		_follow_head(holder, b, mark)
 
 
 # ---- 自分の操作：Y ----

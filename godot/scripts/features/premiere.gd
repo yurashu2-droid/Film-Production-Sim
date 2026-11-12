@@ -944,12 +944,13 @@ func _note(rows: Array) -> Control:
 	return panel
 
 
-# 札に出す文を短くする：『』の中のせりふが長ければ、頭だけ残して「…」にする（札の外にはみ出さないように）
+# 札に出す文を短くする：『』の中のせりふが長ければ、頭だけ残して「…」にする（札の外にはみ出さないように）。
+# 『』の無い行は、そのまま（折り返す。コインの額が切れないように）
 static func brief(text: String) -> String:
 	var a := text.find("『")
 	var b := text.find("』", a + 1)
 	if a < 0 or b < 0:
-		return text if text.length() <= QUOTE_MAX * 2 else text.substr(0, QUOTE_MAX * 2) + "…"
+		return text
 	var inner := text.substr(a + 1, b - a - 1)
 	if inner.length() <= QUOTE_MAX:
 		return text
@@ -981,12 +982,18 @@ func _reveal(item: Array) -> void:
 		return
 	var note: Control = item[1]
 	if note != null:
-		# 出ている札は、いまのコマの 1 枚だけ（となりのコマの札と、横に重なっていた）
+		# 出ている札は、いまのコマの 1 枚だけ（となりのコマの札と、横に重なっていた）。
+		# Enter で一度に送った時も、前の札の出てくる途中の動きを止めて、すぐ消す
 		for other: Array in _items:
 			var old: Control = other[1]
-			if old != null and old != note and old.modulate.a > 0.0:
-				create_tween().tween_property(old, "modulate:a", 0.0, 0.15)
-		create_tween().tween_property(note, "modulate:a", 1.0, 0.18)
+			if old == null or old == note:
+				continue
+			if old.has_meta("fade") and (old.get_meta("fade") as Tween).is_valid():
+				(old.get_meta("fade") as Tween).kill()
+			old.modulate.a = 0.0
+		var fade := create_tween()
+		fade.tween_property(note, "modulate:a", 1.0, 0.18)
+		note.set_meta("fade", fade)
 		UI.pop_on_show(note)
 	var gain := 0
 	for row: Array in rows:
@@ -1102,6 +1109,9 @@ func _close() -> void:
 	_tally_done = false
 	_shade.color = Color(0, 0, 0, 0)
 	screening = -1
+	# 流している間はカーソルを隠していた。精算の画面のボタンを押せるように、出して戻す
+	if Input.mouse_mode == Input.MOUSE_MODE_HIDDEN and not game.get("_headless"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 # 見ている間は、物を持つ・発注するなどはしない（歩き回るだけ）

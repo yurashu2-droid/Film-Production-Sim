@@ -134,6 +134,12 @@ func run() -> void:
 	place(sheet, O + guide.SIGN_AT + Vector3(0, 0.05, 0), 0.0, true)
 	await frames(30)
 	check(guide.step == "script" and str(guide.said).contains("台本"), "看板を立てると、次は台本（%s）" % guide.step)
+	# 留めずに、事務所の壁へ立てかけただけでも、倒れずに「立っている」と数える（物理で 3 秒置く）
+	var lean := Quaternion(Vector3.RIGHT, -0.38)
+	sheet.restore([O + guide.SIGN_AT + Vector3(0, 0.36, -0.05), lean, false])
+	await frames(180)
+	print("GUIDE lean sheet up.y=%.2f pos=%s" % [sheet.global_basis.y.normalized().y, str(sheet.global_position - O)])
+	check(guide._sign_board(true) == sheet, "留めずに壁に立てかけた看板も、立っていると数える（上向き %.2f）" % sheet.global_basis.y.normalized().y)
 	var book: Node3D = flow.script_prop
 	check(flat(guide.target(), book.global_position) < 0.1, "目当ては、事務所の机の上の台本")
 	place(book, O + Vector3(3.0, 0.0, 6.0))

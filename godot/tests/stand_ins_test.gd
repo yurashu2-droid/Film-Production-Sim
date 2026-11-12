@@ -59,6 +59,13 @@ func run() -> void:
 	await frames(3)
 	check(a.stand_in == me and not a.vis.visible, "役者 A は姿を消して、自分に付いていく")
 	check(me.vis.find_child("RoleProps", true, false) != null and me.vis.find_child("RoleProps", true, false).get_child_count() > 0, "自分に、役の小物が付く")
+	# 役に入ったまま、キャラを替えても（C）、小物は新しい見た目に付き直す
+	var tag_now: String = str(me.vis.tag)
+	var other_tag: String = str((game.PLAYER_CASTS as Array).filter(func(t: Variant) -> bool: return str(t) != tag_now)[0])
+	me.set_cast(other_tag)
+	await frames(4)
+	me = game.local_player()
+	check(str(me.vis.tag) == other_tag and me.vis.find_child("RoleProps", true, false) != null, "役に入ったままキャラを替えても、小物が付き直す（%s）" % other_tag)
 	me.global_position = me.global_position + Vector3(2.0, 0, 0)
 	await frames(4)
 	check(a.global_position.distance_to(me.global_position) < 0.05, "役者 A の位置は、自分の位置に重なる（判定は役者を見るので、自分の位置で数えられる）")
