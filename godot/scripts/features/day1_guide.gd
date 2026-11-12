@@ -11,13 +11,13 @@ extends Node
 ## 何の番か（step）は、全員が自分の画面で、そろって届いている状態（依頼の段階・物の場所・役・場面）から決める。
 ## 撮れない理由だけは、ホストが決めて全員に送る（理由を数えているのはホストだけ）。
 ## 講師・輪・矢印は、映画には映らない（制作班にだけ見える層）。ふつうに遊ぶときの1日目だけ（確認では force を立てる）
-const CastVisual := preload("res://scripts/cast_visual.gd")
+const TeacherVisual := preload("res://scripts/buzzyama_visual.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
 const Drone := preload("res://scripts/holo_drone.gd")
 const Speech := preload("res://scripts/guide_speech.gd")
 const CREW_LAYER := 1 << 11          # 映画には映らない層（film_camera.gd と同じ番号）
 const BLUE := Color(0.3, 0.7, 1.0)
-const TEACHER := "06"                # 講師の見た目（宅配の箱の講師と同じ）
+const TEACHER := "BZ"                # 講師の見た目（サングラスのモアイ。宅配の箱の講師と同じ）
 const TEACHER_SCALE := 0.62
 const LINE_SEC := 5.5                # 1つのせりふを見せる秒数
 const AGAIN_SEC := 30.0              # 進まないまま、これだけたったら、同じ事をもう一度言う
@@ -93,7 +93,7 @@ func _build() -> void:
 	teacher.name = "GuideTeacher"
 	teacher.visible = false
 	game.add_child(teacher)
-	_vis = CastVisual.new()
+	_vis = TeacherVisual.new()
 	_vis.name = "Look"
 	teacher.add_child(_vis)
 	_vis.setup(TEACHER)
@@ -101,6 +101,7 @@ func _build() -> void:
 	for mesh: GeometryInstance3D in _vis.find_children("*", "GeometryInstance3D", true, false):
 		var mat := ShaderMaterial.new()
 		mat.shader = HOLO
+		_vis.holo_dress(mesh, mat)
 		mesh.material_override = mat
 		mesh.layers = CREW_LAYER
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -322,6 +323,7 @@ func _place(delta: float) -> void:
 	var lag := teacher.global_position.distance_to(under)
 	teacher.global_position = under if lag > 9.0 or not is_inside_tree() else teacher.global_position.lerp(under, 1.0 - exp(-7.0 * delta))
 	var moving := clampf(float(drone.moving) + lag * 0.5, 0.0, 1.0)
+	_vis.set("moving", clampf(lag * 2.5, 0.0, 1.0))      # 像が動いている間は、小石に縄を引かれて揺れながら歩く
 	for m: ShaderMaterial in _mats:
 		m.set_shader_parameter("strength", _fade_v * (1.0 - 0.55 * moving))
 		m.set_shader_parameter("flicker", 0.35 + 0.6 * moving)

@@ -11,7 +11,7 @@ extends Node
 ## ふつうに遊ぶときの1日目だけ（自動確認の中では出さない。確認は start() で始める。start(true) なら、落ちてくる所から）。
 ## 決めるのはホスト（落とす・跳ねる先・開けた・引き落とした）。箱・講師・数字の動きは、全員の画面。ガタガタと中の声は、各自の画面
 const Carton := preload("res://scripts/carton.gd")
-const CastVisual := preload("res://scripts/cast_visual.gd")
+const TeacherVisual := preload("res://scripts/buzzyama_visual.gd")
 const Dust := preload("res://scripts/toon_dust.gd")
 const HOLO := preload("res://shaders/hologram.gdshader")
 const Speech := preload("res://scripts/guide_speech.gd")
@@ -23,7 +23,7 @@ const YAW := -0.35
 const SIZE := 2.3                    # 箱の見た目の拡大率（段ボール箱の素材。ふつうの段ボール箱は 2.6）
 const REACH := 1.8                   # この距離まで近づくと、F で開けられる
 const HEAR := 14.0                   # この距離までなら、講師のせりふ・箱の中の声が字幕で出る
-const TEACHER := "06"                # 講師の見た目（キャラの素材を、青いホログラムにする）
+const TEACHER := "BZ"                # 講師の見た目（サングラスのモアイを、青いホログラムにする）
 const TEACHER_SCALE := 0.62
 const LINE_SEC := 4.2                # 1つのせりふを見せる秒数
 const LINES := [
@@ -265,7 +265,7 @@ func _build() -> void:
 	_teacher.name = "Teacher"
 	_teacher.visible = false
 	box.add_child(_teacher)
-	_vis = CastVisual.new()
+	_vis = TeacherVisual.new()
 	_vis.name = "Look"
 	_teacher.add_child(_vis)
 	_vis.setup(TEACHER)
@@ -274,6 +274,7 @@ func _build() -> void:
 	for mesh: GeometryInstance3D in _vis.find_children("*", "GeometryInstance3D", true, false):
 		var mat := ShaderMaterial.new()
 		mat.shader = HOLO
+		_vis.holo_dress(mesh, mat)
 		mesh.material_override = mat
 		mesh.layers = CREW_LAYER
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

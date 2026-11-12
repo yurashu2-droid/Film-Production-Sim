@@ -17,7 +17,8 @@ const LAYER := 60                    # ゲームの画面の案内より上、�
 # 場面（始まる秒・名前）。最後の "black" が終わると、ムービーも終わる
 const SHOTS := [[0.0, "hook"], [5.0, "voice"], [10.5, "price"], [15.5, "buy"], [20.0, "black"]]
 const END_SEC := 21.0
-const PRESENTER := "06"              # 講師バズ山（宅配の箱から出てくる講師と同じ顔）
+const PRESENTER := "BZ"              # 講師バズ山（サングラスのモアイ。宅配の箱から出てくる講師と同じ）
+const TeacherVisual := preload("res://scripts/buzzyama_visual.gd")
 const WINNER := "01"                 # 成功者 Aさん（仮名）
 const YELLOW := Color(1.0, 0.88, 0.2)
 const RED := Color(0.9, 0.16, 0.12)
@@ -391,7 +392,7 @@ func _build() -> void:
 func _person(tag: String) -> Node3D:
 	var root := Node3D.new()
 	_host3d.add_child(root)
-	var vis: Node3D = CastVisual.new()
+	var vis: Node3D = TeacherVisual.new() if tag == PRESENTER else CastVisual.new()
 	vis.name = "Look"
 	root.add_child(vis)
 	vis.setup(tag)
