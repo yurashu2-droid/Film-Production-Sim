@@ -887,7 +887,7 @@ func _build_settled() -> void:
 	_growth_text = FilmSet.label("", 15, Color("e9e4d8"), "body")
 	_growth_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_growth_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_growth_text.custom_minimum_size.x = 380
+	_growth_text.custom_minimum_size.x = 430
 	growth_rows.add_child(_growth_text)
 	_settled_note_box = VBoxContainer.new()
 	(_settled_note_box as VBoxContainer).add_theme_constant_override("separation", 4)
@@ -898,7 +898,7 @@ func _build_settled() -> void:
 	_settled_notes = FilmSet.label("", 14, Color("e9e4d8"), "body")
 	_settled_notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_settled_notes.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_settled_notes.custom_minimum_size.x = 380
+	_settled_notes.custom_minimum_size.x = 430
 	_settled_note_box.add_child(_settled_notes)
 	var hint := FilmSet.label("H でスタッフスキル（キャラや会社が変わっても引き継ぐ）", 12, Color(1, 1, 1, 0.5), "body")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

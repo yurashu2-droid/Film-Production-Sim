@@ -94,6 +94,8 @@ const FRAME_SIZE := Vector2(232, 130)           # フィルムの上のコマの
 const FRAME_GAP := 30.0
 const STRIP_SPEED := 1100.0                     # フィルムが流れる速さ（画面の点/秒）
 const PAUSE_SEC := 0.8                          # 点の付いたコマが真ん中に来たら、少し止まる
+const NOTE_ROWS := 6                            # 札の行がこれより多ければ、2 列にする
+const QUOTE_MAX := 12                           # 札に出す、せりふ（『』の中）の長さの上限（字）
 const STRIP_LIFT := 80.0                        # フィルムの帯を、画面の真ん中より上へ（下の札が、依頼主のふきだしに重ならないように）
 var _shots: Array = []         # 試写会で写したコマ [時刻, ImageTexture か null, 印]（印：""・"scene:i"・"burst"・"react"）
 var _next_shot := 0.0
@@ -867,7 +869,7 @@ func _start_tally() -> void:
 		if not (f[2] as Array).is_empty():
 			note = _note(f[2])
 			_track.add_child(note)
-			note.position = Vector2(cx - 160.0, FRAME_SIZE.y * 0.5 + 44.0)
+			note.position = Vector2(cx - note.custom_minimum_size.x * 0.5, FRAME_SIZE.y * 0.5 + 44.0)
 			note.modulate.a = 0.0
 			note.reset_size.call_deferred()
 		_items.append([cx, note, f[2], false, str(f[1])])
@@ -895,7 +897,9 @@ func _frame(tex: Variant, mark: String) -> Control:
 		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(pic)
 	else:
-		var words := UI.label("終" if mark == "tail" else str(game.film_title()), 34 if mark == "tail" else 18, UI.PAPER, "display")
+		# 頭のコマの題名：かっこの補足（「（ネット用・30秒）」など）は外す。コマの幅に収まらず、途中で折れていた
+		var title := str(game.film_title()).get_slice("（", 0)
+		var words := UI.label("終" if mark == "tail" else title, 34 if mark == "tail" else 18, UI.PAPER, "display")
 		words.size = FRAME_SIZE
 		words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		words.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -904,14 +908,18 @@ func _frame(tex: Variant, mark: String) -> Control:
 	return box
 
 
-# コマの下の札：そのコマで良かった点・だめな点と、コイン
+# コマの下の札：そのコマで良かった点・だめな点と、コイン。
+# 札は下の合計・依頼主のふきだしに重ならない高さに収める：行が多い札は 2 列にし、長いせりふは短く切る（全文は、精算の画面のこぼれ話に出る）
 func _note(rows: Array) -> Control:
+	var two := rows.size() > NOTE_ROWS
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UI.box(Color(UI.BOARD, 0.94), UI.LINE, 1, 6, 12, 8))
-	panel.custom_minimum_size = Vector2(320, 0)
+	panel.custom_minimum_size = Vector2(640 if two else 320, 0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 2)
+	var column := GridContainer.new()
+	column.columns = 2 if two else 1
+	column.add_theme_constant_override("v_separation", 2)
+	column.add_theme_constant_override("h_separation", 18)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(column)
 	for row: Array in rows:
@@ -923,13 +931,25 @@ func _note(rows: Array) -> Control:
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.custom_minimum_size = Vector2(228, 0)      # 折り返しの幅を先に決める（決めないと、1字ずつ折れて縦に伸びる）
 		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		CompanyLogo.show_in(text, "『%s』" % row[0] if voice else str(row[0]))
+		CompanyLogo.show_in(text, "『%s』" % brief(str(row[0])) if voice else brief(str(row[0])))
 		line.add_child(text)
 		if row[1] != null:
 			var coins: int = int(row[1])
 			line.add_child(UI.label(("+%d" % coins) if coins >= 0 else ("−%d" % -coins), 20, UI.GREEN_LIGHT if coins > 0 else (UI.STAMP_RED if coins < 0 else UI.MUTED), "display"))
 		column.add_child(line)
 	return panel
+
+
+# 札に出す文を短くする：『』の中のせりふが長ければ、頭だけ残して「…」にする（札の外にはみ出さないように）
+static func brief(text: String) -> String:
+	var a := text.find("『")
+	var b := text.find("』", a + 1)
+	if a < 0 or b < 0:
+		return text if text.length() <= QUOTE_MAX * 2 else text.substr(0, QUOTE_MAX * 2) + "…"
+	var inner := text.substr(a + 1, b - a - 1)
+	if inner.length() <= QUOTE_MAX:
+		return text
+	return text.substr(0, a + 1) + inner.substr(0, QUOTE_MAX) + "…" + text.substr(b)
 
 
 # フィルムを送る。点の付いたコマが真ん中の窓に来たら、札を出して少し止まる
@@ -957,6 +977,11 @@ func _reveal(item: Array) -> void:
 		return
 	var note: Control = item[1]
 	if note != null:
+		# 出ている札は、いまのコマの 1 枚だけ（となりのコマの札と、横に重なっていた）
+		for other: Array in _items:
+			var old: Control = other[1]
+			if old != null and old != note and old.modulate.a > 0.0:
+				create_tween().tween_property(old, "modulate:a", 0.0, 0.15)
 		create_tween().tween_property(note, "modulate:a", 1.0, 0.18)
 		UI.pop_on_show(note)
 	var gain := 0
