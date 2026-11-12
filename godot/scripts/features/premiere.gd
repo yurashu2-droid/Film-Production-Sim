@@ -656,9 +656,13 @@ func _process(delta: float) -> void:
 		(d as Double).smooth(delta)
 	if _layer == null or not _layer.visible:
 		return
-	# 見ている間は、マウスで向きを変えない（歩く向きは、スクリーンの方が前）
-	if game.audience and Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# 見ている間は、マウスで向きを変えない（歩く向きは、スクリーンの方が前）。
+	# 映画を流している間と、フィルムの帯の間は、選ぶボタンが無いので、カーソルも隠す。
+	# 前は毎コマ「出す」に戻していて、クリックで体の操作が「つかむ」に替えるのと取り合い、カーソルがちらついた（2026-11-11 ユーザー）。
+	# クリックで体の操作が一瞬つかんでも、すぐ「隠す」に戻す（どちらもカーソルは見えないので、ちらつかない）
+	var want := Input.MOUSE_MODE_HIDDEN if game.state == game.S.REPLAY or _sheet.visible else Input.MOUSE_MODE_VISIBLE
+	if game.audience and not game.get("_headless") and Input.mouse_mode != want:
+		Input.mouse_mode = want
 	# 次の依頼・撮り直しなどへ進んだら、片づける
 	if game.state not in [game.S.REPLAY, game.S.RESULT, game.S.DELIVERED]:
 		_close()
