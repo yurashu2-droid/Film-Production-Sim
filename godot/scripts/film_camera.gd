@@ -13,14 +13,14 @@ var head_y := HEAD_Y              # レンズの高さ（三脚なしなら、�
 const FOV_MIN := 18.0
 const FOV_MAX := 75.0
 const PropShapes := preload("res://scripts/prop_shapes.gd")
-# フィルムのリール（小物の P056。形は変えず、大きさだけ変えて、カメラの上に2つ載せる）。
-# 前のリール＝これから撮る分（撮るほど巻きが細くなる）、後ろのリール＝撮り終えた分（太くなる）。
-# 場面の列を持つ依頼（production_beats.gd）のときだけ出す。残り秒数の数字は、どこにも出さない
-const REEL_MODEL := "res://assets/props/P056_film_reel.glb"
-const REEL_SIZE := 0.47           # 元のモデル（直径 約0.3m）に対する大きさ（直径 約14cm）
-const REEL_TOP := 0.186           # カメラの取っ手の上の高さ（カメラ本体の座標）。ここにリールを載せる
-const REEL_CENTER := 0.148        # 元のモデルの、床から軸までの高さ
-const REEL_EMPTY := 0.5           # 巻きがいちばん細いときの太さ（芯とほぼ同じ）
+# フィルムの残り：カメラ本体の左の横腹（液晶を開いた側。操作する人から見える側）に、丸い小窓。
+# 中に、これから撮る分のフィルムの巻きが見えて、撮るほど細くなる（昔のフィルムカメラの、残りの見える窓）。
+# 前はカメラの上にリールを 2 つ載せていたが、カメラに付いている物に見えなかった（2026-11-11 ユーザー）。
+# 残りが減るのは、場面の列を持つ依頼（production_beats.gd）のときだけ。ほかは、いつも満タンに見える。数字は、どこにも出さない
+const WINDOW_AT := Vector3(-0.049, 0.047, -0.052)   # 小窓の中心（カメラ本体の座標。左の横腹の、操作の凹みの上）
+const WINDOW_R := 0.019           # 小窓の半径（ふちの内側）
+const ROLL_FULL := 0.0155         # 巻きがまるごとのときの半径
+const REEL_EMPTY := 0.33          # 巻きがいちばん細いときの太さ（芯とほぼ同じ。まるごとに対する割合）
 
 var cam_yaw := 0.0
 var cam_pitch := 0.0
@@ -36,11 +36,11 @@ var view_cam: Camera3D
 const CREW_LAYER := 1 << 11      # 制作班だけに見える物（見立ての札など）の描画レイヤー
 var tally: MeshInstance3D
 var monitor_surface: MeshInstance3D
-var film_shown := false          # リールを出しているか
+var film_shown := false          # フィルムの残りを数えているか（場面の列を持つ依頼の、本番の前後）
 var film_frac := 1.0             # フィルムの残り（1＝まるごと / 0＝切れた）
-var _reels: Node3D
-var _spins: Array = []            # [前のリール, 後ろのリール] の、回る所
-var _packs: Array = []            # それぞれの、巻いたフィルム [物, もとの置き方, 軸の場所]
+var _window: Node3D               # 横腹の小窓
+var _spin: Node3D                 # 小窓の中で回る所（巻き・芯・芯の印）
+var _roll: MeshInstance3D         # 巻いたフィルム（残りに合わせて、半径を変える）
 var _film_rolling := false
 var _film_low := false
 var _film_t := 0.0
@@ -85,38 +85,8 @@ func build() -> void:
 	tally.visible = false
 	body.add_child(tally)
 
-	# フィルムのリール：カメラの上に、前後に2つ。軸は横向き（横から見ると、巻きの太さが分かる）
-	_reels = Node3D.new()
-	_reels.name = "FilmReels"
-	_reels.visible = false
-	body.add_child(_reels)
-	for z: float in [0.08, -0.068]:
-		var pivot := Node3D.new()
-		pivot.position = Vector3(0.0, REEL_TOP + REEL_CENTER * REEL_SIZE, z)
-		pivot.rotation.y = PI * 0.5
-		pivot.scale = Vector3.ONE * REEL_SIZE
-		_reels.add_child(pivot)
-		var spin := Node3D.new()
-		pivot.add_child(spin)
-		var reel: Node3D = (load(REEL_MODEL) as PackedScene).instantiate()
-		reel.position = Vector3(0, -REEL_CENTER, 0)
-		spin.add_child(reel)
-		_spins.append(spin)
-		# 巻いたフィルムの部品（P056_film_〜）。リールの枠と芯は、別の部品
-		for pack: MeshInstance3D in reel.find_children("P056_film_*", "MeshInstance3D", true, false):
-			_packs.append([pack, pack.transform, pack.transform * pack.mesh.get_aabb().get_center()])
-			break
-	# 支え：リールを載せる細い柱（単純な形）
-	var post := MeshInstance3D.new()
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.012, REEL_CENTER * REEL_SIZE, 0.15)
-	post.mesh = post_mesh
-	var post_mat := StandardMaterial3D.new()
-	post_mat.albedo_color = Color("26282c")
-	post_mat.roughness = 0.6
-	post.material_override = post_mat
-	post.position = Vector3(0.0, REEL_TOP + REEL_CENTER * REEL_SIZE * 0.5, 0.006)
-	_reels.add_child(post)
+	# フィルムの残りの見える小窓（横腹）
+	_build_window(body)
 
 	# 当たり判定と重心は表（prop_shapes.gd）：三脚の広がりに合わせた段々の円柱と、雲台・カメラの箱
 	PropShapes.build(self, kind)
@@ -150,10 +120,6 @@ func monitor_texture() -> Texture2D:
 func operation_view() -> Transform3D:
 	var target: Vector3 = monitor_surface.global_transform * monitor_surface.get_aabb().get_center()
 	var eye: Vector3 = lens.global_transform * Vector3(0.30,0.13,0.42)
-	if film_shown:
-		# フィルムのリールを載せているとき：少し引いて、少し上を見る（カメラの上のリールが、視野に入るように）
-		target += lens.global_basis.y * 0.05
-		eye = target + (eye - target) * 1.4
 	return Transform3D(Basis.IDENTITY,eye).looking_at(target,Vector3.UP)
 
 
@@ -174,31 +140,89 @@ func set_film(shown: bool, frac: float, rolling: bool, low: bool) -> void:
 	film_frac = clampf(frac, 0.0, 1.0)
 	_film_rolling = rolling
 	_film_low = low
-	_reels.visible = shown
 
 
-# 巻いたフィルムの太さ（もとの太さに対する割合）。0＝これから撮る分（前のリール）/ 1＝撮り終えた分（後ろのリール）
+# 巻いたフィルムの太さ（まるごとに対する割合）。0＝これから撮る分（小窓の中の巻き）/ 1＝撮り終えた分（カメラの奥。見えない）
 func reel_fill(which: int) -> float:
 	var amount: float = film_frac if which == 0 else 1.0 - film_frac
 	return lerpf(REEL_EMPTY, 1.0, amount)
 
 
+# 小窓：銀のふち・奥の黒い底・巻いたフィルム（こげ茶）・灰色の芯と白い印・うすいガラス。
+# 窓の面は、カメラ本体の -X を向く（軸は X）
+func _build_window(body: Node3D) -> void:
+	_window = Node3D.new()
+	_window.name = "FilmWindow"
+	_window.position = WINDOW_AT
+	_window.rotation.z = PI * 0.5            # 円柱・輪の軸（Y）を、横向き（X）にする
+	body.add_child(_window)
+	var disc := func(r: float, h: float, y: float, mat: Material) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = r
+		cm.bottom_radius = r
+		cm.height = h
+		cm.radial_segments = 32
+		cm.rings = 1
+		mi.mesh = cm
+		mi.material_override = mat
+		mi.position = Vector3(0, y, 0)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return mi
+	var mat := func(c: Color, rough: float, metal := 0.0) -> StandardMaterial3D:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = c
+		m.roughness = rough
+		m.metallic = metal
+		return m
+	# 奥の底（窓の中の暗がり）。本体の面より、少し外に出す
+	_window.add_child(disc.call(WINDOW_R, 0.002, 0.0005, mat.call(Color("030304"), 1.0)))
+	# ふち：銀の輪（つまんだような段。安い後付けの部品に見える厚み）
+	var rim := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = WINDOW_R
+	tm.outer_radius = WINDOW_R + 0.0045
+	tm.rings = 32
+	tm.ring_segments = 8
+	rim.mesh = tm
+	rim.material_override = mat.call(Color("b9bcc2"), 0.35, 0.8)
+	rim.scale = Vector3(1.0, 0.55, 1.0)
+	rim.position = Vector3(0, 0.002, 0)
+	rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_window.add_child(rim)
+	# 回る所：巻き・芯・芯の印（回っているのが、印で分かる）
+	_spin = Node3D.new()
+	_spin.position = Vector3(0, 0.0025, 0)
+	_window.add_child(_spin)
+	var film := mat.call(Color("7a4524"), 0.28) as StandardMaterial3D
+	film.metallic_specular = 0.8              # フィルムの巻きの、つやの筋
+	_roll = disc.call(ROLL_FULL, 0.0022, 0.0, film)
+	_spin.add_child(_roll)
+	var hub: MeshInstance3D = disc.call(ROLL_FULL * REEL_EMPTY * 0.92, 0.0028, 0.0002, mat.call(Color("c4c7cc"), 0.4, 0.7))
+	_spin.add_child(hub)
+	var mark := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.0016, 0.0008, ROLL_FULL * REEL_EMPTY * 0.8)
+	mark.mesh = bm
+	mark.material_override = mat.call(Color("f2efe6"), 0.6)
+	mark.position = Vector3(0, 0.0018, ROLL_FULL * REEL_EMPTY * 0.42)
+	_spin.add_child(mark)
+	# ガラス：うすく、光だけ返す
+	var glass := mat.call(Color(0.8, 0.9, 1.0, 0.04), 0.15) as StandardMaterial3D
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.metallic_specular = 0.25
+	_window.add_child(disc.call(WINDOW_R + 0.0005, 0.0004, 0.0042, glass))
+
+
 func _show_film(delta: float) -> void:
 	_film_t += delta
-	for i in _packs.size():
-		var pack: MeshInstance3D = _packs[i][0]
-		var k := reel_fill(i)
-		var at: Vector3 = _packs[i][2]
-		# 軸のまわりに、巻きだけを細くする（リールの枠と芯は、そのまま）
-		pack.transform = Transform3D(Basis.IDENTITY, at) * Transform3D(Basis.from_scale(Vector3(k, k, 1.0)), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -at) * (_packs[i][1] as Transform3D)
-		pack.visible = k > REEL_EMPTY + 0.01
-	for i in _spins.size():
-		var spin: Node3D = _spins[i]
-		if _film_rolling:
-			# 巻きが細いほうが、速く回る
-			spin.rotation.z = wrapf(spin.rotation.z - delta * 2.6 / reel_fill(i), -PI, PI)
-		# 残りわずか：前のリールが、がたつく
-		spin.position = Vector3(0, sin(_film_t * 47.0) * 0.012, 0) if _film_low and i == 0 else Vector3.ZERO
+	var k := reel_fill(0)
+	_roll.scale = Vector3(k, 1.0, k)
+	if _film_rolling:
+		# 巻きが細いほど、速く回る
+		_spin.rotation.y = wrapf(_spin.rotation.y - delta * 2.6 / k, -PI, PI)
+	# 残りわずか：巻きが、がたつく
+	_spin.position = Vector3(0, 0.0025, sin(_film_t * 47.0) * 0.0012 if _film_low else 0.0)
 	# 残りわずか：録画灯が、せわしなく点滅する
 	var lamp: StandardMaterial3D = tally.material_override
 	lamp.emission_energy_multiplier = (8.0 if int(_film_t * 8.0) % 2 == 0 else 0.4) if _film_low else 4.0
@@ -209,8 +233,7 @@ func _process(delta: float) -> void:
 	tilt_node.rotation.x = -cam_pitch
 	view_cam.global_transform = lens.global_transform
 	view_cam.fov = fov
-	if film_shown:
-		_show_film(delta)
+	_show_film(delta)
 
 
 func _host_tick(_delta: float) -> void:
