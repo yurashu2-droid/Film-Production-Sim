@@ -237,6 +237,7 @@ var chosen_slot := ""            # 受けた依頼の枠（SLOTS のどれか。
 var finale_done := false         # ハリウッドの一本を撮り切った（事務所へ戻ると、エンディング）
 var films: Array = []            # 納品した作品 [{"job", "ok"＝成立した場面, "of"＝場面の数}, ...]。事務所の壁のポスター（features/office_wall.gd。倒産で空）
 var all_jobs := false            # 遊んで確かめる用：2日目から全部の依頼を出す（features/start_day.gd の --day2）
+var debug := false               # デバッグ用のモード（features/start_day.gd の --debug）：廃材置き場の門は、いつも開いている
 var owned := {}                  # 買って会社の持ち物になった物（発注の id → true）。次の依頼からも最初から在る。倒産すると無くなる
 var bought_now: Array = []       # この依頼の間に買った物（発注の id）
 var bought := 0                  # この依頼の間に、買い物で貯金から払った額（精算の内訳に出す）
@@ -1182,7 +1183,7 @@ func apply_stash(hidden: Array) -> void:
 
 func _process(delta: float) -> void:
 	# 依頼を受けている間だけ、廃材置き場の金網の穴（ペンチで切った所）がめくれて通れる。1日目（会社の紹介動画）は開けない（使う物は事務所の前に出してある。features/tutorial_day.gd）
-	var want := 1.0 if phase >= 1 and not bool(job().get("debut", false)) else 0.0
+	var want := 1.0 if debug or (phase >= 1 and not bool(job().get("debut", false))) else 0.0
 	if _yard_root and not is_equal_approx(_gate, want):
 		if _gate == 0.0 or _gate == 1.0:
 			Sfx.play("gate", Yard.gate_point(), -2.0)

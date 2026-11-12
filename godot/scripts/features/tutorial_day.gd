@@ -44,7 +44,8 @@ func hook_new_job() -> void:
 		used[p.pid] = true
 		hidden.erase(p.pid)
 		placed.append([p, row[1], float(row[2])])
-	if bool(flow.daily) or tidy_force:
+	var start: Node = game.hooks.feature("start_day")
+	if (bool(flow.daily) or tidy_force) and not (start != null and bool(start.keeps_everything())):
 		for p: RigidBody3D in game.props.values():
 			if str(p.kind) in SPARE and not p.absent and p.holder == 0 and p.rider_of == 0 and not hidden.has(p.pid):
 				hidden.append(p.pid)
