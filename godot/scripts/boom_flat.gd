@@ -6,6 +6,7 @@ const LYING := -1.5
 const UP_SEC := 2.4
 
 var board: Node3D
+var board_shape: CollisionShape3D   # 絵の板の当たり（板が立っている間だけ効く）
 var _t := -1.0
 
 
@@ -59,8 +60,33 @@ func build() -> void:
 	stick.position = Vector3(0, 0.75, -0.02)
 	board.add_child(stick)
 
-	# 当たり判定は表（prop_shapes.gd）：土台だけ。寝ている板は、合図で跳ね上がる飾りなので当たらない
+	# 当たり判定は表（prop_shapes.gd）：土台。寝ている板には付けない（荷台に積めなくなる・廃材置き場で隣の物と重なる）
 	PropShapes.build(self, kind)
+	# 絵の板の当たり：板が立っている間（合図で跳ね上がった時・物ごと立てて置いた時）だけ効かせる。
+	# 立っている絵をすり抜けるのが変だった（2026-11-11 ユーザー）。人も物も当たる。土台の当たり（最初の形）の後ろに足す
+	board_shape = CollisionShape3D.new()
+	board_shape.name = "BoardShape"
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(1.9, 1.9, 0.06)
+	board_shape.shape = bs
+	board_shape.disabled = true
+	add_child(board_shape)
+	_place_board_shape()
+
+
+# 絵の板の当たりを、いまの板に重ねる。板の高さの向きが上を向いていれば（立っていれば）効かせる
+func _place_board_shape() -> void:
+	board_shape.transform = visual.transform * board.transform * Transform3D(Basis.IDENTITY, Vector3(0, 1.1, -0.005))
+	var up: Vector3 = (visual.basis * board.basis).y
+	if is_inside_tree():
+		up = global_basis * up
+	var standing := up.normalized().y > 0.6
+	if board_shape.disabled == standing:
+		board_shape.set_deferred("disabled", not standing)
+
+
+func board_standing() -> bool:
+	return not board_shape.disabled
 
 
 # 荷台から落ちたかは、当たり判定の箱（土台）の中心で見る。center は寝ている板の真ん中で、
@@ -102,6 +128,7 @@ func pop() -> void:
 
 
 func _process(delta: float) -> void:
+	_place_board_shape()
 	if _t < 0.0:
 		return
 	_t += delta

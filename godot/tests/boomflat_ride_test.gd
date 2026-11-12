@@ -58,6 +58,7 @@ func run() -> void:
 	flow = game.production
 	me = game.local_player()
 	truck = game.truck
+	var start_at: Vector3 = me.global_position * Vector3(1, 0, 1)     # 開けた床（はじめに立っている所）
 	game.h_accept_job(0)
 	await frames(30)
 	var flat: Node = of_kind("boomflat")[0]
@@ -104,6 +105,29 @@ func run() -> void:
 	await frames(10)
 	var moved: bool = await load_from_west(box, 0.0, 0.0)
 	check(moved, "next to the truck parked away from its home spot, F still loads (%s)" % str(truck.global_position))
+
+	# 絵の板の当たり：寝ている間は効かない。合図で跳ね上がって立っている間は、人が当たって通り抜けられない
+	if flat.rider_of != 0:
+		game.host_unload(flat)
+	var open_at: Vector3 = start_at + Vector3(0, 0.05, 0)
+	flat.restore([open_at, Quaternion.IDENTITY, false])
+	await frames(30)
+	check(not flat.board_standing(), "the lying board has no collider")
+	flat.pop()
+	await frames(20)
+	check(flat.board_standing(), "the popped-up board collides")
+	# 板の正面（+Z 側）から、板を越えて奥へ歩かせる
+	me.global_position = flat.global_transform * Vector3(0, 0.1, 1.2)
+	var goal: Vector3 = flat.global_transform * Vector3(0, 0.1, -1.5)
+	for i in 50:
+		me.velocity = (goal - me.global_position).normalized() * 3.0
+		me.velocity.y = 0.0
+		me.move_and_slide()
+		await frames(1)
+	var local_z: float = (flat.global_transform.affine_inverse() * me.global_position).z
+	check(local_z > -0.2, "a player walking into the standing board is stopped in front of it (z=%.2f)" % local_z)
+	await frames(180)
+	check(not flat.board_standing(), "after the board lies down again, the collider is off")
 
 	print("BOOMFLAT_RIDE_TEST_FAIL" if failed else "BOOMFLAT_RIDE_TEST_OK")
 	quit(1 if failed else 0)
