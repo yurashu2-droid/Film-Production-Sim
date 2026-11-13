@@ -447,6 +447,10 @@ func _plan(index: int) -> Array:
 	for target: Object in game.hooks.in_order("hook_premiere_cues"):
 		for cue: Array in target.hook_premiere_cues(index):
 			plan.append(cue + ["react"] if cue.size() == 3 else cue)
+	# 編集者が切った所の映り込みには、依頼主は気づかない（features/editors.gd）
+	var editors: Node = game.hooks.feature("editors")
+	if editors != null:
+		plan = plan.filter(func(c: Array) -> bool: return not (c.size() >= 4 and str(c[3]).begins_with("cameo:") and bool(editors.cut_at(float(c[0])))))
 	plan.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	return plan
 
@@ -703,7 +707,7 @@ func _process(delta: float) -> void:
 		var now: float = float(game.replay_t)
 		if now >= _next_shot:
 			_shoot(now, "")
-			_next_shot += FLOW_SEC
+			_next_shot = maxf(_next_shot + FLOW_SEC, now)       # 編集で時計が飛んだ時に、同じコマを続けて写さない
 		while not _want_shots.is_empty() and float(_want_shots[0][0]) <= now:
 			_shoot(now, str(_want_shots.pop_front()[1]))
 	if _sheet.visible and not _tally_done:
