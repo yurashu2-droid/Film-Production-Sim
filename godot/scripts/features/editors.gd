@@ -31,6 +31,7 @@ const ORDER := ["none", "steady", "cm", "mv", "wild"]
 const KEY_BEFORE := 1.0          # 見せ場（爆発・場面が撮れた瞬間）の前後は、切らない
 const KEY_AFTER := 0.6
 const DEAD_MIN := 1.2            # 誰も映っていない間が、これより長ければ「間」
+const MAX_CUT := 0.7             # 間がテイクのこの割合を超えたら、間は切らない
 const WILD_NEAR := 1.5           # 前衛の効果が、見せ場からこの秒数までなら「ハマった」
 # 色（film.gdshader の grade）
 const GRADE := {"none": 0, "steady": 1, "cm": 5, "mv": 2, "wild": 0}
@@ -95,6 +96,8 @@ var _lines := {}                 # テイクの番号 → 精算の行 [[文, �
 var _rep_done: Array = []        # くり返した回数
 var _again: Array = []           # くり返しの間に、もう一度出す合図 [時刻, 名前, 引数]
 var _again_i := 0
+var _rolled := false             # この編集で、流し始めたか
+var debug_pick := ""             # デバッグ起動の --editor=<ID>：依頼ごとに、この人に頼んだ事にする
 # ---- 画面（全員） ----
 var _mat: ShaderMaterial
 var _over: Control
@@ -187,6 +190,12 @@ static func build_edit(id: String, d: Dictionary, seed_value: int) -> Dictionary
 	var lines: Array = [["編集代（%s）" % str(who["name"]), -int(who["fee"])]]
 	var cues: Array = []
 	var dead: Array = clear_spans(d.get("dead", []), keys, 0.6, 0.3)
+	# ほとんどが「間」のテイクは、間を切らない（映像が残らなくなる）
+	var dead_sum := 0.0
+	for s: Array in dead:
+		dead_sum += float(s[1]) - float(s[0])
+	if dead_sum > dur * MAX_CUT:
+		dead = []
 	var cameo: Array = clear_spans(d.get("cameo", []), keys, 0.2, 0.0)
 	match id:
 		"steady":
@@ -214,7 +223,7 @@ static func build_edit(id: String, d: Dictionary, seed_value: int) -> Dictionary
 			if not dead.is_empty():
 				lines.append(["編集：間を %d か所つめた" % dead.size(), mini(dead.size() * 30, 120)])
 		"mv":
-			out["cuts"] = merged(clear_spans(d.get("dead", []), keys, 1.6, 0.3))        # 映り込みは気にしない
+			out["cuts"] = merged(dead.filter(func(s: Array) -> bool: return float(s[1]) - float(s[0]) >= 1.6))        # 長い間だけ。映り込みは気にしない
 			out["bars"] = 0.11
 			for b: float in bursts:
 				out["slows"].append([maxf(b - 0.15, 0.0), b + 0.55, 0.3])
@@ -347,8 +356,16 @@ func hook_new_job() -> void:
 	_lines.clear()
 	edit = {}
 	edit_index = -1
-	if Net.is_host() and pick != "none":
-		game.host_ev("edit_pick", ["none"])
+	var want := debug_pick if EDITORS.has(debug_pick) else "none"
+	if Net.is_host() and pick != want:
+		game.host_ev("edit_pick", [want])
+
+
+# デバッグ起動（play_debug.bat。-- --debug --editor=cm）：選び方ができるまでの、試す手段
+func setup() -> void:
+	for arg: String in OS.get_cmdline_user_args():
+		if arg.begins_with("--editor="):
+			debug_pick = arg.trim_prefix("--editor=")
 
 
 func _physics_process(delta: float) -> void:
@@ -356,16 +373,33 @@ func _physics_process(delta: float) -> void:
 		return
 	if game.state == game.S.TAKE and not game.take_held():
 		_measure()
-	elif game.state == game.S.REPLAY and not edit.is_empty():
+	elif game.state == game.S.REPLAY and not edit.is_empty() and _screening():
 		_warp(delta)
+	elif game.state != game.S.REPLAY and not edit.is_empty() and not _screening() and edit_index >= 0 and _rolled:
+		# 試写会が終わった：編集を外す（このあとの、ふつうの見返しには掛けない）
+		game.host_ev("edit_on", [-1, {}])
+	if game.state == game.S.REPLAY and _screening():
+		_rolled = true
+
+
+# いま、その編集のテイクを試写会で流しているか
+func _screening() -> bool:
+	var premiere: Node = game.hooks.feature("premiere")
+	return premiere != null and int(premiere.screening) == edit_index and edit_index >= 0
 
 
 # 誰も映っていない間・班が映り込んだ間を、テイクの時計で控える
 func _measure() -> void:
 	var t := float(game.take_t)
-	var shown := false
-	for a: Variant in (game.judge.frame as Dictionary).get("actors", []):
-		shown = shown or bool((a as Dictionary).get("shown", false))
+	# 見るのは、いま出番の役者だけ（出番でない役者が後ろに立っていても、「映っている」に数えない）。
+	# 出番の役者が 1 人もいない間は、測らない（全部が「間」になって、切りすぎるのを防ぐ）
+	var frame: Dictionary = game.judge.frame
+	var actors: Array = frame.get("actors", [])
+	var present: Array = frame.get("present", [])
+	var shown := present.is_empty()
+	for aid: Variant in present:
+		if int(aid) >= 0 and int(aid) < actors.size():
+			shown = shown or bool((actors[int(aid)] as Dictionary).get("shown", false))
 	if not shown and _dead_from < 0.0:
 		_dead_from = t
 	elif shown and _dead_from >= 0.0:
@@ -450,6 +484,7 @@ func hook_event(n: String, a: Array) -> void:
 			_again_i = 0
 			_last_t = 0.0
 			_loops = 0
+			_rolled = false
 
 
 # ---- 見返しの時計を動かす（ホスト）：切る・遅くする・くり返す ----
