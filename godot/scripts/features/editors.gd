@@ -7,6 +7,9 @@ extends Node
 ##       steady 堅実：誰も映っていない間と、班が映り込んだ所を切る。ほかは何もしない
 ##       cm     CM向き：短くつめて、場面ごとに大きなテロップと「格安！」の札。CMなら効く。ほかの依頼だと浮く
 ##       mv     雰囲気もの向き：上下の黒い帯・色・爆発と決めの瞬間のスロー。月・夕日・結婚式なら効く。CMだと「何の宣伝？」
+##       pro    名匠：ひたすら上手い。間と映り込みを切り、切った所は一瞬の暗転でつなぐ。見せ場から遠い所は早送り、
+##               場面が決まる前はゆっくり寄って、決まった瞬間に白い光と小さな引き。爆発は、黒い帯が入ってスローと揺れ。
+##               場面の頭に細い字の題、最後は決めの姿で止める。どの依頼でも効く。代金が高い
 ##       wild   前衛：何をするか分からない（爆発を3回くり返す・鏡・色の反転・急な寄り・止めて「！？」）。
 ##               見せ場（爆発・場面が撮れた瞬間）に重なればハマる。何も無い所だと滑る
 ##   ・結果は、試写会で初めて見る。精算には「編集代」と、編集の出来の行が付く（hook_fee_lines）
@@ -26,15 +29,20 @@ const EDITORS := {
 	"cm": {"name": "テロップのヤマネ", "tag": "CMが得意", "fee": 100},
 	"mv": {"name": "映像詩人レイ", "tag": "雰囲気ものが得意", "fee": 100},
 	"wild": {"name": "前衛のゴン", "tag": "何をするか分からない", "fee": 30},
+	"pro": {"name": "名匠フェイブル", "tag": "ひたすら上手い", "fee": 250},
 }
-const ORDER := ["none", "steady", "cm", "mv", "wild"]
+const ORDER := ["none", "steady", "cm", "mv", "wild", "pro"]
+# 名匠の編集（pro）の数字
+const PRO_FAST := 1.5            # 見せ場から遠い所は、この速さで流す（切らずにテンポを上げる）
+const PRO_SLOW := 0.32           # 爆発の瞬間
+const PRO_PUSH := 2.2            # 場面が撮れる前、この秒数をかけて、ゆっくり寄る
 const KEY_BEFORE := 1.0          # 見せ場（爆発・場面が撮れた瞬間）の前後は、切らない
 const KEY_AFTER := 0.6
 const DEAD_MIN := 1.2            # 誰も映っていない間が、これより長ければ「間」
 const MAX_CUT := 0.7             # 間がテイクのこの割合を超えたら、間は切らない
 const WILD_NEAR := 1.5           # 前衛の効果が、見せ場からこの秒数までなら「ハマった」
 # 色（film.gdshader の grade）
-const GRADE := {"none": 0, "steady": 1, "cm": 5, "mv": 2, "wild": 0}
+const GRADE := {"none": 0, "steady": 1, "cm": 5, "mv": 2, "wild": 0, "pro": 6}
 const FILM_SHADER := "
 shader_type canvas_item;
 uniform float zoom = 1.0;
@@ -45,13 +53,15 @@ uniform float invert = 0.0;
 uniform float rainbow = 0.0;
 uniform float bars = 0.0;
 uniform float clock = 0.0;
+uniform float dim = 0.0;
+uniform vec2 shake = vec2(0.0, 0.0);
 vec3 hue(vec3 c, float a) {
 	vec3 k = vec3(0.57735);
 	float ca = cos(a);
 	return c * ca + cross(k, c) * sin(a) + k * dot(k, c) * (1.0 - ca);
 }
 void fragment() {
-	vec2 uv = (UV - center) / zoom + center;
+	vec2 uv = (UV - center) / zoom + center + shake;
 	if (mirror > 0.5 && uv.x > 0.5) {
 		uv.x = 1.0 - uv.x;
 	}
@@ -66,11 +76,21 @@ void fragment() {
 		col = (col - 0.5) * 1.15 + 0.47;
 	} else if (grade == 5) {
 		col = mix(vec3(l), col, 1.3) * 1.08 + 0.02;
+	} else if (grade == 6) {
+		// 名匠：暗い所を少し持ち上げてから、ゆるい S 字。影は青緑、明るい所は暖色へ少しだけ。四隅を落とす
+		col = pow(col, vec3(0.88));
+		col = col * col * (3.0 - 2.0 * col) * 0.55 + col * 0.45;
+		float ll = dot(col, vec3(0.299, 0.587, 0.114));
+		col = mix(vec3(ll), col, 1.12);
+		col += mix(vec3(-0.012, 0.012, 0.03), vec3(0.035, 0.012, -0.03), smoothstep(0.15, 0.85, ll));
+		vec2 q = UV - 0.5;
+		col *= 1.0 - dot(q, q) * 0.55;
 	}
 	if (rainbow > 0.5) {
 		col = hue(col, clock * 9.0 + UV.x * 3.0);
 	}
 	col = mix(col, 1.0 - col, invert);
+	col *= 1.0 - dim;
 	if (UV.y < bars || UV.y > 1.0 - bars) {
 		col = vec3(0.0);
 	}
@@ -105,6 +125,8 @@ var _band: PanelContainer
 var _band_text: Label
 var _sticker: Control
 var _mark: Label
+var _lower: PanelContainer      # 名匠の、場面の題（細い字）
+var _lower_text: Label
 var _flash: ColorRect
 var _dressed: TextureRect       # 色の材質を付けた、スクリーンの絵
 var _last_t := 0.0
@@ -241,6 +263,53 @@ static func build_edit(id: String, d: Dictionary, seed_value: int) -> Dictionary
 				lines.append(["編集：映像に品が出た", 40])
 			if not bursts.is_empty():
 				lines.append(["編集：爆発のスローが効いた", mini(bursts.size() * 30, 90)])
+		"pro":
+			var cuts: Array = merged(dead + cameo)
+			out["cuts"] = cuts
+			# 切った所は、一瞬の暗転でつなぐ（切れ目が、わざとに見える）
+			for c: Array in cuts:
+				out["fx"].append([float(c[1]), float(c[1]) + 0.22, "dip", ""])
+			# 見せ場から遠い所は、早送り（切らずにテンポを上げる）
+			var marks: Array = keys.duplicate()
+			marks.sort()
+			var from := 0.0
+			for key: float in marks + [dur]:
+				var a := from + 1.2
+				var b := key - (PRO_PUSH + 0.6)
+				if b - a >= 1.2:
+					out["slows"].append([a, b, PRO_FAST])
+				from = key
+			# 場面が決まる前はゆっくり寄り、決まった瞬間に白い光と小さな引き。場面の頭には、細い字の題
+			var head := 0.0
+			for p: Array in passes:
+				var at := float(p[0])
+				out["fx"].append([maxf(at - PRO_PUSH, 0.0), at, "push", ""])
+				out["fx"].append([at, at + 0.3, "snap", ""])
+				out["fx"].append([at, at + 0.14, "flash", ""])
+				var title := str(titles[int(p[1])]).split("（")[0] if int(p[1]) < titles.size() else ""
+				if title != "":
+					out["fx"].append([head + 0.35, minf(head + 3.0, at), "lower", title])
+				head = at + 0.3
+			# 爆発：黒い帯が入って、スローと揺れ
+			for b: float in bursts:
+				out["slows"].append([maxf(b - 0.1, 0.0), b + 0.5, PRO_SLOW])
+				out["fx"].append([maxf(b - 0.7, 0.0), b + 1.5, "bars", ""])
+				out["fx"].append([b, b + 0.4, "shake", ""])
+			# 最後は、決めの姿で止めて、ゆっくり寄る
+			if dur > 2.0:
+				out["slows"].append([dur - 0.1, dur - 0.02, 0.07])
+				out["fx"].append([dur - 0.1, dur + 0.4, "hold", ""])
+			out["slows"] = merged_slows(out["slows"])
+			lines.append(["編集：名匠の仕上げ", 120])
+			if not keys.is_empty():
+				lines.append(["編集：見せ場を磨いた ×%d" % keys.size(), mini(keys.size() * 40, 200)])
+			if not dead.is_empty():
+				lines.append(["編集：間を %d か所つめた" % dead.size(), mini(dead.size() * 30, 120)])
+			if not cameo.is_empty():
+				lines.append(["編集：映り込みを %d か所切った" % cameo.size(), mini(cameo.size() * 40, 120)])
+			if not passes.is_empty():
+				cues.append([float(passes[0][0]) + 0.6, "編集うますぎん？" if net else "……編集が、上手い", "happy"])
+			cues.append([maxf(dur - 0.6, 0.5), "これ本当に同じ会社？" if net else "同じ素材とは思えない……！", "wow"])
 		"wild":
 			var rng := RandomNumberGenerator.new()
 			rng.seed = seed_value
@@ -540,6 +609,10 @@ func _process(_delta: float) -> void:
 	var invert := 0.0
 	var rainbow := 0.0
 	var flash := 0.0
+	var dim := 0.0
+	var bars := float(edit.get("bars", 0.0))
+	var shake := Vector2.ZERO
+	_lower.visible = false
 	_band.visible = false
 	_sticker.visible = false
 	_mark.visible = false
@@ -588,6 +661,26 @@ func _process(_delta: float) -> void:
 				rainbow = 1.0
 			"flash":
 				flash = maxf(flash, 1.0 - k)
+			"dip":
+				dim = maxf(dim, 1.0 - k * k)
+			"push":
+				zoom = maxf(zoom, lerpf(1.0, 1.09, k * k * (3.0 - 2.0 * k)))
+			"snap":
+				zoom = maxf(zoom, lerpf(1.13, 1.0, 1.0 - pow(1.0 - k, 3.0)))
+			"hold":
+				zoom = maxf(zoom, lerpf(1.0, 1.06, k))
+			"bars":
+				bars = maxf(bars, 0.105 * minf(clampf((t - a) / 0.35, 0.0, 1.0), clampf((b - t) / 0.35, 0.0, 1.0)))
+			"shake":
+				var amp := 0.012 * (1.0 - k)
+				shake = Vector2(sin(t * 131.0), cos(t * 173.0)) * amp
+				zoom = maxf(zoom, 1.03)
+			"lower":
+				_lower.visible = true
+				_lower_text.text = str(f[3])
+				var edge := minf(clampf((t - a) / 0.25, 0.0, 1.0), clampf((b - t) / 0.25, 0.0, 1.0))
+				_lower.modulate.a = edge
+				_lower.position = Vector2(_over.size.x - _lower.size.x - 110.0 + (1.0 - edge) * 24.0, _over.size.y - 128.0)
 			"mark":
 				_mark.visible = true
 				_mark.text = str(f[3])
@@ -604,7 +697,9 @@ func _process(_delta: float) -> void:
 	_mat.set_shader_parameter("rainbow", rainbow)
 	_mat.set_shader_parameter("clock", t)
 	_mat.set_shader_parameter("grade", int(edit.get("grade", 0)))
-	_mat.set_shader_parameter("bars", float(edit.get("bars", 0.0)))
+	_mat.set_shader_parameter("bars", bars)
+	_mat.set_shader_parameter("dim", dim)
+	_mat.set_shader_parameter("shake", shake)
 	_last_t = t
 
 
@@ -663,6 +758,16 @@ func _build_over(film: TextureRect) -> void:
 	_sticker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sticker.draw.connect(_draw_sticker)
 	_over.add_child(_sticker)
+	# 名匠の、場面の題：暗い細い帯に、左に黄色い線、白い細い字
+	_lower = PanelContainer.new()
+	var strip := UI.box(Color(0.03, 0.03, 0.04, 0.72), UI.TAPE, 0, 0, 20, 8)
+	strip.border_width_left = 4
+	strip.border_color = UI.TAPE
+	_lower.add_theme_stylebox_override("panel", strip)
+	_lower.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lower_text = UI.label("", 30, UI.PAPER, "body")
+	_lower.add_child(_lower_text)
+	_over.add_child(_lower)
 	# 前衛の「！？」と、くり返しの「×3」
 	_mark = UI.label("", 150, UI.TAPE, "title")
 	_mark.set_anchors_preset(Control.PRESET_TOP_RIGHT)

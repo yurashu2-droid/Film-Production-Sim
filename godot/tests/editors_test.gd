@@ -79,6 +79,15 @@ func run() -> void:
 	var wild_flat: Dictionary = Editors.build_edit("wild", flat, 77)
 	check((wild_flat["reps"] as Array).is_empty() and (wild_flat["lines"] as Array).any(func(l: Array) -> bool: return "滑った" in str(l[0]) and int(l[1]) < 0) and not (wild_flat["lines"] as Array).any(func(l: Array) -> bool: return "ハマった" in str(l[0])),
 		"前衛：見せ場が1つも無いテイクだと、滑るだけ（%s）" % str(wild_flat["lines"]))
+	# 名匠：どの依頼でも効く。切る・早送り・寄り・爆発のスロー。見せ場は切らない
+	var pro: Dictionary = Editors.build_edit("pro", d, 1)
+	var kinds: Array = (pro["fx"] as Array).map(func(f: Array) -> String: return str(f[2]))
+	check(in_cut(pro, 10.0) and in_cut(pro, 16.5) and not [6.0, 14.0, 22.0, 29.0, 21.0].any(func(t: float) -> bool: return in_cut(pro, t)), "名匠：間と映り込みを切る。見せ場は切らない")
+	check(kinds.count("push") == 4 and kinds.count("snap") == 4 and kinds.has("bars") and kinds.has("shake") and kinds.has("hold") and kinds.count("dip") == (pro["cuts"] as Array).size(), "名匠：寄り・引き・黒い帯・揺れ・最後の止め・切れ目の暗転（%s）" % str(kinds))
+	check((pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) > 1.0) and (pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) < 0.5 and float(s[0]) <= 21.0 and float(s[1]) > 21.0), "名匠：遠い所は早送り、爆発はスロー（%s）" % str(pro["slows"]))
+	check(not (pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) > 1.0 and [6.0, 14.0, 22.0, 29.0, 21.0].any(func(t: float) -> bool: return t >= float(s[0]) - 0.01 and t <= float(s[1]) + 2.0)), "名匠：見せ場の手前 2 秒は、早送りしない")
+	check(coins(pro) > coins(steady) and coins(pro) > 0 and coins(Editors.build_edit("pro", drama, 1)) == coins(pro), "名匠：代金 250 でも黒字。依頼の種類に左右されない（%d）" % coins(pro))
+	check(coins(Editors.build_edit("pro", flat, 1)) < 0, "名匠：見せ場が無いテイクでは、代金の元が取れない（%d）" % coins(Editors.build_edit("pro", flat, 1)))
 	check(Editors.genre_of({"title": "カップ麺の3分（CM）"}) == "cm" and Editors.genre_of({"title": "月夜の自転車"}) == "mood" and Editors.genre_of({"title": "怪獣ドラマ 第1話"}) == "action", "依頼の種類：CM・雰囲気もの・そのほか")
 	print("EDIT_TEST_FAIL" if failed else "EDIT_TEST_OK")
 	quit(1 if failed else 0)
