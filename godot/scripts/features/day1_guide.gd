@@ -29,7 +29,9 @@ const SAY := {
 	"board": "まず、そこの掲示板。\n自分の会社の動画の依頼を、自分で受ける",
 	"boxes": "カメラの台を作る。段ボールを2つ、\n青い影の所に積みなさい",
 	"camera": "その上に、カメラを載せる。\n三脚？　成功してから買いなさい",
+	"light": "夜は、顔が暗いと映らない。\nライトを持ってきて、カメラの後ろに立てる",
 	"castle": "次は、お城。その板を、\n奥の青い影に立てる",
+	"castle_turn": "城が後ろ向き！　持ったまま\n右ドラッグで、絵の面をカメラへ回す",
 	"blast": "爆発は、この板で十分。\n城のとなりの影に立てる",
 	"sign_paint": "最後のカットは、会社の看板。\nスプレー缶で、段ボール板に会社の名前を書く",
 	"sign_stand": "書いた看板を、城のとなりに立てかける。\n表を、カメラのほうへ",
@@ -54,7 +56,9 @@ const TASK := {
 	"board": "掲示板で、自分の会社の依頼を受けよう",
 	"boxes": "段ボールを2つ、青い影の所に積もう（持ったまま ホイールで、近づける・離す）",
 	"camera": "積んだ段ボールの上に、カメラを載せよう（F2 で一人称にすると、載せやすい）",
+	"light": "ライトを、カメラの後ろの青い輪に置こう（持ったまま見た方へ光が向く。置いたあと F で、向きと明るさ）",
 	"castle": "城の板を、奥の青い影に立てよう（持ったまま 右ドラッグで、向きを回す）",
+	"castle_turn": "城の板を持って、右ドラッグで回し、絵の面をカメラへ向けよう",
 	"blast": "爆炎の書割を、城のとなりの影に立てよう",
 	"sign_paint": "スプレー缶を持って、段ボール板に会社の名前を書こう（F を押している間、吹く）",
 	"sign_stand": "書いた看板を、城のとなりに立てかけよう（表をカメラへ）",
@@ -69,7 +73,10 @@ const TASK := {
 	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
-const PREP := ["boxes", "camera", "castle", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
+const PREP := ["boxes", "camera", "light", "castle", "castle_turn", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
+const LIGHT_AT := Vector3(-0.8, 0.0, 7.0)    # ライトを立てる所（撮る場所の中心から。カメラの少し後ろ、左）
+const LIGHT_CHECK := Vector3(0.0, 1.6, 1.5)  # ここ（役者の顔の高さ）が照らされていれば、ライトを立てたと数える
+const FACING := 0.5                          # 城の板の表が、カメラのほうを向いていると数える内積
 const SIGN_AT := Vector3(-1.9, 0.0, -2.3)    # 看板を立てかける所（撮る場所の中心から。城の、爆炎の書割と反対のとなり）
 const SIGN_PAINTED := 0.02                   # 描いたと数える、塗った所の割合（features/signboard.gd の PAINTED と同じ）
 # もとの案内のうち、いまやる事と重なる文（これを含む札は外して、いまやる事の札に替える）
@@ -216,10 +223,12 @@ func _now() -> String:
 		return "hold%d" % int(beats.next_scene)
 	if st in [int(S.COUNTDOWN), int(S.TAKE)]:
 		return "scene%d" % (int(beats.scene) if beats != null else 0)
+	# 済んだかは、全部の番を毎回見る（先に済ませた事は、その時に済みにする。あとで物を動かしても戻らない）
+	var first := ""
 	for id: String in PREP:
-		if not _is_done(id):
-			return id
-	return "take"
+		if not _is_done(id) and first == "":
+			first = id
+	return first if first != "" else "take"
 
 
 # その番が済んだか（一度済んだら、あとで物を動かしても、戻さない）
@@ -245,6 +254,15 @@ func _is_done(id: String) -> bool:
 			# 役に入ったあと、自分で決めポーズを 1 回やった（言わないと絶対に分からない操作なので、本番の前に 1 回やらせる）
 			var me: Node = game.local_player()
 			ok = me != null and bool(me.performance_active())
+		"light":
+			# 夜の撮影：役者の立つあたりの顔の高さが、ライトで照らされている（採点と同じ明るさの数え方）
+			var judge: Variant = game.get("judge")
+			ok = judge != null and float(judge.brightness(teacher.get_world_3d().direct_space_state, flow.HOME_SET + LIGHT_CHECK)) >= float(judge.MIN_LIGHT)
+		"castle_turn":
+			# 城の板の表（+z）が、カメラのほうを向いている。板でない物を城にした時は、向きを問わない
+			var castle := _castle_at()
+			if castle != null:
+				ok = str(castle.get("kind")) != "flat" or _facing_camera(castle)
 		"sign_paint":
 			ok = _sign_board(false) != null
 		"sign_stand":
@@ -270,6 +288,30 @@ func _sign_board(standing: bool) -> Node3D:
 				continue
 		return board
 	return null
+
+
+# 城の影の所に立っている城（誰も持っていない物）
+func _castle_at() -> Node3D:
+	var flow: Node = game.production
+	var guides: Node = game.hooks.feature("holo_guides")
+	if guides == null:
+		return null
+	var at: Vector3 = flow.HOME_SET + guides.CASTLE_AT
+	for p: Variant in game.props.values():
+		var prop := p as Node3D
+		if prop == null or bool(prop.get("absent")) or int(prop.get("holder")) != 0:
+			continue
+		if (str(prop.get("kind")) == "flat" or flow.role_of(prop) == "castle") and Vector2(prop.global_position.x - at.x, prop.global_position.z - at.z).length() < 1.2:
+			return prop
+	return null
+
+
+func _facing_camera(prop: Node3D) -> bool:
+	var flow: Node = game.production
+	var guides: Node = game.hooks.feature("holo_guides")
+	var to: Vector3 = flow.HOME_SET + guides.CAM_AT - prop.global_position
+	var front: Vector3 = prop.global_basis.z
+	return Vector2(front.x, front.z).normalized().dot(Vector2(to.x, to.z).normalized()) > FACING
 
 
 func _has_guide(guides: Node, gname: String) -> bool:
@@ -337,6 +379,14 @@ func target() -> Vector3:
 		"castle":
 			var flat := _nearest("flat", o)
 			return o + guides.CASTLE_AT if flat == null or _holding(["flat"]) else flat.global_position
+		"light":
+			if _holding(["spot"]):
+				return o + LIGHT_AT
+			var lamp := _nearest("spot", o)
+			return lamp.global_position if lamp != null else o + LIGHT_AT
+		"castle_turn":
+			var castle := _castle_at()
+			return castle.global_position if castle != null else o + guides.CASTLE_AT
 		"blast":
 			var boom := _nearest("boomflat", o)
 			return o + guides.FLAT_AT if boom == null or _holding(["boomflat"]) else boom.global_position
@@ -468,7 +518,7 @@ func _say(words: String) -> void:
 	_line_t = 0.0
 	# 顔の絵の表情：叱る（撮れていない・三脚をねだるな）／得意げ（うまくいった・送り出す）／驚く（爆発）／ふだん
 	var look := "normal"
-	if words.begins_with("まだ撮れていない") or step == "camera":
+	if words.begins_with("まだ撮れていない") or step in ["camera", "castle_turn"]:
 		look = "stern"
 	elif step == "retake":
 		look = "troubled"

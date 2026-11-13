@@ -58,6 +58,7 @@ func run() -> void:
 	# ---- 1日目：箱を開けて、あいさつが済むまでは出ない ----
 	guide.force = true
 	guides.force = true
+	game.hooks.feature("night_sky").force = true
 	flow.daily = true
 	flow.levels["camera"] = 0
 	game.hooks.feature("camera_kit").apply()
@@ -115,7 +116,29 @@ func run() -> void:
 	check(flat(guide.target(), game.film.global_position) < 0.1, "目当ては、カメラ（まだ手に持っていない）")
 	place(game.film, spot + Vector3(0, top + 0.1, 0))
 	await frames(60)
-	check(guide.step == "blast", "カメラを載せると、城は済んでいるので飛ばして、爆炎の書割（%s）" % guide.step)
+	# ---- 夜なので、ライト（1日目の紹介動画は夜に撮る。features/night_sky.gd）----
+	var sky: Node = game.hooks.feature("night_sky")
+	check(sky != null and float(sky.night) > 0.99, "ふつうに遊ぶ1日目は、夜（%.2f）" % (float(sky.night) if sky != null else -1.0))
+	check(guide.step == "light" and str(guide.said).contains("ライト"), "カメラを載せると、次はライト（%s）" % guide.step)
+	var lamps: Array = of_kind("spot")
+	print("GUIDE lamps ", lamps.map(func(l: Node) -> String: return str(l.global_position - O)))
+	check(lamps.any(func(l: Node) -> bool: return flat(guide.target(), l.global_position) < 0.1), "目当ては、ライト（まだ手に持っていない）")
+	var lamp: Node = lamps[0]
+	place(lamp, O + guide.LIGHT_AT + Vector3(0, 0.05, 0), PI)      # 灯体の前は +z（向きを PI で、城のほうへ）
+	lamp.pan = 0.0
+	lamp.level = 2
+	await frames(40)
+	print("GUIDE light %.2f dir %s" % [game.judge.brightness(guide.teacher.get_world_3d().direct_space_state, O + guide.LIGHT_CHECK), str(lamp.beam_dir())])
+	check(guide.step == "blast", "ライトで立ち位置を照らすと、城は済んでいる（向きも合っている）ので飛ばして、爆炎の書割（%s）" % guide.step)
+	# 城が後ろ向きなら、回す番（右ドラッグ）
+	guide._done.erase("castle_turn")
+	place(board, O + guides.CASTLE_AT, PI)
+	await frames(30)
+	check(guide.step == "castle_turn" and str(guide.said).contains("右ドラッグ"), "城の板が後ろ向きなら、右ドラッグで回すと言う（%s）" % guide.step)
+	check(flat(guide.target(), board.global_position) < 0.1, "目当ては、後ろ向きの城")
+	place(board, O + guides.CASTLE_AT, 0.0)
+	await frames(30)
+	check(guide.step == "blast", "表をカメラへ向けると、爆炎の書割（%s）" % guide.step)
 	# 一度済んだ事は、あとで物を動かしても戻らない
 	place(board, O + Vector3(6.0, 0.0, 6.0))
 	await frames(30)

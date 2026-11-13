@@ -196,11 +196,12 @@ func shoot(debut: int, site: String) -> void:
 	for i in 12:
 		card.draw_line(Vector2(80, 80 + i * 50), Vector2(940, 100 + i * 50), Color.BLACK, 22.0)
 	place(card, O + Vector3(4.0, 0.0, -6.0), 0.0)
-	# 日なたで撮る1日目は、ライトを点けていなくても、顔は明るい扱い（"顔が暗い" と言われない）
+	# 1日目の紹介動画は夜に撮る：ライトを消すと、顔が暗い（2026-11-13。昼の "daylight" はやめた）
 	for i in 2:
 		game.spots[i].level = 0
-	var sunny: Dictionary = game.judge.look()
-	check((sunny["actors"] as Array).slice(0, 4).all(func(d: Dictionary) -> bool: return bool(d["lit"])), "%s：日なたの紹介動画は、ライトが無くても顔が明るい扱い" % site)
+	var dark: Dictionary = game.judge.look()
+	check(not (dark["actors"] as Array).slice(0, 4).any(func(d: Dictionary) -> bool: return bool(d["lit"])), "%s：夜の紹介動画は、ライトが無いと顔が暗い" % site)
+	check(bool(flow.job().get("night", false)), "%s：紹介動画は夜の依頼" % site)
 	for i in 2:
 		game._aim_spot(game.spots[i], O + Vector3(0.0, 1.3, -1.0))
 		game.spots[i].level = 3
