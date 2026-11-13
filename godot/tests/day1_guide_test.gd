@@ -116,20 +116,25 @@ func run() -> void:
 	check(flat(guide.target(), game.film.global_position) < 0.1, "目当ては、カメラ（まだ手に持っていない）")
 	place(game.film, spot + Vector3(0, top + 0.1, 0))
 	await frames(60)
-	# ---- 夜なので、ライト（1日目の紹介動画は夜に撮る。features/night_sky.gd）----
+	# ---- 準備の間に日が暮れて、暗くなったらライト（features/night_sky.gd）----
 	var sky: Node = game.hooks.feature("night_sky")
-	check(sky != null and float(sky.night) > 0.99, "ふつうに遊ぶ1日目は、夜（%.2f）" % (float(sky.night) if sky != null else -1.0))
-	check(guide.step == "light" and str(guide.said).contains("ライト"), "カメラを載せると、次はライト（%s）" % guide.step)
+	check(sky != null and float(sky.night) < 0.2 and guide.step == "blast", "依頼を受けてすぐは、まだ明るい。ライトの番は来ない（%.2f %s）" % [float(sky.night), guide.step])
+	flow.lease_left -= sky.DUSK_START + (sky.DUSK_END - sky.DUSK_START) * 0.5
+	await frames(80)
+	print("GUIDE dusk %.2f" % float(sky.night))
+	check(float(sky.night) > 0.3 and float(sky.night) < sky.DARK and guide.step == "blast", "撮影時間が進むと、夕方（%.2f %s）" % [float(sky.night), guide.step])
+	flow.lease_left -= sky.DUSK_END
+	await frames(150)
+	check(bool(sky.dark()), "もっと進むと、夜（%.2f）" % float(sky.night))
+	check(guide.step == "light" and str(guide.said).contains("暗くなってきた"), "暗くなると、講師がライトを教える（%s）" % guide.step)
 	var lamps: Array = of_kind("spot")
-	print("GUIDE lamps ", lamps.map(func(l: Node) -> String: return str(l.global_position - O)))
 	check(lamps.any(func(l: Node) -> bool: return flat(guide.target(), l.global_position) < 0.1), "目当ては、ライト（まだ手に持っていない）")
 	var lamp: Node = lamps[0]
 	place(lamp, O + guide.LIGHT_AT + Vector3(0, 0.05, 0), PI)      # 灯体の前は +z（向きを PI で、城のほうへ）
 	lamp.pan = 0.0
 	lamp.level = 2
 	await frames(40)
-	print("GUIDE light %.2f dir %s" % [game.judge.brightness(guide.teacher.get_world_3d().direct_space_state, O + guide.LIGHT_CHECK), str(lamp.beam_dir())])
-	check(guide.step == "blast", "ライトで立ち位置を照らすと、城は済んでいる（向きも合っている）ので飛ばして、爆炎の書割（%s）" % guide.step)
+	check(guide.step == "blast", "ライトで立ち位置を照らすと、元の番（爆炎の書割）に戻る（%s）" % guide.step)
 	# 城が後ろ向きなら、回す番（右ドラッグ）
 	guide._done.erase("castle_turn")
 	place(board, O + guides.CASTLE_AT, PI)

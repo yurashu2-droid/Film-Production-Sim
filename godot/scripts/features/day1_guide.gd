@@ -29,7 +29,7 @@ const SAY := {
 	"board": "まず、そこの掲示板。\n自分の会社の動画の依頼を、自分で受ける",
 	"boxes": "カメラの台を作る。段ボールを2つ、\n青い影の所に積みなさい",
 	"camera": "その上に、カメラを載せる。\n三脚？　成功してから買いなさい",
-	"light": "夜は、顔が暗いと映らない。\nライトを持ってきて、カメラの後ろに立てる",
+	"light": "暗くなってきた！　夜は、顔が映らない。\nライトを持ってきて、カメラの後ろに立てる",
 	"castle": "次は、お城。その板を、\n奥の青い影に立てる",
 	"castle_turn": "城が後ろ向き！　持ったまま\n右ドラッグで、絵の面をカメラへ回す",
 	"blast": "爆発は、この板で十分。\n城のとなりの影に立てる",
@@ -73,7 +73,9 @@ const TASK := {
 	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
-const PREP := ["boxes", "camera", "light", "castle", "castle_turn", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
+const PREP := ["boxes", "camera", "castle", "castle_turn", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
+# ライトの番は、PREP の順には入れない：準備の間に日が暮れて（features/night_sky.gd）、暗くなった時に割り込む。
+# 物を持っている間は、置くまで待つ。暮れる前に準備が全部済んだら、急いで暮れさせて、ライトの番にする
 const LIGHT_AT := Vector3(-0.8, 0.0, 7.0)    # ライトを立てる所（撮る場所の中心から。カメラの少し後ろ、左）
 const LIGHT_CHECK := Vector3(0.0, 1.6, 1.5)  # ここ（役者の顔の高さ）が照らされていれば、ライトを立てたと数える
 const FACING := 0.5                          # 城の板の表が、カメラのほうを向いていると数える内積
@@ -228,6 +230,17 @@ func _now() -> String:
 	for id: String in PREP:
 		if not _is_done(id) and first == "":
 			first = id
+	if not _is_done("light"):
+		var sky: Node = game.hooks.feature("night_sky")
+		var dark: bool = sky == null or bool(sky.dark())
+		var me: Node = game.local_player()
+		var free: bool = me == null or int(me.held) == 0 or _holding(["spot"])
+		if dark and (free or first == "" or step == "light"):
+			return "light"
+		if first == "":
+			if sky != null:
+				sky.hurry = true       # 準備が先に済んだ：すぐ暮れる
+			return "wait_dark" if not dark else "light"
 	return first if first != "" else "take"
 
 
