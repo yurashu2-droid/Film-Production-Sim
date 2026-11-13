@@ -44,6 +44,8 @@ var _cue_times := {}         # テイクの番号 → _cue_watch
 var _cameo_times := {}       # テイクの番号 → 映り込んだ人と時刻 [[時刻, 名前], ...]（production_notes.gd の cameo_at。0.5秒以上映った人だけ）
 var _cues: Array = []        # 試写会で出す反応 [時刻, せりふ, 気分]（時刻順）
 var _cue_i := 0
+var _cue_gap := 0.0          # 反応を続けて出す時の、間（秒）
+const CUE_GAP := 0.7
 var _wow_i := 0
 # 各自の画面
 var _await_tally := false
@@ -363,10 +365,15 @@ func _physics_process(_delta: float) -> void:
 			if bool(now[i]) and float(_watch[i]) < 0.0:
 				_watch[i] = float(game.take_t)
 	elif screening >= 0 and game.state == game.S.REPLAY:
-		while _cue_i < _cues.size() and float(_cues[_cue_i][0]) <= float(game.replay_t):
+		# 編集で時計が飛ぶと、反応がいくつも同時に時刻を過ぎる。1 つずつ、間を空けて出す（最後まで行ったら、残りは全部）
+		_cue_gap -= get_physics_process_delta_time()
+		var ending := float(game.replay_t) >= float(game._replay.get("dur", 0.0))
+		while _cue_i < _cues.size() and float(_cues[_cue_i][0]) <= float(game.replay_t) and (_cue_gap <= 0.0 or ending):
 			var cue: Array = _cues[_cue_i]
 			game.host_ev("premiere_react", [cue[1], cue[2], str(cue[3]) if cue.size() >= 4 else ""])
 			_cue_i += 1
+			if _cue_i < _cues.size() and float(_cues[_cue_i][0]) <= float(game.replay_t):
+				_cue_gap = CUE_GAP
 		# 人形の動き（見返しはホストだけが進める）を、みんなの画面へ
 		_send_t -= get_physics_process_delta_time()
 		if _send_t <= 0.0 and not _doubles.is_empty() and Net.has_peers():

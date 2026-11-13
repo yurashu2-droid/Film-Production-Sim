@@ -5,6 +5,7 @@ extends SceneTree
 #   ・CM向き：場面ごとにテロップ。CMなら加点、ほかは減点
 #   ・雰囲気もの向き：黒い帯とスロー。映り込みは切らない
 #   ・前衛：同じ種なら同じ編集。見せ場に重なればハマる
+#   ・名匠・ド派手：編集の台本（edit/reel_build.gd）。出来上がりの秒で並べる。曲の拍に、素材の見せ場が来る
 #   godot --headless --path godot --script res://tests/editors_test.gd
 var Editors: GDScript
 var failed := false
@@ -27,6 +28,46 @@ func in_cut(e: Dictionary, t: float) -> bool:
 		if t >= float(c[0]) and t < float(c[1]):
 			return true
 	return false
+
+
+# 台本の行が、出来上がりの秒ですき間なく並び、素材の時刻が 0〜dur に収まっているか
+func reel_ok(e: Dictionary, dur: float) -> bool:
+	var reel: Array = e.get("reel", [])
+	if reel.is_empty() or absf(float(reel[0][0])) > 0.001 or absf(float(reel[-1][1]) - float(e["out"])) > 0.001:
+		return false
+	for i in reel.size():
+		var s: Array = reel[i]
+		var end := float(s[2]) + (float(s[1]) - float(s[0])) * float(s[3])
+		if float(s[1]) <= float(s[0]) or float(s[2]) < 0.0 or end > dur - 0.04 or float(s[3]) < 0.0:
+			print("  行 ", i, " ", s)
+			return false
+		if i > 0 and absf(float(s[0]) - float(reel[i - 1][1])) > 0.001:
+			print("  すき間 ", i, " ", s)
+			return false
+	return true
+
+
+# 出来上がりの秒 t に流れる、素材の時刻
+func src_of(e: Dictionary, t: float) -> float:
+	for s: Array in e["reel"]:
+		if t >= float(s[0]) - 0.0001 and t < float(s[1]):
+			return float(s[2]) + (t - float(s[0])) * float(s[3])
+	return -1.0
+
+
+func quiet_at(e: Dictionary, t: float) -> bool:
+	for s: Array in e["reel"]:
+		if t >= float(s[0]) and t < float(s[1]):
+			return bool(s[5])
+	return false
+
+
+func starts(e: Dictionary, t: float) -> bool:
+	return (e["reel"] as Array).any(func(s: Array) -> bool: return absf(float(s[0]) - t) < 0.001)
+
+
+func texts(e: Dictionary, kind: String) -> Array:
+	return (e["fx"] as Array).filter(func(f: Array) -> bool: return str(f[2]) == kind).map(func(f: Array) -> String: return str(f[3]))
 
 
 func _initialize() -> void:
@@ -79,15 +120,46 @@ func run() -> void:
 	var wild_flat: Dictionary = Editors.build_edit("wild", flat, 77)
 	check((wild_flat["reps"] as Array).is_empty() and (wild_flat["lines"] as Array).any(func(l: Array) -> bool: return "滑った" in str(l[0]) and int(l[1]) < 0) and not (wild_flat["lines"] as Array).any(func(l: Array) -> bool: return "ハマった" in str(l[0])),
 		"前衛：見せ場が1つも無いテイクだと、滑るだけ（%s）" % str(wild_flat["lines"]))
-	# 名匠：どの依頼でも効く。切る・早送り・寄り・爆発のスロー。見せ場は切らない
-	var pro: Dictionary = Editors.build_edit("pro", d, 1)
-	var kinds: Array = (pro["fx"] as Array).map(func(f: Array) -> String: return str(f[2]))
-	check(in_cut(pro, 10.0) and in_cut(pro, 16.5) and not [6.0, 14.0, 22.0, 29.0, 21.0].any(func(t: float) -> bool: return in_cut(pro, t)), "名匠：間と映り込みを切る。見せ場は切らない")
-	check(kinds.count("push") == 4 and kinds.count("snap") == 4 and kinds.has("bars") and kinds.has("shake") and kinds.has("hold") and kinds.count("dip") == (pro["cuts"] as Array).size(), "名匠：寄り・引き・黒い帯・揺れ・最後の止め・切れ目の暗転（%s）" % str(kinds))
-	check((pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) > 1.0) and (pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) < 0.5 and float(s[0]) <= 21.0 and float(s[1]) > 21.0), "名匠：遠い所は早送り、爆発はスロー（%s）" % str(pro["slows"]))
-	check(not (pro["slows"] as Array).any(func(s: Array) -> bool: return float(s[2]) > 1.0 and [6.0, 14.0, 22.0, 29.0, 21.0].any(func(t: float) -> bool: return t >= float(s[0]) - 0.01 and t <= float(s[1]) + 2.0)), "名匠：見せ場の手前 2 秒は、早送りしない")
-	check(coins(pro) > coins(steady) and coins(pro) > 0 and coins(Editors.build_edit("pro", drama, 1)) == coins(pro), "名匠：代金 250 でも黒字。依頼の種類に左右されない（%d）" % coins(pro))
-	check(coins(Editors.build_edit("pro", flat, 1)) < 0, "名匠：見せ場が無いテイクでは、代金の元が取れない（%d）" % coins(Editors.build_edit("pro", flat, 1)))
+	# ---- 編集の台本（名匠・ド派手）：出来上がりの秒で並べる。切る・遅くするの表は使わない ----
+	var rich := d.duplicate(true)
+	rich["faces"] = [[0, 1.2, true, "社長"], [1, 2.6, true, "社員B"], [2, 4.0, true, "社員C"], [3, 5.2, false, "社員D"]]
+	rich["burst_info"] = [[[1.0, 1.2, -3.0], "flat"]]
+	rich["job"] = "わが社の紹介動画（ネット用・30秒）"
+	rich["company"] = "アマノ映画"
+	var pro: Dictionary = Editors.build_edit("pro", rich, 1)
+	check(reel_ok(pro, 30.0), "名匠：台本の行は、出来上がりの秒ですき間なく並び、素材の時刻はテイクの中に収まる")
+	check(absf(float(pro["out"]) - 28.0) < 0.01 and str(pro["music"]) == "edit_pro" and (pro["cuts"] as Array).is_empty(), "名匠：28 秒・書き下ろしの曲")
+	check(absf(src_of(pro, 14.0) - 20.98) < 0.03 and not quiet_at(pro, 14.2), "名匠：曲の一打（14.0 秒）に、爆発の瞬間が来る（素材 %.2f 秒）" % src_of(pro, 14.0))
+	check(texts(pro, "t_name") == ["社長", "社員B", "社員C", "社員D　（頭は入りませんでした）"], "名匠：一人ずつ名前。頭が入らなかった人は、そう書く（%s）" % str(texts(pro, "t_name")))
+	check([2.0, 3.5, 5.0, 6.5, 8.0].all(func(t: float) -> bool: return starts(pro, t)), "名匠：一人ずつの切り替えは、ティンパニの拍（2・3.5・5・6.5・8 秒）")
+	check(texts(pro, "t_build") == ["爆発も、"] and texts(pro, "t_big") == ["します。"], "名匠：山場の場面の名前を、溜めと一打に分ける（%s %s）" % [str(texts(pro, "t_build")), str(texts(pro, "t_big"))])
+	check(texts(pro, "t_note") == ["※ 爆発は、板に描いた絵です"], "名匠：書割の爆発なら、無音の間に、正直に書く")
+	check(texts(pro, "t_end") == ["ぜんぶ、格安で！"] and texts(pro, "t_sub") == ["アマノ映画"], "名匠：締めは最後の場面の名前と、会社の名前")
+	check(texts(pro, "t_ng").size() == 2 and quiet_at(pro, 25.0) and absf(src_of(pro, 24.0) - 16.0) < 0.01, "名匠：切った所（映り込み・間）は、最後に NG のおまけ（%s）" % str(texts(pro, "t_ng")))
+	check(coins(pro) == -250 + 120 + 200 + 30 and coins(pro) > coins(steady), "名匠：代金 250 でも黒字（%d）" % coins(pro))
+	var real := rich.duplicate(true)
+	real["burst_info"] = [[[1.0, 1.2, -3.0], "real"]]
+	check(texts(Editors.build_edit("pro", real, 1), "t_note").is_empty(), "名匠：本物の爆発なら、「板に描いた絵」とは書かない")
+	var thin: Dictionary = Editors.build_edit("pro", flat, 1)
+	check(reel_ok(thin, 30.0) and coins(thin) < 0 and texts(thin, "t_name").is_empty() and texts(thin, "t_end").is_empty(), "名匠：見せ場が無いテイクでも、破綻しない。代金の元は取れない（%d）" % coins(thin))
+	var hype: Dictionary = Editors.build_edit("hype", rich, 1)
+	var beat := 60.0 / 128.0
+	check(reel_ok(hype, 30.0) and str(hype["music"]) == "edit_hype", "ド派手：台本の行は、すき間なく並び、素材の時刻はテイクの中")
+	check((hype["reel"] as Array).all(func(s: Array) -> bool: return absf(float(s[0]) / (beat * 0.25) - roundf(float(s[0]) / (beat * 0.25))) < 0.001), "ド派手：全部の切り替えが、拍（16 分）の上")
+	check(absf(src_of(hype, beat * 40.0) - 20.98) < 0.03 and absf(src_of(hype, beat * 41.0) - 20.98) < 0.03 and absf(src_of(hype, beat * 42.0) - 20.98) < 0.03, "ド派手：サビの 5 小節目の頭から、爆発の 1 拍を 3 回")
+	check(texts(hype, "k_mask") == ["わが社の", "紹介動画"] and texts(hype, "k_burn") == ["社長", "社員B", "社員C", "社員D"], "ド派手：題は字の形の窓、名前は絵に焼き込む（%s）" % str(texts(hype, "k_mask")))
+	check(coins(hype) == -150 + 8 * 50 and coins(hype) > coins(pro), "ド派手：素材がそろえば、名匠より稼ぐ（%d）" % coins(hype))
+	var hype_thin: Dictionary = Editors.build_edit("hype", flat, 1)
+	check(reel_ok(hype_thin, 30.0) and coins(hype_thin) == -150 - 8 * 45 and coins(hype_thin) < coins(thin), "ド派手：見せ場が無いと、効果だけが浮く。名匠より大きく損をする（%d）" % coins(hype_thin))
+	check((hype_thin["cues"] as Array).any(func(c: Array) -> bool: return str(c[2]) == "sad"), "ド派手：外した時は、見た人が首をかしげる")
+	var short := rich.duplicate(true)
+	short["dur"] = 9.0
+	short["passes"] = [3.0, -1.0, -1.0, 8.0]
+	short["bursts"] = []
+	short["burst_info"] = []
+	short["dead"] = []
+	short["cameo"] = []
+	check(reel_ok(Editors.build_edit("pro", short, 1), 9.0) and reel_ok(Editors.build_edit("hype", short, 1), 9.0), "短いテイク（9 秒）でも、素材の時刻がはみ出さない")
 	check(Editors.genre_of({"title": "カップ麺の3分（CM）"}) == "cm" and Editors.genre_of({"title": "月夜の自転車"}) == "mood" and Editors.genre_of({"title": "怪獣ドラマ 第1話"}) == "action", "依頼の種類：CM・雰囲気もの・そのほか")
 	print("EDIT_TEST_FAIL" if failed else "EDIT_TEST_OK")
 	quit(1 if failed else 0)
