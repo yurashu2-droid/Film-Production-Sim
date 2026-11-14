@@ -120,7 +120,7 @@ func set_marks(lamps: Array, frac: float) -> void:
 		var tick: MeshInstance3D = _ticks[i]
 		tick.visible = count > 0
 		if i < left:
-			_glow(tick, Marks.TICK_LOW if left <= Marks.LOW_TICKS else Marks.TICK_ON, true)
+			_glow(tick, Marks.bar_color(float(left) / float(Marks.TICKS)), true)
 		else:
 			_glow(tick, Marks.TICK_OFF, false)
 

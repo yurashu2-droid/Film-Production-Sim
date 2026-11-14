@@ -894,7 +894,7 @@ func _start_tally() -> void:
 	_shade.color = Color(0, 0, 0, 0.72)
 	_sheet.visible = true
 	_place_track()
-	_hint.text = "Enter：フィルムをとばす"
+	_hint.text = "Enter：映像をとばす"
 
 
 # 1コマ（写した絵。頭は題名、終わりは「終」の黒いコマ）

@@ -581,12 +581,12 @@ func hides_take_clock() -> bool:
 	return beats != null and beats.active() and state == S.TAKE
 
 
-# テイクの長さ：場面の列を持つ依頼では、フィルム1本ぶん
+# テイクの長さ：場面の列を持つ依頼では、カード1枚ぶん
 func take_limit() -> float:
 	return float(beats.FILM_SEC) if beats != null and beats.active() else super.take_limit()
 
 
-# カット割りの依頼の場転：フィルムを止めている間（production_beats.gd の holding）
+# カット割りの依頼の場転：録画を止めている間（production_beats.gd の holding）
 func take_held() -> bool:
 	return state == S.TAKE and beats != null and beats.holding
 
@@ -1288,7 +1288,7 @@ func _cut() -> void:
 	if beats != null and beats.active() and state == S.TAKE and take_t >= take_limit() - 0.001:
 		# フィルムが最後まで回った
 		host_ev("sfx", ["unfix", program_camera().global_position])
-		host_ev("toast", ["フィルムが切れた！", 1])
+		host_ev("toast", ["カードがいっぱい！", 1])
 	super._cut()
 	hooks.run("hook_take_cut")
 	if production:
@@ -1305,6 +1305,9 @@ func h_retake() -> void:
 # 画面（ボタン・Enter）から納品を頼む。試写会など、納品の前に流す仕組みがあれば、そちらが先（各仕組みの hook_deliver）。
 # 自動確認などが h_deliver を直接呼ぶと、今までどおり、すぐ納品になる
 func request_deliver(index: int) -> void:
+	# 先に、自分の画面で聞く事があれば、そちらへ（編集者を選ぶ画面。features/editors.gd の hook_deliver_ask）
+	if production and hooks.first("hook_deliver_ask", [index]):
+		return
 	h_request_deliver.rpc_id(1, index)
 
 @rpc("any_peer","call_local","reliable")

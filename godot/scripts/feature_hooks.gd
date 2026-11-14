@@ -35,6 +35,7 @@ const HOOKS := {
 	"hook_cue": "(n: int)：合図（1・2・3）が出た（ホスト。3場面の依頼。場面の列を持つ依頼では呼ばれない）",
 	"hook_premiere_cues": "(index: int) -> Array：試写会で、依頼主が反応する時刻とひとこと [[テイクの中の秒, せりふ, 気分(happy/wow/sad/neutral)], ...]（ホスト）",
 	"hook_fee_lines": "(index: int) -> Array：そのテイクのギャラの上乗せ [[文, コイン], ...]（ホスト。production_flow.gd の take_fee と、精算の文に入る）",
+	"hook_deliver_ask": "(index: int) -> bool：自分の画面で、納品を押した（各自の画面。ホストへ頼む前）。true なら、その仕組みが先に画面を出し、決まったら自分でホストへ頼む（編集者を選ぶ画面）",
 	"hook_deliver": "(index: int) -> bool：画面（ボタン・Enter）から納品を頼まれた（ホスト）。true なら、その仕組みが先に何かを流し、終わったら自分で game.h_deliver を呼ぶ（試写会）",
 }
 

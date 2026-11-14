@@ -1,6 +1,6 @@
 extends SceneTree
 # 5場面の台本「怪獣、段ボールの街に現る・完全版」を確かめる（場面どうしが、同じ物・同じ場所・同じ人手を取り合う）。
-#   受注 → 床に印は出ない（立ち位置は決まった所。教えるとバミリ） → 通し稽古（フィルムは減らない・爆弾は鳴らない・通り道をふさぐと役者が立ち止まる）→
+#   受注 → 床に印は出ない（立ち位置は決まった所。教えるとバミリ） → 通し稽古（カードは減らない・爆弾は鳴らない・通り道をふさぐと役者が立ち止まる）→
 #   テイク1：二人ぶんの手（台本とカメラの係／火薬と黒子の係）で、5場面を一本のフィルムに収める → 見返し。
 #   テイク2：撮れない撮り方（怪獣が先に映る・火薬が少なすぎる・多すぎる）と、やり直し。最後はフィルム切れ。
 #   テイク3：別の解き方（怪獣を板の後ろに隠してどける・別のカメラへ切り替えて寄る）と、倒す人が映った場合。 → 納品。
@@ -661,7 +661,7 @@ func test_wrong_ways() -> void:
 	await blast(POWDER_GOOD)
 	await frames(260)
 	check(beats.lit[2] and upright(monster), "the right amount: the city falls, the monster stands, scene 3 is taken (why=%s)" % why(2))
-	# フィルムが切れると、テイクが終わる（残りわずかで、リールが鳴る）
+	# カードがいっぱいになると、テイクが終わる（残りわずかで、リールが鳴る）
 	heard.clear()
 	var low_seen := false
 	var ran := 0
@@ -679,7 +679,7 @@ func test_wrong_ways() -> void:
 	var results: Array = game.takes[1]["results"]
 	for r: Dictionary in results:
 		print("  ", "OK " if r["ok"] else "NG ", r["title"], " / ", r["detail"])
-	check("フィルムが切れて" in str(results[3]["detail"]) and "フィルムが切れて" in str(results[4]["detail"]), "the scenes it never reached say so")
+	check("カードがいっぱいになって" in str(results[3]["detail"]) and "カードがいっぱいになって" in str(results[4]["detail"]), "the scenes it never reached say so")
 	check(lamps() == [true, true, true, false, false] and game.camera_switcher.monitor.ticks_left == 0 and is_zero_approx(film.film_frac), "the lamps and the empty reel show that take")
 	# 場面を進められる人の画面の一覧（5行）も、そのテイクの成否になる（前のテイクの印が残らない）
 	for i in 30:
@@ -704,7 +704,7 @@ func test_wrong_ways() -> void:
 	game.h_select(chosen)
 	for i in 12:
 		await process_frame
-	check((game.hud.result_view as Control).visible and detail_words.any(func(text: String) -> bool: return "フィルムが切れて" in text) and detail_words.any(func(text: String) -> bool: return "怪獣の技で街がこわれる" in text), "the take check lists each scene with its reason")
+	check((game.hud.result_view as Control).visible and detail_words.any(func(text: String) -> bool: return "カードがいっぱいになって" in text) and detail_words.any(func(text: String) -> bool: return "怪獣の技で街がこわれる" in text), "the take check lists each scene with its reason")
 
 
 # ---- テイク3：別の解き方（板の後ろに隠してどける・2台目のカメラで寄る）と、倒す人が映った場合 ----

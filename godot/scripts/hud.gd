@@ -51,7 +51,7 @@ var order_checked_override: Array = []   # 制作モードが、見ているテ�
 # 場面の列を持つ依頼（制作モードの production_beats.gd）のときだけ使う物
 var more_lines: Array = []       # 4つ目からの場面の行
 var more_boxes: Array = []
-var monitor_marks: Control       # 右上のカメラ映像の下の、場面のランプとフィルムの目盛り（確認用モニターの枠と同じ）
+var monitor_marks: Control       # 右上のカメラ映像の下の、場面のランプとカードの目盛り（確認用モニターの枠と同じ）
 var _scene_list_on := true
 var _scene_now := -2
 var panel_title: Label
@@ -336,7 +336,7 @@ func _build_monitor() -> void:
 	monitor.texture = game.film.view.get_texture()
 	monitor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	monitor_frame.add_child(monitor)
-	# 確認用モニターの枠の印（場面のランプ・フィルムの目盛り）を、ここにも同じ形で出す。数字は出さない
+	# 確認用モニターの枠の印（場面のランプ・カードの目盛り）を、ここにも同じ形で出す。数字は出さない
 	monitor_marks = MonitorMarks.new()
 	monitor_marks.custom_minimum_size = Vector2(0, 12)
 	monitor_marks.visible = false
@@ -922,7 +922,7 @@ func _process(delta: float) -> void:
 	vf_frame.set("rec", st == S.TAKE)
 	vf_frame.set("tag", "PLAY" if st == S.REPLAY else "STBY")
 	monitor_box.visible = (shooting or (op != null and op.kind == "camera")) and not full and st != S.RESULT and st != S.DELIVERED and st != S.ORDER and (game.can_see_monitor() or (op != null and op.kind == "camera"))
-	# モニターを見られる人には、枠の印（撮れた場面のランプ・フィルムの目盛り）も見える
+	# モニターを見られる人には、枠の印（撮れた場面のランプ・カードの目盛り）も見える
 	var marks_on: bool = paging and monitor_box.visible and shooting and game.can_see_monitor()
 	monitor_marks.visible = marks_on
 	if marks_on:
@@ -966,7 +966,7 @@ func _process(delta: float) -> void:
 	var names := {S.PREP: "仕込み中", S.COUNTDOWN: "まもなく本番", S.TAKE: "本番", S.RESULT: "確認",
 		S.REPLAY: "見返し中", S.DELIVERED: "納品", S.ORDER: "依頼を受ける"}
 	var film_held: bool = st == S.TAKE and game.take_held()
-	order_state.text = "%s　テイク %d / %d" % ["場転中（フィルム停止）" if film_held else names[st], game.takes.size() + (1 if st in [S.PREP, S.COUNTDOWN, S.TAKE] else 0), game.MAX_TAKES]
+	order_state.text = "%s　テイク %d / %d" % ["場転中（録画停止）" if film_held else names[st], game.takes.size() + (1 if st in [S.PREP, S.COUNTDOWN, S.TAKE] else 0), game.MAX_TAKES]
 	if Net.mode != "solo":
 		order_state.text += "　参加 %d人" % game.players.size()
 

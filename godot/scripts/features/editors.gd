@@ -22,11 +22,13 @@ extends Node
 ##     "edit_on" の合図で全員へ配る。乱数は、ホストが決めた種だけ（どの画面でも同じ編集になる）
 ##   ・切る・遅くする・くり返すは、ホストが見返しの時計（main.gd の replay_t）を動かす。main.gd は書き換えない。
 ##     テロップ・色・寄りは、各自の画面で、届いた見返しの時計から出す（スクリーンに映す絵 premiere.gd の _film に重ねる）
-##   ・だれに頼むか（pick）は、ホストが決めて "edit_pick" で配る。選び方（物で渡す）は、まだ作っていない。
+##   ・だれに頼むか（pick）は、ホストが決めて "edit_pick" で配る。選ぶのは、納品を押した時に出る画面（ui/editor_pick.gd）：
+##     押した人の画面にだけ開き、決めると h_pick_deliver でホストへ頼む（2026-11-14 ユーザー：物で渡す形はやめて、GUI で選ぶ）。
 ##     自動確認が直接呼ぶ納品（game.h_deliver）と、pick が "none" の間は、今までと同じ
 const UI := preload("res://scripts/ui/ui_theme.gd")
 const Reel := preload("res://scripts/edit/reel_build.gd")
 const ReelType := preload("res://scripts/edit/reel_type.gd")
+const Picker := preload("res://scripts/ui/editor_pick.gd")
 
 const EDITORS := {
 	"none": {"name": "頼まない", "tag": "撮ったまま出す", "fee": 0},
@@ -172,6 +174,8 @@ var _rep_done: Array = []        # くり返した回数
 var _again: Array = []           # くり返しの間に、もう一度出す合図 [時刻, 名前, 引数]
 var _again_i := 0
 var _rolled := false             # この編集で、流し始めたか
+var _picker: Control             # 編集者を選ぶ画面（自分の画面。初めて開く時に作る）
+var _ask_index := -1             # 選ぶ画面を開いた時の、納品するテイク
 var debug_pick := ""             # デバッグ起動の --editor=<ID>：依頼ごとに、この人に頼んだ事にする
 # ---- 画面（全員） ----
 var _mat: ShaderMaterial
@@ -587,6 +591,46 @@ func _measure() -> void:
 
 # ---- 頼む・組む（ホスト） ----
 
+# 自分の画面で、納品を押した：編集者を選ぶ画面を開く。自動確認・録画の台本・デバッグ起動の --editor= の時は、開かずにそのまま納品へ
+func hook_deliver_ask(index: int) -> bool:
+	if game.get("_headless") or "--script" in OS.get_cmdline_args() or debug_pick != "":
+		return false
+	if not picker_open():
+		open_picker(index)
+	return true
+
+
+func picker_open() -> bool:
+	return _picker != null and _picker.visible
+
+
+func open_picker(index: int) -> void:
+	_ask_index = index
+	if _picker == null:
+		var layer := CanvasLayer.new()
+		layer.layer = 80
+		add_child(layer)
+		_picker = Picker.new()
+		layer.add_child(_picker)
+		_picker.setup(ORDER, EDITORS)
+		_picker.chosen.connect(func(id: String) -> void: h_pick_deliver.rpc_id(1, id, _ask_index))
+	_picker.open(ORDER.find(pick))
+
+
+# 選ぶ画面で決めた：その人に頼んで、納品へ進む（ホスト）
+@rpc("any_peer", "call_local", "reliable")
+func h_pick_deliver(id: String, index: int) -> void:
+	if not Net.is_host() or not EDITORS.has(id) or game.state != game.S.RESULT:
+		return
+	pick = id
+	game.host_ev("edit_pick", [id])
+	game.h_request_deliver(index)
+
+
+func hook_input(event: InputEvent) -> bool:
+	return picker_open() and _picker.handle(event)
+
+
 # だれに頼むかを決める（ホスト）。お金は、納品の精算で引く
 func host_pick(id: String) -> void:
 	if Net.is_host() and EDITORS.has(id):
@@ -953,6 +997,9 @@ func _stop_music() -> void:
 func _process(_delta: float) -> void:
 	if game == null or game.get("production") == null:
 		return
+	# 選ぶ画面を開いている間に、ほかの人が納品した・撮り直した：画面を閉じる
+	if picker_open() and game.state != game.S.RESULT:
+		_picker.close()
 	var premiere: Node = game.hooks.feature("premiere")
 	var on: bool = not edit.is_empty() and str(edit.get("id", "none")) != "none" and game.state == game.S.REPLAY and premiere != null and int(premiere.screening) == edit_index
 	if not on:

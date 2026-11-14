@@ -7,28 +7,28 @@ extends Node
 ##   役者は、場面ごとに決まった立ち位置（①②③）へ、決まった動きでまっすぐ進み、着いたら、その姿のまま次の合図を待つ（actor.gd の play_beat）。
 ##   立ち位置は、ふだんは決まった場所（MARK_HOME。床には何も出ない）。班が役者を見て F → 床を左クリックで教えると、
 ##   そこが立ち位置になり、足元に役者の色のバミリ（床のテープ。features/bami.gd が貼る飾り）が付く（spots。host_teach）
-##   準備中に進めると、通し稽古になる（フィルムは減らない。採点もしない。爆弾は、今までどおり準備中は鳴らない）。
-## ・時計は物：テイクは、フィルム1本（FILM_SEC）で終わる。残りは、撮影カメラの上のリール（film_camera.gd）と、
+##   準備中に進めると、通し稽古になる（カードは減らない。採点もしない。爆弾は、今までどおり準備中は鳴らない）。
+## ・時計は物：テイクは、カード1枚（FILM_SEC）で終わる。残りは、撮影カメラの上のリール（film_camera.gd）と、
 ##   確認用モニターの枠の目盛り（production_monitor_prop.gd）で見せる。残り秒数の数字は、どこにも出さない。
 ## ・採点：カメラに映った出来事の、順番と関係だけを見る（映り方は judge.gd の look() の見方をそのまま使う）。
 ##   解き方（怪獣の隠し方・火薬の量・点火の間合い・寄りの撮り方）は決めない。
 ##   班の誰か（プレイヤー）が撮影カメラに映っている間は、その場面は「撮れている時間」に数えない（production_notes.gd の数え方）。
 ##   撮れた場面は、確認用モニターの枠のランプが点く。撮れなかった理由（why）は、テイクのあとの確認に、場面ごとに出す。
 ## ・通信：ホストが決めて、"beat" の合図で配る（いまの場面・ランプ・稽古かどうか）。本番中の合図は、見返しにも残る。
-##   役者の動きは、今までどおり、世界の同期で届く。教えた立ち位置は "spots" の合図で配る。フィルムの残りは、テイクの時計（main.gd の take_t）から出す。
+##   役者の動きは、今までどおり、世界の同期で届く。教えた立ち位置は "spots" の合図で配る。カードの残りは、テイクの時計（main.gd の take_t）から出す。
 ##   採点は、役者・人の位置とカメラの映りだけを見る（床のバミリは飾り。無くても採点は変わらない）
 const Scripts := preload("res://scripts/production_script.gd")
 const Marks := preload("res://scripts/ui/monitor_marks.gd")
 const Cast := preload("res://scripts/production_cast.gd")
 
 const CREW_LAYER := 1 << 11       # 制作班にだけ見える表示（film_camera.gd と同じ番号）
-const FILM_SEC := 90.0            # フィルム1本ぶんの秒数（この依頼のテイクの長さ）
+const FILM_SEC := 90.0            # カード1枚ぶんの秒数（この依頼のテイクの長さ）
 const LOW_SEC := 15.0             # 残りがこれより少ないと、リールがカタカタ鳴る
 const DIRECT_REACH := 2.5         # 置いた台本から、この距離までなら場面を進められる
 const STEP_GAP := 0.35            # 続けて押したときに、場面を飛ばさないための間（秒）
 const BOOM_DELAY := 0.9           # 場面に入ってから、爆発役の物（爆弾を除く）に合図が出るまで
 const MEET_GAP := 1.0             # 「近づく」場面で、二人が向かい合って立つ間隔
-const CUT_TAIL := 1.2             # カット割りの依頼：場面が撮れてから、フィルムを止める（カット）までの間
+const CUT_TAIL := 1.2             # カット割りの依頼：場面が撮れてから、録画を止める（カット）までの間
 # ---- 採点の数字 ----
 const NEED_STROLL := 1.5          # 街を歩く：歩いている二人と街が、映っている秒数
 const NEED_APPEAR := 2.0          # 怪獣あらわる：怪獣・街・固まった二人が、映っている秒数
@@ -123,7 +123,7 @@ var lit: Array = []               # 場面ごとに、撮れたか（確認用�
 var rehearsal := false            # 通し稽古の最中か（準備中に場面を進めた）
 var why: Array = []               # 場面ごとの「足りなかった理由」と秒数（ホスト）
 var met_at: Array = []            # 場面が撮れた時刻（-1＝撮れていない。ホスト）
-# カット割りの依頼（production_script.gd の cuts）：本番中に、フィルムを止めている（場転）。全員の画面で同じ。
+# カット割りの依頼（production_script.gd の cuts）：本番中に、録画を止めている（場転）。全員の画面で同じ。
 # 止めている間は、テイクの時計・記録・採点・映り込みの数えが進まない（main.gd の take_held）
 var holding := false
 var next_scene := -1              # 場転のあと、1 で回し直したときに撮る場面
@@ -132,7 +132,7 @@ var _hold_in := -1.0              # 場面が撮れてから、カットする�
 var _acc: Array = []              # 場面ごとの、撮れている時間
 # 一人ずつ寄り（"roll"）：役ごとに、寄りで撮れたか（全員の画面。view に載る）。全員そろうと、その場面が撮れる
 var roll_done: Array = [false, false, false, false]
-var roll_holds := 0               # 一人ずつ寄りの途中で、フィルムを止めた回数（0 のまま撮り切ると、カメラを振って一続きに撮った）
+var roll_holds := 0               # 一人ずつ寄りの途中で、録画を止めた回数（0 のまま撮り切ると、カメラを振って一続きに撮った）
 var roll_cut: Dictionary = {}     # 一人ずつ寄りで、頭が見切れたまま撮れた役（役の番号 → true）
 const ROLL_MIN := 0.55            # 一人ずつ寄り：その人の身長が、画面の高さに対してこれ以上（胸から上が大きく映る）
 var _entered: Array = []          # 本番で、その場面へ進んだか
@@ -266,7 +266,7 @@ func step_count() -> int:
 
 
 # いま教えると、どの立ち位置になるか（全員の画面で同じ答え。F の案内と、ホストの決め方に使う）：
-#   ・カット割りの本番で、フィルムを止めている間（場転）：次に撮る場面で、役者が向かう立ち位置（その場面の to）
+#   ・カット割りの本番で、録画を止めている間（場転）：次に撮る場面で、役者が向かう立ち位置（その場面の to）
 #   ・それ以外（準備中）：まだ教えていない、いちばん若い立ち位置。全部教えてあれば、最後に教えた立ち位置の次
 func teach_step(aid: int) -> int:
 	var n := step_count()
@@ -488,7 +488,7 @@ func hook_return_office() -> void:
 
 # ---- 画面に出す物（全員） ----
 
-# 使ったフィルム（秒）。本番中はテイクの時計、見返し中は見返しの時計、確認中は選んだテイクの長さ
+# 使ったカード（秒）。本番中はテイクの時計、見返し中は見返しの時計、確認中は選んだテイクの長さ
 func film_used() -> float:
 	var S: Dictionary = game.S
 	if game.state == S.TAKE:
@@ -500,7 +500,7 @@ func film_used() -> float:
 	return 0.0
 
 
-# フィルムの残り（1＝まるごと / 0＝切れた）
+# カードの残り（1＝まるごと / 0＝切れた）
 func film_frac() -> float:
 	return clampf(1.0 - film_used() / FILM_SEC, 0.0, 1.0)
 
@@ -677,7 +677,7 @@ func _enter(i: int, again: bool) -> void:
 	_broadcast()
 
 
-# カット（ホスト。カット割りの依頼の本番）：フィルムを止めて、場転に入る。
+# カット（ホスト。カット割りの依頼の本番）：録画を止めて、場転に入る。
 # 役者は、次に撮る場面の最初の立ち位置へ歩いて行き、そこで待つ。テイクは続いている（時計と記録が止まるだけ）
 func _start_hold(next: int) -> void:
 	_hold_in = -1.0
@@ -697,7 +697,7 @@ func _start_hold(next: int) -> void:
 	game.host_ev("music", [""])
 	game.host_ev("sfx", ["clap", null])
 	var title := hold_title(next_scene)
-	game.host_ev("toast", ["カット！ フィルムを止めた。場転：『%s』の用意ができたら、台本を読める人が 1 で回す" % title, 0])
+	game.host_ev("toast", ["カット！ 録画を止めた。場転：『%s』の用意ができたら、台本を読める人が 1 で回す" % title, 0])
 	holding = true          # 止めてから配る（止めた知らせは、見返しの記録に入らない）
 	_broadcast()
 
@@ -714,7 +714,7 @@ func hold_title(next: int) -> String:
 	return title
 
 
-# 回し直す（ホスト）：場転で用意した場面から、フィルムを回す
+# 回し直す（ホスト）：場転で用意した場面から、録画を回す
 func _action() -> void:
 	holding = false
 	game.host_ev("sfx", ["clap", null])
@@ -1060,7 +1060,7 @@ func _rule_appear(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 # 爆発が起きた（judge.on_burst から）。怪獣の技の場面の間に起きた、最初の爆発を数える
 func on_burst(pos: Vector3, src: int) -> bool:
 	if holding:
-		return true          # フィルムを止めている間の爆発は、映画に映らない（使い損）
+		return true          # 録画を止めている間の爆発は、映画に映らない（使い損）
 	var jd: RefCounted = game.judge
 	# 背後で爆発（blast）の場面の間に起きた爆発：そこから BOOM_WINDOW 秒の映り方を数える
 	var beats_now := list()
@@ -1626,7 +1626,7 @@ func _rule_sign(i: int, f: Dictionary, dt: float, crew: bool) -> void:
 
 # 一人ずつ寄り（会社の紹介動画の社員紹介）：出ている役を一人ずつ、寄りで大きく映す（決めポーズ）。
 # 一人分が撮れたら、次の人の番。止めずにカメラを振って寄る（撮影技術の加算。features/camera_craft.gd）か、
-# 1 でフィルムを止めて、カメラを寄せ直してから回す。全員そろうと、場面が撮れる。
+# 1 で録画を止めて、カメラを寄せ直してから回す。全員そろうと、場面が撮れる。
 # 頭が画面から切れていても（見切れ）撮れたことにするが、精算で少し引かれる。
 # 同じ人が、場転のたびに役を替えて（Y）全部を演じてもいい
 func _rule_roll(i: int, f: Dictionary, dt: float, crew: bool) -> void:
@@ -1770,7 +1770,7 @@ func results() -> Array:
 		if ok:
 			detail = "%.1f秒で成立" % float(met_at[i])
 		elif i >= _entered.size() or not _entered[i]:
-			detail = "フィルムが切れて、この場面まで進まなかった" if film_out else "この場面まで進めなかった（台本を読める人が、1 で進める）"
+			detail = "カードがいっぱいになって、この場面まで進まなかった" if film_out else "この場面まで進めなかった（台本を読める人が、1 で進める）"
 		else:
 			detail = _top_reason(i)
 			if detail == "" and rule == "attack" and _boom_t < 0.0 and _boom_before:

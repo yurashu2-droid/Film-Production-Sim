@@ -13,14 +13,15 @@ var head_y := HEAD_Y              # レンズの高さ（三脚なしなら、�
 const FOV_MIN := 18.0
 const FOV_MAX := 75.0
 const PropShapes := preload("res://scripts/prop_shapes.gd")
-# フィルムの残り：カメラ本体の左の横腹（液晶を開いた側。操作する人から見える側）に、丸い小窓。
-# 中に、これから撮る分のフィルムの巻きが見えて、撮るほど細くなる（昔のフィルムカメラの、残りの見える窓）。
-# 前はカメラの上にリールを 2 つ載せていたが、カメラに付いている物に見えなかった（2026-11-11 ユーザー）。
+# カードの残り（録画できる残り）：カメラ本体の左の横腹（液晶を開いた側。操作する人から見える側）に、小さな横長の表示。
+# 中のバーが、撮るほど短くなって、緑 → 黄 → 赤に変わる（色は ui/monitor_marks.gd の bar_color。モニターの枠の目盛りと同じ）。
+# 前は、フィルムの巻きが見える丸い小窓だった。ふつうのビデオカメラなので、SD カードの残量の表示にした（2026-11-14 ユーザー）。
 # 残りが減るのは、場面の列を持つ依頼（production_beats.gd）のときだけ。ほかは、いつも満タンに見える。数字は、どこにも出さない
-const WINDOW_AT := Vector3(-0.049, 0.047, -0.052)   # 小窓の中心（カメラ本体の座標。左の横腹の、操作の凹みの上）
-const WINDOW_R := 0.019           # 小窓の半径（ふちの内側）
-const ROLL_FULL := 0.0155         # 巻きがまるごとのときの半径
-const REEL_EMPTY := 0.33          # 巻きがいちばん細いときの太さ（芯とほぼ同じ。まるごとに対する割合）
+const Marks := preload("res://scripts/ui/monitor_marks.gd")
+const WINDOW_AT := Vector3(-0.049, 0.047, -0.052)   # 表示の中心（カメラ本体の座標。左の横腹の、操作の凹みの上）
+const BAR_LEN := 0.040            # バーがまるごとのときの長さ（前後の向き）
+const BAR_TALL := 0.007
+const REEL_EMPTY := 0.33          # 前の小窓の決まりの名残（reel_fill の一番小さい値。確認が使う）
 
 var cam_yaw := 0.0
 var cam_pitch := 0.0
@@ -36,11 +37,11 @@ var view_cam: Camera3D
 const CREW_LAYER := 1 << 11      # 制作班だけに見える物（見立ての札など）の描画レイヤー
 var tally: MeshInstance3D
 var monitor_surface: MeshInstance3D
-var film_shown := false          # フィルムの残りを数えているか（場面の列を持つ依頼の、本番の前後）
-var film_frac := 1.0             # フィルムの残り（1＝まるごと / 0＝切れた）
-var _window: Node3D               # 横腹の小窓
-var _spin: Node3D                 # 小窓の中で回る所（巻き・芯・芯の印）
-var _roll: MeshInstance3D         # 巻いたフィルム（残りに合わせて、半径を変える）
+var film_shown := false          # カードの残りを数えているか（場面の列を持つ依頼の、本番の前後）
+var film_frac := 1.0             # カードの残り（1＝まるごと / 0＝いっぱい）
+var _window: Node3D               # 横腹の、残りの表示
+var _spin: Node3D                 # バーの根元（ここの伸び縮みで、長さを変える）
+var _roll: MeshInstance3D         # 光るバー
 var _film_rolling := false
 var _film_low := false
 var _film_t := 0.0
@@ -85,7 +86,7 @@ func build() -> void:
 	tally.visible = false
 	body.add_child(tally)
 
-	# フィルムの残りの見える小窓（横腹）
+	# カードの残りの表示（横腹）
 	_build_window(body)
 
 	# 当たり判定と重心は表（prop_shapes.gd）：三脚の広がりに合わせた段々の円柱と、雲台・カメラの箱
@@ -133,8 +134,8 @@ func shoot_dir() -> Vector3:
 	return -lens.global_basis.z
 
 
-# フィルムの残りを見せる（全員の画面。production_beats.gd が毎コマ呼ぶ）。
-#   shown＝リールを出すか / frac＝残り（1〜0）/ rolling＝回っているか（本番・見返し）/ low＝残りわずか
+# カードの残りを見せる（全員の画面。production_beats.gd が毎コマ呼ぶ）。
+#   shown＝残りを数えているか / frac＝残り（1〜0）/ rolling＝回っているか（本番・見返し）/ low＝残りわずか
 func set_film(shown: bool, frac: float, rolling: bool, low: bool) -> void:
 	film_shown = shown
 	film_frac = clampf(frac, 0.0, 1.0)
@@ -142,90 +143,60 @@ func set_film(shown: bool, frac: float, rolling: bool, low: bool) -> void:
 	_film_low = low
 
 
-# 巻いたフィルムの太さ（まるごとに対する割合）。0＝これから撮る分（小窓の中の巻き）/ 1＝撮り終えた分（カメラの奥。見えない）
+# 残りの割合を、REEL_EMPTY〜1 に直した値（前の小窓の決まり。確認が使う）。0＝これから撮る分 / 1＝撮り終えた分
 func reel_fill(which: int) -> float:
 	var amount: float = film_frac if which == 0 else 1.0 - film_frac
 	return lerpf(REEL_EMPTY, 1.0, amount)
 
 
-# 小窓：銀のふち・奥の黒い底・巻いたフィルム（こげ茶）・灰色の芯と白い印・うすいガラス。
-# 窓の面は、カメラ本体の -X を向く（軸は X）
+# 横腹の表示：黒い板・細い銀のふち・光るバー・右はしの小さな「端子」の出っぱり（電池の絵の形）。板の面は、カメラ本体の -X を向く
 func _build_window(body: Node3D) -> void:
 	_window = Node3D.new()
-	_window.name = "FilmWindow"
+	_window.name = "CardGauge"
 	_window.position = WINDOW_AT
-	_window.rotation.z = PI * 0.5            # 円柱・輪の軸（Y）を、横向き（X）にする
 	body.add_child(_window)
-	var disc := func(r: float, h: float, y: float, mat: Material) -> MeshInstance3D:
+	var slab := func(size: Vector3, at: Vector3, color: Color, glow := 0.0) -> MeshInstance3D:
 		var mi := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = r
-		cm.bottom_radius = r
-		cm.height = h
-		cm.radial_segments = 32
-		cm.rings = 1
-		mi.mesh = cm
-		mi.material_override = mat
-		mi.position = Vector3(0, y, 0)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		return mi
-	var mat := func(c: Color, rough: float, metal := 0.0) -> StandardMaterial3D:
+		var bm := BoxMesh.new()
+		bm.size = size
+		mi.mesh = bm
 		var m := StandardMaterial3D.new()
-		m.albedo_color = c
-		m.roughness = rough
-		m.metallic = metal
-		return m
-	# 奥の底（窓の中の暗がり）。本体の面より、少し外に出す
-	_window.add_child(disc.call(WINDOW_R, 0.002, 0.0005, mat.call(Color("030304"), 1.0)))
-	# ふち：銀の輪（つまんだような段。安い後付けの部品に見える厚み）
-	var rim := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = WINDOW_R
-	tm.outer_radius = WINDOW_R + 0.0045
-	tm.rings = 32
-	tm.ring_segments = 8
-	rim.mesh = tm
-	rim.material_override = mat.call(Color("b9bcc2"), 0.35, 0.8)
-	rim.scale = Vector3(1.0, 0.55, 1.0)
-	rim.position = Vector3(0, 0.002, 0)
-	rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_window.add_child(rim)
-	# 回る所：巻き・芯・芯の印（回っているのが、印で分かる）
+		m.albedo_color = color
+		m.roughness = 0.5
+		if glow > 0.0:
+			m.emission_enabled = true
+			m.emission = color
+			m.emission_energy_multiplier = glow
+		mi.material_override = m
+		mi.position = at
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_window.add_child(mi)
+		return mi
+	slab.call(Vector3(0.0016, BAR_TALL + 0.008, BAR_LEN + 0.010), Vector3(-0.0008, 0, 0), Color("b9bcc2"))
+	slab.call(Vector3(0.0016, BAR_TALL + 0.005, BAR_LEN + 0.007), Vector3(-0.0012, 0, 0), Color("06070a"))
+	slab.call(Vector3(0.0016, BAR_TALL * 0.5, 0.003), Vector3(-0.0008, 0, BAR_LEN * 0.5 + 0.006), Color("b9bcc2"))
 	_spin = Node3D.new()
-	_spin.position = Vector3(0, 0.0025, 0)
+	_spin.position = Vector3(-0.0022, 0, -BAR_LEN * 0.5)      # バーの根元（ここから前へ伸びる）
 	_window.add_child(_spin)
-	var film := mat.call(Color("7a4524"), 0.28) as StandardMaterial3D
-	film.metallic_specular = 0.8              # フィルムの巻きの、つやの筋
-	_roll = disc.call(ROLL_FULL, 0.0022, 0.0, film)
+	_roll = slab.call(Vector3(0.0008, BAR_TALL, BAR_LEN), Vector3.ZERO, Marks.BAR_FULL, 1.6)
+	_window.remove_child(_roll)
 	_spin.add_child(_roll)
-	var hub: MeshInstance3D = disc.call(ROLL_FULL * REEL_EMPTY * 0.92, 0.0028, 0.0002, mat.call(Color("c4c7cc"), 0.4, 0.7))
-	_spin.add_child(hub)
-	var mark := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.0016, 0.0008, ROLL_FULL * REEL_EMPTY * 0.8)
-	mark.mesh = bm
-	mark.material_override = mat.call(Color("f2efe6"), 0.6)
-	mark.position = Vector3(0, 0.0018, ROLL_FULL * REEL_EMPTY * 0.42)
-	_spin.add_child(mark)
-	# ガラス：うすく、光だけ返す
-	var glass := mat.call(Color(0.8, 0.9, 1.0, 0.04), 0.15) as StandardMaterial3D
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.metallic_specular = 0.25
-	_window.add_child(disc.call(WINDOW_R + 0.0005, 0.0004, 0.0042, glass))
+	_roll.position = Vector3(0, 0, BAR_LEN * 0.5)
 
 
 func _show_film(delta: float) -> void:
 	_film_t += delta
-	var k := reel_fill(0)
-	_roll.scale = Vector3(k, 1.0, k)
-	if _film_rolling:
-		# 巻きが細いほど、速く回る
-		_spin.rotation.y = wrapf(_spin.rotation.y - delta * 2.6 / k, -PI, PI)
-	# 残りわずか：巻きが、がたつく
-	_spin.position = Vector3(0, 0.0025, sin(_film_t * 47.0) * 0.0012 if _film_low else 0.0)
-	# 残りわずか：録画灯が、せわしなく点滅する
+	var frac := film_frac if film_shown else 1.0
+	_spin.scale = Vector3(1.0, 1.0, maxf(frac, 0.02))
+	var bar: StandardMaterial3D = _roll.material_override
+	var color := Marks.bar_color(frac)
+	bar.albedo_color = color
+	bar.emission = color
+	# 残りわずか：バーと録画灯が、せわしなく点滅する
+	var blink := int(_film_t * 8.0) % 2 == 0
+	bar.emission_energy_multiplier = (2.6 if blink else 0.2) if _film_low else 1.6
 	var lamp: StandardMaterial3D = tally.material_override
-	lamp.emission_energy_multiplier = (8.0 if int(_film_t * 8.0) % 2 == 0 else 0.4) if _film_low else 4.0
+	lamp.emission_energy_multiplier = (8.0 if blink else 0.4) if _film_low else 4.0
 
 
 func _process(delta: float) -> void:

@@ -54,25 +54,25 @@ const JOBS := [
 	{"title":"お嬢様の大怪獣", "rank":1, "budget":380, "location":"倉庫", "site":0, "script":"kaiju", "bonus":"first_take", "bonus_title":"一発OKで撮り切る",
 		"scenes":["怪獣が街より大きく映る", "逃げる二人の背後で大爆発", "倒れた怪獣の前で勝利"],
 		"description":"遠近法と段ボールだけで、街ひとつ壊してみせよう。"},
-	# 場面の列（production_script.gd の beats）を持つ依頼：5場面を、フィルム1本のテイクで撮り切る。2日目から出る。
+	# 場面の列（production_script.gd の beats）を持つ依頼：5場面を、カード1枚のテイクで撮り切る。2日目から出る。
 	#   board：絵コンテの組（無ければ script と同じ）/ fee_all：全部の場面がそろったときの上乗せ（無ければ 300）
 	#   cast_at：見立てを数える場面 [怪獣と街が映った場面, 爆発が映った場面]（無ければ [0, 1]）
 	{"title":"怪獣、段ボールの街に現る・完全版", "rank":4, "budget":700, "location":"野外", "site":2, "script":"kaiju", "board":"kaiju5",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
-		"description":"5場面を、フィルム1本で止めずに撮る。怪獣は出番まで映さず、技で街だけを倒し、最後は寄りで万歳。場面は、台本を読める人が進める。"},
-	# カット割りの依頼（production_script.gd の cuts）：同じ5場面を、場面ごとにフィルムを止めて撮る。止めている間に、次の場面の用意（場転）
+		"description":"5場面を、カード1枚で止めずに撮る。怪獣は出番まで映さず、技で街だけを倒し、最後は寄りで万歳。場面は、台本を読める人が進める。"},
+	# カット割りの依頼（production_script.gd の cuts）：同じ5場面を、場面ごとに録画を止めて撮る。止めている間に、次の場面の用意（場転）
 	{"title":"怪獣ドラマ 第1話", "rank":4, "budget":650, "location":"室内スタジオ", "site":1, "script":"kaiju", "board":"kaiju5",
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":400, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
-		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れるとフィルムが止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
+		"description":"同じ5場面を、場面ごとにカットを割って撮る。場面が撮れると録画が止まる。止まっている間に、怪獣を出す・火薬を詰める・カメラを寄せる。用意ができたら、台本を読める人が 1 で回す。"},
 	# 最初の一本（debut）：会社の紹介動画。1日目は、これだけが来る。ネットに上げたあと、2日目から依頼の電話が来る
 	{"title":"わが社の紹介動画（ネット用・30秒）", "rank":1, "budget":300, "location":"会社の前", "site":1, "script":"castle", "board":"pr", "debut":true, "home":true,
 		# 夜に撮る（features/night_sky.gd）。顔はライトで照らす（1日目の講師が、ライトの立て方を教える。2026-11-13 ユーザー）
 		"night":true,
 		"bonus":"no_crew", "bonus_title":"スタッフ映り込み0.5秒以内", "fee_all":300,
 		"scenes":["社員紹介（一人ずつ寄り）", "お城も建てます", "爆発も、します", "ぜんぶ、格安で！（全員集合）"],
-		"description":"会社の紹介動画を、会社の前（事務所の正面）で撮る。情報商材の「バズる黄金の4カット」：一人ずつ寄りで社員紹介 → お城も建てます → 爆発も、します → 看板の前に全員集合。場面が撮れるとフィルムが止まるので、止まっている間に次の場面を用意して、1 で回す。"},
+		"description":"会社の紹介動画を、会社の前（事務所の正面）で撮る。情報商材の「バズる黄金の4カット」：一人ずつ寄りで社員紹介 → お城も建てます → 爆発も、します → 看板の前に全員集合。場面が撮れると録画が止まるので、止まっている間に次の場面を用意して、1 で回す。"},
 	# 場所が変わるカット割り：城の門 → 月夜の丘（城を片づけて月を出す）→ 爆発 → 寄りで決め
 	{"title":"旅する二人", "rank":3, "budget":520, "location":"倉庫", "site":0, "script":"castle", "board":"travel",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":350, "cast_at":[1, 2],
@@ -167,7 +167,7 @@ const JOBS := [
 	{"title":"ハリウッド監督の新作・大怪獣", "rank":5, "finale":true, "budget":900, "location":"野外", "site":2, "script":"kaiju", "board":"kaiju5",
 		"bonus":"first_take", "bonus_title":"一発OKで撮り切る", "fee_all":1500, "cast_at":[1, 2],
 		"scenes":["街を歩いてくる", "怪獣あらわる", "怪獣の技で街がこわれる", "怪獣がひとりでに倒れる", "倒れた怪獣の前で勝利"],
-		"description":"ハリウッドの監督から FAX。『あなたたちの怪獣映画を見た。私の新作の怪獣の場面を、あなたたちのやり方で撮ってほしい』。5場面を、フィルム1本で止めずに撮る。これが撮れれば、ハリウッドだ。"},
+		"description":"ハリウッドの監督から FAX。『あなたたちの怪獣映画を見た。私の新作の怪獣の場面を、あなたたちのやり方で撮ってほしい』。5場面を、カード1枚で止めずに撮る。これが撮れれば、ハリウッドだ。"},
 ]
 const HOME_TRUCK := Vector3(80, 0, 18)
 const SITE_TRUCK := Vector3(16.3, 0, 6.5)
@@ -1687,7 +1687,7 @@ func _physics_process(delta: float) -> void:
 	elif phase in [1,2]:
 		prep_left -= delta
 	elif phase == 4 and not expired and game.state != game.S.DELIVERED:
-		if game.state == game.S.TAKE and not game.take_held():     # 場転でフィルムを止めている間は、映り込みを数えない
+		if game.state == game.S.TAKE and not game.take_held():     # 場転で録画を止めている間は、映り込みを数えない
 			notes.tick(delta)
 			bonus_progress = "映り込み %.1f秒" % notes.crew_seconds if job()["bonus"] == "no_crew" else ("月 %.1f / 2秒" % notes.moon_seconds if job()["bonus"] == "moon" else "最初のテイク" if game.takes.is_empty() else "撮り直し中")
 		_wind(delta)
