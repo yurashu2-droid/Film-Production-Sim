@@ -168,3 +168,33 @@
   - 目が見えないので、気持ちは口・まゆ・サングラスの傾き・ひび・汗で見せる
 - 箱の演出（ユーザー「最初のホログラムも、ドローンが先に出てくるほうが自然」）：ふたが弾ける → ドローンが箱から飛び出して止まる（1.1 秒）→ 下へ光を投げて、箱の前の床に講師が映る。話が済むと、同じ場所から 1 日目の案内のドローンが引き継ぐ（`delivery_box.gd` の `drone`）
   - 講師を箱の上に映す案は駄目だった：頭がひさしに届き、ドローンが屋根の中に隠れた
+
+### 2026-11-14 編集者を選ぶ場面の案（編集に出す棚）
+
+- 道具：Codex CLI（gpt-6-sol・medium）。見本：`concept/office_front_ingame.png`・`tests/shots/01_order.png`。できた絵：`godot/assets/concept/editor_shelf_v1.png`
+- 案：事務所の壁の仕切り棚（6 つ。編集者ごとに内張りと小物が違う）へ、フィルム缶を入れて頼む。上に名刺・値札・見本の小さな画面。右の郵便受けは「編集なしで納品」。まだユーザーの了承前
+- 指示文：
+
+```
+Generate ONE image with your image generation tool and save it as godot/assets/concept/editor_shelf_v1.png (16:9, about 1536x864). Do not edit any other file. Reply with the saved path only.
+
+Context: this is concept art for a co-op party game about a tiny, broke film production company (Godot, stylized low-poly 3D). The two attached images are real screenshots of the game: match their look, materials, colours and level of detail exactly. Players are small felt-doll characters; do NOT draw any characters or people in this image.
+
+What to draw: the "send it to an editor" corner inside the company's cramped office. It is a physical object the players walk up to, not a menu.
+- A chunky homemade wooden pigeonhole shelf fixed to the cream plaster wall, 3 columns x 2 rows = 6 open compartments, each big enough for one round metal film can (about 30 cm wide). The shelf is built from mismatched plywood and old drawers, slightly crooked, with packing tape and a few nails showing.
+- Each compartment belongs to one freelance editor and looks clearly different, so you can tell them apart without reading:
+  1. plain and tidy: grey felt lining, a neat stack of labels, a small ruler.
+  2. TV-shopping style: bright yellow lining, starburst price stickers, a tiny megaphone.
+  3. dreamy music-video style: violet lining, fairy lights, a small mirror ball.
+  4. avant-garde: lining painted in clashing stripes, a rubber chicken, a kaleidoscope, things glued upside down.
+  5. master craftsman: dark walnut lining, brass fittings, a single small trophy, a velvet cushion for the can.
+  6. loud and flashy: red and black lining, a small strobe lamp, a speaker cone, lightning-bolt stickers.
+- Above each compartment: a small BLANK business card pinned with a thumbtack and a BLANK price tag hanging on a string (leave them blank, no letters or numbers). Under each card, a tiny old CRT preview screen the size of a matchbox glowing softly (blank glow, no picture detail needed).
+- One compartment (number 5) already has a silver film can sitting in it, with a paper label taped on (blank).
+- To the right of the shelf, separate from it: a plain dented metal mail slot in the wall with a wire basket under it (this is "deliver as it is, no editing"). 
+- In front, on a small wooden table: two more silver film cans waiting, one with its lid slightly off showing a curl of film, a roll of tape, a stamp pad.
+- A bare bulb or clip lamp lights the shelf warmly; the rest of the office is dim teal. Cables taped to the wooden floor. No roof beams needed.
+Camera: eye level, three-quarter view from slightly left, the shelf fills about 60% of the frame, everything readable at a glance.
+
+Style: Stylized low-poly 3D game art, soft toon shading, warm lamp light, muted pastel colors (cream #e6d9bb, teal #4e777c, rust red #8f5943, wood #94704a, mustard), clean chunky shapes, slightly cluttered and homemade, Japanese downtown small-business atmosphere, no text, no letters, no numbers, no people, no characters.
+```
