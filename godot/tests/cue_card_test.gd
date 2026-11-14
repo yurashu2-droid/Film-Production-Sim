@@ -56,11 +56,15 @@ func run() -> void:
 	cards.editor.flush()
 	check(card.ink.get_pixel(512,sample_y).r < 0.2, "paint stroke immediately appears on physical card")
 	check(card.surface.get_surface_override_material(card._ink_surface).albedo_texture == card.texture, "front face uses live drawing texture")
+	# 持った物は、拾った向きのまま視点について回る（main.gd の hold_frame）。下を見ても、手元から見たカンペの向きは変わらない
+	var level: Array = game.hold_target(player.peer_id,card)
+	var view_level := Basis.from_euler(Vector3(player.aim_pitch,player.aim_yaw,0.0))
 	player.aim_pitch = -0.9
-	player.hold_pitch = 0.6
 	var carry: Array = game.hold_target(player.peer_id,card)
-	var front := Basis.from_euler(Vector3(carry[3],carry[1],0)) * Vector3.BACK
-	check(front.dot(player.flat_forward()) > 0.99 and is_zero_approx(carry[3]), "readable face remains upright toward person in front")
+	var view_down := Basis.from_euler(Vector3(player.aim_pitch,player.aim_yaw,0.0))
+	var drift: float = Quaternion(view_level.inverse() * (level[4] as Basis)).angle_to(Quaternion(view_down.inverse() * (carry[4] as Basis)))
+	print("CUE_CARD_MEASURE 視点から見た向きのずれ=%.1f度" % rad_to_deg(drift))
+	check(drift < 0.05, "the card keeps its place in the hands when looking down")
 	check(carry[0].y > player.vis.grip_pos(false).y, "hands support lower part of card")
 	var snapshot: Array = card.get_state()
 	cards.h_clear(card.pid)

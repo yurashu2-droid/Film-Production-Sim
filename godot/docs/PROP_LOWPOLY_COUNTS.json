@@ -1,0 +1,162 @@
+[
+  {
+    "file": "P002_ring_box_rebuilt.glb",
+    "before_triangles": 3686,
+    "after_triangles": 2694
+  },
+  {
+    "file": "P003_heart_chocolates_rebuilt.glb",
+    "before_triangles": 13348,
+    "after_triangles": 12612
+  },
+  {
+    "file": "P004_perfume_rebuilt.glb",
+    "before_triangles": 1864,
+    "after_triangles": 1288
+  },
+  {
+    "file": "P005_hand_mirror_rebuilt.glb",
+    "before_triangles": 5248,
+    "after_triangles": 4376
+  },
+  {
+    "file": "P006_folding_fan_rebuilt.glb",
+    "before_triangles": 1368,
+    "after_triangles": 1256
+  },
+  {
+    "file": "P007_parasol_rebuilt.glb",
+    "before_triangles": 15244,
+    "after_triangles": 9324
+  },
+  {
+    "file": "P008_tulip_bouquet_rebuilt.glb",
+    "before_triangles": 10872,
+    "after_triangles": 10808
+  },
+  {
+    "file": "P009_ribbon_gift_rebuilt.glb",
+    "before_triangles": 1400,
+    "after_triangles": 1144
+  },
+  {
+    "file": "P010_masquerade_mask_rebuilt.glb",
+    "before_triangles": 5228,
+    "after_triangles": 4784
+  },
+  {
+    "file": "P011_magnifying_glass_rebuilt.glb",
+    "before_triangles": 4948,
+    "after_triangles": 3636
+  },
+  {
+    "file": "P012_detective_notebook_rebuilt.glb",
+    "before_triangles": 5964,
+    "after_triangles": 4156
+  },
+  {
+    "file": "P013_pocket_watch_rebuilt.glb",
+    "before_triangles": 7104,
+    "after_triangles": 5344
+  },
+  {
+    "file": "P014_skeleton_key_rebuilt.glb",
+    "before_triangles": 2620,
+    "after_triangles": 1660
+  },
+  {
+    "file": "P015_evidence_bag_rebuilt.glb",
+    "before_triangles": 3672,
+    "after_triangles": 2472
+  },
+  {
+    "file": "P016_flashlight_rebuilt.glb",
+    "before_triangles": 7768,
+    "after_triangles": 4072
+  },
+  {
+    "file": "P017_detective_badge_rebuilt.glb",
+    "before_triangles": 3448,
+    "after_triangles": 2552
+  },
+  {
+    "file": "P053_walkie_talkie_rebuilt.glb",
+    "before_triangles": 4300,
+    "after_triangles": 1900
+  },
+  {
+    "file": "P054_headset_rebuilt.glb",
+    "before_triangles": 6168,
+    "after_triangles": 3756
+  },
+  {
+    "file": "P055_headphones_rebuilt.glb",
+    "before_triangles": 8216,
+    "after_triangles": 4948
+  },
+  {
+    "file": "P058_lens_case_rebuilt.glb",
+    "before_triangles": 21004,
+    "after_triangles": 9820
+  },
+  {
+    "file": "P059_tabletop_tripod_rebuilt.glb",
+    "before_triangles": 5240,
+    "after_triangles": 2508
+  },
+  {
+    "file": "P060_audio_recorder_rebuilt.glb",
+    "before_triangles": 11012,
+    "after_triangles": 6980
+  },
+  {
+    "file": "P061_field_mixer_rebuilt.glb",
+    "before_triangles": 13040,
+    "after_triangles": 5760
+  },
+  {
+    "file": "P062_portable_monitor_rebuilt.glb",
+    "before_triangles": 5478,
+    "after_triangles": 2718
+  },
+  {
+    "file": "S026_director_chair_rebuilt.glb",
+    "before_triangles": 6604,
+    "after_triangles": 4556
+  },
+  {
+    "file": "S027_two_seat_sofa_rebuilt.glb",
+    "before_triangles": 7240,
+    "after_triangles": 7096
+  },
+  {
+    "file": "S028_wing_armchair_rebuilt.glb",
+    "before_triangles": 9120,
+    "after_triangles": 8776
+  },
+  {
+    "file": "S029_swivel_bar_stool_rebuilt.glb",
+    "before_triangles": 8068,
+    "after_triangles": 4296
+  },
+  {
+    "file": "S030_dining_table_rebuilt.glb",
+    "before_triangles": 1836,
+    "after_triangles": 1004
+  },
+  {
+    "file": "S031_writing_desk_rebuilt.glb",
+    "before_triangles": 7240,
+    "after_triangles": 4176
+  },
+  {
+    "file": "S032_bar_counter_rebuilt.glb",
+    "before_triangles": 5732,
+    "after_triangles": 2388
+  },
+  {
+    "file": "S033_single_bed_rebuilt.glb",
+    "before_triangles": 9856,
+    "after_triangles": 7872
+  }
+]

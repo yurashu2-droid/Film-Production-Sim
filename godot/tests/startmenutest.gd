@@ -42,6 +42,9 @@ func _run() -> void:
 		image.save_png("res://tests/shots/start-menu.png")
 		get_tree().quit()
 		return
+	# This regression test exercises the existing LAN transport explicitly.
+	menu.connection_choice.select(1)
+	menu._connection_changed(1)
 	if role == "failure":
 		menu.address_input.text = "127.0.0.1"
 		menu.join_button.pressed.emit()
@@ -94,6 +97,11 @@ func _run() -> void:
 		return
 	await _wait(0.7)
 	var game: Node = menu.game_node
+	# 事務所へ移す知らせは、名簿と物の状態の一式のあとに届く（物が多いと、少しかかる）。着くまで待つ
+	elapsed = 0.0
+	while not (game.local_player().position.x > 60 and game.players[1].position.x > 60) and elapsed < 5.0:
+		await _wait(0.1)
+		elapsed += 0.1
 	_check(game.startup_complete and get_tree().multiplayer_poll, "joining resumes network only after game is ready")
 	var locals := 0
 	for player: Node in game.players.values():
@@ -111,6 +119,8 @@ func _run() -> void:
 	_check(_host_state.get("count") == 2 and _host_state.get("locals") == 1 and _host_state.get("host_local",false) and _host_state.get("office",false) and _host_state.get("phase") == 0 and _host_state.get("path") == str(game.get_path()),"host roster and Game node path match")
 	if role == "client-disconnect":
 		var old_game: Node = game
+		var peer_left_count: int = Net.get_signal_connection_list("peer_left").size()
+		var joined_host_count: int = Net.get_signal_connection_list("joined_host").size()
 		elapsed = 0.0
 		while menu.game_node != null and elapsed < 5.0:
 			await _wait(0.1)
@@ -122,7 +132,7 @@ func _run() -> void:
 			await _wait(0.05)
 		var next_game: Node = menu.game_node
 		_check(next_game.name == "Game" and str(next_game.get_path()) == "/root/StartMenu/Game" and next_game.players.size() == 1 and next_game.players[1].is_local and next_game.local_player().is_local,"solo retry keeps stable Game path and one local player")
-		_check(Net.get_signal_connection_list("peer_left").size() == 1 and Net.get_signal_connection_list("joined_host").size() == 2,"new Game has one fresh signal subscription")
+		_check(Net.get_signal_connection_list("peer_left").size() == peer_left_count and Net.get_signal_connection_list("joined_host").size() == joined_host_count,"new Game restores exactly one set of fresh signal subscriptions")
 		_check(menu.host_addresses().all(func(address: String): return address.is_valid_ip_address() and not address.contains(":") and not address.begins_with("127.") and not address.begins_with("169.254.")),"host address helper filters local IPv4")
 	print("CLIENT STARTMENUTEST_FAIL" if _failed else "CLIENT STARTMENUTEST_OK")
 	get_tree().quit(1 if _failed else 0)

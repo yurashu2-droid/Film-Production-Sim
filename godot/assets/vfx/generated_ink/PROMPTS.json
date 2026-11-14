@@ -1,0 +1,10 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-09",
+  "transparent_background": true,
+  "prompts": {
+    "ink": "Use case: stylized-concept. Asset type: real-time Godot VFX transparent texture, NOT a finished scene. Make one isolated billowing Japanese sumi ink fluid tuft, charcoal black with translucent black fringes, rich organic branching and curling eddies, fine diluted wisps. A vertical brush-fluid shape flowing from narrow bottom feed into a wide asymmetrical rolling shoulder and split ragged tips. Neutral unlit ink, NO gray colored smoke, NO gold, no environment, no shadows, no checkerboard, no text, no frame. True transparent alpha and clear 12% margins. Texture detail authored for flowing deformation, highly irregular fluid silhouette, no solid orb or geometric cone.",
+    "gold": "Use case: stylized-concept. Asset type: Godot VFX transparent ribbon texture, NOT a finished scene. Isolated luminous gold liquid brush current flowing vertically upward, asymmetrical wide belly, torn branching filaments and sparse gold leaf grains, warm amber outer edges with pale ivory-gold inner current. Fine liquid turbulence and striations along flow; one continuous broad wispy stroke with deliberate translucent gaps, not thin laser lines. True transparent alpha, no background, no cast shadow, no black smoke, no text, no lettering, no frame, no checkerboard. Clear 12% margins.",
+    "splash": "Use case: stylized-concept. Asset type: Godot real-time VFX transparent impact texture. One isolated asymmetrical Japanese sumi ink splatter seen flat straight-on from above, charcoal black liquid splash with lobed flowing shoulders, ragged brushwork fringes and connected sweeping irregular arms. Tiny warm gold foil flecks embedded sparingly. Center not solid circle; transparent gaps, diluted fine fringe. Broad curved splatter, not pointed radial spikes. True transparent alpha, no paper, no environment, no cast shadow, no lettering, no frame, no checkerboard, clear 12% margins."
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "scrap_toilet",
+    "original_file": "S042_cartoon_toilet",
+    "file": "S042_cartoon_toilet_rebuilt"
+  },
+  {
+    "kind": "scrap_mug",
+    "original_file": "P036_mug",
+    "file": "P036_mug_rebuilt"
+  },
+  {
+    "kind": "scrap_rolling_pin",
+    "original_file": "P037_rolling_pin",
+    "file": "P037_rolling_pin_rebuilt"
+  },
+  {
+    "kind": "scrap_frying_pan",
+    "original_file": "P038_frying_pan",
+    "file": "P038_frying_pan_rebuilt"
+  },
+  {
+    "kind": "scrap_plunger",
+    "original_file": "P045_plunger",
+    "file": "P045_plunger_rebuilt"
+  },
+  {
+    "kind": "scrap_broom",
+    "original_file": "P046_broom",
+    "file": "P046_broom_rebuilt"
+  }
+]

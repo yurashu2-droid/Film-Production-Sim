@@ -61,6 +61,8 @@ func _process(_delta: float) -> void:
 		"dust_count": get_tree().get_nodes_in_group("dash_dust").size(),
 		"recorded_dust": game._rec_events.filter(func(e: Array): return e[1] == "dash_dust").size(),
 		"carton_open": carton.opened, "carton_amount": carton.open_amount,
+		# 持った物の目標の向き：掴んだときの向き（prop.hold_transform）を持つホストだけが計算できる
+		"target_rot": (game.hold_target(client.peer_id, clap)[4] as Basis).get_rotation_quaternion() if clap.holder == client.peer_id else Quaternion.IDENTITY,
 	})
 
 
@@ -156,7 +158,13 @@ func _run() -> void:
 	Input.action_press("run")
 	Input.action_press("move_forward")
 	await _wait(0.06)
+	# 決まった時間ではなく、走り出しと砂ぼこりが相手の画面に届くまで待つ（処理が重い瞬間でも数え損ねないように）
 	var motion_sync: Dictionary = await _ask_host()
+	var waited := 0.0
+	while (not motion_sync.get("run_start_seen", false) or motion_sync.get("dust_count", 0) < 1) and waited < 1.5:
+		await _wait(0.05)
+		waited += 0.05
+		motion_sync = await _ask_host()
 	Input.action_release("move_forward")
 	Input.action_release("run")
 	game.input_locked = true
@@ -169,15 +177,24 @@ func _run() -> void:
 	var p0: Vector3 = fx.global_position
 	me.aim_yaw = -1.0
 	game.act_grab(fx.pid)
+	await _wait(0.15)
+	# The old movement assertion belongs to explicit pull, not passive acquisition.
+	game.act_hold_command("pull")
 	await _wait(1.5)
 	var moved: float = fx.global_position.distance_to(p0)
+	# 引くと、参加者の画面でも物が動く（1.5秒で約0.44m。10-14・10-15に計った値）
 	print(who, " grab held=", me.held == fx.pid, " prop moved on my screen=%.2f" % moved)
-	var ok: bool = choice_ok and motion_net_ok and dust_net_ok and me.held == fx.pid and moved > 0.5 and game.state == S.PREP and game.fx.absent
+	var ok: bool = choice_ok and motion_net_ok and dust_net_ok and me.held == fx.pid and moved > 0.3 and game.state == S.PREP and game.fx.absent
+	# 床や机に当たったままだと、回した向きまで回れない（物理で止まる）。視点を上げて浮かせてから回す
+	me.aim_pitch = 0.35
+	await _wait(0.8)
 	me.hold_yaw = 0.45
 	me.hold_pitch = 0.35
 	await _wait(0.8)
 	var carry_sync: Dictionary = await _ask_host()
-	var rotated := Basis.from_euler(Vector3(me.hold_pitch, me.aim_yaw + me.hold_yaw, 0.0))
+	# The acquired full basis (including roll) is now the rotation reference.
+	# 目標の向きは、掴んだときの向き（ホストだけが持つ）から決まるので、ホストが計算した目標と、自分の画面の向きを比べる
+	var rotated := Basis(carry_sync.get("target_rot", Quaternion.IDENTITY) as Quaternion)
 	var carry_ok: bool = absf(carry_sync.get("pitch", -10.0) - 0.35) < 0.01 and carry_sync.get("animation", "").begins_with("onehand_")
 	carry_ok = carry_ok and fx.global_basis.orthonormalized().get_rotation_quaternion().angle_to(rotated.get_rotation_quaternion()) < 0.2
 	print("CARRY_NET_OK" if carry_ok else "CARRY_NET_FAIL", " ", carry_sync)

@@ -1,0 +1,186 @@
+[
+  {
+    "file": "P053_walkie_talkie_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 1900,
+    "blender_bounds_min": [
+      -0.07750000059604645,
+      -0.059000007808208466,
+      0.005000000819563866
+    ],
+    "blender_bounds_max": [
+      0.06650000065565109,
+      0.0867825597524643,
+      0.44300001859664917
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_walkie_talkie",
+    "original_file": "P053_walkie_talkie",
+    "target_normalization_size": 0.45,
+    "target_mass": 0.4,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P054_headset_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 3756,
+    "blender_bounds_min": [
+      -0.15499936044216156,
+      -0.16899999976158142,
+      0.006842669099569321
+    ],
+    "blender_bounds_max": [
+      0.1264999955892563,
+      0.0934860110282898,
+      0.35899999737739563
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_headset",
+    "original_file": "P054_headset",
+    "target_normalization_size": 0.4,
+    "target_mass": 0.3,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P055_headphones_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 4948,
+    "blender_bounds_min": [
+      -0.14710663259029388,
+      -0.052000001072883606,
+      0.006842669099569321
+    ],
+    "blender_bounds_max": [
+      0.14710663259029388,
+      0.0934860110282898,
+      0.35899999737739563
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_headphones",
+    "original_file": "P055_headphones",
+    "target_normalization_size": 0.45,
+    "target_mass": 0.4,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P058_lens_case_rebuilt.glb",
+    "mesh_batches": 8,
+    "triangles": 9820,
+    "blender_bounds_min": [
+      -0.10599999874830246,
+      -0.10599999874830246,
+      0.012000000104308128
+    ],
+    "blender_bounds_max": [
+      0.10599999874830246,
+      0.13535389304161072,
+      0.4264640808105469
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_lens_case",
+    "original_file": "P058_lens_case",
+    "target_normalization_size": 0.45,
+    "target_mass": 0.5,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P059_tabletop_tripod_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 2508,
+    "blender_bounds_min": [
+      -0.2359800636768341,
+      -0.2680000066757202,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.2359800636768341,
+      0.148499995470047,
+      0.37550002336502075
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_tabletop_tripod",
+    "original_file": "P059_tabletop_tripod",
+    "target_normalization_size": 0.55,
+    "target_mass": 0.6,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P060_audio_recorder_rebuilt.glb",
+    "mesh_batches": 8,
+    "triangles": 6980,
+    "blender_bounds_min": [
+      -0.10581901669502258,
+      -0.06400000303983688,
+      0.0034999996423721313
+    ],
+    "blender_bounds_max": [
+      0.10581901669502258,
+      0.05199999734759331,
+      0.34661319851875305
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_audio_recorder",
+    "original_file": "P060_audio_recorder",
+    "target_normalization_size": 0.4,
+    "target_mass": 0.4,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P061_field_mixer_rebuilt.glb",
+    "mesh_batches": 8,
+    "triangles": 5760,
+    "blender_bounds_min": [
+      -0.23456531763076782,
+      -0.15349999070167542,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.23456531763076782,
+      0.14749999344348907,
+      0.1397104561328888
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_field_mixer",
+    "original_file": "P061_field_mixer",
+    "target_normalization_size": 0.55,
+    "target_mass": 0.8,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  },
+  {
+    "file": "P062_portable_monitor_rebuilt.glb",
+    "mesh_batches": 8,
+    "triangles": 2718,
+    "blender_bounds_min": [
+      -0.26871049404144287,
+      -0.07050000131130219,
+      0.00449998676776886
+    ],
+    "blender_bounds_max": [
+      0.2687104642391205,
+      0.10649999976158142,
+      0.36949998140335083
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_portable_monitor",
+    "original_file": "P062_portable_monitor",
+    "target_normalization_size": 0.55,
+    "target_mass": 0.8,
+    "finite_geometry": true,
+    "export_y_up": true,
+    "front_godot": "+Z"
+  }
+]

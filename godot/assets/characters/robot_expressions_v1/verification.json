@@ -1,0 +1,22 @@
+{
+  "asset_audit": "ROBOT_EXPRESSIONS_FINAL_AUDIT_OK",
+  "individual_pngs": 6,
+  "native_pngs": 6,
+  "atlas_matches_individuals": true,
+  "source_model_and_atlas_hashes_unchanged": true,
+  "godot_captures": 20,
+  "preview_log_errors": 0,
+  "own_hidden_session_stopped": true,
+  "repository_tests": {
+    "command": "bash run_tests.sh",
+    "exit_code": 1,
+    "total": 44,
+    "passed": 27,
+    "failed": 17,
+    "timeouts": 0,
+    "not_run_graphics": 9,
+    "logs": "tools/diagnostics/test-runs/20261012T030245-1734",
+    "failed_cases": ["handling-physics", "handling-net-client", "handling-net-host", "adhesive-net-client", "adhesive-net-host", "cue-card", "cue-card-net-client", "monitor-net-client", "performance-net-client", "performance-net-host", "production-net-client", "production-net-host", "daily", "kaiju", "autotest", "autotest-balcony", "legacy-net-client"],
+    "scope_note": "Failures occur in game handling/network/resource cleanup tests; this task only adds an isolated expression folder. Concurrent game work was left untouched."
+  }
+}

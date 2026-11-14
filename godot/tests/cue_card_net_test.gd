@@ -9,7 +9,7 @@ var original: Array = []
 
 func _ready() -> void:
 	host = "--cue-host" in OS.get_cmdline_user_args()
-	get_tree().create_timer(30).timeout.connect(func(): get_tree().quit(2))
+	get_tree().create_timer(60).timeout.connect(func(): get_tree().quit(2))
 	run.call_deferred()
 
 func wait(seconds := 0.15) -> void:
@@ -44,13 +44,15 @@ func request(action: String) -> void:
 
 func run() -> void:
 	if host: check(Net.host(PORT) == OK,"host socket")
-	else:
-		check(Net.join("127.0.0.1",PORT) == OK,"client socket")
-		await Net.joined_host
+	else: check(Net.join("127.0.0.1",PORT) == OK,"client socket")
+	# 先にゲームを読み込んでから、つながるのを待つ（pair_net_base.gd と同じ順）。つないでから読み込むと、
+	# 読み込みの間は通信が止まるので、参加者の接続が切れることがある。参加者の hello は、ゲーム自身が接続の合図で送る
 	game = load("res://production_game.tscn").instantiate()
 	game.name = "Game"
 	get_tree().root.add_child(game)
 	while not game.startup_complete: await get_tree().process_frame
+	if not host:
+		while multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED: await wait(0.05)
 	var cards: Node = game.cue_cards
 	if host:
 		game.production.phase = 4
@@ -63,7 +65,6 @@ func run() -> void:
 		while not done: await wait(0.05)
 		await wait(0.3)
 	else:
-		game.h_hello.rpc_id(1)
 		while game.local_player() == null or game.production.phase != 4: await wait(0.05)
 		await wait(0.3)
 		check(cards.card.ink.get_pixel(512,320).is_equal_approx(Color.RED),"late join receives existing paint")

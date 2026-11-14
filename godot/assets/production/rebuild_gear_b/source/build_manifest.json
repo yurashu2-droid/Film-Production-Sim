@@ -1,0 +1,702 @@
+[
+  {
+    "file": "P063_battery_pack_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 844,
+    "blender_bounds_min": [
+      -0.04800000041723251,
+      -0.04135000333189964,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.04800000414252281,
+      0.04699999839067459,
+      0.15549999475479126
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_battery_pack",
+    "original_file": "P063_battery_pack",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.35,
+    "old_bounds_min": [
+      -0.04800000041723251,
+      -0.04135000333189964,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.04800000041723251,
+      0.04699999839067459,
+      0.15549999475479126
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P064_battery_charger_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 804,
+    "blender_bounds_min": [
+      -0.11999999731779099,
+      -0.07999999821186066,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.12000000476837158,
+      0.09300000220537186,
+      0.08250000327825546
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_battery_charger",
+    "original_file": "P064_battery_charger",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.45,
+    "old_bounds_min": [
+      -0.11999999731779099,
+      -0.07999999821186066,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.11999999731779099,
+      0.09300000220537186,
+      0.08250000327825546
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P066_extension_reel_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 1872,
+    "blender_bounds_min": [
+      -0.125,
+      -0.09600000083446503,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.125,
+      0.12600000202655792,
+      0.3089999854564667
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_extension_reel",
+    "original_file": "P066_extension_reel",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.55,
+    "old_bounds_min": [
+      -0.125,
+      -0.09600000083446503,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.125,
+      0.12600000202655792,
+      0.3089999854564667
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P071_script_binder_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 652,
+    "blender_bounds_min": [
+      -0.1274999976158142,
+      -0.03135000169277191,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.13750000298023224,
+      0.02850000001490116,
+      0.3199999928474426
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_script_binder",
+    "original_file": "P071_script_binder",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.55,
+    "old_bounds_min": [
+      -0.1274999976158142,
+      -0.03135000169277191,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.13750000298023224,
+      0.02850000001490116,
+      0.3199999928474426
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P072_clipboard_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 276,
+    "blender_bounds_min": [
+      -0.10999999940395355,
+      -0.032999999821186066,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.10999999940395355,
+      0.009000000543892384,
+      0.31199997663497925
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_clipboard",
+    "original_file": "P072_clipboard",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.10999999940395355,
+      -0.032999999821186066,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.10999999940395355,
+      0.008999999612569809,
+      0.31199997663497925
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P073_storyboard_pad_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 744,
+    "blender_bounds_min": [
+      -0.15000000596046448,
+      -0.02800000086426735,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.15000002086162567,
+      0.011999999172985554,
+      0.2199999988079071
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_storyboard_pad",
+    "original_file": "P073_storyboard_pad",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.55,
+    "old_bounds_min": [
+      -0.15000000596046448,
+      -0.02800000086426735,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.15000000596046448,
+      0.012000000104308128,
+      0.2199999988079071
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P074_cue_cards_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 604,
+    "blender_bounds_min": [
+      -0.17499999701976776,
+      -0.019500000402331352,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.17499999701976776,
+      0.017500000074505806,
+      0.26100000739097595
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_cue_cards",
+    "original_file": "P074_cue_cards",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.6,
+    "old_bounds_min": [
+      -0.17499999701976776,
+      -0.019500000402331352,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.17499999701976776,
+      0.017500000074505806,
+      0.26100000739097595
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P075_color_checker_rebuilt.glb",
+    "mesh_batches": 26,
+    "triangles": 376,
+    "blender_bounds_min": [
+      -0.11999999731779099,
+      -0.014499999582767487,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.11999999731779099,
+      0.007500000298023224,
+      0.17000000178813934
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_color_checker",
+    "original_file": "P075_color_checker",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.45,
+    "old_bounds_min": [
+      -0.11999999731779099,
+      -0.014499999582767487,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.11999999731779099,
+      0.007499999832361937,
+      0.17000000178813934
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P076_focus_chart_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 104,
+    "blender_bounds_min": [
+      -0.12999999523162842,
+      -0.020999999716877937,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.12999999523162842,
+      0.0064999996684491634,
+      0.25999999046325684
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_focus_chart",
+    "original_file": "P076_focus_chart",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.12999999523162842,
+      -0.020999999716877937,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.12999999523162842,
+      0.006500000134110451,
+      0.25999999046325684
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P078_bounce_reflector_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 400,
+    "blender_bounds_min": [
+      -0.2789999842643738,
+      -0.012000038288533688,
+      -2.9802322387695312e-08
+    ],
+    "blender_bounds_max": [
+      0.2789999842643738,
+      0.03480027616024017,
+      0.5579999685287476
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_bounce_reflector",
+    "original_file": "P078_bounce_reflector",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.8,
+    "old_bounds_min": [
+      -0.2789999842643738,
+      -0.012000038288533688,
+      -2.9802322387695312e-08
+    ],
+    "old_bounds_max": [
+      0.2789999842643738,
+      0.03480027616024017,
+      0.5579999685287476
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P079_light_flag_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 108,
+    "blender_bounds_min": [
+      -0.1889999955892563,
+      -0.014000000432133675,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.18900001049041748,
+      0.0139999995008111,
+      0.48899999260902405
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_light_flag",
+    "original_file": "P079_light_flag",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.75,
+    "old_bounds_min": [
+      -0.1889999955892563,
+      -0.014000000432133675,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.1889999955892563,
+      0.014000000432133675,
+      0.48899999260902405
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P080_spring_clamp_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 412,
+    "blender_bounds_min": [
+      -0.07292559742927551,
+      -0.049000002443790436,
+      0.0010083839297294617
+    ],
+    "blender_bounds_max": [
+      0.07292560487985611,
+      0.036500003188848495,
+      0.2153879702091217
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_spring_clamp",
+    "original_file": "P080_spring_clamp",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.4,
+    "old_bounds_min": [
+      -0.07292559742927551,
+      -0.049000002443790436,
+      0.0010083839297294617
+    ],
+    "old_bounds_max": [
+      0.07292559742927551,
+      0.036500006914138794,
+      0.2153879702091217
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P082_articulating_arm_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 488,
+    "blender_bounds_min": [
+      -0.12999999523162842,
+      -0.046000003814697266,
+      -6.345287850706427e-09
+    ],
+    "blender_bounds_max": [
+      0.1640000194311142,
+      0.034999996423721313,
+      0.28999999165534973
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_articulating_arm",
+    "original_file": "P082_articulating_arm",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.12999999523162842,
+      -0.046000003814697266,
+      -6.345287850706427e-09
+    ],
+    "old_bounds_max": [
+      0.164000004529953,
+      0.03500000014901161,
+      0.28999999165534973
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P083_interview_mic_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 516,
+    "blender_bounds_min": [
+      -0.038999997079372406,
+      -0.039000000804662704,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.039000004529953,
+      0.039000004529953,
+      0.2994999885559082
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_interview_mic",
+    "original_file": "P083_interview_mic",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.038999997079372406,
+      -0.039000000804662704,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.039000000804662704,
+      0.039000000804662704,
+      0.2994999885559082
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P084_small_speaker_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 588,
+    "blender_bounds_min": [
+      -0.0949999988079071,
+      -0.10600000619888306,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.0950000062584877,
+      0.07500000298023224,
+      0.3044205605983734
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_small_speaker",
+    "original_file": "P084_small_speaker",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.0949999988079071,
+      -0.10600000619888306,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.0949999988079071,
+      0.07500000298023224,
+      0.3044205605983734
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P086_timecode_display_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 876,
+    "blender_bounds_min": [
+      -0.14000000059604645,
+      -0.048350002616643906,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.14000001549720764,
+      0.03500000387430191,
+      0.10450000315904617
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_timecode_display",
+    "original_file": "P086_timecode_display",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.5,
+    "old_bounds_min": [
+      -0.14000000059604645,
+      -0.048350002616643906,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.14000000059604645,
+      0.03500000014901161,
+      0.10450000315904617
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P087_makeup_case_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 440,
+    "blender_bounds_min": [
+      -0.15000000596046448,
+      -0.11400000005960464,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.15000002086162567,
+      0.10000000149011612,
+      0.2775605022907257
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_makeup_case",
+    "original_file": "P087_makeup_case",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.55,
+    "old_bounds_min": [
+      -0.15000000596046448,
+      -0.11400000005960464,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.15000000596046448,
+      0.10000000149011612,
+      0.2775605022907257
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P088_powder_brush_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 428,
+    "blender_bounds_min": [
+      -0.03399999812245369,
+      -0.03099999949336052,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.03400000184774399,
+      0.03099999763071537,
+      0.24399998784065247
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_powder_brush",
+    "original_file": "P088_powder_brush",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.45,
+    "old_bounds_min": [
+      -0.03399999812245369,
+      -0.03099999949336052,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.03400000184774399,
+      0.03099999949336052,
+      0.24399998784065247
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P089_comb_rebuilt.glb",
+    "mesh_batches": 1,
+    "triangles": 704,
+    "blender_bounds_min": [
+      -0.09650000184774399,
+      -0.007000000216066837,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.09650000929832458,
+      0.007000000216066837,
+      0.054999999701976776
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_comb",
+    "original_file": "P089_comb",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.35,
+    "old_bounds_min": [
+      -0.09650000184774399,
+      -0.007000000216066837,
+      0.0
+    ],
+    "old_bounds_max": [
+      0.09650000184774399,
+      0.007000000216066837,
+      0.05499999597668648
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  },
+  {
+    "file": "P091_costume_hanger_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 156,
+    "blender_bounds_min": [
+      -0.1894422173500061,
+      -0.012724073603749275,
+      7.450580596923828e-09
+    ],
+    "blender_bounds_max": [
+      0.1894422024488449,
+      0.012724073603749275,
+      0.19953615963459015
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_costume_hanger",
+    "original_file": "P091_costume_hanger",
+    "finite_geometry": true,
+    "transforms_baked": true,
+    "export_y_up": true,
+    "front_godot": "+Z",
+    "target_normalization_size": 0.65,
+    "old_bounds_min": [
+      -0.1894422173500061,
+      -0.012724073603749275,
+      7.450580596923828e-09
+    ],
+    "old_bounds_max": [
+      0.1894422173500061,
+      0.012724073603749275,
+      0.19953615963459015
+    ],
+    "bag": "small",
+    "disposal_ticket_anchor": false
+  }
+]

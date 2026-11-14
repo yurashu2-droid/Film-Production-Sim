@@ -1,0 +1,111 @@
+{
+  "views": [
+    {
+      "name": "front",
+      "direction": [
+        0,
+        -1,
+        0
+      ],
+      "right": [
+        1,
+        0,
+        0
+      ],
+      "center": [
+        0.055,
+        0,
+        0.835
+      ],
+      "vertical_m": 2.35,
+      "width": 512,
+      "height": 1024
+    },
+    {
+      "name": "back",
+      "direction": [
+        0,
+        1,
+        0
+      ],
+      "right": [
+        -1,
+        0,
+        0
+      ],
+      "center": [
+        0.055,
+        0,
+        0.835
+      ],
+      "vertical_m": 2.35,
+      "width": 512,
+      "height": 1024
+    },
+    {
+      "name": "left",
+      "direction": [
+        -1,
+        0,
+        0
+      ],
+      "right": [
+        0,
+        -1,
+        0
+      ],
+      "center": [
+        0.055,
+        0,
+        0.835
+      ],
+      "vertical_m": 2.35,
+      "width": 512,
+      "height": 1024
+    },
+    {
+      "name": "right",
+      "direction": [
+        1,
+        0,
+        0
+      ],
+      "right": [
+        0,
+        1,
+        0
+      ],
+      "center": [
+        0.055,
+        0,
+        0.835
+      ],
+      "vertical_m": 2.35,
+      "width": 512,
+      "height": 1024
+    }
+  ],
+  "face": {
+    "center": [
+      0,
+      -0.055,
+      1.4
+    ],
+    "vertical_m": 0.83,
+    "width": 1024,
+    "height": 1024,
+    "direction": [
+      0,
+      -1,
+      0
+    ],
+    "right": [
+      1,
+      0,
+      0
+    ]
+  },
+  "pose": "frame 0",
+  "registered_model": "hari_ink_shape.blend",
+  "method": "Unlit pigment with local ambient occlusion; four actual orthographic cameras"
+}

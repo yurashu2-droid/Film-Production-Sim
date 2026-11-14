@@ -1,0 +1,344 @@
+[
+  {
+    "file": "P020_newspaper_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 665,
+    "blender_bounds_min": [
+      -0.14000000059604645,
+      -0.01625000312924385,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.14000000059604645,
+      0.01625000312924385,
+      0.3500000238418579
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_newspaper",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P021_treasure_map_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 580,
+    "blender_bounds_min": [
+      -0.1873900443315506,
+      -0.01650000363588333,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.1873900443315506,
+      0.01650000363588333,
+      0.2800000011920929
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_treasure_map",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P022_compass_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1002,
+    "blender_bounds_min": [
+      -0.07100000232458115,
+      -0.0885000005364418,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.07100000232458115,
+      0.0885000005364418,
+      0.06700000911951065
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_compass",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P023_potion_bottle_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 820,
+    "blender_bounds_min": [
+      -0.07799998670816422,
+      -0.0729999989271164,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.07799998670816422,
+      0.0729999989271164,
+      0.2549999952316284
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_potion_bottle",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P024_foam_sword_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1150,
+    "blender_bounds_min": [
+      -0.1274999976158142,
+      -0.03200000151991844,
+      -3.725290298461914e-09
+    ],
+    "blender_bounds_max": [
+      0.1274999976158142,
+      0.03200000151991844,
+      0.8278709650039673
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_foam_sword",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P025_round_shield_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 884,
+    "blender_bounds_min": [
+      -0.2239999920129776,
+      -0.07284466922283173,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.2239999920129776,
+      0.07284466177225113,
+      0.44800010323524475
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_round_shield",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P026_star_wand_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 756,
+    "blender_bounds_min": [
+      -0.08763981610536575,
+      -0.02199999988079071,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.08763981610536575,
+      0.02199999988079071,
+      0.5721500515937805
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_star_wand",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P028_royal_scroll_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 1001,
+    "blender_bounds_min": [
+      -0.20899999141693115,
+      -0.026000000536441803,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.20899999141693115,
+      0.026000000536441803,
+      0.41200000047683716
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_royal_scroll",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P032_spell_book_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 836,
+    "blender_bounds_min": [
+      -0.1339999884366989,
+      -0.055500004440546036,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.1340000033378601,
+      0.05550000071525574,
+      0.3400000035762787
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_spell_book",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P033_spyglass_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1456,
+    "blender_bounds_min": [
+      -0.05499999597668648,
+      -0.24025002121925354,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.05499999597668648,
+      0.24025002121925354,
+      0.11000000685453415
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_spyglass",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P034_adventure_satchel_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 324,
+    "blender_bounds_min": [
+      -0.1582525670528412,
+      -0.06949999928474426,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.1582525670528412,
+      0.06949999928474426,
+      0.35331636667251587
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_adventure_satchel",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P040_banana_peel_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 508,
+    "blender_bounds_min": [
+      -0.11735256016254425,
+      -0.13522295653820038,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.11735256761312485,
+      0.13522295653820038,
+      0.14000001549720764
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_banana_peel",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P041_giant_sandwich_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 560,
+    "blender_bounds_min": [
+      -0.11448609828948975,
+      -0.09962648153305054,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.11448609828948975,
+      0.09962648153305054,
+      0.14100001752376556
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_giant_sandwich",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P042_cream_pie_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1520,
+    "blender_bounds_min": [
+      -0.12999999523162842,
+      -0.12999999523162842,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.12999999523162842,
+      0.12999999523162842,
+      0.12050000578165054
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_pie",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P043_rubber_chicken_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 4310,
+    "blender_bounds_min": [
+      -0.07680000364780426,
+      -0.06590896099805832,
+      -9.313225746154785e-10
+    ],
+    "blender_bounds_max": [
+      0.07679999619722366,
+      0.06590896099805832,
+      0.46700000762939453
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_chicken",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P049_rubber_duck_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 3720,
+    "blender_bounds_min": [
+      -0.09039998799562454,
+      -0.1579153686761856,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.09039998799562454,
+      0.15791535377502441,
+      0.19600002467632294
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_duck",
+    "style": "lower-poly"
+  },
+  {
+    "file": "J001_rubber_poop_rebuilt.glb",
+    "mesh_batches": 1,
+    "triangles": 1006,
+    "blender_bounds_min": [
+      -0.4196743667125702,
+      -0.37838441133499146,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4196743369102478,
+      0.37838444113731384,
+      0.6056180000305176
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_poop",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P030_fake_torch_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 544,
+    "blender_bounds_min": [
+      -0.08372125029563904,
+      -0.06890085339546204,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.08372125774621964,
+      0.06890085339546204,
+      0.5550000071525574
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_torch",
+    "style": "lower-poly"
+  },
+  {
+    "file": "P031_ancient_idol_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 1376,
+    "blender_bounds_min": [
+      -0.10000000149011612,
+      -0.08175960183143616,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.10000000149011612,
+      0.08175960183143616,
+      0.2979999780654907
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_idol",
+    "style": "lower-poly"
+  }
+]

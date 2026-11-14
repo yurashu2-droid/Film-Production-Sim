@@ -4,6 +4,7 @@ extends Node3D
 const Lib := preload("res://vfx/vfx_lib.gd")
 
 var age := 0.0
+var speed := 1.0          # 進む速さ（1 が等速、0.4 なら 40%）。時刻 age・予約・寿命がすべてこの速さで進む
 var life := 1.0           # 0 以下なら消えない（出しっぱなしの炎や煙）
 var _cues: Array = []     # [時刻, Callable]
 var _spans: Array = []    # [開始, 長さ, Callable(0〜1)]
@@ -24,7 +25,7 @@ func over(start: float, length: float, what: Callable) -> void:
 
 
 func _process(delta: float) -> void:
-	age += delta
+	age += delta * speed
 	var i := 0
 	while i < _cues.size():
 		if age >= _cues[i][0]:

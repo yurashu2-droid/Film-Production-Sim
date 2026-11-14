@@ -68,6 +68,17 @@ func run() -> void:
 	support.remove_collision_exception_with(player)
 	player.held = 2
 	check(player._can_jump_from_floor(), "holding another prop does not disable normal jumping")
+	# 平らな床を歩いている間は、床に「ぶつかった記録」が残らない。それでも、物を持ったまま跳べる
+	for i in 6:
+		await physics_frame
+		player.velocity = Vector3(0.4, 0, 0)
+		player.move_and_slide()
+	check(player.is_on_floor(), "walking keeps the crew member grounded (contacts=%d)" % player.get_slide_collision_count())
+	check(player._can_jump_from_floor(), "walking on a flat floor while holding a prop still allows jumping")
+	# 自分で持っている物の上を歩いているときは、ぶつかった記録が無くても跳べない
+	player.held = support.pid
+	check(not player._can_jump_from_floor(), "walking on the held prop itself never allows jumping")
+	player.held = 2
 	world.adhesive.pairs = [{"a": 1, "b": 3, "joined": true}, {"a": 3, "b": 2, "joined": true}]
 	check(not player._can_jump_from_floor(), "indirectly glued support cannot be a takeoff point")
 	world.adhesive.pairs.clear()

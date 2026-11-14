@@ -23,7 +23,10 @@ uniform vec3 rim_color = vec3(9.0, 0.5, 0.3);
 uniform float glow = 0.5;
 uniform float core_part = 0.7;        // 線の太さのうち、芯が占める割合（残りがふち）
 uniform float reveal = 1.0;           // 根元からここまで描く
+uniform float eaten = 0.0;            // 根元からここまで消す（供給が止まって、根元から先へ消える終わり方に使う）
 uniform float fade = 1.0;
+uniform bool pin_end = false;         // 先端も根元と同じく動かさない（区間をつないで螺旋にするとき。両端が隣の区間と点で一致する）
+uniform float taper = 1.0;            // 先へ細る量（0 で太さをそろえる。区間をつなぐときは 0）
 
 void vertex() {
 	if (web) {
@@ -66,8 +69,9 @@ void fragment() {
 		float x = UV.x;
 		float y = (UV.y - 0.5) * 2.0;
 		float pin = smoothstep(0.0, 0.2, x);              // 根元は動かさない
-		float centre = wave(x, seed) * variation * 2.0 * pin;
-		float thin = mix(1.0, 0.18, pow(x, 1.4));           // 先へ細る
+		float pin_far = pin_end ? 1.0 - smoothstep(0.8, 1.0, x) : 1.0;
+		float centre = wave(x, seed) * variation * 2.0 * pin * pin_far;
+		float thin = mix(1.0, 0.18, pow(x, 1.4) * taper);           // 先へ細る
 		v = abs(y - centre) / max(thickness * thin, 0.0005);
 		// 枝：途中から本流を離れていく。本流より細い
 		for (int k = 1; k <= 3; k++) {
@@ -80,11 +84,12 @@ void fragment() {
 			float branch = centre + (wave(x * 1.4, seed + float(k) * 5.3) * 1.3 + side * 0.55) * variation * 1.6 * away;
 			float end = smoothstep(start + 0.62, start + 0.3, x);      // 枝は本流より先に尽きる
 			float vb = abs(y - branch) / max(thickness * thin * 0.55 * end, 0.0005);
-			v = (x > start) ? min(v, vb) : v;
+			v = (x > start && start > eaten) ? min(v, vb) : v;   // 根元が消えた枝は、枝ごと消す（宙に残る切れ端を作らない）
 		}
 		// 先端はノイズでちぎれて終わる。板のふちでは消す
 		float tip = reveal - x - (texture(noise_texture, vec2(y * 0.5 + seed, phase * 0.7)).r - 0.5) * 0.1;
-		v = (tip < 0.0 || abs(y) > 0.97) ? 1000.0 : v;
+		float bite = eaten - x + (texture(noise_texture, vec2(y * 0.5 + seed + 3.0, phase * 0.7)).r - 0.5) * 0.1;
+		v = (tip < 0.0 || bite > 0.0 || abs(y) > 0.97) ? 1000.0 : v;
 		along = x;
 	}
 	if (v > 3.4) {

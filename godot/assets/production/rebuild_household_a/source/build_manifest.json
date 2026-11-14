@@ -1,0 +1,98 @@
+[
+  {
+    "file": "S042_cartoon_toilet_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 3736,
+    "blender_bounds_min": [
+      -0.26499998569488525,
+      -0.39500001072883606,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.289000004529953,
+      0.4039999842643738,
+      0.8995000123977661
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P036_mug_rebuilt.glb",
+    "mesh_batches": 1,
+    "triangles": 1016,
+    "blender_bounds_min": [
+      -0.08799999952316284,
+      -0.08799999952316284,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.16039231419563293,
+      0.08799999952316284,
+      0.1459999978542328
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P037_rolling_pin_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1008,
+    "blender_bounds_min": [
+      -0.2919999957084656,
+      -0.054999999701976776,
+      -8.086606939627927e-09
+    ],
+    "blender_bounds_max": [
+      0.2919999957084656,
+      0.054999999701976776,
+      0.11000000685453415
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P038_frying_pan_rebuilt.glb",
+    "mesh_batches": 1,
+    "triangles": 948,
+    "blender_bounds_min": [
+      -0.20599761605262756,
+      -0.1589999943971634,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.3630000054836273,
+      0.1589999943971634,
+      0.057999998331069946
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P045_plunger_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 1120,
+    "blender_bounds_min": [
+      -0.10000000149011612,
+      -0.10000000149011612,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.6019999980926514
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P046_broom_rebuilt.glb",
+    "mesh_batches": 4,
+    "triangles": 2400,
+    "blender_bounds_min": [
+      -0.14499999582767487,
+      -0.02976776845753193,
+      0.006000000052154064
+    ],
+    "blender_bounds_max": [
+      0.14499999582767487,
+      0.02976776845753193,
+      1.1150000095367432
+    ],
+    "textures_embedded": false
+  }
+]

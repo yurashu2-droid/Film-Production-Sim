@@ -1,0 +1,91 @@
+# 新しい仕組みの足し方（登録の土台）
+
+爆弾の道具・箱とロープ・特技…のような「仕組み」は、**決まった名前の関数**を持っておくと、中心のファイル
+（`main.gd`・`production_main.gd`・`production_hud.gd`・`production_flow.gd`）が順に呼ぶ。
+新しい仕組みを足すときに、中心のファイルを開かなくてよい（並行で作業しても、ぶつからない）。
+
+- 土台：`scripts/feature_hooks.gd`（関数の名前の一覧 `HOOKS`、呼ぶ順番 `ORDER`・`ORDERS`）。ゲームからは `game.hooks`
+- 確認：`bash tools/run_some.sh feature_hooks_test`（仕組みや中心のファイルを直したら、この1本を流す）
+
+## 足し方
+
+1. `scripts/features/<名前>.gd` を作る（`extends Node`、`var game: Node`）。**置くだけで**、全員の画面で、名前の順に作られて登録される
+   （仕組みの名前＝ファイルの名前。物を作るなら `setup()` の中で。ほかの物が全部できたあとに呼ばれる）。
+   ほかの仕組みからは `game.hooks.feature("<名前>")` で呼べる。
+2. 下の関数のうち、要る物だけを書く。持っていない関数は、呼ばれないだけ。
+3. 順番で結果が変わるとき（F をほかの仕組みより先に受けたい、など）だけ、`feature_hooks.gd` の `ORDERS` に名前を足す。
+   足さなければ、今ある仕組みのあとに呼ばれる。
+4. 確認を流す。
+
+## 持てる関数
+
+| 関数 | いつ呼ばれるか |
+| --- | --- |
+| `hook_events() -> Array` と `hook_event(n, a)` | 自分の合図（`game.host_ev("名前", [...])` で全員へ流した知らせ）の名前と、届いたときの処理。名前は、ほかの仕組みと重ねない |
+| `hook_rec_events() -> Array` | 自分の合図のうち、見返し（録画）にも同じに流す物 |
+| `hook_core_event(n, a)` | 中心の合図（`absent`＝借りた物が変わった・`burst`＝爆発・`state`＝段階が変わった など）のあと |
+| `hook_sync(who)` | あとから入った人へ、今の状態を送る（ホスト） |
+| `hook_f(me) -> bool` | F が押された。使ったら `true`（ほかへは回らない） |
+| `hook_click(me) -> bool` | 手ぶらの左クリック。使ったら `true` |
+| `hook_right_click(me) -> bool` | 右クリック（歩いている間。モニターを開くより先）。使ったら `true` |
+| `hook_key(event, me) -> bool` | 自分のキー（歩いている間）。使ったら `true` |
+| `hook_input(event) -> bool` | 自分の画面を開いている間の操作（どのキーよりも先）。使ったら `true` |
+| `hook_hud(me, label, keys) -> Dictionary` | 画面の案内。`label`（狙った物の名前を替える。`keys_all` と組で）・`tail`（名前の横に足す）・`drop`（名前の横から消す文の一覧）・`keys`（操作の案内の先頭に足す）・`keys_all`（操作の案内を差し替える）。出す物が無ければ `{}` |
+| `hook_grab_block(prop) -> String` | その物を持てない理由（`""`＝持てる） |
+| `hook_new_job()` / `hook_return_office()` / `hook_office_ready()` | 依頼を受けた／帰社（置き場所を戻す前の後始末）／帰社のあと（ホスト） |
+| `hook_production_applied()` | 会社の状態（依頼・注文・持ち物）が届いた |
+| `hook_take_ready()` / `hook_take_start()` / `hook_take_cut()` | テイクを始める直前（撮り直しで戻す物を覚える）／本番が始まった／カット（ホスト） |
+| `hook_retake()` / `hook_retake_done()` | 撮り直し：物の置き場所を戻す前／戻したあと（ホスト） |
+| `hook_playback(on)` | 見返しの始まりと終わり（ホスト） |
+| `hook_cue(n)` | 合図（1・2・3）が出た（ホスト。3場面の依頼の準備中と本番。場面の列を持つ依頼では呼ばれない） |
+| `hook_premiere_cues(index) -> Array` | 試写会で依頼主が反応する時刻とひとこと `[[テイクの中の秒, せりふ, 気分], ...]`（ホスト。気分は happy / wow / sad / neutral） |
+| `hook_fee_lines(index) -> Array` | そのテイクのギャラの上乗せ `[[文, コイン], ...]`（ホスト）。`take_fee` と精算の文（試写会の読み上げ）に入る（見ごたえ） |
+| `hook_deliver(index) -> bool` | 画面（ボタン・Enter）から納品を頼まれた（ホスト）。`true` なら、その仕組みが先に何かを流し、終わったら自分で `game.h_deliver` を呼ぶ（試写会） |
+
+名前を書きまちがえた `hook_〜` は、確認が「決まった名前に無い」と知らせる。
+
+## 例：見て F で鳴らせる鐘（`scripts/features/bell.gd`）
+
+```gdscript
+extends Node
+var game: Node
+var bell: RigidBody3D
+
+func setup() -> void:                      # 全員の画面で同じ順に呼ばれる（物のIDがそろう）
+	bell = game.stage.spawn("bell", Vector3(60, 0.1, 20))
+
+func hook_events() -> Array:               # 自分の合図
+	return ["bell_ring"]
+
+func hook_event(_n: String, a: Array) -> void:      # 全員の画面で鳴る
+	Sfx.play("ui_ok", a[0])
+
+func hook_rec_events() -> Array:           # 見返しでも鳴らす
+	return ["bell_ring"]
+
+func hook_f(me: Node) -> bool:             # 鐘を見て F
+	if me.held != 0 or me.target != bell:
+		return false                       # 使わない：ほかの仕組みへ回る
+	h_ring.rpc_id(1)
+	return true
+
+@rpc("any_peer", "call_local", "reliable")
+func h_ring() -> void:                     # 決めるのはホスト
+	if Net.is_host():
+		game.host_ev("bell_ring", [bell.global_position])
+
+func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	return {"tail": "　[F] 鳴らす", "keys": "F 鐘を鳴らす"} if me.held == 0 and me.target == bell else {}
+```
+
+## 今ある仕組みと、まだ中心に残っている物
+
+登録してある仕組み：`adhesive`（接着剤）・`cue_cards`（カンペ・等身大パネル）・`cargo_kit`（箱とロープ）・`bomb_kit`（爆弾の道具）・
+`beats`（5場面の台本）・`rope_grab`（ロープをつかむ）・`talent`（特技）・`director`（監督の机）。
+これらは `production_main.gd` の `_ready()` で作っている（物を作る順番が決まっているため）。
+`scripts/features/` に置いてある仕組み：`online_room`・`premiere`（試写会）・`psychic_hold`・`spectacle`（見ごたえ）・`signboard`（CMの手描きの看板）・`debut_calls`（CMのあとの電話）・`office_facade`（書割の社屋の切り欠き）・`stand_ins`（役に入る・役者を雇う）・`contraptions`（仕掛け：結ぶ・滑車・ボタン・点火トーチ・目覚まし時計・送風機）・`boulder`（張りぼての大岩）・`job_props`（依頼主が用意する物を、廃材置き場に出す）・`night_filter`（夜用フィルター。付けたカメラの映像を夜にする）・`backdrop`（背景フィルム缶。入れたカメラの映像の緑の所を、城・宇宙・海に置き換える）・`start_day`（遊んで確かめる用。「-- --day2」で2日目から始める）・`junk_bags`（ゴミ袋・ブルーシートの包み。持って振ると、しまってある小道具・大道具が出てくる）・`camera_kit`（撮影カメラの三脚。会社の「カメラ」の段階で、三脚なし／三脚）・`tutorial_day`（1日目の段取り。門を閉じたまま、使う物を事務所の前に出す）・`delivery_box`（1日目の始まり。代金引換の宅配の箱を開けると、貯金から100万が引かれ、講師のホログラムが話す）・`holo_guides`（1日目の青いガイド。カメラ・箱・城・書割の置き場所に影を出し、合うと緑になる）・`camera_craft`（撮り方の加算・減点。一人ずつ寄りを止めずに撮り切ると撮影技術、頭の見切れは少し引く）・`spray_sign`（看板づくり。段ボール箱を Shift+F でたたんで板に、スプレー缶を持って F で吹く）・`company_sign`（会社の看板。描いた板を入口の上の金具に掛けると、その絵を撮って会社の名前にする。文の「{会社}」が看板の絵になる）・`bami`（バミリ。役者を見て F → 床を左クリックで立ち位置を教える。足元に役の色のテープ。右クリックではがす。役に入った人は M で足元に自分のテープ）・`office_wall`（事務所の壁の実績。納品した作品＝`production_flow.gd` の `films` のポスターが、西の壁→奥の壁の上の段に1枚ずつ増える。全部の場面がそろえば額、ひどい作品は破れて斜め。格2で感謝状・格3で名刺の束とトロフィー・格4で台本の山。倒産・エンディングの帰社で `films` を空にする。確認は `tests/office_wall_test.gd`）。
+
+まだ中心のファイルに直接書いてある物（動きは同じ。移すときは、順番が変わらないことを確かめる）：
+接着剤・カンペ・特技の「あとから入った人への送り直し」（送る時が、ほかより早い）、特技と接着剤と机の画面の案内、
+特技の片づけ（依頼を受ける前・帰社の最初）、爆弾の注文まわり（袋の数・届け方・爆発）、
+場面の台本の合図キー（1・2）と時計、接着剤の記録（置き場所と一緒に覚える）、箱のふたが閉まるかどうか（`main.gd` が箱の仕組みに聞く）。

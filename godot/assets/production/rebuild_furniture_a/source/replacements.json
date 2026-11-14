@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "scrap_director_chair",
+    "original_file": "S026_director_chair",
+    "file": "S026_director_chair_rebuilt"
+  },
+  {
+    "kind": "scrap_two_seat_sofa",
+    "original_file": "S027_two_seat_sofa",
+    "file": "S027_two_seat_sofa_rebuilt"
+  },
+  {
+    "kind": "scrap_wing_armchair",
+    "original_file": "S028_wing_armchair",
+    "file": "S028_wing_armchair_rebuilt"
+  },
+  {
+    "kind": "scrap_swivel_bar_stool",
+    "original_file": "S029_swivel_bar_stool",
+    "file": "S029_swivel_bar_stool_rebuilt"
+  },
+  {
+    "kind": "scrap_dining_table",
+    "original_file": "S030_dining_table",
+    "file": "S030_dining_table_rebuilt"
+  },
+  {
+    "kind": "scrap_writing_desk",
+    "original_file": "S031_writing_desk",
+    "file": "S031_writing_desk_rebuilt"
+  },
+  {
+    "kind": "scrap_bar_counter",
+    "original_file": "S032_bar_counter",
+    "file": "S032_bar_counter_rebuilt"
+  },
+  {
+    "kind": "scrap_single_bed",
+    "original_file": "S033_single_bed",
+    "file": "S033_single_bed_rebuilt"
+  }
+]

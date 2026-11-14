@@ -1,0 +1,129 @@
+{
+  "target": "CastM02",
+  "scope": "isolated static expression proposals; no runtime integration",
+  "model": "assets\\cast\\castM02_game.glb",
+  "source": "assets\\cast\\castM02_game_castM02_screen.png",
+  "source_sha256": "58e29f3cb63ad283acfd0f8ad6255bc3e6e039e0d2d93966662274ae2ada23a3",
+  "model_sha256": "a9bc79f6a77e38bda622d5187ae5279a028b5a2231e397b5ee6548f327d7ab6c",
+  "native_size": [
+    32,
+    28
+  ],
+  "cell_size": [
+    128,
+    112
+  ],
+  "palette_srgb": {
+    "background": [
+      20,
+      20,
+      24
+    ],
+    "amber": [
+      255,
+      194,
+      89
+    ]
+  },
+  "atlas": {
+    "image": "atlas_6.png",
+    "cols": 1,
+    "rows": 6,
+    "uv_step": [
+      1,
+      0.16666666666666666
+    ]
+  },
+  "original_mesh_uv_bounds": [
+    0,
+    0,
+    0.125,
+    0.0625
+  ],
+  "single_texture_uv1_scale": [
+    8,
+    16,
+    1
+  ],
+  "atlas_texture_uv1_scale": [
+    8,
+    2.6666666666666665,
+    1
+  ],
+  "filter": "original material filter (3: linear with mipmaps); clamp; mipmaps generated in preview",
+  "states": [
+    {
+      "name": "neutral",
+      "label": "通常",
+      "file": "neutral.png",
+      "lit_bounds_32x28": [
+        7,
+        7,
+        23,
+        22
+      ],
+      "lit_pixels": 61
+    },
+    {
+      "name": "happy",
+      "label": "笑顔",
+      "file": "happy.png",
+      "lit_bounds_32x28": [
+        6,
+        9,
+        24,
+        21
+      ],
+      "lit_pixels": 26
+    },
+    {
+      "name": "surprised",
+      "label": "驚き",
+      "file": "surprised.png",
+      "lit_bounds_32x28": [
+        6,
+        6,
+        24,
+        23
+      ],
+      "lit_pixels": 62
+    },
+    {
+      "name": "worried",
+      "label": "困り",
+      "file": "worried.png",
+      "lit_bounds_32x28": [
+        6,
+        5,
+        28,
+        22
+      ],
+      "lit_pixels": 63
+    },
+    {
+      "name": "angry",
+      "label": "怒り",
+      "file": "angry.png",
+      "lit_bounds_32x28": [
+        6,
+        7,
+        24,
+        22
+      ],
+      "lit_pixels": 87
+    },
+    {
+      "name": "sleep",
+      "label": "眠り",
+      "file": "sleep.png",
+      "lit_bounds_32x28": [
+        7,
+        4,
+        27,
+        20
+      ],
+      "lit_pixels": 22
+    }
+  ],
+  "neutral_exact_source_cell": true
+}

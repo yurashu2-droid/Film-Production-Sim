@@ -60,8 +60,8 @@ func run() -> void:
 	cs.shape = shape
 	cs.position = probe.center
 	probe.add_child(cs)
-	game.add_child(probe)
-	probe.global_position = Vector3(40,6.10,38.9)
+	# Register the physics fixture so the real explicit holding command can find it.
+	game.stage._register(probe,Vector3(40,6.10,38.9),0.0)
 	probe.gravity_scale = 0
 	probe.linear_velocity = Vector3(8,0,0)
 	await frames(40)
@@ -73,8 +73,16 @@ func run() -> void:
 	game.local_player().hold_pitch = 0
 	game.local_player().hold_dist = 4.0
 	probe.set_holder(1)
+	game.input_locked = false
+	game.h_hold_command("pull")
+	# Pull resets its adjustments; request the far side of the wall AFTER pulling.
+	game.local_player().hold_dist = 4.0
+	game.input_locked = true
+	check(float(game.hold_target(1,probe)[0].x)>41.0,"wall fixture requests a position beyond the sideboard")
 	await frames(90)
 	check(probe.global_position.x<40.99,"held cargo presses against the wall instead of passing through")
+	game.host_release(probe)
+	game.props.erase(probe.pid)
 	probe.queue_free()
 	box.set_absent(false)
 	box.restore([Vector3(40,8,38.9),Quaternion(basis),false])

@@ -1,0 +1,5 @@
+Noto Sans JP (assets/fonts/NotoSansJP-VF.ttf)
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+Licensed under the SIL Open Font License, Version 1.1.
+The licence text is available at https://openfontlicense.org/open-font-license-official-text/
+The font file is included unmodified.

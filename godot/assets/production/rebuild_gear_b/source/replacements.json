@@ -1,0 +1,102 @@
+[
+  {
+    "kind": "scrap_battery_pack",
+    "original_file": "P063_battery_pack",
+    "file": "P063_battery_pack_rebuilt"
+  },
+  {
+    "kind": "scrap_battery_charger",
+    "original_file": "P064_battery_charger",
+    "file": "P064_battery_charger_rebuilt"
+  },
+  {
+    "kind": "scrap_extension_reel",
+    "original_file": "P066_extension_reel",
+    "file": "P066_extension_reel_rebuilt"
+  },
+  {
+    "kind": "scrap_script_binder",
+    "original_file": "P071_script_binder",
+    "file": "P071_script_binder_rebuilt"
+  },
+  {
+    "kind": "scrap_clipboard",
+    "original_file": "P072_clipboard",
+    "file": "P072_clipboard_rebuilt"
+  },
+  {
+    "kind": "scrap_storyboard_pad",
+    "original_file": "P073_storyboard_pad",
+    "file": "P073_storyboard_pad_rebuilt"
+  },
+  {
+    "kind": "scrap_cue_cards",
+    "original_file": "P074_cue_cards",
+    "file": "P074_cue_cards_rebuilt"
+  },
+  {
+    "kind": "scrap_color_checker",
+    "original_file": "P075_color_checker",
+    "file": "P075_color_checker_rebuilt"
+  },
+  {
+    "kind": "scrap_focus_chart",
+    "original_file": "P076_focus_chart",
+    "file": "P076_focus_chart_rebuilt"
+  },
+  {
+    "kind": "scrap_bounce_reflector",
+    "original_file": "P078_bounce_reflector",
+    "file": "P078_bounce_reflector_rebuilt"
+  },
+  {
+    "kind": "scrap_light_flag",
+    "original_file": "P079_light_flag",
+    "file": "P079_light_flag_rebuilt"
+  },
+  {
+    "kind": "scrap_spring_clamp",
+    "original_file": "P080_spring_clamp",
+    "file": "P080_spring_clamp_rebuilt"
+  },
+  {
+    "kind": "scrap_articulating_arm",
+    "original_file": "P082_articulating_arm",
+    "file": "P082_articulating_arm_rebuilt"
+  },
+  {
+    "kind": "scrap_interview_mic",
+    "original_file": "P083_interview_mic",
+    "file": "P083_interview_mic_rebuilt"
+  },
+  {
+    "kind": "scrap_small_speaker",
+    "original_file": "P084_small_speaker",
+    "file": "P084_small_speaker_rebuilt"
+  },
+  {
+    "kind": "scrap_timecode_display",
+    "original_file": "P086_timecode_display",
+    "file": "P086_timecode_display_rebuilt"
+  },
+  {
+    "kind": "scrap_makeup_case",
+    "original_file": "P087_makeup_case",
+    "file": "P087_makeup_case_rebuilt"
+  },
+  {
+    "kind": "scrap_powder_brush",
+    "original_file": "P088_powder_brush",
+    "file": "P088_powder_brush_rebuilt"
+  },
+  {
+    "kind": "scrap_comb",
+    "original_file": "P089_comb",
+    "file": "P089_comb_rebuilt"
+  },
+  {
+    "kind": "scrap_costume_hanger",
+    "original_file": "P091_costume_hanger",
+    "file": "P091_costume_hanger_rebuilt"
+  }
+]

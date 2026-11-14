@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "scrap_ring_box",
+    "original_file": "P002_ring_box",
+    "file": "P002_ring_box_rebuilt"
+  },
+  {
+    "kind": "scrap_heart_chocolates",
+    "original_file": "P003_heart_chocolates",
+    "file": "P003_heart_chocolates_rebuilt"
+  },
+  {
+    "kind": "scrap_perfume",
+    "original_file": "P004_perfume",
+    "file": "P004_perfume_rebuilt"
+  },
+  {
+    "kind": "scrap_hand_mirror",
+    "original_file": "P005_hand_mirror",
+    "file": "P005_hand_mirror_rebuilt"
+  },
+  {
+    "kind": "scrap_folding_fan",
+    "original_file": "P006_folding_fan",
+    "file": "P006_folding_fan_rebuilt"
+  },
+  {
+    "kind": "scrap_parasol",
+    "original_file": "P007_parasol",
+    "file": "P007_parasol_rebuilt"
+  },
+  {
+    "kind": "scrap_tulip_bouquet",
+    "original_file": "P008_tulip_bouquet",
+    "file": "P008_tulip_bouquet_rebuilt"
+  },
+  {
+    "kind": "scrap_ribbon_gift",
+    "original_file": "P009_ribbon_gift",
+    "file": "P009_ribbon_gift_rebuilt"
+  }
+]

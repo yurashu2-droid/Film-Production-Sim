@@ -1,0 +1,112 @@
+[
+  {
+    "kind": "scrap_kiosk",
+    "original_file": "S060_news_kiosk",
+    "file": "S060_news_kiosk_rebuilt"
+  },
+  {
+    "kind": "scrap_lamp",
+    "original_file": "S051_street_lamp",
+    "file": "S051_street_lamp_rebuilt"
+  },
+  {
+    "kind": "scrap_bridge",
+    "original_file": "S074_arched_garden_bridge",
+    "file": "S074_arched_garden_bridge_rebuilt"
+  },
+  {
+    "kind": "scrap_mushroom",
+    "original_file": "S070_giant_mushroom",
+    "file": "S070_giant_mushroom_rebuilt"
+  },
+  {
+    "kind": "scrap_tree",
+    "original_file": "S066_broadleaf_tree",
+    "file": "S066_broadleaf_tree_rebuilt"
+  },
+  {
+    "kind": "scrap_cactus",
+    "original_file": "S068_branch_cactus",
+    "file": "S068_branch_cactus_rebuilt"
+  },
+  {
+    "kind": "scrap_campfire",
+    "original_file": "S072_campfire_circle",
+    "file": "S072_campfire_circle_rebuilt"
+  },
+  {
+    "kind": "scrap_fountain",
+    "original_file": "S053_tiered_fountain",
+    "file": "S053_tiered_fountain_rebuilt"
+  },
+  {
+    "kind": "scrap_park_bench",
+    "original_file": "S052_park_bench",
+    "file": "S052_park_bench_rebuilt"
+  },
+  {
+    "kind": "scrap_roofed_well",
+    "original_file": "S054_roofed_well",
+    "file": "S054_roofed_well_rebuilt"
+  },
+  {
+    "kind": "scrap_market_stall",
+    "original_file": "S055_market_stall",
+    "file": "S055_market_stall_rebuilt"
+  },
+  {
+    "kind": "scrap_bus_shelter",
+    "original_file": "S056_bus_shelter",
+    "file": "S056_bus_shelter_rebuilt"
+  },
+  {
+    "kind": "scrap_street_mailbox",
+    "original_file": "S057_street_mailbox",
+    "file": "S057_street_mailbox_rebuilt"
+  },
+  {
+    "kind": "scrap_direction_signpost",
+    "original_file": "S061_direction_signpost",
+    "file": "S061_direction_signpost_rebuilt"
+  },
+  {
+    "kind": "scrap_traffic_signal",
+    "original_file": "S062_traffic_signal",
+    "file": "S062_traffic_signal_rebuilt"
+  },
+  {
+    "kind": "scrap_picket_gate",
+    "original_file": "S063_picket_gate",
+    "file": "S063_picket_gate_rebuilt"
+  },
+  {
+    "kind": "scrap_brick_parapet",
+    "original_file": "S064_brick_parapet",
+    "file": "S064_brick_parapet_rebuilt"
+  },
+  {
+    "kind": "scrap_iron_fence",
+    "original_file": "S065_iron_fence",
+    "file": "S065_iron_fence_rebuilt"
+  },
+  {
+    "kind": "scrap_layered_pine",
+    "original_file": "S067_layered_pine",
+    "file": "S067_layered_pine_rebuilt"
+  },
+  {
+    "kind": "scrap_hedge_arch",
+    "original_file": "S069_hedge_arch",
+    "file": "S069_hedge_arch_rebuilt"
+  },
+  {
+    "kind": "scrap_scenic_pond",
+    "original_file": "S071_scenic_pond",
+    "file": "S071_scenic_pond_rebuilt"
+  },
+  {
+    "kind": "scrap_wooden_dock",
+    "original_file": "S075_wooden_dock",
+    "file": "S075_wooden_dock_rebuilt"
+  }
+]

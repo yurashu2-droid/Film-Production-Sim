@@ -17,11 +17,33 @@ Godot 本体は `tools/godot/Godot_v4.7.2-stable_win64_console.exe`。エディ�
 ほかのエージェントは、該当する作業の前にそのファイルを開いて読むこと）。
 
 - **VFX（爆発・炎・煙・飛び道具・落雷・走りの演出）を作る・直す** → `.claude/skills/godot-vfx/SKILL.md`
+  （先に `.claude/skills/godot-vfx/PLAYBOOK.md` の手順を読む）
+- **UVI Player・Prisma・UVI StarterでSEを作る／登録音色をコードから鳴らす** → `.claude/skills/uvi-se/SKILL.md`
+  （Claude・Codex共通。`tools/uvi_direct/uvi.cmd voices` で登録状況を確認できる）
+- **CapCutで台詞・ナレーション・読み上げ音声を生成する** → `.claude/skills/capcut-tts/SKILL.md`
+  （Claude・Codex共通。「快活な女の子」も指定できる）
+
+## VFX の資料（Claude Code / Codex 共通）
+
+VFX を作る・直す前に、リポジトリ直下の `VFX_KNOWLEDGE.md` を読む（要点・手順・消え方・好み・部品の辞書を1枚にまとめてある）。
+元の資料を直したら `python tools/build_vfx_knowledge.py` で作り直す。
 
 ## GitHub への反映
 
 機能や修正の区切りごとに、変更範囲に見合った確認を済ませてコミット・pushする。
 未完成の別作業が混在している場合は、完成した変更だけを取り出して反映する。
+
+## ブランチの使い分け
+
+- 大きな機能や、並行で進める作業は、機能ごとにブランチと作業フォルダ（git worktree）を分けて進める。
+  終わったら関係する確認を流し、元のブランチへまとめる。うまくいかなかった物は、まとめずに捨てる。
+- 小さな直しや、遊んだ感想を受けての調整は、今のブランチで直接直す。
+- 分ける前に、今のブランチの変更をコミットしておく（作業フォルダの写しには、コミット済みの内容しか入らない）。
+- 効果音ラボの音（`godot/assets/audio/sfx_local/`）は公開しない決まりでコミットしていないので、写しには入らない（代わりの音で鳴る。確認には影響しない）。
+- 新しい仕組みを足すときは、中心のファイル（`main.gd`・`production_main.gd`・`production_hud.gd`）に直接書き足さず、
+  仕組みを登録する土台（`godot/scripts/feature_hooks.gd`）を使う。足し方は `godot/docs/FEATURE_HOOKS.md`。
+  直したあとは `bash tools/run_some.sh feature_hooks_test` で、登録の食い違いが無いかを確かめる。
+- 選んだ確認は `bash tools/run_some.sh <名前> ...` でまとめて同時に流せる。
 
 ## 音の制作方針
 

@@ -1,0 +1,154 @@
+[
+  {
+    "file": "P010_masquerade_mask_rebuilt.glb",
+    "mesh_batches": 3,
+    "triangles": 4784,
+    "blender_bounds_min": [
+      -0.1263904720544815,
+      -0.03522475063800812,
+      0.008999999612569809
+    ],
+    "blender_bounds_max": [
+      0.1263904720544815,
+      0.007000000216066837,
+      0.3270142674446106
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_masquerade_mask",
+    "original_file": "P010_masquerade_mask",
+    "finite_geometry": true
+  },
+  {
+    "file": "P011_magnifying_glass_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 3636,
+    "blender_bounds_min": [
+      -0.05460621789097786,
+      -0.013000000268220901,
+      0.003000000026077032
+    ],
+    "blender_bounds_max": [
+      0.05460621789097786,
+      0.013000000268220901,
+      0.23660622537136078
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_magnifying_glass",
+    "original_file": "P011_magnifying_glass",
+    "finite_geometry": true
+  },
+  {
+    "file": "P012_detective_notebook_rebuilt.glb",
+    "mesh_batches": 6,
+    "triangles": 4156,
+    "blender_bounds_min": [
+      -0.05829999968409538,
+      -0.015399999916553497,
+      -0.013000000268220901
+    ],
+    "blender_bounds_max": [
+      0.04800000041723251,
+      0.015399853698909283,
+      0.15138974785804749
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_detective_notebook",
+    "original_file": "P012_detective_notebook",
+    "finite_geometry": true
+  },
+  {
+    "file": "P013_pocket_watch_rebuilt.glb",
+    "mesh_batches": 5,
+    "triangles": 5344,
+    "blender_bounds_min": [
+      -0.05530621483922005,
+      -0.020999999716877937,
+      0.0056937821209430695
+    ],
+    "blender_bounds_max": [
+      0.05530621483922005,
+      0.010000001639127731,
+      0.1581650674343109
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_pocket_watch",
+    "original_file": "P013_pocket_watch",
+    "finite_geometry": true
+  },
+  {
+    "file": "P014_skeleton_key_rebuilt.glb",
+    "mesh_batches": 2,
+    "triangles": 1660,
+    "blender_bounds_min": [
+      -0.035196151584386826,
+      -0.010999999940395355,
+      0.004999999888241291
+    ],
+    "blender_bounds_max": [
+      0.041999999433755875,
+      0.010999999940395355,
+      0.22219614684581757
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_skeleton_key",
+    "original_file": "P014_skeleton_key",
+    "finite_geometry": true
+  },
+  {
+    "file": "P015_evidence_bag_rebuilt.glb",
+    "mesh_batches": 8,
+    "triangles": 2472,
+    "blender_bounds_min": [
+      -0.07699999958276749,
+      -0.01600000075995922,
+      0.012000000104308128
+    ],
+    "blender_bounds_max": [
+      0.07699999958276749,
+      0.01600000075995922,
+      0.2199999988079071
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_evidence_bag",
+    "original_file": "P015_evidence_bag",
+    "finite_geometry": true
+  },
+  {
+    "file": "P016_flashlight_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 4072,
+    "blender_bounds_min": [
+      -0.05299999937415123,
+      -0.05299999937415123,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.05299999937415123,
+      0.05299999937415123,
+      0.24799999594688416
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_flashlight",
+    "original_file": "P016_flashlight",
+    "finite_geometry": true
+  },
+  {
+    "file": "P017_detective_badge_rebuilt.glb",
+    "mesh_batches": 7,
+    "triangles": 2552,
+    "blender_bounds_min": [
+      -0.04829835519194603,
+      -0.012600000016391277,
+      -0.0012990382965654135
+    ],
+    "blender_bounds_max": [
+      0.04829835519194603,
+      0.014498730190098286,
+      0.11029903590679169
+    ],
+    "textures_embedded": false,
+    "kind": "scrap_detective_badge",
+    "original_file": "P017_detective_badge",
+    "finite_geometry": true
+  }
+]

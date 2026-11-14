@@ -1,0 +1,34 @@
+[
+  {
+    "file": "P035_teapot_fresh.glb",
+    "mesh_batches": 3,
+    "triangles": 6620,
+    "blender_bounds_min": [
+      -0.2820427119731903,
+      -0.16500000655651093,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.25599998235702515,
+      0.16500000655651093,
+      0.3449999988079071
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "P048_travel_suitcase_fresh.glb",
+    "mesh_batches": 5,
+    "triangles": 7572,
+    "blender_bounds_min": [
+      -0.2817293405532837,
+      -0.10949999839067459,
+      -0.004999995231628418
+    ],
+    "blender_bounds_max": [
+      0.2817293405532837,
+      0.10899999737739563,
+      0.44200000166893005
+    ],
+    "textures_embedded": false
+  }
+]

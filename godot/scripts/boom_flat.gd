@@ -1,10 +1,12 @@
 extends "res://scripts/prop.gd"
 # 爆炎の書割。ふだんは寝ていて、爆発の合図で跳ね上がる。無料だが、周りは吹き飛ばない。
 
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 const LYING := -1.5
 const UP_SEC := 2.4
 
 var board: Node3D
+var board_shape: CollisionShape3D   # 絵の板の当たり（板が立っている間だけ効く）
 var _t := -1.0
 
 
@@ -58,12 +60,44 @@ func build() -> void:
 	stick.position = Vector3(0, 0.75, -0.02)
 	board.add_child(stick)
 
-	var cs := CollisionShape3D.new()
-	var b := BoxShape3D.new()
-	b.size = Vector3(1.8, 0.1, 0.5)
-	cs.shape = b
-	cs.position = Vector3(0, 0.05, 0)
-	add_child(cs)
+	# 当たり判定は表（prop_shapes.gd）：土台。寝ている板には付けない（荷台に積めなくなる・廃材置き場で隣の物と重なる）
+	PropShapes.build(self, kind)
+	# 絵の板の当たり：板が立っている間（合図で跳ね上がった時・物ごと立てて置いた時）だけ効かせる。
+	# 立っている絵をすり抜けるのが変だった（2026-11-11 ユーザー）。人も物も当たる。土台の当たり（最初の形）の後ろに足す
+	board_shape = CollisionShape3D.new()
+	board_shape.name = "BoardShape"
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(1.9, 1.9, 0.06)
+	board_shape.shape = bs
+	board_shape.disabled = true
+	add_child(board_shape)
+	_place_board_shape()
+
+
+# 絵の板の当たりを、いまの板に重ねる。板の高さの向きが上を向いていれば（立っていれば）効かせる
+func _place_board_shape() -> void:
+	var want := visual.transform * board.transform * Transform3D(Basis.IDENTITY, Vector3(0, 1.1, -0.005))
+	if not board_shape.transform.is_equal_approx(want):
+		board_shape.transform = want          # 変わった時だけ書く（止まっている書割が、眠れるように）
+	var up: Vector3 = (visual.basis * board.basis).y
+	if is_inside_tree():
+		up = global_basis * up
+	var standing := up.normalized().y > 0.6
+	if board_shape.disabled == standing:
+		board_shape.set_deferred("disabled", not standing)
+
+
+func board_standing() -> bool:
+	return not board_shape.disabled
+
+
+# 荷台から落ちたかは、当たり判定の箱（土台）の中心で見る。center は寝ている板の真ん中で、
+# 土台より 0.6 m 前に出ているため、荷台の上にあっても外へはみ出して見えてしまう
+func ride_point() -> Vector3:
+	for c: Node in get_children():
+		if c is CollisionShape3D:
+			return global_transform * (c as CollisionShape3D).position
+	return center_global()
 
 
 # ギザギザの爆炎を絵に描く
@@ -96,6 +130,7 @@ func pop() -> void:
 
 
 func _process(delta: float) -> void:
+	_place_board_shape()
 	if _t < 0.0:
 		return
 	_t += delta
