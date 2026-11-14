@@ -3,6 +3,9 @@ extends Node
 ## 留めた点は離れないが、その点のまわりには自由に回る（支点）。点以外の所は、くっついていないのと同じで、ふつうにぶつかる。
 ## 1点だけなら、ぶら下がる・倒れる・回る。離れた所をもう1点留めると、2点を結ぶ線を軸にした蝶番になる。
 ## 一直線でない3点を留めると、ほぼ固まる。接着した時の向きへ戻そうとする力は無い。
+## 接着の点の印（丸）と、付ける前の下見は、制作班にだけ見える層に描く。撮影カメラ（film_camera.gd の CREW_LAYER と同じ番号）には映らない：
+## モニター・見返し・試写会の映像に、丸が出ない（2026-11-14 ユーザー）
+const CREW_LAYER := 1 << 11
 const TOUCH := 0.12
 const SEARCH := 0.18
 ## F で2つの印をつないだとき、片方を引き寄せる速さ（m/秒）・寄せ終わったとみる近さ（m）・あきらめるまでの秒数
@@ -265,11 +268,13 @@ func _show_preview(choice: Dictionary, unambiguous := true) -> void:
 			var mat := StandardMaterial3D.new()
 			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			dot.material_override = mat
+			dot.layers = CREW_LAYER
 			_preview_root.add_child(dot)
 			_preview_dots.append(dot)
 		_preview_line = ImmediateMesh.new()
 		var line := MeshInstance3D.new()
 		line.mesh = _preview_line
+		line.layers = CREW_LAYER
 		_preview_root.add_child(line)
 	var color := Color(0.2,0.9,1.0) if unambiguous and choice.gap<=SEARCH else Color(1.0,0.65,0.15)
 	var pa: Vector3 = game.props[choice.a].to_global(choice.pa)
@@ -575,6 +580,7 @@ func _dot(pid: int, point: Vector3, color: Color) -> void:
 	mat.emission = color
 	mat.emission_energy_multiplier = 0.7
 	dot.material_override = mat
+	dot.layers = CREW_LAYER
 	prop.add_child(dot)
 	dot.position = point
 	markers.append(dot)
