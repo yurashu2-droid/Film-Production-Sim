@@ -13,14 +13,9 @@ var head_y := HEAD_Y              # レンズの高さ（三脚なしなら、�
 const FOV_MIN := 18.0
 const FOV_MAX := 75.0
 const PropShapes := preload("res://scripts/prop_shapes.gd")
-# カードの残り（録画できる残り）：カメラ本体の左の横腹（液晶を開いた側。操作する人から見える側）に、小さな横長の表示。
-# 中のバーが、撮るほど短くなって、緑 → 黄 → 赤に変わる（色は ui/monitor_marks.gd の bar_color。モニターの枠の目盛りと同じ）。
-# 前は、フィルムの巻きが見える丸い小窓だった。ふつうのビデオカメラなので、SD カードの残量の表示にした（2026-11-14 ユーザー）。
-# 残りが減るのは、場面の列を持つ依頼（production_beats.gd）のときだけ。ほかは、いつも満タンに見える。数字は、どこにも出さない
-const Marks := preload("res://scripts/ui/monitor_marks.gd")
-const WINDOW_AT := Vector3(-0.049, 0.047, -0.052)   # 表示の中心（カメラ本体の座標。左の横腹の、操作の凹みの上）
-const BAR_LEN := 0.040            # バーがまるごとのときの長さ（前後の向き）
-const BAR_TALL := 0.007
+# カードの残り（録画できる残り）：カメラには出さない。画面の上の欄にバーで出す（features/card_gauge.gd）。
+# 前は横腹に小窓（フィルムの巻き → 残量のバー）を付けていたが、「カメラのそんな所に、バーはふつう無い」（2026-11-14 ユーザー）。
+# ここは、残りの値を持つだけ（production_beats.gd が毎コマ入れる）。残りわずかの時は、録画灯がせわしなく点滅する
 const REEL_EMPTY := 0.33          # 前の小窓の決まりの名残（reel_fill の一番小さい値。確認が使う）
 
 var cam_yaw := 0.0
@@ -39,9 +34,6 @@ var tally: MeshInstance3D
 var monitor_surface: MeshInstance3D
 var film_shown := false          # カードの残りを数えているか（場面の列を持つ依頼の、本番の前後）
 var film_frac := 1.0             # カードの残り（1＝まるごと / 0＝いっぱい）
-var _window: Node3D               # 横腹の、残りの表示
-var _spin: Node3D                 # バーの根元（ここの伸び縮みで、長さを変える）
-var _roll: MeshInstance3D         # 光るバー
 var _film_rolling := false
 var _film_low := false
 var _film_t := 0.0
@@ -85,9 +77,6 @@ func build() -> void:
 	tally.position = Vector3(0, 0.185, 0.06)
 	tally.visible = false
 	body.add_child(tally)
-
-	# カードの残りの表示（横腹）
-	_build_window(body)
 
 	# 当たり判定と重心は表（prop_shapes.gd）：三脚の広がりに合わせた段々の円柱と、雲台・カメラの箱
 	PropShapes.build(self, kind)
@@ -149,54 +138,11 @@ func reel_fill(which: int) -> float:
 	return lerpf(REEL_EMPTY, 1.0, amount)
 
 
-# 横腹の表示：黒い板・細い銀のふち・光るバー・右はしの小さな「端子」の出っぱり（電池の絵の形）。板の面は、カメラ本体の -X を向く
-func _build_window(body: Node3D) -> void:
-	_window = Node3D.new()
-	_window.name = "CardGauge"
-	_window.position = WINDOW_AT
-	body.add_child(_window)
-	var slab := func(size: Vector3, at: Vector3, color: Color, glow := 0.0) -> MeshInstance3D:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = size
-		mi.mesh = bm
-		var m := StandardMaterial3D.new()
-		m.albedo_color = color
-		m.roughness = 0.5
-		if glow > 0.0:
-			m.emission_enabled = true
-			m.emission = color
-			m.emission_energy_multiplier = glow
-		mi.material_override = m
-		mi.position = at
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_window.add_child(mi)
-		return mi
-	slab.call(Vector3(0.0016, BAR_TALL + 0.008, BAR_LEN + 0.010), Vector3(-0.0008, 0, 0), Color("b9bcc2"))
-	slab.call(Vector3(0.0016, BAR_TALL + 0.005, BAR_LEN + 0.007), Vector3(-0.0012, 0, 0), Color("06070a"))
-	slab.call(Vector3(0.0016, BAR_TALL * 0.5, 0.003), Vector3(-0.0008, 0, BAR_LEN * 0.5 + 0.006), Color("b9bcc2"))
-	_spin = Node3D.new()
-	_spin.position = Vector3(-0.0022, 0, -BAR_LEN * 0.5)      # バーの根元（ここから前へ伸びる）
-	_window.add_child(_spin)
-	_roll = slab.call(Vector3(0.0008, BAR_TALL, BAR_LEN), Vector3.ZERO, Marks.BAR_FULL, 1.6)
-	_window.remove_child(_roll)
-	_spin.add_child(_roll)
-	_roll.position = Vector3(0, 0, BAR_LEN * 0.5)
-
-
 func _show_film(delta: float) -> void:
 	_film_t += delta
-	var frac := film_frac if film_shown else 1.0
-	_spin.scale = Vector3(1.0, 1.0, maxf(frac, 0.02))
-	var bar: StandardMaterial3D = _roll.material_override
-	var color := Marks.bar_color(frac)
-	bar.albedo_color = color
-	bar.emission = color
-	# 残りわずか：バーと録画灯が、せわしなく点滅する
-	var blink := int(_film_t * 8.0) % 2 == 0
-	bar.emission_energy_multiplier = (2.6 if blink else 0.2) if _film_low else 1.6
+	# 残りわずか：録画灯が、せわしなく点滅する
 	var lamp: StandardMaterial3D = tally.material_override
-	lamp.emission_energy_multiplier = (8.0 if blink else 0.4) if _film_low else 4.0
+	lamp.emission_energy_multiplier = (8.0 if int(_film_t * 8.0) % 2 == 0 else 0.4) if _film_low else 4.0
 
 
 func _process(delta: float) -> void:
