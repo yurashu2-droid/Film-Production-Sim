@@ -47,7 +47,8 @@ const KEY_BEFORE := 1.0          # 見せ場（爆発・場面が撮れた瞬間
 const KEY_AFTER := 0.6
 const DEAD_MIN := 1.2            # 誰も映っていない間が、これより長ければ「間」
 const MAX_CUT := 0.7             # 間がテイクのこの割合を超えたら、間は切らない
-const WILD_NEAR := 1.5           # 前衛の効果が、見せ場からこの秒数までなら「ハマった」
+const HEAD_MISS := 0.7           # 頭が見えていない絵は、大きさをこの倍率で数える（一番いい時刻を選ぶ時）
+const WILD_NEAR := 1.5          # 前衛の効果が、見せ場からこの秒数までなら「ハマった」
 # 色（film.gdshader の grade）
 const GRADE := {"none": 0, "steady": 1, "cm": 5, "mv": 2, "wild": 0, "pro": 7, "hype": 9}
 const FILM_SHADER := "
@@ -156,7 +157,9 @@ var last_lines: Array = []       # いちばん新しい編集の、精算の行
 var _dead: Array = []            # 誰も映っていない間 [[始め, 終わり], ...]
 var _cameo: Array = []           # 班が映り込んだ間
 var _bursts: Array = []          # 爆発の時刻
-var _faces := {}                 # 役者の番号 → [一番大きく映った時刻, その大きさ, 頭まで入っていたか]（出番の役者だけ）
+var _faces := {}                 # 役者の番号 → [一番いい時刻, その大きさ, 頭が見えていたか, 見えなかった訳（"" ／ "cut" 画面の外 ／ "hidden" 物の陰）]（出番の役者だけ）
+var _things := {}                # 役（城・月 など）→ [物の番号, 一番大きく映った時の大きさ]（隠れずに映った物だけ）
+var _thing_t := -9.0
 var _burst_info: Array = []      # 爆発ごとの [場所 [x, y, z], 種類（"flat" 書割 ／ "dud" 火薬なし ／ "real"）]
 var _pop_t := -9.0               # いちばん新しく、書割が起きた時刻（すぐ後の爆発は、書割の爆発）
 var _dead_from := -1.0
@@ -429,6 +432,8 @@ func hook_take_start() -> void:
 	_cameo_from = -1.0
 	_crew_before = 0.0
 	_faces = {}
+	_things = {}
+	_thing_t = -9.0
 	_burst_info = []
 	_pop_t = -9.0
 
@@ -459,9 +464,17 @@ func hook_take_cut() -> void:
 	var beats: Variant = game.get("beats")
 	for aid: int in _faces:
 		var name := str(beats.role_name(aid)) if beats != null and beats.has_method("role_name") else ""
-		faces.append([aid, float(_faces[aid][0]), bool(_faces[aid][2]), name])
+		faces.append([aid, float(_faces[aid][0]), bool(_faces[aid][2]), name, str(_faces[aid][3])])
+	# 場面ごとの、映す役（城・月 など。無ければ ""）。場面の番号は、撮れた時刻（passes）と同じ並び
+	var scene_roles: Array = []
+	if beats != null and beats.has_method("list"):
+		for b: Dictionary in beats.list():
+			scene_roles.append(str(b.get("role", "")))
+	var things := {}
+	for role: String in _things:
+		things[role] = int(_things[role][0])
 	_measured[game.takes.size() - 1] = {"dead": _dead.duplicate(true), "cameo": _cameo.duplicate(true), "bursts": _bursts.duplicate(),
-		"faces": faces, "burst_info": _burst_info.duplicate(true)}
+		"faces": faces, "burst_info": _burst_info.duplicate(true), "things": things, "scene_roles": scene_roles}
 
 
 func hook_new_job() -> void:
@@ -513,14 +526,48 @@ func _measure() -> void:
 	var actors: Array = frame.get("actors", [])
 	var present: Array = frame.get("present", [])
 	var shown := present.is_empty()
+	var film: Node3D = game.program_camera()
+	var cam: Camera3D = film.view_cam if film != null and film.get("view_cam") is Camera3D else null
+	var space: PhysicsDirectSpaceState3D = film.get_world_3d().direct_space_state if cam != null else null
 	for aid: Variant in present:
 		if int(aid) >= 0 and int(aid) < actors.size():
 			var seen_actor: Dictionary = actors[int(aid)]
 			shown = shown or bool(seen_actor.get("shown", false))
-			# その役者が、一番大きく映った時刻（寄りの絵）を控える。編集の台本が、一人ずつ見せる所に使う
+			if not bool(seen_actor.get("shown", false)):
+				continue
+			# その役者の、一番いい時刻（寄りの絵）を控える。編集の台本が、一人ずつ見せる所に使う。
+			# 体は映っていても、頭だけ画面の外・物の陰、がある。それを見分けて、点数を下げる
 			var big := float(seen_actor.get("h", 0.0))
-			if bool(seen_actor.get("shown", false)) and (not _faces.has(int(aid)) or big > float(_faces[int(aid)][1]) + 0.02):
-				_faces[int(aid)] = [t, big, bool(seen_actor.get("head", true))]
+			var why := "" if bool(seen_actor.get("head", true)) else "cut"
+			if why == "" and cam != null and int(aid) < (game.actors as Array).size():
+				var actor: Node3D = game.actors[int(aid)]
+				var exclude: Array = [film.get_rid()]
+				if actor is CollisionObject3D:
+					exclude.append((actor as CollisionObject3D).get_rid())
+				if game.judge._blocked(space, cam.global_position, actor.head_pos(), exclude):
+					why = "hidden"
+			# 点数＝映った大きさ。頭が見えていない時は 0.7 倍（小さく映った集合の絵より、頭の切れた寄りの方が、その人の絵）
+			var had: Array = _faces.get(int(aid), [])
+			var score := big * (1.0 if why == "" else HEAD_MISS)
+			if had.is_empty() or score > float(had[1]) * (1.0 if bool(had[2]) else HEAD_MISS) + 0.02:
+				_faces[int(aid)] = [t, big, why == "", why]
+	# 役の物（城・月 など）が、隠れずに一番大きく映った物を控える。編集の台本が、その物へ寄る
+	if cam != null and t - _thing_t >= 0.1:
+		_thing_t = t
+		var vs := Vector2((film.view as SubViewport).size)
+		for p: Node3D in game.props.values():
+			if p.absent:
+				continue
+			var role := str(game.judge.role_of(p))
+			if role == "":
+				continue
+			var mid: Vector3 = p.center_global()
+			if not game.judge._in_frame(cam, vs, mid) or game.judge._blocked(space, cam.global_position, mid, [film.get_rid(), p.get_rid()]):
+				continue
+			var up: Vector3 = p.global_basis.y.normalized() * float(p.half.y)
+			var size := cam.unproject_position(mid + up).distance_to(cam.unproject_position(mid - up)) / vs.y
+			if not _things.has(role) or size > float(_things[role][1]) + 0.02:
+				_things[role] = [int(p.pid), size]
 	if not shown and _dead_from < 0.0:
 		_dead_from = t
 	elif shown and _dead_from >= 0.0:
@@ -561,6 +608,7 @@ func hook_premiere_cues(index: int) -> Array:
 		"passes": (premiere._times.get(index, []) as Array).duplicate() if premiere != null else [],
 		"dead": m.get("dead", []), "cameo": m.get("cameo", []), "bursts": m.get("bursts", []),
 		"faces": m.get("faces", []), "burst_info": m.get("burst_info", []),
+		"things": m.get("things", {}), "scene_roles": m.get("scene_roles", []),
 		"job": str(job.get("title", "")), "company": str(game.production.company_name()) if game.production.has_method("company_name") else "",
 		"genre": genre_of(job), "titles": game.scene_titles(), "net": bool(job.get("debut", false)),
 	}
@@ -852,6 +900,12 @@ func _crop_point(crop: Array) -> Vector2:
 			world = game.actors[aid].head_pos()
 		"at":
 			world = Vector3(float(crop[1][0]), float(crop[1][1]), float(crop[1][2]))
+		"prop":
+			# 役の物（城 など）。見返しの中で動いても、付いていく。5 つ目は、真ん中から上へずらす割合（上のほうに寄る）
+			var prop: Variant = game.props.get(int(crop[1]))
+			if prop == null or not is_instance_valid(prop) or bool(prop.absent):
+				return Vector2(0.5, 0.42)
+			world = (prop as Node3D).global_transform * (prop.center + Vector3(0, float(prop.half.y) * (float(crop[4]) if crop.size() >= 5 else 0.0), 0))
 	var camera: Node = game.program_camera()
 	if camera == null or not camera.get("view_cam") is Camera3D:
 		return Vector2(0.5, 0.45)

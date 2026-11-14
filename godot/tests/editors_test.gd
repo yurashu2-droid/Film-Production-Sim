@@ -137,6 +137,23 @@ func run() -> void:
 	check(texts(pro, "t_end") == ["ぜんぶ、格安で！"] and texts(pro, "t_sub") == ["アマノ映画"], "名匠：締めは最後の場面の名前と、会社の名前")
 	check(texts(pro, "t_ng").size() == 2 and quiet_at(pro, 25.0) and absf(src_of(pro, 24.0) - 16.0) < 0.01, "名匠：切った所（映り込み・間）は、最後に NG のおまけ（%s）" % str(texts(pro, "t_ng")))
 	check(coins(pro) == -250 + 120 + 200 + 30 and coins(pro) > coins(steady), "名匠：代金 250 でも黒字（%d）" % coins(pro))
+	# 寄る先：役の物が隠れずに映っていれば、その物へ。映っていなければ、決まった所へ。頭が物の陰だった人は、そう書く
+	var crop_at := func(e: Dictionary, t: float) -> Array:
+		for s: Array in e["reel"]:
+			if t >= float(s[0]) and t < float(s[1]):
+				return s[4]
+		return []
+	check(str((crop_at.call(pro, 9.0) as Array)[0]) == "uv", "名匠：役の物を測っていなければ、引きは決まった所から")
+	var staged := rich.duplicate(true)
+	staged["scene_roles"] = ["", "castle", "", ""]
+	staged["things"] = {"castle": 42}
+	staged["faces"][2] = [2, 4.0, false, "社員C", "hidden"]
+	var pro_staged: Dictionary = Editors.build_edit("pro", staged, 1)
+	var to_castle: Array = crop_at.call(pro_staged, 9.0)
+	check(str(to_castle[0]) == "prop" and int(to_castle[1]) == 42 and float(to_castle[2]) > float(to_castle[3]), "名匠：城の場面の引きは、城役の物から（%s）" % str(to_castle))
+	check("社員C　（物に隠れていました）" in texts(pro_staged, "t_name") and "社員D　（頭は入りませんでした）" in texts(pro_staged, "t_name"), "名匠：頭が物の陰だった人と、画面の外だった人を、書き分ける（%s）" % str(texts(pro_staged, "t_name")))
+	staged["things"] = {}
+	check(str((crop_at.call(Editors.build_edit("pro", staged, 1), 9.0) as Array)[0]) == "uv", "名匠：城役の物が映らなかったテイクでは、物へは寄らない")
 	var real := rich.duplicate(true)
 	real["burst_info"] = [[[1.0, 1.2, -3.0], "real"]]
 	check(texts(Editors.build_edit("pro", real, 1), "t_note").is_empty(), "名匠：本物の爆発なら、「板に描いた絵」とは書かない")

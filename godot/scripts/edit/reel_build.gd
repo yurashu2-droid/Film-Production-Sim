@@ -3,7 +3,7 @@ extends RefCounted
 ## 考え方と、元にした 2 本の動画は docs/production/editing-craft.md。
 ##   ・台本は「出来上がりの秒」で並べる（曲が先。絵は、曲の拍に合わせて切る）。出来上がりは、どちらも 28 秒ほど
 ##   ・1 行：[出来上がりの始め, 終わり, 素材の始め, 速さ, 寄り, 静かに]
-##       寄り：[] 寄らない ／ ["actor", 役者の番号, 始めの倍率, 終わりの倍率] ／ ["at", [x, y, z], …] 世界の中の点 ／ ["uv", [u, v], …] 画面の中の点
+##       寄り：[] 寄らない ／ ["actor", 役者の番号, 始めの倍率, 終わりの倍率] ／ ["at", [x, y, z], …] 世界の中の点 ／ ["prop", 物の番号, …, 上へずらす割合] 役の物 ／ ["uv", [u, v], …] 画面の中の点
 ##       静かに：true なら、その間の効果音と爆発の合図は出さない（刻み・止め・NG）
 ##   ・効果と字も、出来上がりの秒で：[始め, 終わり, 種類, 文, おまけ]
 ##   ・手は、素材から決める：役者ごとの一番大きく映った時刻（faces）・場面が撮れた時刻（passes）・爆発（bursts）・映り込み・間。
@@ -48,6 +48,7 @@ static func _read(d: Dictionary) -> Dictionary:
 		burst_kind = str(info[0][1])
 	return {"dur": dur, "top": dur - 0.05, "passes": passes, "faces": faces, "has_burst": has_burst, "peak": peak, "final": final, "final_i": final_i,
 		"burst_at": at, "burst_kind": burst_kind, "titles": d.get("titles", []), "net": bool(d.get("net", false)),
+		"things": d.get("things", {}), "scene_roles": d.get("scene_roles", []),
 		"cameo": d.get("cameo", []), "dead": d.get("dead", []), "job": str(d.get("job", "")), "company": str(d.get("company", ""))}
 
 
@@ -73,6 +74,16 @@ static func _clean_from(r: Dictionary, from: float, end: float) -> float:
 		if float(s[1]) > from and float(s[0]) < end - 0.4:
 			from = maxf(from, minf(float(s[1]) + 0.1, end - 0.4))
 	return from
+
+
+# その場面の、役の物（城・月 など）への寄り。隠れずに映った物が無ければ、決まった所（other）へ
+static func _thing(r: Dictionary, scene_i: int, z0: float, z1: float, up: float, other: Array) -> Array:
+	var roles: Array = r["scene_roles"]
+	var role := str(roles[scene_i]) if scene_i >= 0 and scene_i < roles.size() else ""
+	var things: Dictionary = r["things"]
+	if role == "" or not things.has(role):
+		return other
+	return ["prop", int(things[role]), z0, z1, up]
 
 
 static func _zoom(crop: Array) -> Array:
@@ -113,7 +124,8 @@ static func pro(d: Dictionary) -> Dictionary:
 		cursor = _seg(reel, top, o, o + length, from, speed, ["actor", int(f[0]), 1.3, 1.42])
 		var name := str(f[3]) if f.size() >= 4 else ""
 		if name != "":
-			fx.append([o + 0.15, o + length - 0.1, "t_name", name + ("　（頭は入りませんでした）" if not bool(f[2]) else ""), 0])
+			var why := str(f[4]) if f.size() >= 5 else ("" if bool(f[2]) else "cut")
+			fx.append([o + 0.15, o + length - 0.1, "t_name", name + str({"cut": "　（頭は入りませんでした）", "hidden": "　（物に隠れていました）"}.get(why, "")), 0])
 		o += length
 		shown += 1
 	if faces.is_empty():
@@ -128,7 +140,7 @@ static func pro(d: Dictionary) -> Dictionary:
 		var end := minf(float(reveal[0]) + 1.0, build_from)
 		var from := _clean_from(r, maxf(end - 4.0, 0.0), end)
 		var speed := (end - from) / 4.0
-		cursor = _seg(reel, top, 8.0, 10.4, from, speed, ["uv", [0.5, 0.36], 1.7, 1.0])
+		cursor = _seg(reel, top, 8.0, 10.4, from, speed, _thing(r, int(reveal[1]), 1.7, 1.0, 0.6, ["uv", [0.5, 0.36], 1.7, 1.0]))
 		cursor = _seg(reel, top, 10.4, 12.0, cursor, speed)
 		fx.append([8.7, 11.7, "t_lower", _title(r, int(reveal[1])), 0])
 		shown += 1
@@ -283,14 +295,18 @@ static func hype(d: Dictionary) -> Dictionary:
 		fx.append([o, o + 0.2, "rgb", "", 0])
 		var from := dur * float(k + 2) / 5.0
 		var words := "……"
+		var wide: Array = ["uv", [0.5, 0.42], 1.0, 1.15]
+		var dive: Array = ["uv", [0.5, 0.42], 1.15, ZOOM_MAX]
 		if k < highs.size():
+			wide = _thing(r, int(highs[k][1]), 1.0, 1.15, 0.0, wide)
+			dive = _thing(r, int(highs[k][1]), 1.15, ZOOM_MAX, 0.0, dive)
 			from = _clean_from(r, clampf(float(highs[k][0]) - 1.3, 0.0, maxf(build_from - bar, 0.0)), float(highs[k][0]) + 0.5)
 			words = _title(r, int(highs[k][1]))
 			hits += 1
 		else:
 			misses += 1
-		cursor = _seg(reel, top, o, o + beat * 3.5, from, 1.0, ["uv", [0.5, 0.42], 1.0, 1.15])
-		_seg(reel, top, o + beat * 3.5, o + bar, cursor, 1.0, ["uv", [0.5, 0.42], 1.15, ZOOM_MAX], true)
+		cursor = _seg(reel, top, o, o + beat * 3.5, from, 1.0, wide)
+		_seg(reel, top, o + beat * 3.5, o + bar, cursor, 1.0, dive, true)
 		fx.append([o + beat * 3.5, o + bar + 0.08, "flash", "", 0])
 		fx.append([o, o + bar, "k_wall", words, k])
 	# サビ 3・4 小節目：山場の前を、8 分 → 16 分で刻む。最後の 2 拍は、白黒反転の点滅
