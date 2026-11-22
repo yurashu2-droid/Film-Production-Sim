@@ -164,42 +164,88 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 	# 小さな回転灯は不透明な台の上に載る。
 	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.15, 2.34, 0)), Vector3(0.24, 0.04, 0.76), Look.Batch.ALL)
 	b.box(Look.plain(Color("e9a83b"), 0.24), at * Transform3D(Basis.IDENTITY, Vector3(2.15, 2.42, 0)), Vector3(0.21, 0.12, 0.7), Look.Batch.ALL)
-	# 曲面を折り板で表現したパッカー箱。屋根の傾斜も薄い当たり判定で追う。
-	b.extrude(green, at * Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(-0.35, 0.7, 0)), [Vector2(-1.05, 0.0), Vector2(1.05, 0.0), Vector2(1.05, 1.5), Vector2(0.75, 1.95), Vector2(-0.75, 1.95), Vector2(-1.05, 1.5)], 3.6)
+	# 荷箱の断面。肩を二段で折り、側板と屋根の間に細い反射面を作る。
+	var shell := [Vector2(-0.99, 0), Vector2(0.99, 0), Vector2(1.05, 0.10),
+			Vector2(1.05, 1.43), Vector2(0.98, 1.66), Vector2(0.79, 1.90),
+			Vector2(0.66, 1.95), Vector2(-0.66, 1.95), Vector2(-0.79, 1.90),
+			Vector2(-0.98, 1.66), Vector2(-1.05, 1.43), Vector2(-1.05, 0.10)]
+	var crosswise := Basis(Vector3.UP, PI * 0.5)
+	b.extrude(green, at * Transform3D(crosswise, Vector3(-0.35, 0.7, 0)), shell, 3.6)
+	var frame := Look.plain(Color("376b4d"), 0.55)
+	for xx: float in [-2.09, 1.37]:
+		b.extrude(frame, at * Transform3D(crosswise.scaled(Vector3(1, 1.005, 1.022)),
+				Vector3(xx, 0.7, 0)), shell, 0.09)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.45, 0)), Vector3(3.6, 1.5, 2.1))
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 2.4, 0)), Vector3(3.6, 0.5, 1.5))
 	for s: float in [-1.0, 1.0]:
 		b.solid(at * Transform3D(Basis(Vector3.RIGHT, s * 0.59), Vector3(-0.35, 2.425, s * 0.9)), Vector3(3.6, 0.04, 0.54))
-		b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.55, s * 1.055)), Vector3(3.56, 0.32, 0.02), Look.Batch.ALL)
-		for xx: float in [-1.78, 1.12]:
-			b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(xx, 1.47, s * 1.08)), Vector3(0.07, 1.4, 0.06), Look.Batch.ALL)
-		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(-0.4, 0.86, s * 1.075)), Vector3(2.5, 0.06, 0.035), Look.Batch.ALL)
-	# 後端の投入口は、左右の厚い頬・上の枠・底の受け皿で囲う。口を箱で埋めない。
-	var intake := Basis(Vector3.BACK, -0.3)
-	for s: float in [-1.0, 1.0]:
-		var cheek := at * Transform3D(intake, Vector3(-2.48, 1.35, s * 0.98))
-		b.box(white, cheek, Vector3(0.82, 1.65, 0.16), Look.Batch.ALL)
-		b.solid(cheek, Vector3(0.82, 1.65, 0.16))
-		b.box(Look.plain(Color("b74b32"), 0.36), at * Transform3D(Basis.IDENTITY, Vector3(-2.95, 0.96, s * 0.83)), Vector3(0.06, 0.16, 0.12), Look.Batch.ALL)
-		b.bar(dark, at * Vector3(-1.98, 1.0, s * 1.1), at * Vector3(-2.4, 2.02, s * 1.1), 0.085)
-	b.box(white, at * Transform3D(intake, Vector3(-2.23, 2.12, 0)), Vector3(0.82, 0.17, 1.85), Look.Batch.ALL)
-	b.solid(at * Transform3D(intake, Vector3(-2.23, 2.12, 0)), Vector3(0.82, 0.17, 1.85))
-	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(-2.32, 1.34, 0)), Vector3(0.08, 1.15, 1.78), Look.Batch.ALL)
-	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-2.32, 1.34, 0)), Vector3(0.08, 1.15, 1.78))
-	b.box(steel, at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(-2.67, 0.72, 0)), Vector3(0.8, 0.14, 1.82), Look.Batch.ALL)
-	b.solid(at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(-2.67, 0.72, 0)), Vector3(0.8, 0.14, 1.82))
+		b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.55, s * 1.053)), Vector3(3.38, 0.20, 0.008), Look.Batch.ALL)
+		for yy: float in [1.14, 1.98]:
+			b.extrude(frame, at * Transform3D(Basis.IDENTITY, Vector3(0, yy, s * 1.062)),
+					[Vector2(-1.98, -0.034), Vector2(1.19, -0.034), Vector2(1.28, 0),
+					Vector2(1.19, 0.034), Vector2(-1.98, 0.034), Vector2(-2.03, 0)], 0.034)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(-1.42, 0.92, s * 0.99)), Vector3(1.96, 0.075, 0.26), Look.Batch.ALL)
+	_truck_hopper(b, at, white, dark, steel)
 	# タイヤは肉厚の黒い外周と、奥まった金属のハブ。軸方向の中心を左右でそろえる。
 	for wx: float in [2.1, -1.0, -1.9]:
 		for s: float in [-1.0, 1.0]:
 			var hub := Vector3(wx, 0.45, s * 1.02)
-			var wheel_basis := Basis(Vector3.RIGHT, PI * 0.5)
-			b.cyl(tire, at * Transform3D(wheel_basis, hub + Vector3(0, 0, 0.16)), 0.45, 0.32, 16, -1.0, true, true)
+			var wheel_basis := Basis(Vector3.RIGHT, s * PI * 0.5)
+			b.cyl(tire, at * Transform3D(wheel_basis, hub - Vector3(0, 0, s * 0.16)), 0.415, 0.045, 20, 0.45, false, true)
+			b.cyl(tire, at * Transform3D(wheel_basis, hub - Vector3(0, 0, s * 0.115)), 0.45, 0.23, 20, -1.0, false)
+			b.cyl(tire, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.115)), 0.45, 0.045, 20, 0.415)
 			b.solid(at * Transform3D(Basis.IDENTITY, hub), Vector3(0.82, 0.84, 0.32))
-			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.166 + 0.018)), 0.25, 0.036, 12, -1.0, true, true)
-			b.cyl(dark, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.19 + 0.018)), 0.095, 0.036, 10, -1.0, true, true)
-	# 荷箱の横：区の緑の帯（文字は書かない）
+			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.161)), 0.26, 0.031, 16, 0.23)
+			b.cyl(dark, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.193)), 0.16, 0.014, 14)
+			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.208)), 0.086, 0.031, 10)
+
+
+static func _truck_hopper(b: Look.Batch, at: Transform3D, white: Look.Tint, dark: Look.Tint, steel: Look.Tint) -> void:
+	var liner := Look.plain(Color("535b53"), 0.78, 0.25)
+	var blade := Look.plain(Color("727971"), 0.69, 0.25)
+	var amber := Look.plain(Color("d88b34"), 0.38)
+	var red := Look.plain(Color("a8392b"), 0.38)
+	var cheek_profile := [Vector2(-3.02, 0.67), Vector2(-3.04, 0.88), Vector2(-2.65, 2.08),
+			Vector2(-2.44, 2.27), Vector2(-2.03, 2.36), Vector2(-2.03, 0.74)]
+	var collision_slope := Basis(Vector3.BACK, -0.3)
 	for s: float in [-1.0, 1.0]:
-		b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(-0.35, 1.55, s * 1.07)), Vector3(3.5, 0.12, 0.012), Look.Batch.ALL)
+		b.extrude(white, at * Transform3D(Basis.IDENTITY, Vector3(0, 0, s * 0.975)), cheek_profile, 0.19)
+		b.solid(at * Transform3D(collision_slope, Vector3(-2.48, 1.35, s * 0.98)), Vector3(0.82, 1.65, 0.16))
+		# 縁から奥へ絞った側板。投入口から受け皿と押し板が見える。
+		b.poly_out(liner, [at * Vector3(-3.02, 0.81, s * 0.88), at * Vector3(-2.61, 2.07, s * 0.88),
+				at * Vector3(-2.15, 1.97, s * 0.72), at * Vector3(-2.28, 0.63, s * 0.72)],
+				at.basis * Vector3(0, 0, -s))
+		var low := Vector3(-1.90, 0.99, s * 1.08)
+		var high := Vector3(-2.45, 2.05, s * 1.09)
+		var pivot := low.lerp(high, 0.67)
+		b.bar(dark, at * low, at * pivot, 0.105, Look.Batch.ALL)
+		b.bar(steel, at * pivot, at * high, 0.055, Look.Batch.ALL)
+		for mount: Vector3 in [low, high]:
+			b.box(dark, at * Transform3D(Basis.IDENTITY, mount), Vector3(0.18, 0.18, 0.10), Look.Batch.ALL)
+			b.cyl(steel, at * Transform3D(Basis(Vector3.RIGHT, s * PI * 0.5),
+					mount + Vector3(0, 0, s * 0.052)), 0.049, 0.021, 10)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(-3.035, 0.76, s * 0.99)), Vector3(0.10, 0.23, 0.21), Look.Batch.ALL)
+		b.box(red, at * Transform3D(Basis.IDENTITY, Vector3(-3.091, 0.71, s * 0.99)), Vector3(0.022, 0.084, 0.16), Look.Batch.ALL)
+		b.box(amber, at * Transform3D(Basis.IDENTITY, Vector3(-3.091, 0.814, s * 0.99)), Vector3(0.022, 0.064, 0.16), Look.Batch.ALL)
+	var cap_profile := [Vector2(-2.69, 2.03), Vector2(-2.68, 2.16), Vector2(-2.50, 2.29),
+			Vector2(-2.06, 2.37), Vector2(-2.06, 2.05)]
+	b.extrude(white, at, cap_profile, 1.85)
+	b.extrude(dark, at, [Vector2(-2.61, 2.05), Vector2(-2.16, 2.06),
+			Vector2(-2.16, 1.94), Vector2(-2.54, 1.98)], 1.64)
+	# 折れた板で漏斗の底を組み、入口の擦れやすい縁に鋼材を巻く。
+	b.extrude(liner, at, [Vector2(-3.06, 0.75), Vector2(-3.04, 0.86), Vector2(-2.93, 0.88),
+			Vector2(-2.57, 0.72), Vector2(-2.57, 0.64)], 1.77)
+	b.extrude(liner, at, [Vector2(-2.57, 0.64), Vector2(-2.57, 0.72),
+			Vector2(-2.29, 0.69), Vector2(-2.29, 0.60)], 1.77)
+	b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(-3.041, 0.85, 0)), Vector3(0.085, 0.075, 1.79), Look.Batch.ALL)
+	b.extrude(blade, at, [Vector2(-2.57, 1.89), Vector2(-2.18, 1.96), Vector2(-2.17, 1.11),
+			Vector2(-2.30, 1.14), Vector2(-2.48, 1.59)], 1.48)
+	b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(-2.258, 1.13, 0)), Vector3(0.12, 0.065, 1.49), Look.Batch.ALL)
+	b.extrude(liner, at, [Vector2(-2.49, 0.66), Vector2(-2.24, 1.18),
+			Vector2(-2.13, 1.18), Vector2(-2.13, 0.65)], 1.50)
+	b.solid(at * Transform3D(collision_slope, Vector3(-2.23, 2.12, 0)), Vector3(0.82, 0.17, 1.85))
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(-2.32, 1.34, 0)), Vector3(0.08, 1.15, 1.78))
+	b.solid(at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(-2.67, 0.72, 0)), Vector3(0.8, 0.14, 1.82))
 
 
 # ---- 南の区道（車道と歩道、白線、止まれ） ----
