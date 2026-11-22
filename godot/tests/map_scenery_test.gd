@@ -54,7 +54,7 @@ func walk(at: Vector3, velocity: Vector3, frames: int) -> Vector3:
 func run() -> void:
 	map = Node3D.new()
 	root.add_child(map)
-	Office.build(map,Look.font())
+	var office := Office.build(map,Look.font())
 	Yard.build(map)
 	Extras.build(map)
 	# 電柱は単独でも確かめ、隣接する敷地の見えない壁を誤検出しない。
@@ -82,13 +82,23 @@ func run() -> void:
 	check(breach.x < 62.4 and breach.y > -.1,"フェンスの破れ目から荷運びの通路を通れる")
 	var entry := await walk(Vector3(72,.03,7),Vector3(0,0,-2.5),100)
 	check(entry.z < 3.5 and entry.y > -.1,"会社の入口を歩いて通れる")
+	var truck_exit := await walk(Vector3(80.0, 0.03, 34.0), Vector3(0, 0, 5.0), 65)
+	check(truck_exit.z > 35.5 and truck_exit.z < 36.4, "軽トラ乗り場から公道へ出る門で止まる")
+	var gate := office.get_node("TruckExitGate") as Node3D
+	var gate_center := Vector3(79.8, 1.3, Office.TRUCK_EXIT_Z)
+	check(occupied(gate_center), "閉じた出口の門扉に当たる")
+	Office.set_truck_exit_open(gate, 1.0)
+	for i in 3:await physics_frame
+	var public_road := await walk(Vector3(80.0, 0.03, 34.0), Vector3(0, 0, 5.0), 65)
+	check(public_road.z > 38.0 and public_road.y > -0.1, "開いた出口から公道に出られる")
+	Office.set_truck_exit_open(gate, 0.0)
+	for i in 3:await physics_frame
+	check(occupied(gate_center), "閉め直した出口の門に当たる")
 	# 歩道の街灯と信号を越えた位置から、車道は延長した床の手前から進む。
 	for start: Vector3 in [Vector3(73.15, 0.15, 77.5), Vector3(80.0, 0.15, 72.0), Vector3(86.82, 0.15, 77.5)]:
 		var road_end := await walk(start, Vector3(0, 0, 5.0), 120)
 		check(road_end.z > 79.5 and road_end.z < 81.0 and road_end.y > -0.1,
-				"道路奥の門か袖壁で止まり、落下しない（開始=%s 終点=%s）" % [start, road_end])
-	check(occupied(Vector3(79.8, 1.3, 80.84)), "閉じた門の面に当たる")
-	check(not occupied(Vector3(79.8, 3.1, 80.84)), "門より上は空いている")
+				"公道の突き当たりの塀で止まり、落下しない（開始=%s 終点=%s）" % [start, road_end])
 	# 粗大ごみ置き場：会社の側には入口が無く、金網をペンチで切った穴だけ。本当の門（鎖と南京錠）は南の区道の側
 	var yard: Node3D = map.find_child("ScrapYard",true,false)
 	var hole: Vector3 = Yard.gate_point()

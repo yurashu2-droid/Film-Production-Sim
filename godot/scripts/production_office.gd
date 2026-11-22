@@ -18,6 +18,7 @@ const FACADE_LAYER := 1 << 14
 const CONTRACT_POINT := Vector3(72, 0, 1.5)
 const TRUCK_POINT := Vector3(82, 0, 18)
 const SPAWN_POINT := Vector3(72, 0.1, 5)
+const TRUCK_EXIT_Z := 36.4
 const ROAD_END := 81.0
 # 機材置き場（軽トラの北東の囲い。x, z, 幅, 奥行き）。会社の機材をここに並べておく。
 # 並べ方は production_flow.gd の GEAR_HOME。出発すると、機材はいっしょに現場へ運ばれる
@@ -49,6 +50,7 @@ static func build(parent: Node3D, font: Font) -> Node3D:
 	var road := Look.Batch.new()
 	_road(road)
 	_road_gate(road, root)
+	_road_end_wall(road)
 	road.build(root, "RoadDressing")
 	return root
 
@@ -111,14 +113,14 @@ static func _ring(b: Look.Batch, material: Look.Tint, at: Transform3D, radius: f
 static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var g := Look.Batch.new()
 	g.no_shadow = true
-	# 車道の床を歩道と門のところまで通す。
+	# 公道の床を歩道の終端まで通す。
 	var road_end := ROAD_END
 	g.solidp(Vector3(62, -0.2, 11), Vector3(60, 0.4, 50))
 	g.solidp(Vector3(80, -0.21, (33.0 + road_end) * 0.5), Vector3(13, 0.4, road_end - 33.0))
 	g.quad_up(Look.mat("concrete", Color("9a958a")), 32.0, 92.0, -14.0, 36.0, 0.0)
 	var asp := Look.mat("asphalt", Color("45494c"))
 	g.quad_up(asp, 74.0, 86.0, 11.5, 24.0, 0.010)
-	g.quad_up(asp, 73.5, 86.5, 24.0, road_end + 8.0, 0.010)
+	g.quad_up(asp, 73.5, 86.5, 24.0, road_end + 1.0, 0.010)
 	# 新しい舗装の継ぎはぎ（色の違う長方形）
 	var patch := Look.mat("asphalt", Color("2e3133"))
 	g.quad_up(patch, 79.0, 83.5, 33.2, 35.0, 0.0115)
@@ -1423,39 +1425,61 @@ static func _road(b: Look.Batch) -> void:
 
 
 static func _road_gate(b: Look.Batch, root: Node3D) -> void:
-	var z := ROAD_END - 0.16
+	var gate := Node3D.new()
+	gate.name = "TruckExitGate"
+	gate.position.z = TRUCK_EXIT_Z
+	root.add_child(gate)
 	var steel := P(Color("586b68"), 0.58, 0.4)
 	var base := Look.mat("concrete", Color("aaa99a"))
 	var pier := Look.mat("block", Color("b8af9c"))
-	# 門柱と袖壁を既存の両脇の塀につなぐ。
+	# 敷地南側の塀を門柱まで延ばす。路面に面した左右の門扉は公道側へ開く。
 	for side: float in [-1.0, 1.0]:
 		var post_x := 80.0 + side * 4.19
-		var post := Vector3(post_x, 1.39, z)
+		var post := Vector3(post_x, 1.39, TRUCK_EXIT_Z)
 		b.boxp(base, post, Vector3(0.42, 2.78, 0.49), ALL)
 		b.solidp(post, Vector3(0.42, 2.78, 0.49))
 		b.boxp(base, post + Vector3(0, 1.42, 0), Vector3(0.52, 0.10, 0.58), ALL)
-		var wing := Vector3(80.0 + side * 5.86, 1.29, z)
-		b.boxp(pier, wing, Vector3(3.26, 2.58, 0.29), ALL)
-		b.solidp(wing, Vector3(3.26, 2.58, 0.29))
-		b.boxp(base, wing + Vector3(0, 1.32, 0), Vector3(3.26, 0.10, 0.38), ALL)
-		var inner := 80.0 + side * 0.045
-		var outer := 80.0 + side * 4.04
-		var mid := (inner + outer) * 0.5
-		var span := absf(outer - inner)
-		for y: float in [0.21, 1.48, 2.52]:
-			b.boxp(steel, Vector3(mid, y, z), Vector3(span, 0.075, 0.08), ALL)
-		for k in 15:
-			var x := lerpf(inner, outer, float(k) / 14.0)
-			b.boxp(steel, Vector3(x, 1.365, z), Vector3(0.049, 2.31, 0.07), ALL)
-		b.bar(steel, Vector3(outer, 0.24, z + 0.037), Vector3(inner, 2.48, z + 0.037), 0.046, ALL)
+		var wing_half_width := 1.83 if side < 0.0 else 1.74
+		var wing := Vector3(post_x + side * wing_half_width, 1.29, TRUCK_EXIT_Z)
+		var wing_size := Vector3(wing_half_width * 2.0, 2.58, 0.29)
+		b.boxp(pier, wing, wing_size, ALL)
+		b.solidp(wing, wing_size)
+		b.boxp(base, wing + Vector3(0, 1.32, 0), Vector3(wing_size.x, 0.10, 0.38), ALL)
+		var hinge_x := 80.0 + side * 4.04
 		for y: float in [0.39, 2.33]:
-			b.boxp(steel, Vector3(post_x - side * 0.105, y, z - 0.045),
+			b.boxp(steel, Vector3(post_x - side * 0.105, y, TRUCK_EXIT_Z - 0.045),
 					Vector3(0.24, 0.115, 0.072), ALL)
-			b.cylp(steel, Vector3(outer, y - 0.082, z - 0.04), 0.043, 0.164, 12)
-		b.solidp(Vector3(mid, 1.32, z), Vector3(span + 0.065, 2.52, 0.13))
-	# 閉じた扉の合わせ目に閂と、桟に取り付けた進入禁止札。
-	b.boxp(steel, Vector3(80.0, 1.45, z - 0.054), Vector3(0.39, 0.09, 0.082), ALL)
-	var plate := Vector3(79.4, 1.48, z - 0.051)
-	b.boxp(P(Color("e6e4d5"), 0.68), plate, Vector3(0.52, 0.46, 0.024), ALL)
-	Look.picto(root, Transform3D(Basis(Vector3.UP, PI), plate + Vector3(0, 0, -0.0128)),
-			"no_entry", Vector2(0.34, 0.34))
+			b.cylp(steel, Vector3(hinge_x, y - 0.082, TRUCK_EXIT_Z), 0.043, 0.164, 12)
+		var door := Look.Batch.new()
+		var span := 3.995
+		var inner := -side * span
+		for y: float in [0.21, 1.48, 2.52]:
+			door.boxp(steel, Vector3(inner * 0.5, y, 0), Vector3(span, 0.075, 0.08), ALL)
+		for k in 15:
+			var x := inner * k / 14.0
+			door.boxp(steel, Vector3(x, 1.365, 0), Vector3(0.049, 2.31, 0.07), ALL)
+		door.bar(steel, Vector3(0, 0.24, 0.037), Vector3(inner, 2.48, 0.037), 0.046, ALL)
+		door.solidp(Vector3(inner * 0.5, 1.32, 0), Vector3(span + 0.065, 2.52, 0.13))
+		var plate := Vector3(inner - signf(inner) * 0.38, 1.48, -0.051)
+		door.boxp(P(Color("e6e4d5"), 0.68), plate, Vector3(0.52, 0.46, 0.024), ALL)
+		door.boxp(steel, Vector3(inner - signf(inner) * 0.09, 1.40, -0.054),
+				Vector3(0.20, 0.08, 0.066), ALL)
+		var leaf := door.build(gate, "Left" if side < 0.0 else "Right")
+		leaf.position.x = hinge_x
+		Look.picto(leaf, Transform3D(Basis(Vector3.UP, PI), plate + Vector3(0, 0, -0.0128)),
+				"no_entry", Vector2(0.34, 0.34))
+
+
+static func set_truck_exit_open(gate: Node3D, amount: float) -> void:
+	var rotation_y := amount * PI * 0.5
+	(gate.get_node("Left") as Node3D).rotation.y = -rotation_y
+	(gate.get_node("Right") as Node3D).rotation.y = rotation_y
+
+
+static func _road_end_wall(b: Look.Batch) -> void:
+	# 公道の突き当たりは、路面が切れる手前で両脇の塀につなぐ。
+	var pos := Vector3(80, 1.29, ROAD_END - 0.16)
+	b.boxp(Look.mat("block", Color("b8af9c")), pos, Vector3(15.0, 2.58, 0.29), ALL)
+	b.solidp(pos, Vector3(15.0, 2.58, 0.29))
+	b.boxp(Look.mat("concrete", Color("aaa99a")), pos + Vector3(0, 1.32, 0),
+			Vector3(15.0, 0.10, 0.38), ALL)

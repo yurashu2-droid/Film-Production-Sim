@@ -309,10 +309,17 @@ func run() -> void:
 	check((flow.loadout()["script"] as Array)[2], "the loaded script counts as packed")
 	me.global_position = flow.HOME_TRUCK + Vector3(-3, 0.1, 0)
 	await frames(3)
+	var exit_leaf := game.find_child("TruckExitGate", true, false).get_node("Left") as Node3D
+	check(is_zero_approx(exit_leaf.rotation.y), "the truck exit gate is shut before departure")
 	game.h_depart()
 	await frames(20)
 	check(flow.phase == 3 and flow.gear().all(func(g: Node) -> bool: return flow.at_site(g)), "on departure the gear leaves the yard with the truck")
-	await frames(470)
+	await frames(225)
+	check(flow.phase == 3 and is_equal_approx(exit_leaf.rotation.y, -PI * 0.5),
+			"the truck exit gate is fully open when the truck reaches the road")
+	await frames(150)
+	check(flow.phase == 3 and is_zero_approx(exit_leaf.rotation.y), "the truck exit gate shuts after the truck passes")
+	await frames(95)
 	await frames(60)
 	check_arrival("job 1", 0, loaded)
 	check_gear_on_site("job 1", [], [])

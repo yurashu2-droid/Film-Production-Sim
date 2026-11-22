@@ -263,6 +263,7 @@ var _home_layout := {}
 var _configured_job := -1
 var _site_root: Node3D
 var _office_root: Node3D
+var _truck_exit_gate: Node3D
 var _trip_camera: Camera3D
 var _original_walls: Array[StaticBody3D] = []
 var _warnings := [120.0, 60.0, 30.0]
@@ -345,6 +346,7 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 	game.stage._register(monitor_prop, Vector3(77.0, 0.05, 21.6) - OFFSET, PI * 0.5)
 	monitor_prop.attach(game.film.view)
 	_office_root = Office.build(game, game.font)
+	_truck_exit_gate = _office_root.get_node("TruckExitGate") as Node3D
 	Rental.build(_office_root, game.font)
 	display = Display.new()
 	display.name = "UpgradeDisplay"
@@ -1651,6 +1653,13 @@ func _sync_vehicle_riders() -> void:
 	var ids: Array = game.players.keys()
 	ids.sort()
 	game.truck.set_traveling(phase == 3)
+	if is_instance_valid(_truck_exit_gate):
+		# 同期済みの車の位置から、全員の画面で同じ開き具合にする。
+		var gate_open := 0.0
+		if phase == 3:
+			var distance: float = game.truck.global_position.z - Office.TRUCK_EXIT_Z
+			gate_open = smoothstep(-10.0, -5.0, distance) * (1.0 - smoothstep(6.0, 11.0, distance))
+		Office.set_truck_exit_open(_truck_exit_gate, gate_open)
 	for i in ids.size():
 		var player: Node = game.players[ids[i]]
 		if not player.has_method("board_vehicle"): continue
