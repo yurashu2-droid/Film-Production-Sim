@@ -125,7 +125,6 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 	var white := Look.plain(Color("eef0ec"), 0.48)
 	var green := Look.plain(GREEN, 0.5)
 	var dark := Look.plain(Color("2b2e31"), 0.64)
-	var glass := Look.plain(Color("304957"), 0.18)
 	var tire := Look.plain(Color("25282a"), 0.84)
 	var steel := Look.plain(Color("a7adb0"), 0.38, 0.8)
 	var lamp := Look.plain(Color("e0e6d8"), 0.22)
@@ -137,20 +136,13 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(xx, 0.46, 0)), Vector3(0.15, 0.15, 1.9), Look.Batch.ALL)
 		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(xx, 0.46, 0)), Vector3(0.15, 0.15, 1.9))
 	# 前窓を傾けたキャブオーバー。屋根、ドア枠、段差のあるバンパー。
-	b.extrude(white, at, [Vector2(1.5, 0.65), Vector2(3.0, 0.65), Vector2(3.0, 1.58), Vector2(2.85, 2.18), Vector2(1.62, 2.28), Vector2(1.5, 2.1)], 2.0)
+	_truck_cab_shell(b, at, white, green)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(2.23, 1.39, 0)), Vector3(1.46, 1.48, 2.0))
 	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.22, 2.28, 0)), Vector3(1.32, 0.08, 2.06), Look.Batch.ALL)
-	b.box(glass, at * Transform3D(Basis(Vector3.BACK, 0.245), Vector3(2.94, 1.84, 0)), Vector3(0.035, 0.54, 1.76), Look.Batch.ALL)
-	b.box(white, at * Transform3D(Basis(Vector3.BACK, 0.245), Vector3(2.96, 1.84, 0)), Vector3(0.04, 0.56, 0.045), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
-		var side := s * 1.008
-		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.51, side)), Vector3(1.1, 1.25, 0.015), Look.Batch.ALL)
-		b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.5, side + s * 0.009)), Vector3(1.04, 1.19, 0.015), Look.Batch.ALL)
-		b.box(glass, at * Transform3D(Basis.IDENTITY, Vector3(2.19, 1.85, side + s * 0.02)), Vector3(0.89, 0.49, 0.018), Look.Batch.ALL)
-		b.box(green, at * Transform3D(Basis.IDENTITY, Vector3(2.18, 1.14, side + s * 0.02)), Vector3(1.04, 0.28, 0.018), Look.Batch.ALL)
-		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(1.83, 1.49, side + s * 0.035)), Vector3(0.17, 0.035, 0.025), Look.Batch.ALL)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(1.83, 1.49, s * 1.009)), Vector3(0.17, 0.035, 0.025), Look.Batch.ALL)
 		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(2.34, 0.59, s * 1.07)), Vector3(0.7, 0.07, 0.24), Look.Batch.ALL)
-		b.bar(dark, at * Vector3(2.71, 1.89, s * 1.02), at * Vector3(2.72, 1.89, s * 1.25), 0.035)
+		b.bar(dark, at * Vector3(2.79, 1.89, s * 0.99), at * Vector3(2.72, 1.89, s * 1.25), 0.035)
 		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.72, 1.83, s * 1.27)), Vector3(0.12, 0.23, 0.07), Look.Batch.ALL)
 	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(3.015, 1.09, 0)), Vector3(0.035, 0.3, 1.12), Look.Batch.ALL)
 	for yy: float in [1.0, 1.09, 1.18]:
@@ -198,6 +190,60 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.161)), 0.26, 0.031, 16, 0.23)
 			b.cyl(dark, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.193)), 0.16, 0.014, 14)
 			b.cyl(steel, at * Transform3D(wheel_basis, hub + Vector3(0, 0, s * 0.208)), 0.086, 0.031, 10)
+
+
+static func _truck_cab_shell(b: Look.Batch, at: Transform3D, paint: Look.Tint, stripe: Look.Tint) -> void:
+	var cab := [Vector2(1.5, 0.65), Vector2(3.0, 0.65), Vector2(3.0, 1.58),
+			Vector2(2.85, 2.18), Vector2(1.62, 2.28), Vector2(1.5, 2.1)]
+	var side_opening := [Vector2(1.69, 1.62), Vector2(2.68, 1.62), Vector2(2.77, 1.71),
+			Vector2(2.68, 2.065), Vector2(1.76, 2.14), Vector2(1.69, 2.07)]
+	for edge in cab.size():
+		if edge == 2:
+			continue # フロントガラスの開口がある面は下で作る。
+		var p: Vector2 = cab[edge]
+		var q: Vector2 = cab[(edge + 1) % cab.size()]
+		b.poly_out(paint, [at * Vector3(p.x, p.y, -1), at * Vector3(q.x, q.y, -1),
+				at * Vector3(q.x, q.y, 1), at * Vector3(p.x, p.y, 1)],
+				at.basis * Vector3(q.y - p.y, p.x - q.x, 0))
+	for s: float in [-1.0, 1.0]:
+		var side := cab.map(func(p: Vector2) -> Vector3: return Vector3(p.x, p.y, s))
+		var opening := side_opening.map(func(p: Vector2) -> Vector3: return Vector3(p.x, p.y, s))
+		_truck_glazing(b, at, side, opening, Vector3(0, 0, s), paint)
+		# 白い側板に塗装した帯。立体の枠からは離す。
+		var z := s * 1.001
+		b.poly_out(stripe, [at * Vector3(1.66, 1.00, z), at * Vector3(2.70, 1.00, z),
+				at * Vector3(2.70, 1.28, z), at * Vector3(1.66, 1.28, z)], at.basis * Vector3(0, 0, s))
+		# 傾斜は X = 3 - (Y - 1.58) / 4。中央には車体色の支柱を残す。
+		var windshield_panel := [Vector3(3.0, 1.58, 0), Vector3(3.0, 1.58, s),
+				Vector3(2.85, 2.18, s), Vector3(2.85, 2.18, 0)]
+		var windshield_opening := [Vector3(2.98, 1.66, s * 0.033), Vector3(2.98, 1.66, s * 0.88),
+				Vector3(2.86875, 2.105, s * 0.86), Vector3(2.86875, 2.105, s * 0.033)]
+		_truck_glazing(b, at, windshield_panel, windshield_opening, Vector3(1, 0.25, 0).normalized(), paint)
+
+
+static func _truck_glazing(b: Look.Batch, at: Transform3D, panel: Array, opening: Array,
+		local_normal: Vector3, paint: Look.Tint) -> void:
+	var edge_paint := Look.plain(Color("a5b3b3"), 0.58)
+	var rubber := Look.plain(Color("252f34"), 0.86)
+	var glass := Look.plain(Color("304957"), 0.18)
+	var normal := at.basis * local_normal
+	var cutout := opening.map(func(p: Vector3) -> Vector3: return at * p)
+	var center := Vector3.ZERO
+	for p: Vector3 in cutout:
+		center += p
+	center /= cutout.size()
+	var rim: Array[Vector3] = []
+	var pane: Array[Vector3] = []
+	for p: Vector3 in cutout:
+		rim.append(p.move_toward(center, 0.035) - normal * 0.046)
+		pane.append(p.move_toward(center, 0.064) - normal * 0.051)
+	for i in cutout.size():
+		var j := (i + 1) % cutout.size()
+		b.poly_out(paint, [at * panel[i], at * panel[j], cutout[j], cutout[i]], normal)
+		# 折り返しの板金、その奥のパッキン、さらに内側のガラス。
+		b.poly_out(edge_paint, [cutout[i], cutout[j], rim[j], rim[i]], normal)
+		b.poly_out(rubber, [rim[i], rim[j], pane[j], pane[i]], normal)
+	b.poly_out(glass, pane, normal)
 
 
 static func _truck_hopper(b: Look.Batch, at: Transform3D, white: Look.Tint, dark: Look.Tint, steel: Look.Tint) -> void:
