@@ -69,6 +69,7 @@ func build() -> void:
 		h.tag = tag
 		h.title = game.PLAYER_NAMES[i]
 		h.index = i
+		h.load_art()
 		var cx := HANGER_FIRST if count <= 1 else lerpf(HANGER_FIRST, HANGER_LAST, float(i) / float(count - 1))
 		h.home = Vector2(cx - Hanger.W * 0.5, RAIL_Y - Hanger.HOOK_Y)
 		h.position = h.home
@@ -393,6 +394,29 @@ class Hanger extends Button:
 	var pull := 0.0               # 0＝ラックに掛かったまま、1＝手前に引き出した
 	var swing := 0.0              # 揺れ（ばねで戻る）
 	var swing_v := 0.0
+	# 衣装の絵（生成した絵を切り抜いた物。assets/ui/costumes/costume_<番号>.png）。無ければ、下の多角形の衣装を描く
+	const ART_W := 178.0          # 絵の幅の上限（となりのハンガーとの間は約 200）
+	const ART_H := 318.0
+	var art: Texture2D
+	var art_hook := 0.5           # 絵の中の、フックの横の位置（0〜1。絵のいちばん上の行から読む）
+
+	func load_art() -> void:
+		var path := "res://assets/ui/costumes/costume_%s.png" % tag
+		if not ResourceLoader.exists(path):
+			return
+		art = load(path)
+		var img := art.get_image()
+		if img.is_compressed():
+			img.decompress()
+		var sum := 0.0
+		var n := 0
+		for y in range(4, 10):
+			for x in img.get_width():
+				if img.get_pixel(x, y).a > 0.5:
+					sum += float(x)
+					n += 1
+		if n > 0:
+			art_hook = sum / float(n) / float(img.get_width())
 
 	func _init() -> void:
 		size = Vector2(W, H)
@@ -430,6 +454,15 @@ class Hanger extends Button:
 		modulate = Color(v, v, v * 1.03)
 
 	func _draw() -> void:
+		if art != null:
+			# フックのてっぺんを棒の少し上に合わせて、フックの位置をまん中に置く
+			var ts := art.get_size()
+			var k := minf(ART_W / ts.x, ART_H / ts.y)
+			var at := Vector2(W * 0.5 - ts.x * k * art_hook, HOOK_Y - 9.0)
+			draw_texture_rect(art, Rect2(at + Vector2(3, 6), ts * k), false, Color(0, 0, 0, 0.28))
+			draw_texture_rect(art, Rect2(at, ts * k), false)
+			_tag(PackedVector2Array([Vector2(W * 0.5, at.y + ts.y * k - 6.0)]))
+			return
 		var cx := W * 0.5
 		var metal := Color("c9ced2")
 		var metal_dark := Color("7d858b")

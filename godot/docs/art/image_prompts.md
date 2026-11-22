@@ -198,3 +198,10 @@ Camera: eye level, three-quarter view from slightly left, the shelf fills about 
 
 Style: Stylized low-poly 3D game art, soft toon shading, warm lamp light, muted pastel colors (cream #e6d9bb, teal #4e777c, rust red #8f5943, wood #94704a, mustard), clean chunky shapes, slightly cluttered and homemade, Japanese downtown small-business atmosphere, no text, no letters, no numbers, no people, no characters.
 ```
+
+### 2026-11-23 キャラ選びの衣装の絵（ハンガーに掛かった7着）
+
+- 置き場所：`godot/assets/ui/costumes/costume_<番号>.png`（01・02・03・04・06・09・M02）。`character_picker.gd` の Hanger が、あれば絵を、無ければ前の多角形の衣装を描く。
+- 作り方：Codex の画像生成で2枚（4着・3着）。見本は `codex_src/refs/` の元絵4枚と、今の画面の絵。指示は「体も顔も無い、空の衣装を、木のハンガーに掛けて正面から。羊毛フェルトの手作りの小さな服。背景は透明。帽子・王冠・サドルはフックに」。
+- 切り分け：アルファ 150 より上を塊にして分ける（くっついた服は、塊を削って芯を作り、近い芯へ振り分ける）。ふちの光のにじみは、アルファを (a-100)/120 に締めて落とす。
+- フックの位置は、絵のいちばん上の行から読んで、棒の上のハンガーのまん中へ合わせる。
