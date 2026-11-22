@@ -18,6 +18,7 @@ const FACADE_LAYER := 1 << 14
 const CONTRACT_POINT := Vector3(72, 0, 1.5)
 const TRUCK_POINT := Vector3(82, 0, 18)
 const SPAWN_POINT := Vector3(72, 0.1, 5)
+const ROAD_END := 81.0
 # 機材置き場（軽トラの北東の囲い。x, z, 幅, 奥行き）。会社の機材をここに並べておく。
 # 並べ方は production_flow.gd の GEAR_HOME。出発すると、機材はいっしょに現場へ運ばれる
 const GEAR_YARD := Rect2(82.0, 11.75, 4.0, 3.7)
@@ -46,7 +47,8 @@ static func build(parent: Node3D, font: Font) -> Node3D:
 	_facade(root, font)
 	_lot(root, rng)
 	var road := Look.Batch.new()
-	_road(road, rng)
+	_road(road)
+	_road_gate(road, root)
 	road.build(root, "RoadDressing")
 	return root
 
@@ -109,15 +111,14 @@ static func _ring(b: Look.Batch, material: Look.Tint, at: Transform3D, radius: f
 static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var g := Look.Batch.new()
 	g.no_shadow = true
-	var road_end := 81.0
-	# 車道の床を歩道の終端まで伸ばし、道の両脇の塀の間を見えない壁で閉じる。
+	# 車道の床を歩道と門のところまで通す。
+	var road_end := ROAD_END
 	g.solidp(Vector3(62, -0.2, 11), Vector3(60, 0.4, 50))
 	g.solidp(Vector3(80, -0.21, (33.0 + road_end) * 0.5), Vector3(13, 0.4, road_end - 33.0))
-	g.solidp(Vector3(80, 4.9, road_end), Vector3(15, 10, 0.4))
 	g.quad_up(Look.mat("concrete", Color("9a958a")), 32.0, 92.0, -14.0, 36.0, 0.0)
 	var asp := Look.mat("asphalt", Color("45494c"))
 	g.quad_up(asp, 74.0, 86.0, 11.5, 24.0, 0.010)
-	g.quad_up(asp, 73.5, 86.5, 24.0, road_end + 1.0, 0.010)
+	g.quad_up(asp, 73.5, 86.5, 24.0, road_end + 8.0, 0.010)
 	# 新しい舗装の継ぎはぎ（色の違う長方形）
 	var patch := Look.mat("asphalt", Color("2e3133"))
 	g.quad_up(patch, 79.0, 83.5, 33.2, 35.0, 0.0115)
@@ -430,9 +431,9 @@ static func _office(b: Look.Batch, root: Node3D) -> void:
 	b.cylp(P(Color("3a3f44"), 0.7, 0.3), Vector3(76.4, 0.0, -8.3), 0.07, 3.4, 8)
 	b.boxp(P(Color("3a3f44"), 0.7, 0.3), Vector3(75.0, 3.22, -8.3), Vector3(1.8, 0.14, 0.14), ALL)
 	# 駐車場・廃材置き場・スタジオへ向かう矢印看板（文字は書かず、矢印の絵だけ）
-	_sign(b, root, Vector3(76.8, 0, 6.5), TEAL, 1.0)
-	_sign(b, root, Vector3(66.5, 0, 12.2), RUST, -1.0)
-	_sign(b, root, Vector3(87, 0, 33), TEAL, 1.0)
+	_sign(b, root, Vector3(76.8, 0, 6.5), TEAL, 1.0, "truck")
+	_sign(b, root, Vector3(66.5, 0, 12.2), RUST, -1.0, "box")
+	_sign(b, root, Vector3(87, 0, 33), TEAL, 1.0, "movie_camera")
 	# 事務所の明かり（従来のまま）
 	var light := OmniLight3D.new()
 	light.position = Vector3(72, 3, -2)
@@ -499,12 +500,6 @@ static func _facade(root: Node3D, font: Font) -> void:
 		var bx: float = 65.6 + k * 1.6
 		b.boxp(post, Vector3(bx, y1 - 0.12, z + 0.3), Vector3(0.14, 0.14, 0.5), ALL)
 		b.bar(post, Vector3(bx, y1 - 0.5, z + 0.1), Vector3(bx, y1 - 0.18, z + 0.46), 0.07)
-	# 壁のしみと、塗り直した跡（窓と看板を避けて）
-	var stain := P(Color("d4c6a4"), 0.95)
-	var patch := P(Color("efe6d0"), 0.95)
-	for spot: Array in [[65.6, 2.95, 0.52, 0.34, 0], [68.0, 5.0, 0.5, 0.35, 1], [71.9, 3.3, 1.1, 0.45, 0], [73.0, 4.25, 0.45, 0.3, 1],
-			[76.02, 2.94, 0.4, 0.35, 0], [78.54, 4.4, 0.32, 0.8, 1], [70.6, 4.35, 0.35, 0.25, 0], [67.9, 2.95, 0.4, 0.3, 1]]:
-		b.boxp(stain if int(spot[4]) == 0 else patch, Vector3(float(spot[0]), float(spot[1]), z + 0.085), Vector3(float(spot[2]), float(spot[3]), 0.01), ALL)
 	# 雨どい（右の柱の内側を、上から下まで）
 	var pipe := P(Color("9aa0a2"), 0.6, 0.3)
 	b.cylp(pipe, Vector3(78.45, y0, z + 0.16), 0.05, y1 - y0 - 0.1, 8)
@@ -514,13 +509,18 @@ static func _facade(root: Node3D, font: Font) -> void:
 	Foliage.ivy(b, [Vector3(64.9, y0, vz), Vector3(65.15, y0 + 1.4, vz), Vector3(64.95, y1 - 0.7, vz), Vector3(65.6, y1 - 0.15, vz),
 			Vector3(66.9, y1 - 0.2, vz), Vector3(67.8, y1 - 0.45, vz)], Vector3.BACK, 70, Vector3(64.9, 1, 4))
 	Foliage.ivy(b, [Vector3(66.2, y1 - 0.2, vz), Vector3(66.35, y1 - 1.0, vz), Vector3(66.2, y1 - 1.5, vz)], Vector3.BACK, 14, Vector3(66.2, 1, 4))
-	# 吊り看板（右の柱から腕木を出し、無地の木の板を2本の鎖で下げる）
+	# 右柱から、撮影機の印を入れた看板を吊るす。
+	b.boxp(iron, Vector3(79.25, 4.69, z + 0.215), Vector3(0.14, 0.31, 0.115), ALL)
 	b.boxp(iron, Vector3(79.75, 4.75, z + 0.25), Vector3(1.3, 0.07, 0.07), ALL)
 	b.bar(iron, Vector3(79.2, 4.35, z + 0.25), Vector3(79.95, 4.74, z + 0.25), 0.04)
 	for cx: float in [79.6, 80.2]:
-		b.bar(iron, Vector3(cx, 4.72, z + 0.25), Vector3(cx, 4.45, z + 0.25), 0.015)
-	b.boxp(Look.mat("wood", Color("c9a46c")), Vector3(79.9, 4.1, z + 0.25), Vector3(0.95, 0.7, 0.07), ALL)
-	b.boxp(Look.mat("wood", Color("8a5a32")), Vector3(79.9, 4.1, z + 0.25), Vector3(1.03, 0.78, 0.05), ALL)
+		b.bar(iron, Vector3(cx, 4.72, z + 0.25), Vector3(cx, 4.42, z + 0.25), 0.022, ALL)
+		b.boxp(iron, Vector3(cx, 4.43, z + 0.25), Vector3(0.065, 0.082, 0.085), ALL)
+	b.boxp(band, Vector3(79.9, 4.16, z + 0.25), Vector3(0.86, 0.54, 0.066), ALL)
+	for side: float in [-1.0, 1.0]:
+		var face := Basis(Vector3.UP, PI if side < 0 else 0.0)
+		Look.picto(root, Transform3D(face, Vector3(79.9, 4.16, z + 0.25 + side * 0.034)),
+				"movie_camera", Vector2(0.39, 0.39), FACADE_LAYER)
 	# てっぺん：笠木と、真ん中のカチンコの飾り
 	b.boxp(trim, Vector3(72, y1 + 0.08, z + 0.05), Vector3(14.9, 0.18, 0.46), ALL)
 	b.boxp(P(Color("26272b"), 0.7), Vector3(72, y1 + 0.55, z), Vector3(2.4, 0.75, 0.14), ALL)
@@ -698,14 +698,28 @@ static func _plant(b: Look.Batch, pos: Vector3, s: float, pot: Color) -> void:
 
 
 # 矢印看板。arrow：+1 で右（+x）、−1 で左を指す絵を、板の表（+z）にぴったり貼る
-static func _sign(b: Look.Batch, root: Node3D, pos: Vector3, color: Color, arrow: float) -> void:
-	b.boxp(P(Color("716557"), 0.8), pos + Vector3(0, 0.95, 0), Vector3(0.12, 1.9, 0.12), ALL)
-	b.solidp(pos + Vector3(0, 0.95, 0), Vector3(0.12, 1.9, 0.12))
-	b.boxp(P(color.darkened(0.3), 0.8), pos + Vector3(0, 1.9, -0.012), Vector3(4.0, 1.12, 0.12), ALL)
-	b.solidp(pos + Vector3(0, 1.9, -0.012), Vector3(4.0, 1.12, 0.12))
-	b.boxp(Look.mat("plaster", color), pos + Vector3(0, 1.9, 0.0), Vector3(3.9, 1.05, 0.12), ALL)
-	var flip := Basis.IDENTITY if arrow > 0.0 else Basis(Vector3.BACK, PI)
-	Look.picto(root, Transform3D(flip, pos + Vector3(0, 1.9, 0.0608)), "arrow", Vector2(1.2, 1.2))
+static func _sign(b: Look.Batch, root: Node3D, pos: Vector3, color: Color, arrow: float, destination: String) -> void:
+	var metal := P(Color("555c5b"), 0.63, 0.32)
+	for x: float in [-0.57, 0.57]:
+		var foot := pos + Vector3(x, 0.05, 0)
+		b.boxp(Look.mat("concrete", Color("aaa394")), foot, Vector3(0.21, 0.10, 0.23), ALL)
+		b.boxp(metal, pos + Vector3(x, 0.75, 0), Vector3(0.08, 1.5, 0.08), ALL)
+		b.solidp(pos + Vector3(x, 0.75, 0), Vector3(0.08, 1.5, 0.08))
+	var board := pos + Vector3(0, 1.41, 0)
+	b.boxp(metal, board, Vector3(1.65, 0.61, 0.078), ALL)
+	b.solidp(board, Vector3(1.65, 0.61, 0.10))
+	for side: float in [-1.0, 1.0]:
+		var face := Basis(Vector3.UP, PI if side < 0.0 else 0.0)
+		b.boxp(P(color, 0.74), board + Vector3(0, 0, side * 0.041), Vector3(1.58, 0.54, 0.008), ALL)
+		var target := board + face * Vector3(-0.36, 0, 0.0458)
+		if destination == "box":
+			b.box(P(Color("efe3c0")), Transform3D(face, target),
+					Vector3(0.38, 0.38, 0.004), ALL)
+			target += face.z * 0.0028
+		Look.picto(root, Transform3D(face, target), destination, Vector2(0.36, 0.36))
+		var flip := Basis(Vector3.BACK, PI) if arrow * side < 0.0 else Basis.IDENTITY
+		Look.picto(root, Transform3D(face * flip, board + face * Vector3(0.32, 0, 0.0458)),
+				"arrow", Vector2(0.53, 0.43))
 
 
 # ---- 敷地の小物（部品に沿った当たり判定。脚の間や機材の開口部はふさがない） ----
@@ -718,11 +732,17 @@ static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 	# 北西：区の清掃事務所の車庫（差し掛け小屋とフォークリフト。粗大ごみを運ぶ）。ここから西は区の土地（ward_lot.gd）
 	_shed(b, 38.0, 60.0, -13.8, -9.5)
 	_forklift(b, Vector3(50.5, 0, -4.4), 0.45, Color("3f8a5a"))
-	# 車庫の札：白地に区の緑の帯（文字は書かない）
-	b.boxp(P(Color("f4f2ea"), 0.6), Vector3(49.0, 2.78, -9.42), Vector3(3.2, 0.62, 0.04), ALL)
-	b.boxp(P(Color("2f7d4f"), 0.6), Vector3(49.0, 2.98, -9.398), Vector3(3.2, 0.2, 0.01), ALL)
-	_pallet_stack(b, Vector3(44.0, 0, -5.9), 0.1, 4, true, rng)
-	_pallet_stack(b, Vector3(45.4, 0, -6.1), -0.2, 2, false, rng)
+	# 清掃車庫の札を屋根下の梁に固定する。
+	var garage_sign := Vector3(49.0, 2.84, -9.40)
+	for x: float in [-0.67, 0.67]:
+		b.boxp(P(Color("555c5b"), 0.6, 0.4), garage_sign + Vector3(x, 0.15, -0.04),
+				Vector3(0.065, 0.24, 0.10), ALL)
+	b.boxp(P(Color("e6e4d5"), 0.64), garage_sign, Vector3(1.66, 0.41, 0.035), ALL)
+	b.boxp(P(Color("2f7d4f"), 0.68), garage_sign + Vector3(0.22, 0, 0.018), Vector3(0.94, 0.10, 0.006), ALL)
+	Look.picto(root, Transform3D(Basis.IDENTITY, garage_sign + Vector3(-0.5, 0, 0.0184)),
+			"bag", Vector2(0.30, 0.30))
+	_pallet_stack(b, Vector3(44.0, 0, -5.9), 0.1, 4, true)
+	_pallet_stack(b, Vector3(45.4, 0, -6.1), -0.2, 2, false)
 	for k in 5:
 		_cone(b, Vector3(39.5 + k * 1.1, 0, -1.6 + (k % 2) * 0.25))
 	for k in 6:
@@ -783,8 +803,8 @@ static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 	for k in 5:
 		if k != 1:            # 区の入口（ward_lot.gd）の前は空ける
 			_planter(b, Vector3(36.5 + k * 5.4, 0, 35.2), 4.0)
-	_pallet_stack(b, Vector3(33.2, 0, 32.0), 0.0, 5, true, rng)
-	_pallet_stack(b, Vector3(34.6, 0, 32.2), 0.1, 3, false, rng)
+	_pallet_stack(b, Vector3(33.2, 0, 32.0), 0.0, 5, true)
+	_pallet_stack(b, Vector3(34.6, 0, 32.2), 0.1, 3, false)
 	_pipes(b, Vector3(58.5, 0, 33.8))
 	_tires(b, Vector3(52.0, 0, 33.8), 4)
 	_lamp_post(b, Vector3(35.75, 0, 31.6), root, false)   # 区の門（x 39..45）と看板の前は空ける
@@ -793,8 +813,8 @@ static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 	b = Look.Batch.new()
 	zones.append(b)
 	# 東の端：荷物と照明
-	_pallet_stack(b, Vector3(90.2, 0, 12.6), 1.57, 3, true, rng)
-	_pallet_stack(b, Vector3(90.3, 0, 14.0), 1.57, 2, true, rng)
+	_pallet_stack(b, Vector3(90.2, 0, 12.6), 1.57, 3, true)
+	_pallet_stack(b, Vector3(90.3, 0, 14.0), 1.57, 2, true)
 	for k in 5:
 		_drum(b, Vector3(90.6, 0, 22.5 + (k % 2) * 0.62 + (k / 2) * 0.0 + (k / 3) * 0.9), [Color("d9a441"), Color("4e777c")][k % 2])
 	_tree(b, Vector3(90.4, 0, 31.4), 1.3)
@@ -947,17 +967,31 @@ static func _pallet(b: Look.Batch, at: Transform3D, y: float) -> void:
 		b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.012, -0.33 + k * 0.33)), Vector3(1.2, 0.025, 0.1), GROUND)
 
 
-static func _pallet_stack(b: Look.Batch, pos: Vector3, yaw: float, n: int, loaded: bool, rng: RandomNumberGenerator) -> void:
+static func _pallet_stack(b: Look.Batch, pos: Vector3, yaw: float, n: int, loaded: bool) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos)
+	var deck_y := n * 0.143
 	for k in n:
-		_pallet(b, at, k * 0.15)
+		_pallet(b, at, k * 0.143)
+	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, deck_y * 0.5, 0)), Vector3(1.2, deck_y, 0.8))
 	if loaded:
-		var y := n * 0.15 + 0.145
-		for k in 2:
-			b.box(P([Color("c9a46c"), Color("b98a55")][k], 0.9), at * Transform3D(Basis.IDENTITY, Vector3(-0.3 + k * 0.6, y + 0.3, 0)), Vector3(0.56, 0.6, 0.7), GROUND)
-		b.box(P(Color("d6b27a"), 0.9), at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.8, 0)), Vector3(0.7, 0.4, 0.6), GROUND)
-		b.box(P(Color("c8dbe6"), 0.2), at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.45, 0)), Vector3(1.2, 0.8, 0.8), GROUND)
-	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, n * 0.075 + (0.55 if loaded else 0.0), 0)), Vector3(1.2, n * 0.15 + (1.1 if loaded else 0.0), 0.8))
+		_pallet_carton(b, at, Vector3(-0.279, deck_y, 0), Vector3(0.54, 0.46, 0.68), Color("b58b55"))
+		_pallet_carton(b, at, Vector3(0.279, deck_y, 0), Vector3(0.54, 0.46, 0.68), Color("c29b66"))
+		_pallet_carton(b, at, Vector3(0.03, deck_y + 0.46, 0.015), Vector3(0.65, 0.26, 0.49), Color("ccaa77"))
+
+
+static func _pallet_carton(b: Look.Batch, at: Transform3D, floor: Vector3, size: Vector3, color: Color) -> void:
+	var center := floor + Vector3.UP * size.y * 0.5
+	var box := at * Transform3D(Basis.IDENTITY, center)
+	b.box(P(color, 0.91), box, size, ALL)
+	b.solid(box, size)
+	var tape := P(color.lightened(0.26), 0.68)
+	b.box(tape, at * Transform3D(Basis.IDENTITY, floor + Vector3(0, size.y, 0)),
+			Vector3(0.066, 0.003, size.z + 0.002), ALL)
+	for side: float in [-1.0, 1.0]:
+		b.box(tape, at * Transform3D(Basis.IDENTITY, floor + Vector3(0, size.y - 0.038, side * size.z * 0.5)),
+				Vector3(0.066, 0.076, 0.004), ALL)
+	b.box(P(Color("dbcfb3")), at * Transform3D(Basis.IDENTITY, center + Vector3(0.13, 0, size.z * 0.5)),
+			Vector3(0.105, 0.068, 0.003), ALL)
 
 
 static func _crate(b: Look.Batch, pos: Vector3, size: Vector3, yaw: float) -> void:
@@ -1338,20 +1372,17 @@ static func _lamp_post(b: Look.Batch, pos: Vector3, root: Node3D, with_light: bo
 
 # ---- 道の演出：壁のポスター・落書き・街灯・信号 ----
 
-static func _road(b: Look.Batch, rng: RandomNumberGenerator) -> void:
-	var cols := [Color("2f4b6e"), Color("a8442e"), Color("46704f"), Color("c09a3d"), Color("e6d6a8"), Color("6a4a7a"), Color("d77b4a"), Color("3b8a8a")]
-	var zs := [39.0, 42.5, 46.0, 50.5, 55.0, 58.0, 63.0, 67.0, 71.5, 76.0]
+static func _road(b: Look.Batch) -> void:
+	var cols := [Color("2f4b6e"), Color("a8442e"), Color("46704f"), Color("8a6940")]
+	# 柱と柱の間だけに、塀の面に接する掲示物を残す。
+	var bays := [[48.08, 56.78, 65.48, 74.18], [45.62, 53.87, 62.13, 74.51]]
 	for side in 2:
-		var x := 72.74 if side == 0 else 87.26
+		var x := 72.730 if side == 0 else 87.270
 		var yaw := PI * 0.5 if side == 0 else -PI * 0.5
-		for k in zs.size():
-			var z: float = zs[k] + rng.randf_range(-0.5, 0.5) + side * 1.3
-			var i := (k * 3 + side * 5) % cols.size()
-			var y := 1.25 + rng.randf_range(-0.1, 0.25)
-			var turn := yaw + rng.randf_range(-0.0, 0.0)
-			if side == 0 and z < 46.2:
-				continue        # 西側は、区道（ward_lot.gd）の出口で塀が切れている
-			_poster(b, Vector3(x, y, z), turn, Vector2(0.9, 1.25), cols[i], Color("f6efd6") if i % 2 == 0 else Color("2b2018"), i % 4)
+		for k in 4:
+			var i := (k + side) % cols.size()
+			_poster(b, Vector3(x, 1.50, bays[side][k]), yaw, Vector2(0.9, 1.25),
+					cols[i], Color("f6efd2"), i)
 	# 街灯（歩道に立ち、道の上へ腕を伸ばす）
 	var iron := P(Color("2f3438"), 0.5, 0.5)
 	for side in 2:
@@ -1389,3 +1420,42 @@ static func _road(b: Look.Batch, rng: RandomNumberGenerator) -> void:
 		b.cylp(P(Color("e8c24a"), 0.5), Vector3(bx, 0.0, 24.4), 0.09, 0.8, 8)
 		b.solidp(Vector3(bx, 0.4, 24.4), Vector3(0.15, 0.8, 0.15))
 		b.cylp(P(Color("2d3035"), 0.5), Vector3(bx, 0.45, 24.4), 0.095, 0.1, 8)
+
+
+static func _road_gate(b: Look.Batch, root: Node3D) -> void:
+	var z := ROAD_END - 0.16
+	var steel := P(Color("586b68"), 0.58, 0.4)
+	var base := Look.mat("concrete", Color("aaa99a"))
+	var pier := Look.mat("block", Color("b8af9c"))
+	# 門柱と袖壁を既存の両脇の塀につなぐ。
+	for side: float in [-1.0, 1.0]:
+		var post_x := 80.0 + side * 4.19
+		var post := Vector3(post_x, 1.39, z)
+		b.boxp(base, post, Vector3(0.42, 2.78, 0.49), ALL)
+		b.solidp(post, Vector3(0.42, 2.78, 0.49))
+		b.boxp(base, post + Vector3(0, 1.42, 0), Vector3(0.52, 0.10, 0.58), ALL)
+		var wing := Vector3(80.0 + side * 5.86, 1.29, z)
+		b.boxp(pier, wing, Vector3(3.26, 2.58, 0.29), ALL)
+		b.solidp(wing, Vector3(3.26, 2.58, 0.29))
+		b.boxp(base, wing + Vector3(0, 1.32, 0), Vector3(3.26, 0.10, 0.38), ALL)
+		var inner := 80.0 + side * 0.045
+		var outer := 80.0 + side * 4.04
+		var mid := (inner + outer) * 0.5
+		var span := absf(outer - inner)
+		for y: float in [0.21, 1.48, 2.52]:
+			b.boxp(steel, Vector3(mid, y, z), Vector3(span, 0.075, 0.08), ALL)
+		for k in 15:
+			var x := lerpf(inner, outer, float(k) / 14.0)
+			b.boxp(steel, Vector3(x, 1.365, z), Vector3(0.049, 2.31, 0.07), ALL)
+		b.bar(steel, Vector3(outer, 0.24, z + 0.037), Vector3(inner, 2.48, z + 0.037), 0.046, ALL)
+		for y: float in [0.39, 2.33]:
+			b.boxp(steel, Vector3(post_x - side * 0.105, y, z - 0.045),
+					Vector3(0.24, 0.115, 0.072), ALL)
+			b.cylp(steel, Vector3(outer, y - 0.082, z - 0.04), 0.043, 0.164, 12)
+		b.solidp(Vector3(mid, 1.32, z), Vector3(span + 0.065, 2.52, 0.13))
+	# 閉じた扉の合わせ目に閂と、桟に取り付けた進入禁止札。
+	b.boxp(steel, Vector3(80.0, 1.45, z - 0.054), Vector3(0.39, 0.09, 0.082), ALL)
+	var plate := Vector3(79.4, 1.48, z - 0.051)
+	b.boxp(P(Color("e6e4d5"), 0.68), plate, Vector3(0.52, 0.46, 0.024), ALL)
+	Look.picto(root, Transform3D(Basis(Vector3.UP, PI), plate + Vector3(0, 0, -0.0128)),
+			"no_entry", Vector2(0.34, 0.34))

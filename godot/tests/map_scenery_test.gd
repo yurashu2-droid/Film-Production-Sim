@@ -86,7 +86,9 @@ func run() -> void:
 	for start: Vector3 in [Vector3(73.15, 0.15, 77.5), Vector3(80.0, 0.15, 72.0), Vector3(86.82, 0.15, 77.5)]:
 		var road_end := await walk(start, Vector3(0, 0, 5.0), 120)
 		check(road_end.z > 79.5 and road_end.z < 81.0 and road_end.y > -0.1,
-				"道路奥の境界で止まり、落下しない（開始=%s 終点=%s）" % [start, road_end])
+				"道路奥の門か袖壁で止まり、落下しない（開始=%s 終点=%s）" % [start, road_end])
+	check(occupied(Vector3(79.8, 1.3, 80.84)), "閉じた門の面に当たる")
+	check(not occupied(Vector3(79.8, 3.1, 80.84)), "門より上は空いている")
 	# 粗大ごみ置き場：会社の側には入口が無く、金網をペンチで切った穴だけ。本当の門（鎖と南京錠）は南の区道の側
 	var yard: Node3D = map.find_child("ScrapYard",true,false)
 	var hole: Vector3 = Yard.gate_point()

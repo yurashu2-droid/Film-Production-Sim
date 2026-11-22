@@ -392,16 +392,18 @@ static func _warehouse(b: Look.Batch, dress: Node3D, at: Transform3D, size: Vect
 					Vector3(x, ry, hz - 0.16), window_opening, 0.085, 0.13)
 			b.boxp(trim, Vector3(x, ry, hz - 0.15), Vector3(0.055, 1.03, 0.095), Look.Batch.ALL)
 			b.boxp(trim, Vector3(x, ry - 0.63, hz - 0.052), Vector3(1.92, 0.08, 0.15), Look.Batch.ALL)
-	# 看板（文字は書かない。会社の色の丸い印と、帯の塗装）
-	var sw := minf(w - 1.6, rng.randf_range(4.5, 9.0))
-	var sy := h * 0.5 + 1.8 if h > 9.0 else h * 0.5 + 1.4
+	# 窓列の上の外壁に、小さな社章の板をレールで取り付ける。
+	var sw := minf(w - 3.0, rng.randf_range(2.8, 4.5))
+	var sy := h - 0.88
 	var sx := rng.randf_range(-(w - sw) * 0.4, (w - sw) * 0.4)
 	var mark := Look.plain(accent.darkened(0.3), 0.8)
-	b.boxp(Look.plain(Color("efe6cc"), 0.8), Vector3(sx, sy, hz + 0.06), Vector3(sw, 1.4, 0.12), Look.Batch.FACADE)
-	b.boxp(trim, Vector3(sx, sy + 0.72, hz + 0.09), Vector3(sw + 0.1, 0.06, 0.18), Look.Batch.FACADE)
-	b.cyl(mark, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx - sw * 0.5 + 0.75, sy, hz + 0.12)), 0.46, 0.02, 16)
-	for k in 2:
-		b.boxp(mark, Vector3(sx + 0.55, sy + 0.22 - k * 0.44, hz + 0.125), Vector3(sw - 1.9, 0.2, 0.01), Look.Batch.FACADE)
+	for offset: float in [-0.19, 0.19]:
+		b.boxp(dark, Vector3(sx, sy + offset, hz + 0.008), Vector3(sw - 0.17, 0.065, 0.067), Look.Batch.ALL)
+	b.boxp(Look.plain(Color("dcd7c7"), 0.8), Vector3(sx, sy, hz + 0.054),
+			Vector3(sw, 0.65, 0.033), Look.Batch.ALL)
+	b.cyl(mark, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx - sw * 0.5 + 0.49, sy, hz + 0.07)), 0.19, 0.008, 16)
+	for offset: float in [-0.105, 0.105]:
+		b.boxp(mark, Vector3(sx + 0.29, sy + offset, hz + 0.071), Vector3(sw - 1.41, 0.09, 0.006), Look.Batch.FACADE)
 	# 配管：縦の雨どいと軒どい
 	var px := w * 0.5 - 0.55
 	b.cylp(dark, Vector3(-px, 0.0, hz + 0.16), 0.09, h - 0.1, 8)

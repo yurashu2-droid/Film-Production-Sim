@@ -165,6 +165,11 @@ static func _picto_layers(kind: String) -> Array:
 		"arrow":
 			return [[[["box", Vector2(-0.25, 0.0), Vector2(0.55, 0.15), 0.0],
 					["poly", [Vector2(0.2, -0.48), Vector2(0.85, 0.0), Vector2(0.2, 0.48)]]], Color("fff1d1")]]
+		"truck":
+			return [[[["box", Vector2(-0.29, 0.14), Vector2(0.55, 0.30), 0.0],
+					["box", Vector2(0.55, -0.05), Vector2(0.26, 0.25), 0.0],
+					["circle", Vector2(-0.47, -0.34), 0.15],
+					["circle", Vector2(0.55, -0.34), 0.15]], Color("f4f1ea")]]
 		"bag":
 			return [[[["circle", Vector2(0.0, -0.22), 0.6], ["box", Vector2(0.0, 0.42), Vector2(0.1, 0.14), 0.0],
 					["circle", Vector2(-0.17, 0.62), 0.13], ["circle", Vector2(0.17, 0.62), 0.13]], Color("2f7d4f")]]

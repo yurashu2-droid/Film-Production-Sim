@@ -39,7 +39,14 @@ static func build(parent: Node3D, _font: Font) -> Node3D:
 		_box(root, Vector3(0.45, 3.24 - i * 0.18, -0.248), Vector3(1.6 - i * 0.5, 0.07, 0.004), Color("f4f1ea") if i == 0 else Color("e5392d"), false)
 	_box(root, Vector3(0, 2.0, -0.33), Vector3(3.0, 0.05, 0.3), WOOD, false)
 	for i in 4:
-		_box(root, Vector3(-1.1 + i * 0.72, 2.2, -0.33), Vector3(0.42, 0.34, 0.24), [Color("e5392d"), Color("f4c430"), Color("3d6f8e"), Color("7f8352")][i], false)
+		var sample := Vector3(-1.1 + i * 0.72, 2.16, -0.33)
+		var shell: Color = [Color("a95643"), Color("b89442"), Color("3d6f8e"), Color("65714d")][i]
+		var fittings := Color("353d3d")
+		_box(root, sample, Vector3(0.42, 0.27, 0.24), shell, false)
+		_box(root, sample + Vector3(0, 0.064, 0), Vector3(0.428, 0.020, 0.247), fittings, false)
+		_box(root, sample + Vector3(0, 0.015, 0.145), Vector3(0.12, 0.027, 0.023), fittings, false)
+		for x: float in [-0.057, 0.057]:
+			_box(root, sample + Vector3(x, 0.015, 0.13), Vector3(0.023, 0.027, 0.04), fittings, false)
 	_box(root, Vector3(-1.0, 1.25, 0.35), Vector3(0.5, 0.2, 0.34), Color("2a2c32"), false)   # レジ
 	_box(root, Vector3(0.9, 1.18, 0.35), Vector3(0.7, 0.05, 0.5), Color("f1ead8"), false)    # 伝票の束
 	var lamp := OmniLight3D.new()
