@@ -109,13 +109,15 @@ static func _ring(b: Look.Batch, material: Look.Tint, at: Transform3D, radius: f
 static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	var g := Look.Batch.new()
 	g.no_shadow = true
-	# 歩く床の当たり判定（見えない）。敷地と道の2枚は従来のまま
+	var road_end := 81.0
+	# 車道の床を歩道の終端まで伸ばし、道の両脇の塀の間を見えない壁で閉じる。
 	g.solidp(Vector3(62, -0.2, 11), Vector3(60, 0.4, 50))
-	g.solidp(Vector3(80, -0.21, 54), Vector3(13, 0.4, 42))
+	g.solidp(Vector3(80, -0.21, (33.0 + road_end) * 0.5), Vector3(13, 0.4, road_end - 33.0))
+	g.solidp(Vector3(80, 4.9, road_end), Vector3(15, 10, 0.4))
 	g.quad_up(Look.mat("concrete", Color("9a958a")), 32.0, 92.0, -14.0, 36.0, 0.0)
 	var asp := Look.mat("asphalt", Color("45494c"))
 	g.quad_up(asp, 74.0, 86.0, 11.5, 24.0, 0.010)
-	g.quad_up(asp, 73.5, 86.5, 24.0, 82.0, 0.010)
+	g.quad_up(asp, 73.5, 86.5, 24.0, road_end + 1.0, 0.010)
 	# 新しい舗装の継ぎはぎ（色の違う長方形）
 	var patch := Look.mat("asphalt", Color("2e3133"))
 	g.quad_up(patch, 79.0, 83.5, 33.2, 35.0, 0.0115)
@@ -132,11 +134,11 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	side.no_shadow = true
 	# 西側の歩道は、区道（ward_lot.gd）の出口のところで切れる
 	for sd: Array in [[72.725, 73.55, 45.6], [86.45, 87.275, 36.4]]:
-		side.quad_up(paving, sd[0], sd[1], sd[2], 81.0, 0.12)
-		side.solidp(Vector3((sd[0] + sd[1]) * 0.5, 0.06, (sd[2] + 81.0) * 0.5), Vector3(sd[1] - sd[0], 0.12, 81.0 - sd[2]))
+		side.quad_up(paving, sd[0], sd[1], sd[2], road_end, 0.12)
+		side.solidp(Vector3((sd[0] + sd[1]) * 0.5, 0.06, (sd[2] + road_end) * 0.5), Vector3(sd[1] - sd[0], 0.12, road_end - sd[2]))
 		var edge_x: float = sd[0] if sd[0] > 80.0 else sd[1]
 		var curb := Look.mat("concrete", Color("d6d1c4"))
-		var curb_len: float = 81.0 - sd[2]
+		var curb_len: float = road_end - sd[2]
 		var count := ceili(curb_len / 1.5)
 		var section := curb_len / count
 		for k in count:
@@ -144,9 +146,9 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 					Vector3(0.12, 0.12, section - 0.012), GROUND)
 		var gutter_x := edge_x + (0.115 if edge_x < 80.0 else -0.115)
 		var gutter := Look.mat("concrete", Color("62656a"))
-		side.quad_up(gutter, gutter_x - 0.08, gutter_x + 0.08, sd[2], 81.0, 0.0122)
+		side.quad_up(gutter, gutter_x - 0.08, gutter_x + 0.08, sd[2], road_end, 0.0122)
 		var iron := P(Color("666b6d"), 0.62, 0.5)
-		for z: float in [sd[2] + 4.2, (sd[2] + 81.0) * 0.5 + 2.0, 78.3]:
+		for z: float in [sd[2] + 4.2, (sd[2] + road_end) * 0.5 + 2.0, 78.3]:
 			side.quad_up(P(Color("2b2e31")), gutter_x - 0.078, gutter_x + 0.078, z - 0.22, z + 0.22, 0.013)
 			for rib in 8:
 				side.boxp(iron, Vector3(gutter_x, 0.014, z - 0.19 + rib * 0.054),

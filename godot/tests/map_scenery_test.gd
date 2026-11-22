@@ -82,6 +82,11 @@ func run() -> void:
 	check(breach.x < 62.4 and breach.y > -.1,"フェンスの破れ目から荷運びの通路を通れる")
 	var entry := await walk(Vector3(72,.03,7),Vector3(0,0,-2.5),100)
 	check(entry.z < 3.5 and entry.y > -.1,"会社の入口を歩いて通れる")
+	# 歩道の街灯と信号を越えた位置から、車道は延長した床の手前から進む。
+	for start: Vector3 in [Vector3(73.15, 0.15, 77.5), Vector3(80.0, 0.15, 72.0), Vector3(86.82, 0.15, 77.5)]:
+		var road_end := await walk(start, Vector3(0, 0, 5.0), 120)
+		check(road_end.z > 79.5 and road_end.z < 81.0 and road_end.y > -0.1,
+				"道路奥の境界で止まり、落下しない（開始=%s 終点=%s）" % [start, road_end])
 	# 粗大ごみ置き場：会社の側には入口が無く、金網をペンチで切った穴だけ。本当の門（鎖と南京錠）は南の区道の側
 	var yard: Node3D = map.find_child("ScrapYard",true,false)
 	var hole: Vector3 = Yard.gate_point()
