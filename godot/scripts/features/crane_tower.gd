@@ -13,6 +13,7 @@ extends Node
 ## 会社の庭に置いてある。遠くの現場へは、軽トラに載らないので持って行けない
 const Prop := preload("res://scripts/prop.gd")
 const PropShapes := preload("res://scripts/prop_shapes.gd")
+const Look := preload("res://scripts/production_look.gd")
 
 const MODEL := "res://assets/production/scrap/S098_crane_tower_rebuilt.glb"
 const HEIGHT := 5.6                  # 腕の先の滑車が 5m 弱。人は、足が 3m くらいの高さまで上がる（落ちれば、のびる高さ）
@@ -55,8 +56,10 @@ func _spawn(pos: Vector3, yaw: float) -> RigidBody3D:
 	model.position = Vector3(-raw.get_center().x, -raw.position.y, -raw.get_center().z) * factor
 	var root := Node3D.new()
 	root.add_child(model)
+	var wheels := Look.Batch.new()
 	for k in GUIDES.size():
-		_add_wheel(root, guide_local(k))
+		_add_wheel(wheels, guide_local(k))
+	wheels.build(root, "Sheaves")
 	p.visual = root
 	p.add_child(root)
 	var size := raw.size * factor
@@ -82,44 +85,27 @@ func guide_name(k: int) -> String:
 
 
 # 滑車の車（鉄の車と、挟む板）。ロープは、車の中心を通る
-func _add_wheel(root: Node3D, at: Vector3) -> void:
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.72, 0.74, 0.78)
-	steel.metallic = 0.7
-	steel.roughness = 0.4
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.2, 0.21, 0.23)
-	dark.roughness = 0.6
+func _add_wheel(b: Look.Batch, at: Vector3) -> void:
+	var steel := Look.plain(Color("b7bdc6"), 0.4, 0.7)
+	var dark := Look.plain(Color("33363b"), 0.6, 0.3)
+	var yellow := Look.plain(Color("bf8c35"), 0.55)
+	var rise := 1.0 if at.y > 1.0 else -1.0
+	var axle := Basis(Vector3.RIGHT, PI * 0.5)
+	b.cyl(dark, Transform3D(axle, at - Vector3(0, 0, 0.016)), WHEEL_R * 0.75, 0.032, 20, -1.0, true, true)
 	for side: float in [-1.0, 1.0]:
-		var disc := MeshInstance3D.new()
-		var c := CylinderMesh.new()
-		c.top_radius = WHEEL_R
-		c.bottom_radius = WHEEL_R
-		c.height = 0.016
-		c.radial_segments = 20
-		disc.mesh = c
-		disc.material_override = steel
-		disc.rotation.x = PI * 0.5
-		disc.position = at + Vector3(0, 0, side * 0.02)
-		root.add_child(disc)
-		var plate := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(0.07, WHEEL_R * 2.0 + 0.1, 0.01)
-		plate.mesh = b
-		plate.material_override = dark
-		plate.position = at + Vector3(0, 0.02, side * 0.036)
-		root.add_child(plate)
-	var groove := MeshInstance3D.new()
-	var g := CylinderMesh.new()
-	g.top_radius = WHEEL_R * 0.75
-	g.bottom_radius = WHEEL_R * 0.75
-	g.height = 0.026
-	g.radial_segments = 20
-	groove.mesh = g
-	groove.material_override = dark
-	groove.rotation.x = PI * 0.5
-	groove.position = at
-	root.add_child(groove)
+		var outward := Basis(Vector3.RIGHT, side * PI * 0.5)
+		b.cyl(steel, Transform3D(outward, at + Vector3(0, 0, side * 0.016)),
+				WHEEL_R, 0.019, 20, WHEEL_R * 0.93, true, true)
+		var cheek := Transform3D(Basis.IDENTITY.scaled(Vector3(1, rise, 1)),
+				at + Vector3(0, 0, side * 0.053))
+		b.extrude(yellow, cheek, [Vector2(-0.048, -0.02), Vector2(-0.024, -0.057),
+				Vector2(0.024, -0.057), Vector2(0.048, -0.02), Vector2(0.071, 0.22),
+				Vector2(-0.071, 0.22)], 0.022)
+		b.cyl(steel, Transform3D(outward, at + Vector3(0, 0, side * 0.063)),
+				0.034, 0.016, 12)
+		b.cyl(dark, Transform3D(outward, at + Vector3(0, 0, side * 0.078)),
+				0.015, 0.013, 6)
+	b.boxp(dark, at + Vector3(0, rise * 0.22, 0), Vector3(0.20, 0.050, 0.18), Look.Batch.ALL)
 
 
 # もとの模型の、腕の先の飾り（下がっている線と鉤）を消す。面の頂点が全部、飾りの箱に入っている面だけを抜く

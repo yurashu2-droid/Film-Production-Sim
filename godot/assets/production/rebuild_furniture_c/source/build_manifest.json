@@ -338,7 +338,7 @@
   {
     "file": "S057_street_mailbox_rebuilt.glb",
     "mesh_batches": 4,
-    "triangles": 488,
+    "triangles": 520,
     "blender_bounds_min": [
       -0.28999999165534973,
       -0.29374998807907104,

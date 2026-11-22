@@ -19,10 +19,19 @@ static func build(parent: Node3D, _font: Font) -> Node3D:
 	_box(root, Vector3(0, 1.4, -0.45), Vector3(3.4, 2.8, 0.12), CREAM, true)           # 背の壁
 	for x: float in [-1.64, 1.64]:
 		_box(root, Vector3(x, 1.4, -0.05), Vector3(0.12, 2.8, 0.9), CREAM, true)       # 両袖
+	# 腰壁からひさしまで通る窓口の枠。奥の棚は受け桟で背板に取り付ける。
+	for x: float in [-1.56, 1.56]:
+		_box(root, Vector3(x, 1.88, 0.55), Vector3(0.12, 1.49, 0.14), WOOD, false)
+		_box(root, Vector3(x, 1.92, -0.33), Vector3(0.10, 0.32, 0.24), WOOD, false)
+		_box(root, Vector3(x, 1.18, 0.58), Vector3(0.16, 0.11, 0.17), CREAM, false)
+	_box(root, Vector3(0, 2.58, 0.56), Vector3(3.32, 0.12, 0.15), WOOD, false)
+	_box(root, Vector3(0, 2.83, -0.38), Vector3(3.32, 0.10, 0.16), WOOD, false)
+	_box(root, Vector3(0, 1.06, 0.66), Vector3(3.23, 0.09, 0.066), WOOD, false)
 	# 縞のひさし
 	for i in 8:
 		var slat := _box(root, Vector3(-1.5 + i * 0.43, 2.72, 0.55), Vector3(0.43, 0.06, 1.3), TEAL if i % 2 == 0 else Color("f1ead8"), false)
 		slat.rotation.x = 0.28
+	_box(root, Vector3(0, 2.47, 1.16), Vector3(3.37, 0.06, 0.068), WOOD, false)
 	# 看板と、棚の上の見本
 	_box(root, Vector3(0, 3.15, -0.3), Vector3(3.0, 0.62, 0.1), Color("2a2c32"), false)
 	Look.picto(root, Transform3D(Basis.IDENTITY, Vector3(-0.95, 3.15, -0.2492)), "movie_camera", Vector2(0.56, 0.56))

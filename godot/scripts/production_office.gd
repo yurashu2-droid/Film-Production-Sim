@@ -55,6 +55,36 @@ static func P(c: Color, rough := 0.85, metal := 0.0) -> Look.Tint:
 	return Look.plain(c, rough, metal)
 
 
+# 同じ高さに並ぶ窓の上下と間を板で組み、開口の深さを板厚で出す。
+static func _window_wall(b: Look.Batch, mat: Look.Tint, wall: Rect2, z: float, depth: float,
+		centers: Array, opening_y: float, opening: Vector2) -> void:
+	var low := opening_y - opening.y * 0.5
+	var high := opening_y + opening.y * 0.5
+	b.boxp(mat, Vector3(wall.get_center().x, (wall.position.y + low) * 0.5, z),
+			Vector3(wall.size.x, low - wall.position.y, depth), ALL)
+	b.boxp(mat, Vector3(wall.get_center().x, (high + wall.end.y) * 0.5, z),
+			Vector3(wall.size.x, wall.end.y - high, depth), ALL)
+	var left := wall.position.x
+	for x: float in centers:
+		var right := x - opening.x * 0.5
+		b.boxp(mat, Vector3((left + right) * 0.5, opening_y, z),
+				Vector3(right - left, opening.y, depth), ALL)
+		left = x + opening.x * 0.5
+	b.boxp(mat, Vector3((left + wall.end.x) * 0.5, opening_y, z),
+			Vector3(wall.end.x - left, opening.y, depth), ALL)
+
+
+static func _seated_window(b: Look.Batch, frame: Look.Tint, glass: Look.Tint, center: Vector3,
+		opening: Vector2, border: float, depth: float) -> void:
+	for side: float in [-1.0, 1.0]:
+		b.boxp(frame, center + Vector3(side * (opening.x - border) * 0.5, 0, 0),
+				Vector3(border, opening.y, depth), ALL)
+		b.boxp(frame, center + Vector3(0, side * (opening.y - border) * 0.5, 0),
+				Vector3(opening.x - 2.0 * border, border, depth), ALL)
+	b.boxp(glass, center - Vector3(0, 0, depth * 0.22),
+			Vector3(opening.x - 2.0 * border, opening.y - 2.0 * border, 0.014), ALL)
+
+
 # 棒に沿った箱。Batch.xf も適用されるので、倒して置く背景小物にも使える。
 static func _solid_bar(b: Look.Batch, p: Vector3, q: Vector3, thickness: Vector2) -> void:
 	var delta := q - p
@@ -104,7 +134,23 @@ static func _ground(root: Node3D, rng: RandomNumberGenerator) -> void:
 	for sd: Array in [[72.725, 73.55, 45.6], [86.45, 87.275, 36.4]]:
 		side.quad_up(paving, sd[0], sd[1], sd[2], 81.0, 0.12)
 		side.solidp(Vector3((sd[0] + sd[1]) * 0.5, 0.06, (sd[2] + 81.0) * 0.5), Vector3(sd[1] - sd[0], 0.12, 81.0 - sd[2]))
-		side.boxp(Look.mat("concrete", Color("d6d1c4")), Vector3(sd[0] if sd[0] > 80.0 else sd[1], 0.06, (sd[2] + 81.0) * 0.5), Vector3(0.12, 0.12, 81.0 - sd[2]), GROUND)
+		var edge_x: float = sd[0] if sd[0] > 80.0 else sd[1]
+		var curb := Look.mat("concrete", Color("d6d1c4"))
+		var curb_len: float = 81.0 - sd[2]
+		var count := ceili(curb_len / 1.5)
+		var section := curb_len / count
+		for k in count:
+			side.boxp(curb, Vector3(edge_x, 0.06, sd[2] + section * (k + 0.5)),
+					Vector3(0.12, 0.12, section - 0.012), GROUND)
+		var gutter_x := edge_x + (0.115 if edge_x < 80.0 else -0.115)
+		var gutter := Look.mat("concrete", Color("62656a"))
+		side.quad_up(gutter, gutter_x - 0.08, gutter_x + 0.08, sd[2], 81.0, 0.0122)
+		var iron := P(Color("666b6d"), 0.62, 0.5)
+		for z: float in [sd[2] + 4.2, (sd[2] + 81.0) * 0.5 + 2.0, 78.3]:
+			side.quad_up(P(Color("2b2e31")), gutter_x - 0.078, gutter_x + 0.078, z - 0.22, z + 0.22, 0.013)
+			for rib in 8:
+				side.boxp(iron, Vector3(gutter_x, 0.014, z - 0.19 + rib * 0.054),
+						Vector3(0.154, 0.008, 0.024), GROUND)
 	# 白線・黄線（かすれた塗装）
 	var white := Look.mat("paint", Color("ece6d2"))
 	var cream := Look.mat("paint", Color("e6d9a4"))
@@ -267,16 +313,17 @@ static func _office(b: Look.Batch, root: Node3D) -> void:
 	for x: float in [67.5, 76.5]:
 		b.boxp(teal, Vector3(x, 0.75, 4), Vector3(5, 1.5, 0.24), ALL)
 		b.solidp(Vector3(x, 0.75, 4), Vector3(5, 1.5, 0.24))
-		b.boxp(plaster, Vector3(x, 1.95, 4), Vector3(5, 0.9, 0.1), ALL)
+		var window_centers := [x - 1.6, x, x + 1.6]
+		var opening := Vector2(1.2, 0.62)
+		_window_wall(b, plaster, Rect2(x - 2.5, 1.5, 5.0, 0.9), 4.0, 0.1,
+				window_centers, 1.95, opening)
 		# 幅木・腰の見切り・笠木（前の壁）
 		b.boxp(trim, Vector3(x, 1.52, 4.0), Vector3(5.04, 0.08, 0.3), ALL)
 		b.boxp(trim, Vector3(x, 2.43, 4.0), Vector3(5.04, 0.1, 0.22), ALL)
 		b.boxp(Look.mat("concrete", Color("d8d2c2")), Vector3(x, 0.07, 4.0), Vector3(5.04, 0.14, 0.3), ALL)
 		# 縁日の窓：すりガラス風の小窓が3つ
-		for k in 3:
-			var wx: float = x - 1.6 + k * 1.6
-			b.boxp(trim, Vector3(wx, 1.95, 4.06), Vector3(1.2, 0.62, 0.05), FACADE)
-			b.boxp(Look.mat("glass"), Vector3(wx, 1.95, 4.09), Vector3(1.06, 0.48, 0.03), FACADE)
+		for wx: float in window_centers:
+			_seated_window(b, trim, Look.mat("glass"), Vector3(wx, 1.95, 4.0), opening, 0.065, 0.068)
 	for x: float in [69.85, 74.15]:
 		b.boxp(wood, Vector3(x, 1.6, 4), Vector3(0.16, 3.2, 0.3), ALL)
 		b.solidp(Vector3(x, 1.6, 4), Vector3(0.16, 3.2, 0.3))
@@ -316,12 +363,19 @@ static func _office(b: Look.Batch, root: Node3D) -> void:
 	b.bar(P(Color("3a3f44"), 0.7), Vector3(69.55, 1.41, 4.22), Vector3(69.7, 1.52, 4.2), 0.012)
 	b.bar(P(Color("3a3f44"), 0.7), Vector3(69.85, 1.41, 4.22), Vector3(69.7, 1.52, 4.2), 0.012)
 	# 窓口の机と大きな掲示板
-	b.boxp(wood, Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4), ALL)
+	b.boxp(wood, Vector3(72, 0.907, 0.05), Vector3(3.8, 0.106, 1.4), ALL)
+	b.boxp(wood_d, Vector3(72, 0.826, 0.05), Vector3(3.68, 0.056, 1.28), ALL)
 	b.solidp(Vector3(72, 0.88, 0.05), Vector3(3.8, 0.16, 1.4))
 	for x: float in [70.5, 73.5]:
-		b.boxp(teal, Vector3(x, 0.42, 0.05), Vector3(0.25, 0.84, 1.1), ALL)
+		b.boxp(teal, Vector3(x, 0.49, 0.05), Vector3(0.25, 0.70, 1.1), ALL)
+		b.boxp(wood_d, Vector3(x, 0.07, 0.05), Vector3(0.22, 0.14, 0.95), ALL)
 		b.solidp(Vector3(x, 0.42, 0.05), Vector3(0.25, 0.84, 1.1))
-	b.boxp(wood, Vector3(72, 1.65, -0.72), Vector3(4.1, 2.1, 0.16), ALL)
+	b.boxp(teal, Vector3(72, 0.49, 0.56), Vector3(2.8, 0.70, 0.10), ALL)
+	# 掲示板の芯材を上下の桟と側枠で抱かせる。
+	b.boxp(wood, Vector3(72, 1.65, -0.72), Vector3(3.93, 1.93, 0.08), ALL)
+	for side: float in [-1.0, 1.0]:
+		b.boxp(wood_d, Vector3(72 + side * 2.005, 1.65, -0.72), Vector3(0.09, 2.1, 0.16), ALL)
+		b.boxp(wood_d, Vector3(72, 1.65 + side * 1.006, -0.72), Vector3(3.93, 0.087, 0.16), ALL)
 	b.solidp(Vector3(72, 1.65, -0.72), Vector3(4.1, 2.1, 0.16))
 	b.boxp(Look.mat("plaster", Color("42645b")), Vector3(72, 1.65, -0.61), Vector3(3.88, 1.9, 0.04), ALL)
 	for i in range(3):
@@ -405,7 +459,9 @@ static func _facade(root: Node3D, font: Font) -> void:
 	var y1 := 6.5                        # てっぺん
 	var mid := (y0 + y1) * 0.5
 	# 壁と、1階と2階の境の帯、両端の付け柱
-	b.boxp(wall, Vector3(72, mid, z), Vector3(14.4, y1 - y0, 0.16), ALL)
+	var windows := [66.7, 69.3, 74.7, 77.3]
+	var opening := Vector2(1.72, 1.42)
+	_window_wall(b, wall, Rect2(64.8, y0, 14.4, y1 - y0), z, 0.16, windows, 3.85, opening)
 	b.solidp(Vector3(72, mid, z), Vector3(14.4, y1 - y0, 0.16))
 	b.boxp(band, Vector3(72, 2.62, z + 0.06), Vector3(14.6, 0.24, 0.3), ALL)
 	# 両端の木の柱（2本の柱に桟を渡す。左にはつたが絡む）
@@ -416,20 +472,16 @@ static func _facade(root: Node3D, font: Font) -> void:
 		for k in 8:
 			b.boxp(post, Vector3(x, y0 + 0.3 + k * 0.5, z + 0.12), Vector3(0.5, 0.07, 0.1), ALL)
 	# 2階の窓（1つだけ明かりが点いている。誰かが残業している）
-	var windows := [66.7, 69.3, 74.7, 77.3]
 	var frame := Look.mat("wood", Color("8a5a32"))
 	for i in windows.size():
 		var wx: float = windows[i]
-		b.boxp(frame, Vector3(wx, 3.85, z + 0.1), Vector3(1.72, 1.42, 0.08), ALL)
-		b.boxp(lit if i == 2 else glass, Vector3(wx, 3.85, z + 0.14), Vector3(1.48, 1.18, 0.03), ALL)
-		b.boxp(frame, Vector3(wx, 3.85, z + 0.17), Vector3(0.08, 1.2, 0.04), ALL)
-		b.boxp(frame, Vector3(wx, 3.9, z + 0.17), Vector3(1.5, 0.07, 0.04), ALL)
-		b.boxp(frame, Vector3(wx, 3.1, z + 0.2), Vector3(1.95, 0.1, 0.3), ALL)
-		b.boxp(frame, Vector3(wx, 4.62, z + 0.14), Vector3(1.9, 0.12, 0.16), ALL)
+		_seated_window(b, frame, lit if i == 2 else glass, Vector3(wx, 3.85, z + 0.013), opening, 0.09, 0.092)
+		b.boxp(frame, Vector3(wx, 3.85, z + 0.016), Vector3(0.065, 1.24, 0.061), ALL)
+		b.boxp(frame, Vector3(wx, 3.9, z + 0.016), Vector3(1.54, 0.06, 0.061), ALL)
+		b.boxp(frame, Vector3(wx, 3.11, z + 0.093), Vector3(1.9, 0.09, 0.18), ALL)
+		b.boxp(frame, Vector3(wx, 4.62, z + 0.063), Vector3(1.86, 0.1, 0.095), ALL)
 	# 室外機と配管（2階の窓の下）
-	b.boxp(P(Color("c8ccce"), 0.6, 0.3), Vector3(77.3, 2.98, z + 0.36), Vector3(0.9, 0.5, 0.32), ALL)
-	b.cylp(P(Color("3a3f44")), Vector3(77.3, 2.98, z + 0.53), 0.17, 0.02, 10)
-	b.boxp(iron, Vector3(77.3, 2.7, z + 0.3), Vector3(0.95, 0.04, 0.4), ALL)
+	_outdoor_ac(b, Vector3(77.3, 2.98, z + 0.34))
 	b.bar(P(Color("e8e2d2"), 0.7), Vector3(77.75, 3.1, z + 0.2), Vector3(78.6, 3.1, z + 0.12), 0.05)
 	b.bar(P(Color("e8e2d2"), 0.7), Vector3(78.6, 3.1, z + 0.12), Vector3(78.6, 2.5, z + 0.12), 0.05)
 	# 社名の看板（枠つき）と、照らすランプ3つ
@@ -448,8 +500,8 @@ static func _facade(root: Node3D, font: Font) -> void:
 	# 壁のしみと、塗り直した跡（窓と看板を避けて）
 	var stain := P(Color("d4c6a4"), 0.95)
 	var patch := P(Color("efe6d0"), 0.95)
-	for spot: Array in [[65.9, 3.0, 0.7, 0.5, 0], [68.0, 5.0, 0.5, 0.35, 1], [71.9, 3.3, 1.1, 0.45, 0], [73.0, 4.25, 0.45, 0.3, 1],
-			[76.1, 3.0, 0.6, 0.6, 0], [78.2, 4.4, 0.4, 0.8, 1], [70.6, 4.35, 0.35, 0.25, 0], [67.9, 2.95, 0.4, 0.3, 1]]:
+	for spot: Array in [[65.6, 2.95, 0.52, 0.34, 0], [68.0, 5.0, 0.5, 0.35, 1], [71.9, 3.3, 1.1, 0.45, 0], [73.0, 4.25, 0.45, 0.3, 1],
+			[76.02, 2.94, 0.4, 0.35, 0], [78.54, 4.4, 0.32, 0.8, 1], [70.6, 4.35, 0.35, 0.25, 0], [67.9, 2.95, 0.4, 0.3, 1]]:
 		b.boxp(stain if int(spot[4]) == 0 else patch, Vector3(float(spot[0]), float(spot[1]), z + 0.085), Vector3(float(spot[2]), float(spot[3]), 0.01), ALL)
 	# 雨どい（右の柱の内側を、上から下まで）
 	var pipe := P(Color("9aa0a2"), 0.6, 0.3)
@@ -473,11 +525,22 @@ static func _facade(root: Node3D, font: Font) -> void:
 	for k in 5:
 		b.box(P(Color("f4f1ea") if k % 2 == 0 else Color("26272b"), 0.7), Transform3D(Basis(Vector3.BACK, 0.5), Vector3(71.0 + k * 0.5, y1 + 1.06, z)), Vector3(0.42, 0.2, 0.14), ALL)
 	b.box(P(Color("26272b"), 0.7), Transform3D(Basis(Vector3.BACK, 0.12), Vector3(72, y1 + 1.04, z - 0.02)), Vector3(2.5, 0.28, 0.1), ALL)
-	# 裏：ベニヤ板と、斜めの支え・横の桟（事務所の中から見える。映画のセットと同じ）
-	b.boxp(ply, Vector3(72, mid, z - 0.1), Vector3(14.4, y1 - y0, 0.03), ALL)
+	# 裏：合板を桟の上で継ぎ、下の腰壁へ斜材の荷重を戻す。
+	for k in 12:
+		var panel_x := 65.4 + k * 1.2
+		for span: Vector2 in [Vector2(y0, 4.9), Vector2(4.9, y1)]:
+			b.boxp(ply, Vector3(panel_x, (span.x + span.y) * 0.5, z - 0.095),
+					Vector3(1.191, span.y - span.x - 0.006, 0.032), ALL)
+		if k < 11:
+			b.boxp(lumber, Vector3(panel_x + 0.6, mid, z - 0.135), Vector3(0.047, y1 - y0, 0.054), ALL)
+	var bracket := P(Color("52534b"), 0.58, 0.45)
 	for x: float in [66.0, 69.5, 74.5, 78.0]:
-		b.bar(lumber, Vector3(x, y1 - 0.4, z - 0.14), Vector3(x, y0 + 0.05, z - 1.6), 0.1)
-		b.bar(lumber, Vector3(x, y0 + 0.05, z - 1.6), Vector3(x, y0 + 0.05, z - 0.14), 0.09)
+		var heel := Vector3(x, y0 + 0.13, z - 1.42)
+		b.bar(lumber, Vector3(x, y1 - 0.4, z - 0.14), heel, 0.1)
+		b.bar(lumber, heel, Vector3(x, y0 + 0.13, z - 0.14), 0.09)
+		b.bar(lumber, heel, Vector3(x, 1.42, z - 0.13), 0.09)
+		for p: Vector3 in [heel, Vector3(x, 1.42, z - 0.13), Vector3(x, y1 - 0.4, z - 0.14)]:
+			b.boxp(bracket, p, Vector3(0.16, 0.16, 0.09), ALL)
 	for yy: float in [3.3, 4.9]:
 		b.boxp(lumber, Vector3(72, yy, z - 0.15), Vector3(14.2, 0.09, 0.06), ALL)
 	var front := Look.Batch.new()
@@ -492,6 +555,33 @@ static func _facade(root: Node3D, font: Font) -> void:
 	var sign := Look.label(root, Transform3D(Basis.IDENTITY, Vector3(72, 5.43, z + 0.18)), "格安アクション映画制作班", 0.011, 72, Color("f6e7c4"), font, false)
 	sign.layers = FACADE_LAYER
 	sign.name = "CompanyNameSign"
+
+
+static func _outdoor_ac(b: Look.Batch, p: Vector3) -> void:
+	var case := P(Color("c8ccce"), 0.58, 0.15)
+	var iron := P(Color("555d61"), 0.56, 0.45)
+	b.boxp(case, p - Vector3(0, 0, 0.04), Vector3(0.9, 0.50, 0.23), ALL)
+	for side: float in [-1.0, 1.0]:
+		b.boxp(case, p + Vector3(0, side * 0.224, 0.114), Vector3(0.90, 0.052, 0.091), ALL)
+		b.boxp(case, p + Vector3(side * 0.421, 0, 0.114), Vector3(0.058, 0.396, 0.091), ALL)
+		var mount := p + Vector3(side * 0.30, -0.27, 0)
+		b.boxp(iron, mount, Vector3(0.07, 0.045, 0.53), ALL)
+		b.boxp(iron, mount + Vector3(0, -0.1, -0.247), Vector3(0.07, 0.26, 0.035), ALL)
+		b.bar(iron, mount + Vector3(0, -0.013, 0.12), mount + Vector3(0, -0.17, -0.24), 0.033, ALL)
+	b.boxp(case, p + Vector3(0.29, 0, 0.115), Vector3(0.21, 0.396, 0.091), ALL)
+	var fan := p + Vector3(-0.09, 0, 0.082)
+	var axis := Basis(Vector3.RIGHT, PI * 0.5)
+	b.cyl(P(Color("333b3d")), Transform3D(axis, fan), 0.186, 0.012, 20)
+	for k in 5:
+		var vane := Basis(Vector3.BACK, TAU * k / 5.0)
+		b.box(iron, Transform3D(vane, fan + vane * Vector3(0.067, 0.035, 0.018)),
+				Vector3(0.13, 0.062, 0.014), ALL)
+	b.cyl(iron, Transform3D(axis, fan + Vector3(0, 0, 0.026)), 0.037, 0.022, 12)
+	for r: float in [0.063, 0.112, 0.161, 0.19]:
+		_ring(b, case, Transform3D(axis, fan + Vector3(0, 0, 0.065)), r, 0.011, false)
+	for side: float in [-1.0, 1.0]:
+		b.bar(case, fan + Vector3(-0.187, side * 0.037, 0.065),
+				fan + Vector3(0.187, side * 0.037, 0.065), 0.011, ALL)
 
 
 static func _desk_things(b: Look.Batch) -> void:
@@ -513,22 +603,37 @@ static func _desk_things(b: Look.Batch) -> void:
 static func _awning(b: Look.Batch, cx: float, z0: float, width: float) -> void:
 	var tealc := P(Color("4e777c"), 0.9)
 	var creamc := P(Color("efe3c0"), 0.9)
+	var metal := P(Color("505659"), 0.6, 0.4)
 	var n := 8
 	var w := width / n
+	var back_z := z0 - 0.15
+	var front_z := z0 + 1.0
 	for k in n:
 		var x0 := cx - width * 0.5 + k * w
 		var m := tealc if k % 2 == 0 else creamc
-		# 上り勾配の帆：壁側 y=2.62、先端 y=2.06
-		var pts := [Vector3(x0, 2.62, z0), Vector3(x0 + w, 2.62, z0), Vector3(x0 + w, 2.06, z0 + 1.0), Vector3(x0, 2.06, z0 + 1.0)]
-		b.poly_out(m, pts, Vector3(0, 1, 0.5))
-		var under: Array = [Vector3(x0, 2.6, z0), Vector3(x0 + w, 2.6, z0), Vector3(x0 + w, 2.04, z0 + 1.0), Vector3(x0, 2.04, z0 + 1.0)]
-		b.poly_out(P(Color("d8cba6"), 0.9), under, Vector3(0, -1, -0.5))
-		# 先端のひらひら
-		var fr := [Vector3(x0, 2.06, z0 + 1.0), Vector3(x0 + w, 2.06, z0 + 1.0), Vector3(x0 + w, 1.9, z0 + 1.02), Vector3(x0, 1.9, z0 + 1.02)]
-		b.poly_out(m, fr, Vector3(0, -0.2, 1))
-	# 支え棒
+		var rear := Vector3(x0, 2.62, back_z)
+		var mid := Vector3(x0, 2.305, lerpf(back_z, front_z, 0.5))
+		var tip := Vector3(x0, 2.06, front_z)
+		var across := Vector3(w, 0, 0)
+		for span: Array in [[rear, mid], [mid, tip]]:
+			var a: Vector3 = span[0]
+			var c: Vector3 = span[1]
+			var sail := [a, a + across, c + across, c]
+			b.poly_out(m, sail, Vector3.UP)
+			b.poly_out(m, sail, Vector3.DOWN)
+		# 帆の前端を巻いて留め、前垂れの縁はストライプごとに緩くたわませる。
+		var side := Vector3(0, -0.135, 0.023)
+		var hanging := [tip, tip + across, tip + across + side,
+				tip + across * 0.5 + side + Vector3(0, -0.036, 0.006), tip + side]
+		b.poly_out(m, hanging, Vector3.BACK)
+		b.poly_out(m, hanging, Vector3.FORWARD)
+	b.boxp(metal, Vector3(cx, 2.602, back_z), Vector3(width + 0.04, 0.042, 0.058), ALL)
+	b.boxp(metal, Vector3(cx, 2.031, front_z - 0.016), Vector3(width, 0.038, 0.041), ALL)
 	for sx: float in [cx - width * 0.5 + 0.1, cx + width * 0.5 - 0.1]:
-		b.bar(P(Color("33373a"), 0.6, 0.4), Vector3(sx, 2.56, z0), Vector3(sx, 2.04, z0 + 1.0), 0.03)
+		var nose := Vector3(sx, 2.031, front_z - 0.016)
+		b.boxp(metal, Vector3(sx, 1.77, 4.05), Vector3(0.11, 0.19, 0.045), ALL)
+		b.bar(metal, Vector3(sx, 1.77, 4.07), nose, 0.033, ALL)
+		b.bar(metal, Vector3(sx, 2.59, back_z), nose, 0.027, ALL)
 
 
 # 三角旗の連なり（2点間に少したるませる）
@@ -642,7 +747,7 @@ static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 	_bench(b, Vector3(83.0, 0, -2.1), -PI * 0.5)
 	_bin(b, Vector3(81.5, 0, -4.3))
 	for k in 3:
-		_bike(b, Vector3(82.8, 0, 5.4 + k * 0.95), PI * 0.5 + (0.1 if k == 1 else 0.0), [Color("c4503a"), Color("3b6ea5"), Color("d9a441")][k])
+		_bike(b, Vector3(82.8, 0, 5.4 + k * 0.95), 0.0, [Color("c4503a"), Color("3b6ea5"), Color("d9a441")][k])
 	_bike_rack(b, Vector3(83.5, 0, 5.4))
 	_planter(b, Vector3(67.6, 0, 5.15), 3.2, 9)
 	_planter(b, Vector3(76.6, 0, 5.15), 3.2, 9)
@@ -702,6 +807,7 @@ static func _lot(root: Node3D, rng: RandomNumberGenerator) -> void:
 static func _shed(b: Look.Batch, x0: float, x1: float, zb: float, zf: float) -> void:
 	var post := P(Color("6b5a48"), 0.9)
 	var roof := Look.mat("metal", Color("8f9ea0"))
+	var galvanized := P(Color("7e8b8f"), 0.55, 0.45)
 	var n := int((x1 - x0) / 5.5) + 1
 	for k in n + 1:
 		var x := x0 + k * (x1 - x0) / n
@@ -709,6 +815,14 @@ static func _shed(b: Look.Batch, x0: float, x1: float, zb: float, zf: float) -> 
 		b.solidp(Vector3(x, 1.8, zb + 0.15), Vector3(0.16, 3.6, 0.16))
 		b.boxp(post, Vector3(x, 1.5, zf), Vector3(0.16, 3.0, 0.16), GROUND)
 		b.solidp(Vector3(x, 1.5, zf), Vector3(0.16, 3.0, 0.16))
+		for end_z: float in [zb + 0.15, zf]:
+			b.boxp(galvanized, Vector3(x, 0.095, end_z), Vector3(0.24, 0.19, 0.23), GROUND)
+			b.boxp(galvanized, Vector3(x, 0.025, end_z), Vector3(0.3, 0.05, 0.3), GROUND)
+		b.bar(post, Vector3(x, 3.63, zb + 0.12), Vector3(x, 3.04, zf + 0.43), 0.12, ALL)
+		b.bar(post, Vector3(x, 2.58, zf), Vector3(x, 3.105, zf - 0.65), 0.072, ALL)
+	for span: Vector2 in [Vector2(3.59, zb + 0.15), Vector2(3.04, zf)]:
+		b.boxp(post, Vector3((x0 + x1) * 0.5, span.x, span.y),
+				Vector3(x1 - x0 + 0.42, 0.14, 0.15), ALL)
 	var top := [Vector3(x0 - 0.4, 3.78, zb), Vector3(x1 + 0.4, 3.78, zb), Vector3(x1 + 0.4, 3.12, zf + 0.5), Vector3(x0 - 0.4, 3.12, zf + 0.5)]
 	b.poly_out(roof, top, Vector3.UP)
 	var under: Array = []
@@ -718,7 +832,12 @@ static func _shed(b: Look.Batch, x0: float, x1: float, zb: float, zf: float) -> 
 	var roof_from := Vector3((x0 + x1) * 0.5, 3.74, zb)
 	var roof_to := Vector3((x0 + x1) * 0.5, 3.08, zf + 0.5)
 	_solid_bar(b, roof_from, roof_to, Vector2(x1 - x0 + 0.8, 0.08))
-	b.boxp(P(Color("7a8588"), 0.6, 0.3), Vector3((x0 + x1) * 0.5, 3.1, zf + 0.5), Vector3(x1 - x0 + 0.8, 0.14, 0.05), ALL)
+	b.boxp(galvanized, Vector3((x0 + x1) * 0.5, 3.075, zf + 0.44),
+			Vector3(x1 - x0 + 0.8, 0.074, 0.11), ALL)
+	var ribs := roundi((x1 - x0 + 0.8) / 0.24)
+	for i in ribs:
+		var x := lerpf(x0 - 0.38, x1 + 0.38, (float(i) + 0.5) / ribs)
+		b.bar(galvanized, Vector3(x, 3.786, zb), Vector3(x, 3.126, zf + 0.51), 0.026, ALL)
 	# 棚と資材
 	var wood := Look.mat("wood", Color("a8845a"))
 	for sx: float in [x0 + 1.2, x0 + 4.4]:
@@ -786,7 +905,12 @@ static func _forklift(b: Look.Batch, pos: Vector3, yaw: float, paint := Color("d
 			b.solid(at * Transform3D(Basis.IDENTITY, Vector3(sx, 1.55, z)), Vector3(0.07, 1.8, 0.07))
 		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.7, 0.9, 0.78)), Vector3(0.08, 1.8, 0.1), GROUND)
 		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.7, 0.9, 0.78)), Vector3(0.08, 1.8, 0.1))
-		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.7, 0.1, 1.0)), Vector3(0.12, 0.05, 1.0), GROUND)
+		var guide := P(Color("626c70"), 0.48, 0.55)
+		b.box(guide, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.281, 0.96, 0.81)), Vector3(0.044, 1.64, 0.076), ALL)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.31, 0.96, 0.857)), Vector3(0.075, 1.64, 0.022), ALL)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.35, 0.1, 1.0)), Vector3(0.12, 0.05, 1.0), ALL)
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.35, 0.27, 0.89)), Vector3(0.12, 0.34, 0.08), ALL)
+		b.box(guide, at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.269, 0.3, 0.867)), Vector3(0.105, 0.27, 0.065), ALL)
 		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(sx * 0.7, 0.1, 1.0)), Vector3(0.12, 0.05, 1.0))
 		for wz: float in [0.35, -0.85]:
 			b.cyl(tire, at * Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(sx * 1.2 + 0.1, 0.28, wz)), 0.28, 0.2, 12, -1.0, true, true)
@@ -799,14 +923,23 @@ static func _forklift(b: Look.Batch, pos: Vector3, yaw: float, paint := Color("d
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.4, 1.2)), Vector3(0.7, 0.5, 0.5))
 	for x: float in [-0.21, 0.21]:
 		b.box(P(Color("e2c391")), at * Transform3D(Basis.IDENTITY, Vector3(x, 0.655, 1.2)), Vector3(0.12, 0.01, 0.5), ALL)
-	for y: float in [0.25, 0.75, 1.25, 1.7]:
-		b.box(P(Color("91989b"), 0.4, 0.7), at * Transform3D(Basis.IDENTITY, Vector3(0, y, 0.79)), Vector3(0.58, 0.055, 0.05), ALL)
+	# マスト上端と下端の横桟、昇降台、後ろから伸びるシリンダー。
+	for y: float in [0.17, 1.74]:
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(0, y, 0.769)), Vector3(0.68, 0.085, 0.095), ALL)
+	for y: float in [0.23, 0.40]:
+		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(0, y, 0.886)), Vector3(0.76, 0.077, 0.065), ALL)
+	b.cyl(dark, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.18, 0.733)), 0.061, 0.96, 12)
+	b.cyl(P(Color("aebbc1"), 0.32, 0.72), at * Transform3D(Basis.IDENTITY, Vector3(0, 1.13, 0.733)), 0.031, 0.59, 12)
 
 
 static func _pallet(b: Look.Batch, at: Transform3D, y: float) -> void:
 	var w := Look.mat("wood", Color("cfa56a"))
+	var end := P(Color("a47b49"), 0.9)
 	for k in 5:
-		b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.13, -0.33 + k * 0.165)), Vector3(1.2, 0.025, 0.14), GROUND)
+		var plank_z := -0.33 + k * 0.165
+		b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.13, plank_z)), Vector3(1.194, 0.025, 0.14), GROUND)
+		for x: float in [-0.598, 0.598]:
+			b.box(end, at * Transform3D(Basis.IDENTITY, Vector3(x, y + 0.13, plank_z)), Vector3(0.004, 0.025, 0.14), ALL)
 	for k in 3:
 		b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.075, -0.33 + k * 0.33)), Vector3(1.2, 0.09, 0.09), GROUND)
 		b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y + 0.012, -0.33 + k * 0.33)), Vector3(1.2, 0.025, 0.1), GROUND)
@@ -829,8 +962,16 @@ static func _crate(b: Look.Batch, pos: Vector3, size: Vector3, yaw: float) -> vo
 	var w := Look.mat("wood", Color("b58c57"))
 	var d := Look.mat("wood", Color("8a6a43"))
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos + Vector3(0, size.y * 0.5, 0))
-	b.box(w, at, size, GROUND)
+	b.box(d, at, Vector3(size.x - 0.05, size.y - 0.04, size.z - 0.05), GROUND)
 	b.solid(at, size)
+	var plank_h := (size.y - 0.035) / 3.0
+	for k in 3:
+		var y := -size.y * 0.5 + 0.018 + plank_h * (k + 0.5)
+		for side: float in [-1.0, 1.0]:
+			b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(0, y, side * (size.z - 0.028) * 0.5)),
+					Vector3(size.x, plank_h - 0.006, 0.03), ALL)
+			b.box(w, at * Transform3D(Basis.IDENTITY, Vector3(side * (size.x - 0.029) * 0.5, y, 0)),
+					Vector3(0.03, plank_h - 0.006, size.z - 0.06), ALL)
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
 			b.box(d, at * Transform3D(Basis.IDENTITY, Vector3(sx * (size.x * 0.5 - 0.04), 0, sz * (size.z * 0.5 - 0.04))), Vector3(0.09, size.y + 0.02, 0.09), GROUND)
@@ -857,12 +998,14 @@ static func _cardboard_pile(b: Look.Batch, pos: Vector3, rng: RandomNumberGenera
 
 
 static func _drum(b: Look.Batch, pos: Vector3, c: Color) -> void:
-	b.cylp(P(c, 0.45, 0.35), pos, 0.29, 0.88, 12)
+	b.cyl(P(c, 0.54, 0.15), Transform3D(Basis.IDENTITY, pos), 0.29, 0.882, 12, -1.0, false)
 	b.solidp(pos + Vector3(0, 0.44, 0), Vector3(0.51, 0.88, 0.51))
 	for y: float in [0.18, 0.64]:
 		b.cylp(P(c.darkened(0.2), 0.45, 0.4), pos + Vector3(0, y, 0), 0.298, 0.05, 12)
-	b.cylp(P(c.darkened(0.35), 0.5, 0.4), pos + Vector3(0, 0.875, 0), 0.25, 0.015, 12)
-	b.cylp(P(Color("45484b"), 0.45, 0.7), pos + Vector3(0.12, 0.89, 0.04), 0.035, 0.018, 8)
+	_ring(b, P(c.darkened(0.26), 0.54, 0.18), Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.875, 0)), 0.285, 0.026, false)
+	b.cylp(P(c.darkened(0.25), 0.52, 0.18), pos + Vector3(0, 0.858, 0), 0.281, 0.012, 12)
+	for cap: Vector3 in [Vector3(0.12, 0.87, 0.04), Vector3(-0.19, 0.87, -0.08)]:
+		b.cylp(P(Color("51565a"), 0.52, 0.62), pos + cap, 0.035 if cap.x > 0.0 else 0.021, 0.012, 8)
 
 
 static func _cone(b: Look.Batch, pos: Vector3) -> void:
@@ -879,9 +1022,11 @@ static func _tires(b: Look.Batch, pos: Vector3, n: int) -> void:
 		var at := Transform3D(Basis.IDENTITY, pos + Vector3(0.02 * (k % 2), k * 0.2 + 0.1, 0))
 		_ring(b, P(Color("2a2c2e"), 0.95), at, 0.265, 0.19, true)
 		_ring(b, P(Color("34383a"), 0.9), at * Transform3D(Basis.IDENTITY, Vector3(0, 0.081, 0)), 0.26, 0.025, false)
-		for j in 12:
-			var a := j * TAU / 12.0
-			b.box(P(Color("222426"), 0.95), at * Transform3D(Basis(Vector3.UP, -a), Vector3(cos(a) * 0.36, 0, sin(a) * 0.36)), Vector3(0.016, 0.12, 0.055), ALL)
+		for j in 18:
+			var a := j * TAU / 18.0
+			var shoulder := Vector3(cos(a) * 0.35, 0.022 * (1 - 2 * (j % 2)), sin(a) * 0.35)
+			b.box(P(Color("222426"), 0.95), at * Transform3D(Basis(Vector3.UP, -a), shoulder),
+					Vector3(0.022, 0.083, 0.050), ALL)
 
 
 static func _pipes(b: Look.Batch, pos: Vector3) -> void:
@@ -907,11 +1052,24 @@ static func _light_stand(b: Look.Batch, pos: Vector3, yaw: float) -> void:
 		var a := TAU * k / 3.0
 		b.bar(dark, at * Vector3(0, 1.5, 0), at * Vector3(cos(a) * 0.65, 0.0, sin(a) * 0.65), 0.04)
 		_solid_bar(b, at * Vector3(0, 1.5, 0), at * Vector3(cos(a) * 0.65, 0.0, sin(a) * 0.65), Vector2(0.04, 0.04))
+		b.bar(dark, at * Vector3(0, 0.77, 0), at * Vector3(cos(a) * 0.37, 0.64, sin(a) * 0.37), 0.021, ALL)
+		b.box(dark, at * Transform3D(Basis(Vector3.UP, -a), Vector3(cos(a) * 0.65, 0.026, sin(a) * 0.65)),
+				Vector3(0.10, 0.05, 0.07), ALL)
 	b.bar(dark, at * Vector3(0, 0.0, 0), at * Vector3(0, 1.9, 0), 0.05)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, 0)), Vector3(0.05, 1.9, 0.05))
-	b.box(P(Color("3a3f44"), 0.5, 0.4), at * Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 2.0, 0.0)), Vector3(0.42, 0.36, 0.34), ALL)
-	b.solid(at * Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 2.0, 0.0)), Vector3(0.42, 0.36, 0.34))
-	b.box(Look.mat("lit", Color("fff3c8")), at * Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 1.99, 0.18)), Vector3(0.3, 0.26, 0.03), ALL)
+	var head := at * Transform3D(Basis(Vector3.RIGHT, 0.3), Vector3(0, 2.0, 0.0))
+	b.box(dark, head * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.05)), Vector3(0.42, 0.36, 0.24), ALL)
+	b.solid(head, Vector3(0.42, 0.36, 0.34))
+	for s: float in [-1.0, 1.0]:
+		b.box(dark, head * Transform3D(Basis.IDENTITY, Vector3(s * 0.187, 0, 0.122)), Vector3(0.046, 0.36, 0.10), ALL)
+		b.box(dark, head * Transform3D(Basis.IDENTITY, Vector3(0, s * 0.158, 0.122)), Vector3(0.33, 0.044, 0.10), ALL)
+		var mount := at * Vector3(s * 0.24, 1.96, 0)
+		b.bar(dark, at * Vector3(s * 0.24, 1.81, 0), mount, 0.031, ALL)
+		b.cyl(P(Color("849095"), 0.5, 0.5), Transform3D(at.basis * Basis(Vector3.BACK, -s * PI * 0.5),
+				mount - at.basis.x * s * 0.012), 0.036, 0.03, 10)
+	b.bar(dark, at * Vector3(-0.24, 1.81, 0), at * Vector3(0.24, 1.81, 0), 0.032, ALL)
+	b.box(Look.mat("lit", Color("fff3c8")), head * Transform3D(Basis.IDENTITY, Vector3(0, 0, 0.106)),
+			Vector3(0.313, 0.264, 0.023), ALL)
 	for sx: float in [-0.25, 0.25]:
 		b.box(dark, at * Transform3D(Basis(Vector3.RIGHT, 0.3) * Basis(Vector3.UP, sx * 1.4), Vector3(sx, 2.0, 0.28)), Vector3(0.02, 0.34, 0.18), ALL)
 
@@ -919,12 +1077,26 @@ static func _light_stand(b: Look.Batch, pos: Vector3, yaw: float) -> void:
 static func _dumpster(b: Look.Batch, pos: Vector3, yaw: float, c: Color) -> void:
 	var at := Transform3D(Basis(Vector3.UP, yaw), pos)
 	var body := P(c, 0.55, 0.15)
-	b.box(body, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.6, 0)), Vector3(1.9, 1.1, 1.0), GROUND)
-	b.box(P(c.darkened(0.3), 0.5, 0.2), at * Transform3D(Basis(Vector3.BACK, 0.12), Vector3(-0.5, 1.18, 0)), Vector3(1.0, 0.07, 1.06), ALL)
-	b.box(P(c.darkened(0.3), 0.5, 0.2), at * Transform3D(Basis(Vector3.BACK, -0.12), Vector3(0.5, 1.18, 0)), Vector3(1.0, 0.07, 1.06), ALL)
-	for wx: float in [-0.7, 0.7]:
-		b.cyl(P(Color("1e2022"), 0.9), at * Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3(wx, 0.1, 0.35)), 0.1, 0.08, 8, -1.0, true, true)
-	b.box(P(Color("2f3438"), 0.5, 0.4), at * Transform3D(Basis.IDENTITY, Vector3(0, 0.1, 0)), Vector3(1.9, 0.14, 0.9), GROUND)
+	var trim := P(c.darkened(0.26), 0.54, 0.2)
+	var steel := P(Color("515b60"), 0.54, 0.55)
+	var rubber := P(Color("24272a"), 0.92)
+	b.extrude(body, at, [Vector2(-0.83, 0.23), Vector2(0.83, 0.23), Vector2(0.94, 1.15),
+			Vector2(-0.94, 1.15)], 0.99)
+	b.box(trim, at * Transform3D(Basis.IDENTITY, Vector3(0, 1.125, 0)), Vector3(1.94, 0.07, 1.04), ALL)
+	for side: float in [-1.0, 1.0]:
+		var lid := at * Transform3D(Basis(Vector3.BACK, -side * 0.12), Vector3(side * 0.47, 1.187, 0))
+		b.box(trim, lid, Vector3(0.94, 0.06, 1.06), ALL)
+		b.cyl(steel, at * Transform3D(Basis(Vector3.BACK, -PI * 0.5),
+				Vector3(side * 0.48 - 0.117, 1.19, -0.528)), 0.036, 0.234, 10)
+		b.bar(steel, lid * Vector3(-0.105, 0.055, 0.42), lid * Vector3(0.105, 0.055, 0.42), 0.025, ALL)
+		for x: float in [-0.105, 0.105]:
+			b.bar(steel, lid * Vector3(x, 0.018, 0.42), lid * Vector3(x, 0.055, 0.42), 0.022, ALL)
+		for z: float in [-0.38, 0.38]:
+			var wheel := Vector3(side * 0.69, 0.098, z)
+			b.cyl(rubber, at * Transform3D(Basis(Vector3.BACK, -PI * 0.5), wheel - Vector3(0.043, 0, 0)),
+					0.098, 0.086, 12, -1.0, true, true)
+			b.box(steel, at * Transform3D(Basis.IDENTITY, wheel + Vector3(side * 0.056, 0.083, 0)),
+					Vector3(0.032, 0.17, 0.107), ALL)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.6, 0)), Vector3(1.9, 1.2, 1.0))
 
 
@@ -936,6 +1108,19 @@ static func _vending(b: Look.Batch, pos: Vector3, yaw: float, c: Color, root: No
 	model.name = "OfficeVending"
 	root.add_child(model)
 	model.transform = at * Transform3D(Basis.IDENTITY.scaled(Vector3(0.9 / 0.82, 1.86 / 1.5, 0.78 / 0.655)), Vector3(0, 0, -0.0375 * 0.78 / 0.655))
+	# 既存の棚と取出口を使い、商品窓だけ枠の内側に透明板をはめる。
+	var glazing := MeshInstance3D.new()
+	glazing.name = "DisplayGlazing"
+	var pane := BoxMesh.new()
+	pane.size = Vector3(0.630, 0.632, 0.003)
+	glazing.mesh = pane
+	glazing.position = Vector3(-0.05, 1.11, 0.314)
+	var clear := StandardMaterial3D.new()
+	clear.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	clear.albedo_color = Color(0.75, 0.88, 0.91, 0.13)
+	clear.roughness = 0.12
+	glazing.material_override = clear
+	glazing.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for child: Node in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh := child as MeshInstance3D
 		for surface in mesh.mesh.get_surface_count():
@@ -944,6 +1129,7 @@ static func _vending(b: Look.Batch, pos: Vector3, yaw: float, c: Color, root: No
 				var painted := material.duplicate() as StandardMaterial3D
 				painted.albedo_color = c
 				mesh.set_surface_override_material(surface, painted)
+	model.add_child(glazing)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.93, 0)), Vector3(0.9, 1.86, 0.78))
 
 
@@ -966,16 +1152,29 @@ static func _bench(b: Look.Batch, pos: Vector3, yaw: float) -> void:
 		b.box(iron, at * Transform3D(Basis.IDENTITY, Vector3(sx, 0.035, 0)), Vector3(0.18, 0.07, 0.56), ALL)
 		for z: float in [-0.16, 0, 0.16]:
 			b.cyl(P(Color("adae9c"), 0.45, 0.7), at * Transform3D(Basis.IDENTITY, Vector3(sx, 0.487, z)), 0.014, 0.006, 6)
+		b.box(iron, at * Transform3D(Basis.IDENTITY, Vector3(sx, 0.465, -0.246)), Vector3(0.12, 0.065, 0.057), ALL)
+		b.box(P(Color("292d30")), at * Transform3D(Basis.IDENTITY, Vector3(sx, 0.012, 0)),
+				Vector3(0.17, 0.024, 0.50), ALL)
 	b.box(iron, at * Transform3D(Basis.IDENTITY, Vector3(0, 0.24, -0.16)), Vector3(1.4, 0.05, 0.05), ALL)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(0, 0.24, -0.16)), Vector3(1.4, 0.05, 0.05))
 
 
 static func _bin(b: Look.Batch, pos: Vector3) -> void:
-	b.cylp(P(Color("5a6a70"), 0.5, 0.4), pos, 0.24, 0.7, 10)
+	b.cyl(P(Color("5a6a70"), 0.50, 0.4), Transform3D(Basis.IDENTITY, pos), 0.24, 0.714, 16, -1.0, false)
 	b.solidp(pos + Vector3(0, 0.35, 0), Vector3(0.43, 0.7, 0.43))
 	var iron := P(Color("33373a"), 0.5, 0.4)
-	_ring(b, iron, Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.72, 0)), 0.225, 0.06, false)
-	b.cylp(P(Color("192022"), 0.95), pos + Vector3(0, 0.68, 0), 0.195, 0.01, 10)
+	var lining := P(Color("3d4749"), 0.73, 0.25)
+	b.cylp(lining, pos + Vector3(0, 0.22, 0), 0.21, 0.035, 16)
+	for i in 16:
+		var theta := TAU * i / 16.0
+		var next := TAU * (i + 1) / 16.0
+		var a := Vector3(cos(theta), 0, sin(theta))
+		var d := Vector3(cos(next), 0, sin(next))
+		var mouth := pos + Vector3.UP * 0.714
+		b.poly_out(iron, [mouth + a * 0.24, mouth + d * 0.24,
+				mouth + d * 0.207, mouth + a * 0.207], Vector3.UP)
+		b.poly_out(lining, [mouth + a * 0.207, mouth + d * 0.207, pos + d * 0.207 + Vector3.UP * 0.25,
+				pos + a * 0.207 + Vector3.UP * 0.25], -(a + d))
 	for k in 10:
 		var a := TAU * k / 10.0
 		b.box(iron, Transform3D(Basis(Vector3.UP, -a), pos + Vector3(cos(a) * 0.235, 0.36, sin(a) * 0.235)), Vector3(0.018, 0.61, 0.025), ALL)
@@ -1004,7 +1203,19 @@ static func _bike(b: Look.Batch, pos: Vector3, yaw: float, c: Color) -> void:
 	b.bar(frame, seat, head, 0.035)
 	b.bar(frame, at * Vector3(-0.5, 0.34, 0), bb, 0.03)
 	b.bar(frame, at * Vector3(-0.5, 0.34, 0), seat, 0.03)
-	b.bar(frame, head, at * Vector3(0.5, 0.34, 0), 0.03)
+	var crown := at * Vector3(0.42, 0.76, 0)
+	b.bar(frame, head, crown, 0.044, ALL)
+	for s: float in [-1.0, 1.0]:
+		b.bar(frame, crown, at * Vector3(0.5, 0.34, s * 0.054), 0.029, ALL)
+		b.bar(frame, seat, at * Vector3(-0.5, 0.34, s * 0.05), 0.022, ALL)
+		var pedal := at * Vector3(s * 0.075, 0.34 - s * 0.095, s * 0.16)
+		b.bar(steel, at * Vector3(0, 0.34, s * 0.085), pedal, 0.019, ALL)
+		b.box(tire, Transform3D(at.basis, pedal), Vector3(0.061, 0.018, 0.083), ALL)
+	var axle := at.basis * Basis(Vector3.RIGHT, PI * 0.5)
+	b.cyl(steel, Transform3D(axle, at * Vector3(0, 0.34, -0.085)), 0.064, 0.17, 12, -1.0, true, true)
+	var chain := P(Color("464b4e"), 0.55, 0.55)
+	for yy: float in [0.291, 0.389]:
+		b.bar(chain, at * Vector3(0, yy, -0.083), at * Vector3(-0.5, 0.34 + (yy - 0.34) * 0.5, -0.083), 0.012, ALL)
 	for pair: Array in [[bb, seat], [bb, head], [seat, head], [at * Vector3(-0.5, 0.34, 0), bb], [at * Vector3(-0.5, 0.34, 0), seat], [head, at * Vector3(0.5, 0.34, 0)]]:
 		_solid_bar(b, pair[0], pair[1], Vector2(0.04, 0.04))
 	b.bar(tire, at * Vector3(0.36, 0.98, -0.28), at * Vector3(0.36, 0.98, 0.28), 0.03)
@@ -1020,21 +1231,27 @@ static func _bike_rack(b: Look.Batch, pos: Vector3) -> void:
 	b.bar(iron, pos + Vector3(0, 0.0, -0.2), pos + Vector3(0, 0.0, 3.0), 0.05)
 	_solid_bar(b, pos + Vector3(0, 0.025, -0.2), pos + Vector3(0, 0.025, 3.0), Vector2(0.05, 0.05))
 	for k in 4:
-		var z := -0.1 + k * 0.95
-		var a := pos + Vector3(-0.32, 0.02, z)
-		var d := pos + Vector3(0.32, 0.02, z)
-		var top_a := a + Vector3(0, 0.58, 0)
-		var top_d := d + Vector3(0, 0.58, 0)
-		for pair: Array in [[a, top_a], [top_a, top_d], [top_d, d]]:
-			b.bar(iron, pair[0], pair[1], 0.045)
-			_solid_bar(b, pair[0], pair[1], Vector2(0.045, 0.045))
+		for side: float in [-1.0, 1.0]:
+			var z := k * 0.95 + side * 0.075
+			var a := pos + Vector3(-0.43, 0.025, z)
+			var d := pos + Vector3(0.23, 0.025, z)
+			var top_a := a + Vector3(0.14, 0.34, 0)
+			var top_d := d + Vector3(-0.06, 0.34, 0)
+			for pair: Array in [[a, top_a], [top_a, top_d], [top_d, d]]:
+				b.bar(iron, pair[0], pair[1], 0.029, ALL)
+				_solid_bar(b, pair[0], pair[1], Vector2(0.029, 0.029))
 
 
 static func _planter(b: Look.Batch, pos: Vector3, len: float, flowers := 0) -> void:
-	b.boxp(Look.mat("concrete", Color("c4bfb0")), pos + Vector3(0, 0.25, 0), Vector3(len, 0.5, 0.6), GROUND)
+	var concrete := Look.mat("concrete", Color("c4bfb0"))
+	b.boxp(concrete, pos + Vector3(0, 0.216, 0), Vector3(len - 0.05, 0.432, 0.55), GROUND)
 	b.solidp(pos + Vector3(0, 0.25, 0), Vector3(len, 0.5, 0.6))
-	b.boxp(P(Color("3a2a20"), 0.95), pos + Vector3(0, 0.51, 0), Vector3(len - 0.12, 0.02, 0.48), ALL)
-	Foliage.hedge(b, pos + Vector3(0, 0.5, 0), Vector3(len - 0.25, 0.62, 0.5), flowers)
+	for side: float in [-1.0, 1.0]:
+		b.boxp(concrete, pos + Vector3(0, 0.455, side * 0.266), Vector3(len, 0.09, 0.068), ALL)
+		b.boxp(concrete, pos + Vector3(side * (len - 0.075) * 0.5, 0.455, 0),
+				Vector3(0.075, 0.09, 0.463), ALL)
+	b.boxp(P(Color("3a2a20"), 0.95), pos + Vector3(0, 0.436, 0), Vector3(len - 0.14, 0.019, 0.47), ALL)
+	Foliage.hedge(b, pos + Vector3(0, 0.445, 0), Vector3(len - 0.25, 0.65, 0.5), flowers)
 
 
 static func _tree(b: Look.Batch, pos: Vector3, s: float) -> void:
@@ -1062,8 +1279,14 @@ static func _flat(b: Look.Batch, pos: Vector3, k: int) -> void:
 			m = Look.mat("block", Color("c8b896"))
 	b.box(m, at, Vector3(0.05, 2.7, 1.0), ALL)
 	b.solid(at, Vector3(0.05, 2.7, 1.0))
-	b.box(Look.mat("wood", Color("8a6a43")), at * Transform3D(Basis.IDENTITY, Vector3(-0.07, 0, 0)), Vector3(0.05, 2.6, 0.1), ALL)
-	b.box(Look.mat("wood", Color("8a6a43")), at * Transform3D(Basis.IDENTITY, Vector3(-0.07, 1.0, 0)), Vector3(0.05, 0.1, 0.96), ALL)
+	var wood := Look.mat("wood", Color("8a6a43"))
+	for zz: float in [-0.453, 0.453]:
+		b.box(wood, at * Transform3D(Basis.IDENTITY, Vector3(0.051, 0, zz)), Vector3(0.052, 2.66, 0.071), ALL)
+		var heel := pos + Vector3(0.30, 0.037, zz)
+		b.bar(wood, at * Vector3(0.05, 0.67, zz), heel, 0.045, ALL)
+		b.boxp(wood, heel, Vector3(0.24, 0.064, 0.105), ALL)
+	for yy: float in [-1.27, 0.05, 1.27]:
+		b.box(wood, at * Transform3D(Basis.IDENTITY, Vector3(0.051, yy, 0)), Vector3(0.053, 0.064, 0.94), ALL)
 	if k % 4 == 0:
 		for t in 3:
 			b.box(m, at * Transform3D(Basis.IDENTITY, Vector3(0.0, 1.5, -0.3 + t * 0.3)), Vector3(0.05, 0.26, 0.2), ALL)
@@ -1071,6 +1294,12 @@ static func _flat(b: Look.Batch, pos: Vector3, k: int) -> void:
 
 static func _bulletin(b: Look.Batch, pos: Vector3) -> void:
 	var post := Look.mat("wood", Color("7a5a3c"))
+	for x: float in [-0.85, 0.85]:
+		var bracket := P(Color("585c5b"), 0.62, 0.40)
+		b.boxp(bracket, pos + Vector3(x, 0.024, 0), Vector3(0.22, 0.048, 0.22), GROUND)
+		b.boxp(bracket, pos + Vector3(x, 0.11, 0), Vector3(0.15, 0.18, 0.15), GROUND)
+		for y: float in [1.01, 1.90]:
+			b.boxp(post, pos + Vector3(x, y, 0), Vector3(0.22, 0.082, 0.115), ALL)
 	b.boxp(post, pos + Vector3(-0.85, 1.1, 0), Vector3(0.12, 2.2, 0.12), GROUND)
 	b.solidp(pos + Vector3(-0.85, 1.1, 0), Vector3(0.12, 2.2, 0.12))
 	b.boxp(post, pos + Vector3(0.85, 1.1, 0), Vector3(0.12, 2.2, 0.12), GROUND)

@@ -182,14 +182,25 @@ def mailbox():
     mats();mailred=M('Mailbox painted postal red','AC3F32',.48)
     B('Mailbox foot',(0,0,.035),(.45,.38,.07),dark,.004)
     B('Mailbox pedestal',(0,.015,.24),(.17,.19,.40),mailred,.004)
-    B('Postal box main body',(0,0,.69),(.55,.42,.63),mailred,.008)
+    body=B('Postal box main body',(0,0,.69),(.55,.42,.63),mailred,.008)
+    for center,size in [((0,-.225,.88),(.36,.15,.075)),((0,-.232,.58),(.37,.112,.34))]:
+        bpy.ops.mesh.primitive_cube_add(size=1,location=center)
+        cutter=bpy.context.object
+        cutter.dimensions=size
+        bpy.context.view_layer.objects.active=body
+        opening=body.modifiers.new('Recess in metal shell','BOOLEAN')
+        opening.operation='DIFFERENCE'
+        opening.solver='EXACT'
+        opening.object=cutter
+        bpy.ops.object.modifier_apply(modifier=opening.name)
+        bpy.data.objects.remove(cutter,do_unlink=True)
     B('Mailbox weather cap',(0,0,1.025),(.60,.46,.075),mailred,.01)
-    B('Letter slot recess',(0,-.217,.88),(.36,.018,.075),dark,.003)
+    B('Interior of letter slot',(0,-.154,.88),(.358,.007,.073),dark,.001)
     B('Letter slot hood',(0,-.246,.93),(.40,.09,.025),mailred,.004)
-    B('Collection door recess',(0,-.216,.58),(.37,.015,.34),dark,.003)
-    B('Collection door',(0,-.23,.58),(.34,.017,.31),mailred,.003)
-    C('Collection lock',(.12,-.245,.59),.015,.01,brass,(0,-1,0),12)
-    B('Mail collection label',(0,-.244,.69),(.23,.005,.08),cream,.002)
+    B('Door recess backing',(0,-.177,.58),(.368,.009,.338),dark,.001)
+    B('Seated collection door',(0,-.197,.58),(.349,.021,.319),mailred,.003)
+    C('Collection lock',(.12,-.211,.59),.015,.009,brass,(0,-1,0),12)
+    B('Mail collection label',(0,-.210,.69),(.23,.003,.08),cream,.001)
 def signpost():
     mats();ground_base(.26);B('Signpost timber upright',(0,0,.83),(.095,.095,1.64),edge,.003)
     for x,z,s in ((-.12,1.43,1),(.10,1.13,-1),(-.03,.87,1)):

@@ -133,10 +133,18 @@ static func _camera(b: Look.Batch, top: Vector3, xf: Transform3D) -> void:
 	var basis := Basis.looking_at(aim, Vector3.UP)
 	var body_at := arm_end + Vector3(0, -0.2, 0) + basis * Vector3(0, 0, -0.08)
 	b.bar(metal, arm_end + Vector3(0, -0.08, 0), body_at + basis * Vector3(0, 0.08, 0.06), 0.035)
-	b.box(white, Transform3D(basis, body_at), Vector3(0.15, 0.14, 0.34), Look.Batch.ALL)
+	b.box(white, Transform3D(basis, body_at + basis * Vector3(0, 0, 0.019)), Vector3(0.15, 0.14, 0.302), Look.Batch.ALL)
 	b.box(white, Transform3D(basis, body_at + basis * Vector3(0, 0.085, -0.03)), Vector3(0.19, 0.016, 0.42), Look.Batch.ALL)
-	b.box(dark, Transform3D(basis, body_at + basis * Vector3(0, -0.005, -0.172)), Vector3(0.11, 0.1, 0.012), Look.Batch.ALL)
-	b.box(Look.plain(Color("5a7d9a"), 0.15, 0.3), Transform3D(basis, body_at + basis * Vector3(0, -0.005, -0.18)), Vector3(0.06, 0.06, 0.006), Look.Batch.ALL)
+	for sign_dir: float in [-1.0, 1.0]:
+		b.box(white, Transform3D(basis, body_at + basis * Vector3(sign_dir * 0.066, 0, -0.159)),
+				Vector3(0.018, 0.14, 0.059), Look.Batch.ALL)
+		b.box(white, Transform3D(basis, body_at + basis * Vector3(0, sign_dir * 0.060, -0.159)),
+				Vector3(0.114, 0.020, 0.059), Look.Batch.ALL)
+	b.box(dark, Transform3D(basis, body_at + basis * Vector3(0, 0, -0.139)), Vector3(0.115, 0.101, 0.012), Look.Batch.ALL)
+	var lens_axis := basis * Basis(Vector3.RIGHT, -PI * 0.5)
+	b.cyl(metal, Transform3D(lens_axis, body_at + basis * Vector3(0, 0, -0.143)), 0.037, 0.025, 16)
+	b.cyl(Look.plain(Color("436683"), 0.16), Transform3D(lens_axis,
+			body_at + basis * Vector3(0, 0, -0.166)), 0.027, 0.004, 16)
 	# 配線：カメラの後ろから腕木に沿って、柱の中へ
 	var cable := Look.plain(Color("1e2022"), 0.6)
 	var back := body_at + basis * Vector3(0, -0.02, 0.17)
@@ -179,6 +187,9 @@ static func _front_fence(root: Node3D, xf: Transform3D) -> void:
 	while cx < HOLE.y - 0.02:
 		b.bar(cut, Vector3(cx, HOLE_TOP, z), Vector3(cx + 0.006, HOLE_TOP - 0.03 - fmod(cx * 5.1, 0.03), z + 0.008 * (fmod(cx * 20.0, 2.0) - 1.0)), 0.006)
 		cx += 0.05
+	for height: float in [0.28, 0.83, 1.37, 1.84]:
+		# めくった網の端と、動かない柱を金具でつなぐ。
+		b.boxp(steel, Vector3(HOLE.y + 0.035, height, z), Vector3(0.15, 0.056, 0.045), Look.Batch.ALL)
 	b.build(root, "DumpFrontFence")
 	# めくる網（右端の柱ぎわを軸に、外へ開く。先は反り返る）
 	var hinge := Node3D.new()
@@ -187,7 +198,7 @@ static func _front_fence(root: Node3D, xf: Transform3D) -> void:
 	root.add_child(hinge)
 	var w := HOLE.y - HOLE.x
 	var fb := Look.Batch.new()
-	_flap_part(fb, net, cut, -w + FLAP_TIP, 0.0, false)
+	_flap_part(fb, steel, cut, -w + FLAP_TIP, false)
 	fb.build(hinge, "Mesh")
 	var tip := Node3D.new()
 	tip.name = "Tip"
@@ -195,7 +206,7 @@ static func _front_fence(root: Node3D, xf: Transform3D) -> void:
 	tip.set_meta("base", Transform3D(Basis.IDENTITY, tip.position))
 	hinge.add_child(tip)
 	var tb := Look.Batch.new()
-	_flap_part(tb, net, cut, -FLAP_TIP, 0.0, true)
+	_flap_part(tb, steel, cut, -FLAP_TIP, true)
 	tb.build(tip, "Mesh")
 	# 閉じている間：網を戻して、針金で留めてある（ねじった針金の輪）
 	var ties := Look.Batch.new()
@@ -220,23 +231,31 @@ static func _front_fence(root: Node3D, xf: Transform3D) -> void:
 
 
 # めくる網の一枚（x0..x0+幅、高さは穴の下から上まで）。tip：先の反り返る部分（自由な縁に切り口を付ける）
-static func _flap_part(b: Look.Batch, net: Look.Tint, cut: Look.Tint, x0: float, z: float, tip: bool) -> void:
+static func _flap_part(b: Look.Batch, steel: Look.Tint, cut: Look.Tint, x0: float, tip: bool) -> void:
 	var w := FLAP_TIP if tip else (HOLE.y - HOLE.x) - FLAP_TIP
 	var y0 := 0.1
 	var y1 := HOLE_TOP - 0.012
-	b.boxp(net, Vector3(x0 + w * 0.5, (y0 + y1) * 0.5, z), Vector3(w, y1 - y0, 0.012), Look.Batch.ALL)
-	# 上の縁（切り口）
-	var x := x0 + 0.03
-	while x < x0 + w - 0.01:
-		b.bar(cut, Vector3(x, y1, z), Vector3(x - 0.004, y1 + 0.028 + fmod(absf(x) * 5.1, 0.025), z - 0.006), 0.006)
-		x += 0.05
-	# 下の縁（いちばん下の横の針金ごと切ってある）
-	b.bar(cut, Vector3(x0, y0, z), Vector3(x0 + w, y0, z), 0.007)
-	if tip:
-		var y := 0.2
-		while y < y1 - 0.05:
-			b.bar(cut, Vector3(x0, y, z), Vector3(x0 - 0.03 - fmod(y * 7.3, 0.025), y + 0.01, z - 0.006), 0.006)
-			y += 0.2
+	var bow := 0.055 if tip else 0.025
+	var columns := roundi(w / 0.05)
+	var mid_y := (y0 + y1) * 0.5
+	for column in columns + 1:
+		var t := float(column) / columns
+		var x := x0 + w * t
+		var z := sin(t * PI) * bow
+		var end := Vector3(x, y1 + 0.018 + fmod(absf(x) * 5.1, 0.024), z - 0.009)
+		b.bar(steel, Vector3(x, y0, z), Vector3(x, mid_y, z * 1.6), 0.008, Look.Batch.ALL)
+		b.bar(steel, Vector3(x, mid_y, z * 1.6), Vector3(x, y1, z), 0.008, Look.Batch.ALL)
+		b.bar(cut, Vector3(x, y1, z), end, 0.007, Look.Batch.ALL)
+	for row in 10:
+		var y := y0 + row * 0.2
+		var prev := Vector3(x0 - (0.028 if tip else 0.0), y, -0.006 if tip else 0.0)
+		for segment in range(1, 5):
+			var t := segment / 4.0
+			var lift := 1.0 - absf(y - mid_y) / (mid_y - y0)
+			var z := sin(t * PI) * bow * lerpf(1.0, 1.6, lift)
+			var next := Vector3(x0 + w * t, y, z)
+			b.bar(cut, prev, next, 0.008, Look.Batch.ALL)
+			prev = next
 
 
 # ペンチ（赤い握りの、大きめの針金切り）。at の +Z が握りの向き
@@ -313,7 +332,7 @@ static func grid_mat() -> ShaderMaterial:
 
 static func _crow_net() -> ShaderMaterial:
 	if _crow_mat == null:
-		_crow_mat = Look.chain_link(Vector2(0.008, 0.022), 0.0012, false)   # 袋の山にかぶせる網の UV は 0..1（Batch.lump）
+		_crow_mat = Look.chain_link(Vector2(0.045, 0.045), 0.0025, false)
 	return _crow_mat
 
 
@@ -329,11 +348,10 @@ static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, at: 
 			p.y = 0.42             # 上に積んだ袋
 			p.x -= 0.3
 		spots.append(p)
+	var peaks: Array[Vector3] = []
 	for k in spots.size():
-		_bag(b, spots[k], rng, [Color("e6eef2"), Color("f0dc84"), Color("d9e4ea")][k % 3])
-	# カラス除けネット（青い網を、袋の山にかぶせる）
-	var w := 1.0 + float(bags) / 3.0 * 0.36
-	b.lump(Look.Tint.new(_crow_net(), Color("2f6fd0")), at + Vector3(-0.35 + (w - 1.0) * 0.2, 0.05, 0.1), Vector3(w, 0.66, 0.7), at, rng, 0.0, 6, 14, 0.08)
+		peaks.append(_bag(b, spots[k], rng, [Color("e6eef2"), Color("f0dc84"), Color("d9e4ea")][k % 3]))
+	_drape_net(b, peaks, at.y)
 	# 収集日の札（フェンスに結び付けた）。緑の帯と、ごみ袋の絵
 	var s := Vector3(at.x + 0.1, 1.35, sign_z)
 	b.boxp(Look.plain(Color("f4f2ea"), 0.6), s, Vector3(0.95, 0.62, 0.02), Look.Batch.ALL)
@@ -342,12 +360,12 @@ static func _collection_point(b: Look.Batch, root: Node3D, xf: Transform3D, at: 
 
 
 # ゴミ袋：ふくらんだ袋と、上の結び目
-static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color) -> void:
+static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color) -> Vector3:
 	# 中身で角ばった、地面でつぶれた袋。上をしぼって結んである
 	var r := rng.randf_range(0.27, 0.35)
 	var bag := Look.plain(c.darkened(rng.randf_range(0.0, 0.08)), 0.22)
 	var c0 := p + Vector3(0, r * 0.72, 0)
-	b.lump(bag, c0, Vector3(r * 1.08, r * 0.78, r * 0.98), c0 - Vector3(0, r * 0.5, 0), rng, 0.3, 6, 10, 0.32)
+	b.lump(bag, c0, Vector3(r * 1.12, r * 0.76, r * 1.02), c0 - Vector3(0, r * 0.5, 0), rng, 0.3, 6, 10, 0.32)
 	# 袋のふくらみごとに当てる。山全体やネットの下の隙間は埋めない。
 	b.solidp(c0, Vector3(r * 1.72, r * 1.45, r * 1.6))
 	var neck := c0 + Vector3(rng.randf_range(-0.05, 0.05), r * 0.72, rng.randf_range(-0.04, 0.04))
@@ -356,6 +374,41 @@ static func _bag(b: Look.Batch, p: Vector3, rng: RandomNumberGenerator, c: Color
 	b.lump(bag, top, Vector3(0.05, 0.045, 0.05), top, rng, 0.1, 4, 6, 0.1)
 	for s: float in [-1.0, 1.0]:
 		b.box(bag, Transform3D(Basis(Vector3.BACK, s * 0.9 + rng.randf_range(-0.25, 0.25)), top + Vector3(s * 0.08, 0.05, 0)), Vector3(0.15, 0.025, 0.06), Look.Batch.ALL)
+	return top + Vector3(0, 0.10, 0)
+
+
+static func _drape_net(b: Look.Batch, peaks: Array[Vector3], ground: float) -> void:
+	var first := Vector2(peaks[0].x, peaks[0].z)
+	var bounds := Rect2(first, Vector2.ZERO)
+	for p: Vector3 in peaks:
+		bounds = bounds.expand(Vector2(p.x, p.z))
+	bounds = bounds.grow(0.57)
+	var net := Look.Tint.new(_crow_net(), Color("2f6fd0"))
+	var hem := Look.plain(Color("315b93"), 0.78)
+	var normal := b.xf.basis.y
+	var axes := [b.xf.basis.x, b.xf.basis.z]
+	const COLS := 14
+	const ROWS := 10
+	var previous: Array[Vector3] = []
+	for row in ROWS + 1:
+		var line: Array[Vector3] = []
+		for col in COLS + 1:
+			var p := bounds.position + bounds.size * Vector2(float(col) / COLS, float(row) / ROWS)
+			var height := ground + 0.023
+			for peak: Vector3 in peaks:
+				var distance := p.distance_to(Vector2(peak.x, peak.z))
+				height = maxf(height, lerpf(ground + 0.023, peak.y, 1.0 - smoothstep(0.21, 0.53, distance)))
+			line.append(Vector3(p.x, height, p.y))
+			if col > 0:
+				if row == 0 or row == ROWS:
+					b.bar(hem, line[col - 1], line[col], 0.012, Look.Batch.ALL)
+				if row > 0:
+					b.poly_out(net, [b.xf * previous[col - 1], b.xf * line[col - 1], b.xf * line[col]], normal, axes)
+					b.poly_out(net, [b.xf * previous[col - 1], b.xf * line[col], b.xf * previous[col]], normal, axes)
+		if row > 0:
+			b.bar(hem, previous[0], line[0], 0.012, Look.Batch.ALL)
+			b.bar(hem, previous[COLS], line[COLS], 0.012, Look.Batch.ALL)
+		previous = line
 
 
 # ---- 粗大ごみ（処理券つき）：テレビ・洗濯機・マットレス・ソファ・自転車 ----
@@ -369,21 +422,52 @@ static func _junk(b: Look.Batch) -> void:
 
 # ブラウン管テレビ（原点は底のまん中、＋Z が画面の側）。事務所に置く1台も、同じ作り（features/opening_movie.gd）。
 # 画面のガラスは、高さ 0.33 を中心に 0.46 x 0.34（4:3）。ticket：粗大ごみの処理券を貼るか
+const CRT_GLASS_Z := 0.200
+
+
 static func crt_tv(b: Look.Batch, tv: Transform3D, ticket: bool) -> void:
 	var dark := Look.plain(Color("3a3d40"), 0.5)
+	var cabinet := Look.mat("wood", Color("6b5a48"))
+	var bezel := Look.plain(Color("ada89a"), 0.58)
 	# 古い木目調キャビネットは角を落とし、画面より奥に厚いブラウン管を持たせる。
-	b.extrude(Look.mat("wood", Color("6b5a48")), tv, [Vector2(-0.3, 0.0), Vector2(0.3, 0.0), Vector2(0.32, 0.035), Vector2(0.32, 0.52), Vector2(0.28, 0.56), Vector2(-0.28, 0.56), Vector2(-0.32, 0.52), Vector2(-0.32, 0.035)], 0.44)
+	var profile := [Vector2(-0.3, 0.0), Vector2(0.3, 0.0), Vector2(0.32, 0.035), Vector2(0.32, 0.52),
+			Vector2(0.28, 0.56), Vector2(-0.28, 0.56), Vector2(-0.32, 0.52), Vector2(-0.32, 0.035)]
+	b.extrude(cabinet, tv * Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.05)), profile, 0.34)
 	b.solid(tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.28, 0)), Vector3(0.64, 0.56, 0.44))
 	b.solid(tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.27, -0.33)), Vector3(0.44, 0.38, 0.24))
 	b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.27, -0.33)), Vector3(0.44, 0.38, 0.24), Look.Batch.ALL)
-	b.box(Look.plain(Color("b9b4a8"), 0.5), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.31, 0.222)), Vector3(0.56, 0.44, 0.01), Look.Batch.ALL)
-	b.box(Look.plain(Color("26302f"), 0.12, 0.3), tv * Transform3D(Basis.IDENTITY, Vector3(0, 0.33, 0.228)), Vector3(0.46, 0.34, 0.025), Look.Batch.ALL)
-	# 縁に囲まれたガラス、右端の選局つまみとスピーカーのスリット。
+	var mouth := [Vector2(-0.238, 0.144), Vector2(0.238, 0.144), Vector2(0.253, 0.156), Vector2(0.253, 0.504),
+			Vector2(0.238, 0.516), Vector2(-0.238, 0.516), Vector2(-0.253, 0.504), Vector2(-0.253, 0.156)]
+	var rim: Array[Vector3] = []
+	var tube: Array[Vector3] = []
+	var face: Array[Vector3] = []
+	var view := b.xf * tv
+	for p: Vector2 in mouth:
+		rim.append(view * Vector3(p.x, p.y, 0.244))
+		p = p.move_toward(Vector2(0, 0.33), 0.012)
+		tube.append(view * Vector3(p.x, p.y, 0.171))
+		p = p.move_toward(Vector2(0, 0.33), 0.033)
+		face.append(view * Vector3(p.x, p.y, CRT_GLASS_Z - 0.004))
+	var forward := view.basis.z
+	var glass := Look.plain(Color("263735"), 0.15)
+	for i in profile.size():
+		var j := (i + 1) % profile.size()
+		var p: Vector2 = profile[i]
+		var q: Vector2 = profile[j]
+		var pos := view * Vector3(p.x, p.y, 0.244)
+		var next := view * Vector3(q.x, q.y, 0.244)
+		b.poly_out(cabinet, [view * Vector3(p.x, p.y, 0.12), view * Vector3(q.x, q.y, 0.12),
+				next, pos], view.basis * Vector3(q.y - p.y, p.x - q.x, 0))
+		b.poly_out(bezel, [pos, next, rim[j], rim[i]], forward)
+		b.poly_out(dark, [rim[i], rim[j], tube[j], tube[i]], forward)
+		b.poly_out(glass, [tube[i], tube[j], face[j], face[i]], forward)
+	b.poly_out(glass, face, forward)
+	# 選局つまみとスピーカー。
 	for k in 5:
-		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.255, 0.23 + k * 0.034, 0.232)), Vector3(0.025, 0.01, 0.012), Look.Batch.ALL)
-	b.cyl(dark, tv * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.255, 0.445, 0.25)), 0.032, 0.025, 10, -1.0, true, true)
+		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.281, 0.23 + k * 0.034, 0.243)), Vector3(0.032, 0.01, 0.005), Look.Batch.ALL)
+	b.cyl(dark, tv * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.282, 0.445, 0.243)), 0.027, 0.024, 10, -1.0, true, true)
 	for k in 3:
-		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(-0.16 + k * 0.08, 0.09, 0.224)), Vector3(0.05, 0.03, 0.015), Look.Batch.ALL)
+		b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(-0.16 + k * 0.08, 0.09, 0.245)), Vector3(0.05, 0.03, 0.013), Look.Batch.ALL)
 	# 室内アンテナ（V字の2本の棒）
 	var ant := tv * Vector3(0.05, 0.57, -0.05)
 	b.box(dark, tv * Transform3D(Basis.IDENTITY, Vector3(0.05, 0.585, -0.05)), Vector3(0.12, 0.03, 0.08), Look.Batch.ALL)
@@ -409,17 +493,31 @@ static func _junk_rest(b: Look.Batch, dark: Look.Tint) -> void:
 		b.solid(face_at, Vector3(0.48, 0.8, 0.05))
 	b.box(trim, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.09, 0)), Vector3(0.53, 0.14, 0.53), Look.Batch.ALL)
 	b.solid(wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.09, 0)), Vector3(0.53, 0.14, 0.53))
-	b.cyl(dark, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.72, 0)), 0.235, 0.12, 16)
-	for k in 16:
-		var angle := TAU * k / 16.0
-		var ring := wm * Transform3D(Basis(Vector3.UP, angle), Vector3(sin(angle) * 0.235, 0.87, cos(angle) * 0.235))
-		b.box(trim, ring, Vector3(0.1, 0.06, 0.035), Look.Batch.ALL)
+	b.cyl(dark, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.61, 0)), 0.213, 0.024, 24)
+	var basin := Look.plain(Color("687074"), 0.54, 0.48)
+	var tub := b.xf * wm
+	for k in 24:
+		var angle := TAU * k / 24.0
+		var next_angle := TAU * (k + 1) / 24.0
+		var a := Vector3(cos(angle), 0, sin(angle))
+		var d := Vector3(cos(next_angle), 0, sin(next_angle))
+		var top_a := a * 0.219 + Vector3.UP * 0.871
+		var top_d := d * 0.219 + Vector3.UP * 0.871
+		var rim_a := a * (0.289 / maxf(absf(a.x), absf(a.z))) + Vector3.UP * 0.847
+		var rim_d := d * (0.289 / maxf(absf(d.x), absf(d.z))) + Vector3.UP * 0.847
+		b.poly_out(trim, [tub * rim_a, tub * rim_d, tub * top_d, tub * top_a], tub.basis.y)
+		b.poly_out(basin, [tub * top_a, tub * top_d, tub * (d * 0.213 + Vector3.UP * 0.63),
+				tub * (a * 0.213 + Vector3.UP * 0.63)], tub.basis * -(a + d))
 	b.box(trim, wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, -0.22)), Vector3(0.58, 0.12, 0.14), Look.Batch.ALL)
 	b.solid(wm * Transform3D(Basis.IDENTITY, Vector3(0, 0.95, -0.22)), Vector3(0.58, 0.12, 0.14))
 	b.box(dark, wm * Transform3D(Basis.IDENTITY, Vector3(-0.12, 1.015, -0.22)), Vector3(0.16, 0.015, 0.06), Look.Batch.ALL)
 	for x: float in [0.08, 0.17]:
 		b.cyl(Look.plain(Color("5a797d"), 0.42), wm * Transform3D(Basis.IDENTITY, Vector3(x, 1.015, -0.22)), 0.025, 0.012, 10)
 	var lid := wm * Transform3D(Basis(Vector3.RIGHT, -0.65), Vector3(0, 1.105, 0.007))
+	for x: float in [-0.18, 0.18]:
+		b.box(trim, wm * Transform3D(Basis.IDENTITY, Vector3(x, 0.997, -0.17)), Vector3(0.078, 0.055, 0.096), Look.Batch.ALL)
+		b.cyl(basin, wm * Transform3D(Basis(Vector3.BACK, -PI * 0.5), Vector3(x - 0.038, 1.027, -0.158)),
+				0.021, 0.076, 12)
 	b.box(enamel, lid, Vector3(0.5, 0.035, 0.44), Look.Batch.ALL)
 	b.solid(lid, Vector3(0.5, 0.035, 0.44))
 	b.box(trim, lid * Transform3D(Basis.IDENTITY, Vector3(0, 0.022, 0.16)), Vector3(0.19, 0.015, 0.035), Look.Batch.ALL)

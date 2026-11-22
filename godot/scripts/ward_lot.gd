@@ -65,10 +65,11 @@ static func _fence(b: Look.Batch, root: Node3D) -> void:
 		b.boxp(Look.mat("concrete", Color("a8a59a")), Vector3(FENCE_X, 0.08, z), Vector3(0.3, 0.16, 0.3), Look.Batch.GROUND)
 		z = z2
 	# 破れ目：網の板が2枚、倒れている（1枚は斜めに立てかけて）。切れた針金
-	var lying := Transform3D(Basis(Vector3.BACK, PI * 0.5 - 0.06) * Basis(Vector3.UP, 0.12), Vector3(FENCE_X - 0.9, 0.06, GAP_Z.x + 4.2))
+	var lying := Transform3D(Basis(Vector3.BACK, PI * 0.5 - 0.06) * Basis(Vector3.UP, 0.12), Vector3(FENCE_X - 0.9, 0.052, GAP_Z.x + 4.2))
 	b.box(mesh, lying, Vector3(0.02, 1.7, 1.94), Look.Batch.ALL)
 	b.solid(lying, Vector3(0.05, 1.7, 1.94))
 	b.box(post, lying * Transform3D(Basis.IDENTITY, Vector3(0, 0.85, 0)), Vector3(0.05, 0.05, 1.94), Look.Batch.ALL)
+	b.box(post, lying * Transform3D(Basis.IDENTITY, Vector3(0, -0.85, 0)), Vector3(0.045, 0.045, 1.94), Look.Batch.ALL)
 	var lean := Transform3D(Basis(Vector3.BACK, 0.55), Vector3(FENCE_X - 0.55, 0.78, GAP_Z.y - 1.3))
 	b.box(mesh, lean, Vector3(0.02, 1.7, 1.94), Look.Batch.ALL)
 	b.solid(lean, Vector3(0.05, 1.7, 1.94))
@@ -127,7 +128,6 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 	var dark := Look.plain(Color("2b2e31"), 0.64)
 	var tire := Look.plain(Color("25282a"), 0.84)
 	var steel := Look.plain(Color("a7adb0"), 0.38, 0.8)
-	var lamp := Look.plain(Color("e0e6d8"), 0.22)
 	# はしご状の車台。車体の下は空け、タイヤだけ地面まで届く。
 	for zz: float in [-0.65, 0.65]:
 		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.55, zz)), Vector3(6.0, 0.3, 0.18), Look.Batch.ALL)
@@ -137,6 +137,7 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 		b.solid(at * Transform3D(Basis.IDENTITY, Vector3(xx, 0.46, 0)), Vector3(0.15, 0.15, 1.9))
 	# 前窓を傾けたキャブオーバー。屋根、ドア枠、段差のあるバンパー。
 	_truck_cab_shell(b, at, white, green)
+	_truck_nose(b, at, white, dark, steel)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(2.23, 1.39, 0)), Vector3(1.46, 1.48, 2.0))
 	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(2.22, 2.28, 0)), Vector3(1.32, 0.08, 2.06), Look.Batch.ALL)
 	for s: float in [-1.0, 1.0]:
@@ -144,12 +145,6 @@ static func _truck(b: Look.Batch, at: Transform3D) -> void:
 		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(2.34, 0.59, s * 1.07)), Vector3(0.7, 0.07, 0.24), Look.Batch.ALL)
 		b.bar(dark, at * Vector3(2.79, 1.89, s * 0.99), at * Vector3(2.72, 1.89, s * 1.25), 0.035)
 		b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(2.72, 1.83, s * 1.27)), Vector3(0.12, 0.23, 0.07), Look.Batch.ALL)
-	b.box(dark, at * Transform3D(Basis.IDENTITY, Vector3(3.015, 1.09, 0)), Vector3(0.035, 0.3, 1.12), Look.Batch.ALL)
-	for yy: float in [1.0, 1.09, 1.18]:
-		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(3.04, yy, 0)), Vector3(0.025, 0.026, 1.0), Look.Batch.ALL)
-	for s: float in [-1.0, 1.0]:
-		b.box(lamp, at * Transform3D(Basis.IDENTITY, Vector3(3.025, 1.08, s * 0.76)), Vector3(0.045, 0.22, 0.32), Look.Batch.ALL)
-		b.box(Look.plain(Color("d68d30"), 0.28), at * Transform3D(Basis.IDENTITY, Vector3(3.027, 1.3, s * 0.84)), Vector3(0.048, 0.09, 0.14), Look.Batch.ALL)
 	b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(3.07, 0.79, 0)), Vector3(0.19, 0.18, 2.1), Look.Batch.ALL)
 	b.solid(at * Transform3D(Basis.IDENTITY, Vector3(3.07, 0.79, 0)), Vector3(0.19, 0.18, 2.1))
 	b.box(white, at * Transform3D(Basis.IDENTITY, Vector3(3.174, 0.8, 0)), Vector3(0.025, 0.12, 0.3), Look.Batch.ALL)
@@ -198,8 +193,8 @@ static func _truck_cab_shell(b: Look.Batch, at: Transform3D, paint: Look.Tint, s
 	var side_opening := [Vector2(1.69, 1.62), Vector2(2.68, 1.62), Vector2(2.77, 1.71),
 			Vector2(2.68, 2.065), Vector2(1.76, 2.14), Vector2(1.69, 2.07)]
 	for edge in cab.size():
-		if edge == 2:
-			continue # フロントガラスの開口がある面は下で作る。
+		if edge == 1 or edge == 2:
+			continue # 前の2面にはガラスと灯火の開口を作る。
 		var p: Vector2 = cab[edge]
 		var q: Vector2 = cab[(edge + 1) % cab.size()]
 		b.poly_out(paint, [at * Vector3(p.x, p.y, -1), at * Vector3(q.x, q.y, -1),
@@ -208,7 +203,7 @@ static func _truck_cab_shell(b: Look.Batch, at: Transform3D, paint: Look.Tint, s
 	for s: float in [-1.0, 1.0]:
 		var side := cab.map(func(p: Vector2) -> Vector3: return Vector3(p.x, p.y, s))
 		var opening := side_opening.map(func(p: Vector2) -> Vector3: return Vector3(p.x, p.y, s))
-		_truck_glazing(b, at, side, opening, Vector3(0, 0, s), paint)
+		_truck_recess(b, at, side, opening, Vector3(0, 0, s), paint, Look.plain(Color("304957"), 0.18))
 		# 白い側板に塗装した帯。立体の枠からは離す。
 		var z := s * 1.001
 		b.poly_out(stripe, [at * Vector3(1.66, 1.00, z), at * Vector3(2.70, 1.00, z),
@@ -218,14 +213,34 @@ static func _truck_cab_shell(b: Look.Batch, at: Transform3D, paint: Look.Tint, s
 				Vector3(2.85, 2.18, s), Vector3(2.85, 2.18, 0)]
 		var windshield_opening := [Vector3(2.98, 1.66, s * 0.033), Vector3(2.98, 1.66, s * 0.88),
 				Vector3(2.86875, 2.105, s * 0.86), Vector3(2.86875, 2.105, s * 0.033)]
-		_truck_glazing(b, at, windshield_panel, windshield_opening, Vector3(1, 0.25, 0).normalized(), paint)
+		_truck_recess(b, at, windshield_panel, windshield_opening, Vector3(1, 0.25, 0).normalized(),
+				paint, Look.plain(Color("304957"), 0.18))
 
 
-static func _truck_glazing(b: Look.Batch, at: Transform3D, panel: Array, opening: Array,
-		local_normal: Vector3, paint: Look.Tint) -> void:
+static func _truck_nose(b: Look.Batch, at: Transform3D, paint: Look.Tint, dark: Look.Tint, steel: Look.Tint) -> void:
+	var lamp := Look.plain(Color("e0e6d8"), 0.22)
+	var amber := Look.plain(Color("d68d30"), 0.28)
+	_truck_recess(b, at, _nose_corners(Rect2(-0.57, 0.65, 1.14, 0.93)),
+			_nose_corners(Rect2(-0.54, 0.94, 1.08, 0.30)), Vector3.RIGHT, paint, dark, 0.032)
+	for yy: float in [0.99, 1.055, 1.12, 1.185]:
+		b.box(steel, at * Transform3D(Basis.IDENTITY, Vector3(2.981, yy, 0)), Vector3(0.018, 0.021, 0.967), Look.Batch.ALL)
+	for s: float in [-1.0, 1.0]:
+		var left := -1.0 if s < 0.0 else 0.57
+		_truck_recess(b, at, _nose_corners(Rect2(left, 0.65, 0.43, 0.60)),
+				_nose_corners(Rect2(s * 0.78 - 0.168, 0.95, 0.336, 0.24)), Vector3.RIGHT, paint, lamp, 0.028)
+		_truck_recess(b, at, _nose_corners(Rect2(left, 1.25, 0.43, 0.33)),
+				_nose_corners(Rect2(s * 0.84 - 0.084, 1.28, 0.168, 0.11)), Vector3.RIGHT, paint, amber, 0.024)
+
+
+static func _nose_corners(rect: Rect2) -> Array:
+	return [Vector3(3, rect.position.y, rect.position.x), Vector3(3, rect.position.y, rect.end.x),
+			Vector3(3, rect.end.y, rect.end.x), Vector3(3, rect.end.y, rect.position.x)]
+
+
+static func _truck_recess(b: Look.Batch, at: Transform3D, panel: Array, opening: Array,
+		local_normal: Vector3, paint: Look.Tint, glass: Look.Tint, depth := 0.051) -> void:
 	var edge_paint := Look.plain(Color("a5b3b3"), 0.58)
 	var rubber := Look.plain(Color("252f34"), 0.86)
-	var glass := Look.plain(Color("304957"), 0.18)
 	var normal := at.basis * local_normal
 	var cutout := opening.map(func(p: Vector3) -> Vector3: return at * p)
 	var center := Vector3.ZERO
@@ -235,8 +250,9 @@ static func _truck_glazing(b: Look.Batch, at: Transform3D, panel: Array, opening
 	var rim: Array[Vector3] = []
 	var pane: Array[Vector3] = []
 	for p: Vector3 in cutout:
-		rim.append(p.move_toward(center, 0.035) - normal * 0.046)
-		pane.append(p.move_toward(center, 0.064) - normal * 0.051)
+		var bevel := minf(0.035, p.distance_to(center) * 0.14)
+		rim.append(p.move_toward(center, bevel) - normal * (depth - 0.005))
+		pane.append(p.move_toward(center, bevel * 1.8) - normal * depth)
 	for i in cutout.size():
 		var j := (i + 1) % cutout.size()
 		b.poly_out(paint, [at * panel[i], at * panel[j], cutout[j], cutout[i]], normal)
@@ -312,6 +328,16 @@ static func _street(b: Look.Batch) -> void:
 # 当たり判定は、フェンスなどと同じ体（WardLot）に入れている。別の体に分けてもよい
 # （体の数・作る順が変わっても、荷台のロープの確認 carton_rope_test.gd の結果は変わらない）
 static func _street_solids(b: Look.Batch) -> void:
+	# 西の通行止めを、既存の境界と同じ場所に塀を立てて見せる。
+	var terminal_z := (STREET_Z.x + STREET_Z.y + 1.1) * 0.5
+	var terminal_width := STREET_Z.y + 1.1 - STREET_Z.x
+	var end_x := STREET_X.x - 0.1
+	b.boxp(Look.mat("block", Color("b8af9c")), Vector3(end_x, 1.17, terminal_z),
+			Vector3(0.2, 2.34, terminal_width), Look.Batch.GROUND)
+	b.boxp(Look.mat("block", Color("5f8082")), Vector3(end_x + 0.015, 0.36, terminal_z),
+			Vector3(0.195, 0.72, terminal_width), Look.Batch.GROUND)
+	b.boxp(Look.mat("concrete", Color("bdb9b0")), Vector3(end_x, 2.37, terminal_z),
+			Vector3(0.33, 0.13, terminal_width + 0.08), Look.Batch.ALL)
 	# 歩道の上面 y=0.12 に合わせる。道路の床の上へ薄く重ねる。
 	b.solidp(Vector3((STREET_X.x + STREET_X.y - 0.9) * 0.5, 0.055, STREET_Z.y + 0.55), Vector3(STREET_X.y - 0.9 - STREET_X.x, 0.13, 1.1))
 	var x1 := 73.45

@@ -9,6 +9,8 @@ const Slots := preload("res://scripts/production_yard_slots.gd")
 const Dump := preload("res://scripts/dump_dressing.gd")
 const Ward := preload("res://scripts/ward_lot.gd")
 const Look := preload("res://scripts/production_look.gd")
+const Office := preload("res://scripts/production_office.gd")
+const SHUTTER := preload("res://assets/production/shutter.glb")
 
 const YARD_PATH := "res://assets/stage/yard/dirty_yard_seed_41.glb"
 const CONTAINER_PATH := "res://assets/stage/yard/L03_Container_Staged.glb"
@@ -82,6 +84,14 @@ static func _gate(root: Node3D, src: Node3D) -> void:
 		mi.mesh = _merge(src, func(nm: String, box: AABB) -> bool: return _leaf(nm, box) == side, 99.0)[0]
 		mi.transform = south * Transform3D(Basis.IDENTITY, hinge) * Transform3D(Basis(Vector3.UP, -side * PI * 0.5), Vector3.ZERO) * Transform3D(Basis.IDENTITY, -hinge)
 		root.add_child(mi)
+	var fittings := Look.Batch.new()
+	fittings.xf = south
+	var steel := Look.plain(Color("687377"), 0.48, 0.48)
+	for x: float in [-3.0, 2.95]:
+		for y: float in [0.31, 1.71]:
+			fittings.boxp(steel, Vector3(x, y, 11.985), Vector3(0.143, 0.075, 0.044), Look.Batch.ALL)
+			fittings.cylp(steel, Vector3(x, y - 0.055, 12.016), 0.031, 0.11, 10)
+	fittings.build(root, "GateFittings")
 	var block := StaticBody3D.new()
 	block.name = "WardGateBlock"
 	block.collision_layer = 1
@@ -256,8 +266,13 @@ static func _wall(b: Look.Batch, c: Vector3, size: Vector3) -> void:
 	# 足元の青緑の塗り帯と笠木
 	var band := Vector3(len, 0.8, th + 0.04) if along_x else Vector3(th + 0.04, 0.8, len)
 	b.boxp(low, Vector3(c.x, 0.4, c.z), band, Look.Batch.GROUND)
-	var capsz := Vector3(len + 0.1, 0.14, th + 0.22) if along_x else Vector3(th + 0.22, 0.14, len + 0.1)
-	b.boxp(cap, Vector3(c.x, c.y + size.y * 0.5 + 0.07, c.z), capsz, Look.Batch.ALL)
+	var cap_count := ceili(len / 2.5)
+	var cap_length := len / cap_count
+	var cap_size := Vector3(cap_length - 0.011, 0.14, th + 0.22) if along_x else Vector3(th + 0.22, 0.14, cap_length - 0.011)
+	for k in cap_count:
+		var at := -len * 0.5 + (k + 0.5) * cap_length
+		var offset := Vector3(at, size.y * 0.5 + 0.07, 0) if along_x else Vector3(0, size.y * 0.5 + 0.07, at)
+		b.boxp(cap, c + offset, cap_size, Look.Batch.ALL)
 	# 4mごとの柱
 	var n := int(len / 4.0)
 	for k in n + 1:
@@ -265,6 +280,8 @@ static func _wall(b: Look.Batch, c: Vector3, size: Vector3) -> void:
 		var psz := Vector3(0.5, size.y + 0.1, th + 0.18) if along_x else Vector3(th + 0.18, size.y + 0.1, 0.5)
 		var ppos := Vector3(c.x + t, c.y + 0.05, c.z) if along_x else Vector3(c.x, c.y + 0.05, c.z + t)
 		b.boxp(cap, ppos, psz, Look.Batch.GROUND)
+		var footing := Vector3(0.62, 0.19, th + 0.22) if along_x else Vector3(th + 0.22, 0.19, 0.62)
+		b.boxp(cap, Vector3(ppos.x, 0.095, ppos.z), footing, Look.Batch.GROUND)
 
 
 # 建物を一列に並べる。start：列の中心線の始点、dir：進む向き、yaw：正面を敷地へ向ける回転
@@ -289,7 +306,7 @@ static func _row(dress: Node3D, nm: String, start: Vector3, dir: Vector3, end_co
 		c -= face_dir * back
 		var at := Transform3D(Basis(Vector3.UP, yaw), c)
 		_warehouse(b, dress, at, Vector3(w, h, d), rng.randi() % 6, rng)
-		t += w + rng.randf_range(0.3, 1.2)
+		t += w + rng.randf_range(0.34, 1.48)
 		idx += 1
 	b.xf = Transform3D.IDENTITY
 	b.build(dress, nm)
@@ -327,29 +344,54 @@ static func _warehouse(b: Look.Batch, dress: Node3D, at: Transform3D, size: Vect
 	var trim := Look.plain(Color("e6e2d6"), 0.8)
 	var acc := Look.plain(accent, 0.75)
 	var dark := Look.plain(Color("3a3f44"), 0.7, 0.3)
-	b.boxp(wall, Vector3(0, h * 0.5, 0), Vector3(w, h, d), Look.Batch.GROUND)
+	const FRONT_DEPTH := 0.32
+	b.boxp(wall, Vector3(0, h * 0.5, -FRONT_DEPTH * 0.5), Vector3(w, h, d - FRONT_DEPTH), Look.Batch.GROUND)
 	b.solidp(Vector3(0, h * 0.5, 0), Vector3(w, h, d))
-	b.boxp(concrete, Vector3(0, 0.5, 0), Vector3(w + 0.12, 1.0, d + 0.12), Look.Batch.GROUND)
+	b.boxp(concrete, Vector3(0, 0.5, -FRONT_DEPTH * 0.5),
+			Vector3(w + 0.12, 1.0, d + 0.12 - FRONT_DEPTH), Look.Batch.GROUND)
 	# 軒（屋根の縁）。切妻屋根のものは三角の屋根を載せる
 	b.boxp(Look.mat("concrete", Color("85888a")), Vector3(0, h + 0.15, 0), Vector3(w + 0.5, 0.3, d + 0.5), Look.Batch.ALL)
 	var gable := style % 3 == 0 and w < 13.5
+	var roof_side := 0.0
 	if gable:
 		var rise := minf(2.4, w * 0.2)
 		b.extrude(Look.mat("metal", Color("6d7378")), Transform3D(Basis.IDENTITY, Vector3(0, h + 0.3, 0)),
 				[Vector2(-w * 0.5 - 0.3, 0.0), Vector2(w * 0.5 + 0.3, 0.0), Vector2(0.0, rise)], d + 0.5)
-	# 帯の色（会社の塗り分け）
-	b.boxp(acc, Vector3(0, h * 0.5 + 0.2, hz + 0.03), Vector3(w + 0.04, 0.5, 0.06), Look.Batch.FACADE)
+	elif style == 1 or style == 4:
+		roof_side = -1.0 if style == 1 else 1.0
+		var shoulder := Vector3(w * roof_side * 0.23, h + 0.65, -0.78)
+		b.boxp(wall, shoulder, Vector3(w * 0.52, 0.7, d * 0.70), Look.Batch.GROUND)
+		b.boxp(Look.mat("metal", Color("767f83")), shoulder + Vector3(0, 0.40, 0),
+				Vector3(w * 0.52 + 0.32, 0.19, d * 0.70 + 0.36), Look.Batch.ALL)
 	# 窓の列
 	var rows := [h - 2.2]
 	if h > 10.5:
 		rows.append(h - 5.4)
 	var n := maxi(int((w - 1.6) / 2.7), 1)
 	var gap := (w - 1.6) / float(n)
+	var window_centers: Array[float] = []
+	for k in n:
+		window_centers.append(-w * 0.5 + 0.8 + gap * (k + 0.5))
+	var window_opening := Vector2(1.7, 1.2)
+	# 窓の高さに帯が通るときは、開口の際で止める。
+	var stripe_y := h * 0.5 + 0.2
+	var stripe_left := -w * 0.5
 	for ry: float in rows:
-		for k in n:
-			var x := -w * 0.5 + 0.8 + gap * (k + 0.5)
+		if absf(stripe_y - ry) < 0.86:
+			for x: float in window_centers:
+				var stripe_right := x - 0.96
+				b.boxp(acc, Vector3((stripe_left + stripe_right) * 0.5, stripe_y, hz + 0.011),
+						Vector3(stripe_right - stripe_left, 0.5, 0.025), Look.Batch.FACADE)
+				stripe_left = x + 0.96
+	b.boxp(acc, Vector3((stripe_left + w * 0.5) * 0.5, stripe_y, hz + 0.011),
+			Vector3(w * 0.5 - stripe_left, 0.5, 0.025), Look.Batch.FACADE)
+	for ry: float in rows:
+		for x: float in window_centers:
 			var lit := rng.randf() < 0.14
-			_window(b, x, ry, hz, trim, lit)
+			Office._seated_window(b, trim, Look.mat("lit", Color("ffd98a")) if lit else Look.mat("glass"),
+					Vector3(x, ry, hz - 0.16), window_opening, 0.085, 0.13)
+			b.boxp(trim, Vector3(x, ry, hz - 0.15), Vector3(0.055, 1.03, 0.095), Look.Batch.ALL)
+			b.boxp(trim, Vector3(x, ry - 0.63, hz - 0.052), Vector3(1.92, 0.08, 0.15), Look.Batch.ALL)
 	# 看板（文字は書かない。会社の色の丸い印と、帯の塗装）
 	var sw := minf(w - 1.6, rng.randf_range(4.5, 9.0))
 	var sy := h * 0.5 + 1.8 if h > 9.0 else h * 0.5 + 1.4
@@ -377,45 +419,56 @@ static func _warehouse(b: Look.Batch, dress: Node3D, at: Transform3D, size: Vect
 		b.cylp(dark, Vector3(hx, h - 1.6, hz + 1.4), 0.03, 2.1, 5)
 		b.boxp(dark, Vector3(hx, h - 1.7, hz + 1.4), Vector3(0.3, 0.12, 0.3), Look.Batch.ALL)
 	if not gable:
-		_roof(b, w, h, d, rng)
-	# 道に面した側のシャッター
+		_roof(b, w, h, d, rng, roof_side)
+	# 正面の面を区切って、シャッターと窓をそれぞれ壁厚の中に収める。
+	var face_z := hz - FRONT_DEPTH * 0.5
+	var band_bottom := 0.0
 	if rng.randf() < 0.7:
 		var sxx := rng.randf_range(-w * 0.25, w * 0.25)
-		b.boxp(Look.mat("shutter", Color("c7c9c4")), Vector3(sxx, 2.0, hz + 0.05), Vector3(4.0, 4.0, 0.1), Look.Batch.FACADE)
-		b.boxp(trim, Vector3(sxx, 4.12, hz + 0.08), Vector3(4.3, 0.24, 0.16), Look.Batch.FACADE)
-
-
-static func _window(b: Look.Batch, x: float, y: float, hz: float, trim: Look.Tint, lit: bool) -> void:
-	b.boxp(trim, Vector3(x, y, hz + 0.04), Vector3(1.7, 1.2, 0.08), Look.Batch.FACADE)
-	b.boxp(Look.mat("lit", Color("ffd98a")) if lit else Look.mat("glass"), Vector3(x, y, hz + 0.085), Vector3(1.5, 1.0, 0.04), Look.Batch.FACADE)
-	b.boxp(trim, Vector3(x, y, hz + 0.1), Vector3(0.06, 1.0, 0.03), Look.Batch.FACADE)
-	b.boxp(trim, Vector3(x, y - 0.66, hz + 0.1), Vector3(1.95, 0.09, 0.22), Look.Batch.FACADE)
+		band_bottom = 4.3
+		Office._window_wall(b, wall, Rect2(-w * 0.5, 0, w, band_bottom), face_z, FRONT_DEPTH,
+				[sxx], 2.02, Vector2(4.0, 3.96))
+		var shutter := SHUTTER.instantiate() as Node3D
+		shutter.name = "WarehouseShutter"
+		dress.add_child(shutter)
+		shutter.transform = at * Transform3D(Basis.from_scale(Vector3(1.21, 1.18, 0.56)),
+				Vector3(sxx, 0, hz - 0.10))
+	for k in range(rows.size() - 1, -1, -1):
+		var ry: float = rows[k]
+		var top := ry + 0.74 if k > 0 else h
+		Office._window_wall(b, wall, Rect2(-w * 0.5, band_bottom, w, top - band_bottom), face_z,
+				FRONT_DEPTH, window_centers, ry, window_opening)
+		band_bottom = top
 
 
 # 平らな屋根の上：室外機・換気口・給水タンク・アンテナ
-static func _roof(b: Look.Batch, w: float, h: float, d: float, rng: RandomNumberGenerator) -> void:
+static func _roof(b: Look.Batch, w: float, h: float, d: float, rng: RandomNumberGenerator, raised_side: float) -> void:
 	var y := h + 0.3
 	var grey := Look.plain(Color("b8bcbc"), 0.6, 0.3)
 	var dark := Look.plain(Color("3a3f44"), 0.7, 0.3)
 	var xr := maxf(w * 0.5 - 1.4, 0.5)
 	var zr := maxf(d * 0.5 - 1.4, 0.5)
+	var origin_x := -raised_side * w * 0.27
+	var scale_x := 1.0 if raised_side == 0.0 else 0.23
 	for k in rng.randi_range(1, 3):
-		var p := Vector3(rng.randf_range(-xr, xr), y, rng.randf_range(-zr, zr))
-		b.boxp(grey, p + Vector3(0, 0.45, 0), Vector3(1.5, 0.9, 1.0), Look.Batch.GROUND)
-		b.cylp(dark, p + Vector3(0, 0.9, 0), 0.38, 0.04, 10)
+		var p := Vector3(origin_x + rng.randf_range(-xr, xr) * scale_x, y, rng.randf_range(-zr, zr))
+		b.boxp(dark, p + Vector3(0, 0.10, 0), Vector3(1.63, 0.20, 1.13), Look.Batch.GROUND)
+		b.boxp(grey, p + Vector3(0, 0.54, 0), Vector3(1.5, 0.73, 1.0), Look.Batch.GROUND)
+		for x: float in [-0.37, 0.37]:
+			b.cylp(dark, p + Vector3(x, 0.906, 0), 0.28, 0.034, 12)
 	for k in rng.randi_range(1, 2):
-		var p := Vector3(rng.randf_range(-xr, xr), y, rng.randf_range(-zr, zr))
+		var p := Vector3(origin_x + rng.randf_range(-xr, xr) * scale_x, y, rng.randf_range(-zr, zr))
 		b.cylp(grey, p, 0.17, 1.3, 8)
 		b.cylp(grey, p + Vector3(0, 1.3, 0), 0.34, 0.3, 8, 0.0)
 	if rng.randf() < 0.3:
-		var p := Vector3(rng.randf_range(-xr, xr), y, rng.randf_range(-zr, zr))
+		var p := Vector3(origin_x + rng.randf_range(-xr, xr) * scale_x, y, rng.randf_range(-zr, zr))
 		for lx: float in [-0.7, 0.7]:
 			for lz: float in [-0.7, 0.7]:
 				b.boxp(dark, p + Vector3(lx, 0.6, lz), Vector3(0.1, 1.2, 0.1), Look.Batch.GROUND)
 		b.cylp(Look.mat("metal", Color("9aa6aa")), p + Vector3(0, 1.2, 0), 1.0, 1.8, 12)
 		b.cylp(dark, p + Vector3(0, 3.0, 0), 1.08, 0.5, 12, 0.0)
 	elif rng.randf() < 0.5:
-		var p := Vector3(rng.randf_range(-xr, xr), y, rng.randf_range(-zr, zr))
+		var p := Vector3(origin_x + rng.randf_range(-xr, xr) * scale_x, y, rng.randf_range(-zr, zr))
 		b.cylp(dark, p, 0.03, 4.0, 5)
 		b.boxp(dark, p + Vector3(0, 3.4, 0), Vector3(1.4, 0.04, 0.04), Look.Batch.ALL)
 		b.boxp(dark, p + Vector3(0, 3.8, 0), Vector3(1.0, 0.04, 0.04), Look.Batch.ALL)
