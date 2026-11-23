@@ -79,6 +79,7 @@ func _process(delta: float) -> void:
 	if game.get("production_ping") != null:
 		data["pings"] = game.production_ping.snapshot()
 	data["site"] = _site_status()
+	data["site_props"] = _site_prop_positions()
 	var lift := _lift()
 	data["lift"] = {"active":lift.active,"time":lift.action_time,"top":lift.deck_top}
 	data["film_local_y"] = game.film.ride_local.origin.y
@@ -98,6 +99,14 @@ func _site_status() -> Dictionary:
 			if shape is CollisionShape3D:
 				walls_disabled = walls_disabled and shape.disabled
 	return {"root":is_instance_valid(site),"studio":is_instance_valid(site) and site.find_child("studio",true,false) != null,"walls_disabled":walls_disabled}
+
+
+func _site_prop_positions() -> Dictionary:
+	var result := {}
+	for prop: Node in game.hooks.feature("site_props")._pool.values():
+		if not prop.absent:
+			result[prop.pid] = prop.global_position
+	return result
 
 func _lift_matches(data: Dictionary, active: bool, endpoint: float = -1.0) -> bool:
 	var lift := _lift()
@@ -277,6 +286,11 @@ func _run() -> void:
 	me._send_t = 0.0
 	var site_expected := {"root":true,"studio":true,"walls_disabled":true}
 	_check(_site_status() == site_expected and s.get("site",{}) == site_expected,"studio model and old wall colliders synchronized")
+	var local_props := _site_prop_positions()
+	var host_props: Dictionary = s.get("site_props", {})
+	_check(local_props.size() == 3 and host_props.size() == 3 and local_props.keys().all(func(pid: int) -> bool:
+		return host_props.has(pid) and (local_props[pid] as Vector3).distance_to(host_props[pid]) < 0.2),
+		"both peers find the same three props at the studio")
 	s = await _ask("lift_fixture")
 	var lift := _lift()
 	var base_y: float = game.film.ride_local.origin.y
@@ -295,14 +309,17 @@ func _run() -> void:
 	s = await _ask("expire")
 	_check(game.production.expired and s.get("expired", false) and game.state == game.S.RESULT and game.takes.size() == 1, "expiry creates deliverable take")
 	_check(game.takes[0].has("extras") and not game.takes[0]["extras"].get("bonus_ok",true),"failed take extra metadata reaches client without bonus")
+	_check(game.takes[0]["passed"].count(true) == 0, "the expired take has no completed scenes")
 	game.h_deliver.rpc_id(1, 0)
 	_check(await _phase(5), "client delivers after expiry")
 	s = await _ask()
-	_check(s.get("wallet") == 760 and game.production.wallet == 760 and s.get("last_payment") == 150 and game.production.last_payment == 150 and game.production.saved == 10, "settlement cash synchronized")
+	_check(s.get("wallet") == 600 and game.production.wallet == 600 and s.get("last_payment") == 0
+			and game.production.last_payment == 0 and s.get("saved") == 0 and game.production.saved == 0,
+			"both peers settle the empty take with no fee or surplus")
 	game.h_return_office.rpc_id(1)
 	_check(await _phase(0), "client returns to office")
 	s = await _ask()
-	_check(game.production.wallet == 760 and s.get("wallet") == 760 and game.local_player().position.x > 60 and game.players[1].position.x > 60, "return spawn and cash synchronized")
+	_check(game.production.wallet == 600 and s.get("wallet") == 600 and game.local_player().position.x > 60 and game.players[1].position.x > 60, "return spawn and cash synchronized")
 	await _ask("done")
 	print("CLIENT PRODUCTIONNET_FAIL" if _failed else "CLIENT PRODUCTIONNET_OK")
 	get_tree().quit(1 if _failed else 0)

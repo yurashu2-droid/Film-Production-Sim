@@ -74,7 +74,8 @@ func run() -> void:
 	var tarp := bag("tarpbundle")
 	check(jb != null and jb.bags.size() == 6 and trash != null and tarp != null, "廃材置き場に、ゴミ袋4つと包み2つがある")
 	check(jb.bags.all(func(b: Node) -> bool: return not b.absent and b.global_position.y > -1.0), "袋は、いつも出ている")
-	var bagged: Array = game.props.values().filter(func(p: Node) -> bool: return flow.in_bag(str(p.kind)))
+	var bagged: Array = game.props.values().filter(func(p: Node) -> bool:
+		return flow._home_layout.has(p.pid) and flow.in_bag(str(p.kind)))
 	check(bagged.size() >= 140, "袋の中の物が、140個以上ある（%d）" % bagged.size())
 	check(bagged.all(func(p: Node) -> bool: return p.absent and p.global_position.y < -30.0 and p.pid in flow.stash), "袋の中の物は、最初はしまってある")
 	# ---- ゴミ袋を振る ----

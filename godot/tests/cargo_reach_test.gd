@@ -236,6 +236,36 @@ func check_arrival(tag: String, site: int, loaded: Array) -> void:
 			here = false
 			print("  %s#%d did not reach the site: %s" % [prop.kind, prop.pid, str(prop.global_position)])
 	check(here and (flow.lost as Array).is_empty(), "%s: all %d loaded props are on site and nothing was lost on the way (lost=%s)" % [tag, loaded.size(), str(flow.lost)])
+	var supplies: Node = game.hooks.feature("site_props")
+	var visible: Array = (supplies._pool.values() as Array).filter(func(p: Node) -> bool: return not p.absent)
+	check(visible.size() == 3 and visible.all(func(p: Node) -> bool:
+		return p.kind in supplies.CANDIDATES[site] and flow.at_site(p) and p.global_position.y > -0.1),
+		"%s: three usable props from this site's pool are on the ground" % tag)
+	# x/z の四辺で歩く高さに衝突があり、屋外側の外周はフェンスの少し先にも床が続く。
+	var space: PhysicsDirectSpaceState3D = game.get_world_3d().direct_space_state
+	var edges := [Vector3(-17.25, 0, 0), Vector3(27.25, 0, 9.5),
+			Vector3(0, 0, -12.25), Vector3(0, 0, 12.25)] if site == 0 else [
+			Vector3(-22, 0, 0), Vector3(22, 0, 3), Vector3(0, 0, -18), Vector3(0, 0, 18)]
+	var closed := true
+	for i in edges.size():
+		var edge: Vector3 = edges[i]
+		var outward: Vector3 = [Vector3.LEFT, Vector3.RIGHT, Vector3.FORWARD, Vector3.BACK][i]
+		var ray := PhysicsRayQueryParameters3D.create(edge - outward * 0.7 + Vector3.UP,
+				edge + outward * 0.7 + Vector3.UP, 1)
+		closed = closed and not space.intersect_ray(ray).is_empty()
+		if site != 0:
+			var beyond := edge + outward * 1.5
+			ray = PhysicsRayQueryParameters3D.create(beyond + Vector3.UP, beyond - Vector3.UP, 1)
+			closed = closed and not space.intersect_ray(ray).is_empty()
+	check(closed, "%s: the location has solid boundaries on every side" % tag)
+	if site == 2:
+		var center := Vector3(-11.8, 1.07, -7.3)
+		var axis := Vector3.BACK.rotated(Vector3.UP, 0.24) * 1.6
+		var through := PhysicsRayQueryParameters3D.create(center + axis, center - axis, 1)
+		var above := PhysicsRayQueryParameters3D.create(center + Vector3.UP * 1.4, center, 1)
+		var hit := space.intersect_ray(above)
+		check(space.intersect_ray(through).is_empty() and not hit.is_empty() and hit.position.y > 2.0,
+				"outdoor lot: the concrete pipe is open through the middle and solid on top")
 
 
 # 撮らずに納品して、事務所へ戻る
@@ -246,6 +276,10 @@ func wrap_up() -> void:
 	await frames(4)
 	game.h_return_office()
 	await frames(90)
+	var supplies: Node = game.hooks.feature("site_props")
+	check((supplies._pool.values() as Array).all(func(p: Node) -> bool:
+		return p.absent and p.pid not in flow.stash),
+		"site supplies are cleared on return and stay out of the office bags")
 
 
 func run() -> void:

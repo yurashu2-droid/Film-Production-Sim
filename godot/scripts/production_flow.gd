@@ -266,6 +266,7 @@ var _office_root: Node3D
 var _truck_exit_gate: Node3D
 var _trip_camera: Camera3D
 var _original_walls: Array[StaticBody3D] = []
+var _original_signs: Array[Label3D] = []
 var _warnings := [120.0, 60.0, 30.0]
 var _world_environment: Environment
 # 日替わりの廃材：廃材置き場に出るのは毎日この数だけ。残りは奥にしまってある
@@ -380,6 +381,8 @@ func setup(owner_game: Node, incremental: bool = false) -> void:
 			_world_environment.background_mode = Environment.BG_SKY
 		if child is StaticBody3D and child.position.y > 0.1:
 			_original_walls.append(child)
+		elif child is Label3D:
+			_original_signs.append(child)
 	# 拠点の絵作り（空・もや・色味）。空ともやを上書きするので、上の設定のあとに呼ぶ
 	Look.apply(_world_environment, game.stage, _office_root)
 	_trip_camera = Camera3D.new()
@@ -1125,7 +1128,7 @@ func restock() -> void:
 	# ゴミ袋・包みの中の物（production_scrap.gd の "bag"）は、毎日しまった状態から始まる。振ると出てくる（features/junk_bags.gd）
 	var bagged: Array = []
 	for pid: int in game.props:
-		if in_bag(game.props[pid].kind):
+		if _home_layout.has(pid) and in_bag(game.props[pid].kind):
 			bagged.append(pid)
 			if pid not in hidden:
 				hidden.append(pid)
@@ -1159,7 +1162,7 @@ func yard_stock() -> Array:
 	var order: Array = []
 	for pid: int in game.props:
 		var prop: Node = game.props[pid]
-		if not Yard.Slots.SLOTS.has(prop.kind) or prop.absent:
+		if not _is_free(prop) or prop.absent:
 			continue
 		if not count.has(prop.kind):
 			order.append(prop.kind)
@@ -2072,10 +2075,12 @@ func _configure_site() -> void:
 		for collider in wall.get_children():
 			if collider is CollisionShape3D:
 				collider.set_deferred("disabled",site != 0)
+	for sign in _original_signs:
+		sign.visible = site == 0
 	if site == 1:
 		var studio := Assets.decorate(_site_root,"studio")
 		studio.position = Vector3(0,0,-2)
 	elif site == 2:
 		var yard := Assets.decorate(_site_root,"yard")
-		yard.position = Vector3(8,0,-6)
+		yard.position = Vector3(10.6,0,-6)
 	Location.build(_site_root,game.font,site)
