@@ -14,12 +14,13 @@ const FLOWERS := [Color("e86a5a"), Color("f2efe2"), Color("f0b33c"), Color("e58b
 
 
 # 街路樹：幹が途中で分かれ、枝先ごとに茂みが付く。s は大きさ（1 でおよそ高さ 4m）
-static func tree(b: Look.Batch, pos: Vector3, s: float, kind := "street") -> void:
+static func tree(b: Look.Batch, pos: Vector3, s: float, kind := "street", with_pit := true) -> void:
 	var rng := _rng(pos)
 	var greens: Array = GREENS.get(kind, GREENS["street"])
 	var bark := Look.mat("wood", Color("6f5a44"))
 	# 根元の植えます（低い縁石と土）
-	pit(b, pos, 1.3 * s)
+	if with_pit:
+		pit(b, pos, 1.3 * s)
 	# 幹：少し傾けて立て、途中で枝に分かれる
 	var fork := pos + Vector3(rng.randf_range(-0.12, 0.12) * s, 1.6 * s, rng.randf_range(-0.12, 0.12) * s)
 	_limb(b, bark, pos, fork, 0.16 * s, 0.11 * s)

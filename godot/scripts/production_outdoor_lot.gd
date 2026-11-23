@@ -3,6 +3,7 @@ extends RefCounted
 const Look := preload("res://scripts/production_look.gd")
 const Foliage := preload("res://scripts/foliage.gd")
 const SOIL := preload("res://shaders/location_soil.gdshader")
+const GRASS_WIND := preload("res://shaders/location_grass_wind.gdshader")
 const CAMERA_FAR := 400.0
 
 
@@ -24,7 +25,11 @@ static func build(root: Node3D) -> void:
 
 static func _grass(root: Node3D) -> void:
 	var batch := Look.Batch.new()
-	var grass := Look.mat("grass")
+	var grass_material := ShaderMaterial.new()
+	grass_material.shader = GRASS_WIND
+	var grass_source := Look.mat("grass").mat as StandardMaterial3D
+	grass_material.set_shader_parameter("grass_texture", grass_source.albedo_texture)
+	var grass := Look.Tint.new(grass_material)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 132
 	# 草は外周と土管の根元へ寄せ、中央と搬入側は歩きやすい土のままにする。
@@ -42,7 +47,7 @@ static func _grass(root: Node3D) -> void:
 				var right := Vector3(cos(angle), 0, sin(angle))
 				batch.card(grass, spot + Vector3.UP * height * 0.5, right * width * 0.5,
 						Vector3.UP * height * 0.5, right.cross(Vector3.UP), color)
-	batch.build(root, "LotGrass")
+	batch.build(root, "LotGrass").add_to_group("location_wind_grass")
 
 
 static func _pipes(root: Node3D) -> void:
@@ -268,7 +273,13 @@ static func _house(batch: Look.Batch, wall_color: Color, roof_color: Color) -> v
 static func _planting(root: Node3D) -> void:
 	var batch := Look.Batch.new()
 	for p in [Vector3(-19, 0.005, -9), Vector3(-19, 0.005, 12), Vector3(17, 0.005, -14), Vector3(20, 0.005, -10)]:
-		Foliage.tree(batch, p, 1.16)
+		Foliage.pit(batch, p, 1.3 * 1.16)
+		var tree := Look.Batch.new()
+		tree.xf.origin = -p
+		Foliage.tree(tree, p, 1.16, "street", false)
+		var trunk := tree.build(root, "WindTree")
+		trunk.position = p
+		trunk.add_to_group("location_wind_tree")
 		batch.solidp(p + Vector3.UP * 0.89, Vector3(0.31, 1.78, 0.31))
 		batch.solidp(p + Vector3.UP * 0.064, Vector3(1.50, 0.13, 1.50))
 	# 金網越しに足元の地面が途切れないよう、低い茂みの後ろに木立と屋根を重ねる。

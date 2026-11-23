@@ -1,6 +1,9 @@
 extends Node
 ## フリーSE素材・加工音と、既存の仮の合成音を再生するシングルトン (autoload "Sfx")
-const SAMPLED_SFX := {"clap": preload("res://assets/audio/clapper_wood.tres")}
+const SAMPLED_SFX := {
+	"clap": preload("res://assets/audio/clapper_wood.tres"),
+	"site_gust_warning": preload("res://assets/audio/site_gust.res"),
+}
 # 無料素材を加工した音（tools/build_sfx.gd が書き出す）。同じ名前の別テイクから、鳴らすたびに1つ選ぶ。
 # 先に sfx_local（再配布できない素材から作った音。公開リポジトリには無い）を探し、無ければ sfx、
 # それも無ければコードで合成した仮の音を使う

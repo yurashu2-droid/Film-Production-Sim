@@ -12,6 +12,14 @@
 - 出力：`clapper_wood.wav`（試聴用）、同じPCMを収めた `clapper_wood.tres`（Godot用）。インポートの有無に依存せず実行・書き出しできる。
 - 使用箇所：開始演出、本番開始・カットのカチンコ。
 
+## 野外ロケの突風
+
+- 配布元：[Short Wind/Air Woosh | A gust of wind](https://freesound.org/people/NIKOKnecht/sounds/569109/)
+- 作者：NIKOKnecht
+- ライセンス：CC0（同梱・加工可能）。
+- 加工：配布プレビューを0.65倍速にし、105Hz以下を控えめにしてモノラル32kHzへ変換。3.9秒に切り、両端をフェードし、ピークを約−8dBFSに調整したQOAの `site_gust.res` を同梱。
+- 使用箇所：野外ロケで突風が吹き始める2.5秒前の予告音。
+
 ## 物を扱う音（掴む・置く・どすん・積む・固定・門・段差）
 
 - 配布元・作者・ライセンス：カチンコと同じ（Kenney / Impact Sounds 1.0、CC0）。

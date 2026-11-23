@@ -1273,7 +1273,7 @@ func bed_load() -> Dictionary:
 	return {"used": used, "cap": cap, "risky": risky}
 
 
-# 突風（野外の空き地だけ）。音と案内のあと、固定していない物を風下へ押す。
+# 突風（野外の空き地だけ）。風音のあと、固定していない物を風下へ押す。
 # 面が広くて軽い物ほどよく動く。G で固定した物・手に持っている物・台に載せた物は動かない
 func _wind(delta: float) -> void:
 	if not hazards or shoots_home() or site_index() != 2 or game.replaying:
@@ -1281,8 +1281,7 @@ func _wind(delta: float) -> void:
 	_gust_in -= delta
 	if not _gust_warned and _gust_in <= GUST_WARN:
 		_gust_warned = true
-		game.host_ev("sfx", ["wind", null])
-		game.host_ev("toast", ["風が来る！ 軽い物は重りや接着剤で支えよう", 1])
+		game.host_ev("sfx", ["site_gust_warning", null])
 	if _gust_in > 0.0:
 		return
 	_gust_in = _rng.randf_range(GUST_EVERY.x, GUST_EVERY.y)
@@ -1294,6 +1293,8 @@ func _wind(delta: float) -> void:
 func gust(dir: Vector3, strength: float) -> int:
 	_gust_dir = dir.normalized() * strength
 	_gust_left = GUST_BLOW
+	if Net.is_host() and phase == 4 and not shoots_home() and site_index() == 2:
+		game.host_ev("site_gust", [_gust_dir])
 	return _blow(0.0)
 
 

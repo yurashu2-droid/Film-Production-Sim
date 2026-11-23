@@ -429,8 +429,15 @@ func run() -> void:
 	# 落ちた機材も置いていかない。ふさがった場所はよけて並ぶ
 	check_gear_on_site("job 3", [], [box_of(blocker)])
 	# 野外の現場は突風が吹く。搬入口に並べたままの機材は、荷下ろしの間に風で倒れない（動かしたあとは、ふつうに風を受ける）
+	var wind_fx: Node = game.hooks.feature("site_gust")
+	var trees := get_nodes_in_group("location_wind_tree")
 	flow.gust(Vector3(1, 0, 0.35).normalized(), 1.0)
-	await frames(240)
+	await frames(20)
+	check(is_instance_valid(wind_fx._effect) and trees.size() == 4 and trees[0].basis.y.x > 0.02,
+			"the outdoor gust spawns an effect and bends the tree downwind")
+	await frames(220)
+	check(not is_instance_valid(wind_fx._effect) and trees.size() == 4 and trees[0].basis.is_equal_approx(Basis.IDENTITY),
+			"the gust effect is freed and the trees return upright")
 	check_gear_on_site("job 3 after a gust", [], [box_of(blocker)])
 	var card: Node = game.cue_cards.card
 	card.restore([Vector3(2.0, 0.05, 4.0), Quaternion.IDENTITY, false])
