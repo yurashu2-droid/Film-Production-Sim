@@ -2,6 +2,7 @@ extends "res://scripts/prop.gd"
 # 三脚つきの撮影カメラ。操作中は身体を動かさず首振りとズームを行う。
 
 const VIEW_SIZE := Vector2i(1280, 720)
+const DEFAULT_FAR := 120.0
 const HEAD_Y := 1.35
 const DROP := 1.30                # 三脚なし：カメラ本体を、三脚の頭の高さから床まで下げる分（三脚の頭の、カメラを載せる所の高さ）
 # 三脚なしのときに隠す、三脚の部品（脚・開き止め・頭の飾り）。首振り・上下の可動部（PIVOT_PAN_Z・PIVOT_TILT_X）は、見えない軸として残す
@@ -90,7 +91,7 @@ func build() -> void:
 	add_child(view)
 	view_cam = Camera3D.new()
 	view_cam.near = 0.15
-	view_cam.far = 120.0
+	view_cam.far = DEFAULT_FAR
 	# 撮影カメラは、世界と同じ光（昼の空・もや・色味）で写す。目で見えているとおりに映る
 	# （以前は撮影側だけ暗く締めて夜に見せていた。昼なのに夜に映るのが不自然なのでやめた）
 	# 制作班だけに見える札（CREW_LAYER）と、一人称の手の写し（1 << 13。first_person_arms.gd）と、

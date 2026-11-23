@@ -718,6 +718,12 @@ func apply(data: Dictionary) -> void:
 	game.film.view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if phase in [4,5] else SubViewport.UPDATE_DISABLED
 	if phase in [4,5] and (_site_root == null or _configured_job != chosen_job or _configured_site != site_index()):
 		_configure_site()
+	var outdoor := phase in [4,5] and site_index() == 2 and not shoots_home()
+	var camera_far: float = Location.OutdoorLot.CAMERA_FAR if outdoor else game.film.DEFAULT_FAR
+	if game.film.view_cam.far != camera_far:
+		for prop: Node in game.props.values():
+			if prop.kind == "camera":
+				prop.view_cam.far = camera_far
 	game.hud.root.visible = true
 	game.input_locked = phase == 3
 	_sync_vehicle_riders()

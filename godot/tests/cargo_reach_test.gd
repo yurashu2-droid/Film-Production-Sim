@@ -258,6 +258,9 @@ func check_arrival(tag: String, site: int, loaded: Array) -> void:
 			ray = PhysicsRayQueryParameters3D.create(beyond + Vector3.UP, beyond - Vector3.UP, 1)
 			closed = closed and not space.intersect_ray(ray).is_empty()
 	check(closed, "%s: the location has solid boundaries on every side" % tag)
+	check(of_kind("camera").all(func(camera: Node) -> bool:
+		return camera.view_cam.far >= 360.0 if site == 2 else camera.view_cam.far == camera.DEFAULT_FAR),
+		"%s: every film camera uses this location's draw distance" % tag)
 	if site == 2:
 		var center := Vector3(-11.8, 1.07, -7.3)
 		var axis := Vector3.BACK.rotated(Vector3.UP, 0.24) * 1.6
@@ -280,6 +283,8 @@ func wrap_up() -> void:
 	check((supplies._pool.values() as Array).all(func(p: Node) -> bool:
 		return p.absent and p.pid not in flow.stash),
 		"site supplies are cleared on return and stay out of the office bags")
+	check(of_kind("camera").all(func(camera: Node) -> bool: return camera.view_cam.far == camera.DEFAULT_FAR),
+		"film cameras restore the standard draw distance back at the office")
 
 
 func run() -> void:

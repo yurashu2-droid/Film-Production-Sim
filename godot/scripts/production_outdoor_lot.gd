@@ -3,6 +3,7 @@ extends RefCounted
 const Look := preload("res://scripts/production_look.gd")
 const Foliage := preload("res://scripts/foliage.gd")
 const SOIL := preload("res://shaders/location_soil.gdshader")
+const CAMERA_FAR := 400.0
 
 
 static func build(root: Node3D) -> void:
@@ -16,6 +17,7 @@ static func build(root: Node3D) -> void:
 	_grass(root)
 	_pipes(root)
 	_construction(root)
+	_horizon(root)
 	_neighborhood(root)
 	_planting(root)
 
@@ -119,12 +121,55 @@ static func _construction(root: Node3D) -> void:
 	batch.build(root, "ConstructionNextDoor")
 
 
+static func _horizon(root: Node3D) -> void:
+	# 家並みの切れ間や高い撮影位置からも、地面の終端が空に抜けないようにする。
+	# 遠景は起伏と頂点色だけの一枚のメッシュ。手前と同じ環境の霧がかかる。
+	var batch := Look.Batch.new()
+	batch.no_shadow = true
+	batch.boxp(Look.mat("concrete", Color("a6a08e")), Vector3(0, -0.16, 0),
+			Vector3(600, 0.02, 600), Look.Batch.F_PY)
+	var land := Look.mat("foliage")
+	var slopes := [Color("8d9c84"), Color("82957f"), Color("748d7b"),
+			Color("899f92"), Color("799588"), Color("8fa8a0")]
+	var radii := [90.0, 118.0, 150.0, 182.0, 225.0, 280.0, 330.0]
+	var mesh_rings: Array[PackedVector3Array] = []
+	var segments := 112
+	for ring in radii.size():
+		var loop := PackedVector3Array()
+		for i in segments:
+			var angle := i * TAU / segments
+			var bend := 10.0 * sin(3.0 * angle + 0.3) + 5.0 * cos(7.0 * angle)
+			var low_hills := 17.5 + 4.5 * sin(5.0 * angle + 0.85) + 3.8 * sin(8.0 * angle - 0.5)
+			var far_hills := 28.5 + 7.0 * sin(4.0 * angle + 2.1) + 5.5 * cos(9.0 * angle + 0.4)
+			var heights := [-0.155, 4.1, low_hills, 8.0, far_hills, 15.5, 4.2]
+			var radius: float = radii[ring] + bend
+			loop.append(Vector3(cos(angle) * radius, heights[ring], sin(angle) * radius))
+		mesh_rings.append(loop)
+	for ring in mesh_rings.size() - 1:
+		var near := mesh_rings[ring]
+		var far := mesh_rings[ring + 1]
+		for i in segments:
+			var j := (i + 1) % segments
+			var tint: Color = slopes[ring].lightened(0.023 * sin(i * TAU / segments * 11.0))
+			batch.poly_out(Look.Tint.new(land.mat, tint), [near[i], far[i], far[j]], Vector3.UP)
+			batch.poly_out(Look.Tint.new(land.mat, tint), [near[i], far[j], near[j]], Vector3.UP)
+	# 西・北・南では、家並みの奥と丘の間にまとまった樹冠を置く。東側には既存の街区がある。
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 401
+	for i in 54:
+		var angle := lerpf(0.26 * PI, 1.74 * PI, float(i) / 53.0)
+		var radius := rng.randf_range(76.0, 89.0)
+		var center := Vector3(cos(angle) * radius, rng.randf_range(1.4, 3.0), sin(angle) * radius)
+		var tint := Color("667e66").lerp(Color("85977a"), rng.randf())
+		var canopy := Vector3(rng.randf_range(3.4, 5.6), rng.randf_range(2.7, 4.7), rng.randf_range(3.5, 5.6))
+		batch.lump(Look.Tint.new(land.mat, tint), center, canopy, center - Vector3.UP, rng, 0.26, 4, 8)
+	batch.build(root, "ContinuousTerrainAndDistantHills")
+
+
 static func _neighborhood(root: Node3D) -> void:
 	var batch := Look.Batch.new()
-	# 外周の向こうにも地面を続ける。街並みは空き地の外なので描画だけに使う。
-	var ground := Look.mat("concrete", Color("a6a08e"))
+	# 街並みは空き地の外なので描画だけに使う。
 	var road := Look.mat("asphalt", Color("898b87"))
-	batch.boxp(ground, Vector3(-30, -0.27, -5), Vector3(124, 0.24, 160))
 	batch.boxp(road, Vector3(-36, 0.009, -7.6), Vector3(5.2, 0.022, 64.8))
 	batch.boxp(road, Vector3(-5.9, 0.009, 27.0), Vector3(65.4, 0.022, 4.4))
 	# 住宅の切れ間には、既存の遠景用の窓テクスチャで奥の街を見せる。
@@ -199,7 +244,9 @@ static func _planting(root: Node3D) -> void:
 	var trees := [Vector3(-27, 0, -15), Vector3(-30, 0, -5), Vector3(-27, 0, 4), Vector3(-31, 0, 13),
 			Vector3(-21, 0, 24), Vector3(-12, 0, 24), Vector3(-3, 0, 23), Vector3(7, 0, 24), Vector3(18, 0, 24),
 			Vector3(26, 0, 14), Vector3(26, 0, 3), Vector3(26, 0, -9), Vector3(25, 0, -17),
-			Vector3(6, 0, -32), Vector3(14, 0, -30), Vector3(23, 0, -29), Vector3(-24, 0, -25)]
+			Vector3(6, 0, -32), Vector3(14, 0, -30), Vector3(23, 0, -29), Vector3(-24, 0, -25),
+			Vector3(-36, -0.15, -40), Vector3(-42, -0.15, -33), Vector3(-37, -0.15, -54),
+			Vector3(9, -0.15, -50), Vector3(-18, -0.15, 46)]
 	for i in trees.size():
 		Foliage.tree(batch, trees[i], 1.32 + 0.14 * (i % 4), "young" if i % 3 == 0 else "street")
 	batch.build(root, "ExistingStreetTreesAndShrubs")
