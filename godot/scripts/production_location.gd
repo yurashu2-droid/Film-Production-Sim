@@ -56,8 +56,6 @@ static func _yard(root: Node3D) -> void:
 	_box(root, Vector3(10.6, 3.55, -7.6), Vector3(7.2, 0.18, 5), Color("505957"))
 	_table(root, Vector3(12.8, 0, -6.1))
 	_bench(root, Vector3(12.5, 0, -2.8), Color("7b684b"))
-	for p in [Vector3(-19, 0, -9), Vector3(-19, 0, 12), Vector3(17, 0, -14), Vector3(20, 0, -10)]:
-		_tree(root, p)
 	_parking(root, Vector3(16.0, 0, 6.5), Vector2(6, 6), Color("ded8bc"))
 
 static func _perimeter(root: Node3D) -> void:
@@ -86,21 +84,6 @@ static func _perimeter(root: Node3D) -> void:
 		fence.solid(Transform3D(Basis(Vector3.UP, yaw), mid + Vector3.UP * 1.2),
 				Vector3(run.length() + 0.16, 2.48, 0.22))
 	fence.build(root, "LocationFence")
-
-static func _tree(root: Node3D, at: Vector3) -> void:
-	_box(root, at + Vector3(0, 1.4, 0), Vector3(0.5, 2.8, 0.5), Color("766047"), true)
-	for i in range(3):
-		var mesh := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		sphere.radius = 1.5 - i * 0.22
-		sphere.height = 2.4
-		mesh.mesh = sphere
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color("596d4c").lightened(i * 0.025)
-		mat.roughness = 1
-		mesh.material_override = mat
-		mesh.position = at + Vector3(i * 0.3, 3.1 + i * 0.8, 0)
-		root.add_child(mesh)
 
 static func _table(root: Node3D, at: Vector3) -> void:
 	_box(root, at + Vector3(0, 0.95, 0), Vector3(2, 0.12, 0.9), Color("a0855c"), true)

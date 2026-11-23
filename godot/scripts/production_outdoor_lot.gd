@@ -1,6 +1,7 @@
 extends RefCounted
 ## 土の空き地と、北のフェンス越しに見える工事現場。
 const Look := preload("res://scripts/production_look.gd")
+const Foliage := preload("res://scripts/foliage.gd")
 const SOIL := preload("res://shaders/location_soil.gdshader")
 
 
@@ -15,6 +16,8 @@ static func build(root: Node3D) -> void:
 	_grass(root)
 	_pipes(root)
 	_construction(root)
+	_neighborhood(root)
+	_planting(root)
 
 
 static func _grass(root: Node3D) -> void:
@@ -114,3 +117,89 @@ static func _construction(root: Node3D) -> void:
 		for i in 3:
 			batch.boxy(timber, Vector3(7.2, 0.14 + i * 0.13, z), Vector3(3.4, 0.10, 0.8), 0.14)
 	batch.build(root, "ConstructionNextDoor")
+
+
+static func _neighborhood(root: Node3D) -> void:
+	var batch := Look.Batch.new()
+	# 外周の向こうにも地面を続ける。街並みは空き地の外なので描画だけに使う。
+	var ground := Look.mat("concrete", Color("a6a08e"))
+	var road := Look.mat("asphalt", Color("898b87"))
+	batch.boxp(ground, Vector3(-30, -0.27, -5), Vector3(124, 0.24, 160))
+	batch.boxp(road, Vector3(-36, 0.009, -7.6), Vector3(5.2, 0.022, 64.8))
+	batch.boxp(road, Vector3(-5.9, 0.009, 27.0), Vector3(65.4, 0.022, 4.4))
+	# 住宅の切れ間には、既存の遠景用の窓テクスチャで奥の街を見せる。
+	var distant := Look.mat("tower", Color("aeb6b5"))
+	var cap := Look.plain(Color("8f9898"))
+	var blocks := [Vector4(-28, -63, 12, 11), Vector4(-44, -56, 10, 12),
+			Vector4(-60, -43, 14, 13), Vector4(-66, -21, 13, 10), Vector4(-64, 4, 12, 11),
+			Vector4(-58, 28, 16, 12), Vector4(15, -62, 15, 11), Vector4(-2, -69, 13, 9),
+			Vector4(-31, 55, 15, 11), Vector4(-8, 60, 14, 13), Vector4(14, 57, 13, 10)]
+	for block in blocks:
+		var foot := Vector3(block.x, -0.15, block.y)
+		batch.boxp(distant, foot + Vector3.UP * block.w * 0.5, Vector3(block.z, block.w, 9))
+		batch.boxp(cap, foot + Vector3.UP * block.w, Vector3(block.z + 0.3, 0.26, 9.3))
+	var homes := [
+		[Vector3(-43, 0, -28), 0.8, PI * 0.5], [Vector3(-45, 0, -17), 1.0, PI * 0.5],
+		[Vector3(-42, 0, -5), 0.85, PI * 0.5], [Vector3(-46, 0, 7), 1.15, PI * 0.5],
+		[Vector3(-43, 0, 19), 1.0, PI * 0.5], [Vector3(-38, 0, 42), 1.15, PI],
+		[Vector3(-25, 0, 36), 0.85, PI], [Vector3(-12, 0, 39), 1.1, PI],
+		[Vector3(2, 0, 35), 0.90, PI], [Vector3(16, 0, 37), 1.05, PI],
+		[Vector3(14, 0, -44), 1.25, 0.0], [Vector3(26, 0, -41), 0.9, 0.0],
+		[Vector3(-27, 0, -39), 0.95, 0.0], [Vector3(-38, 0, -46), 1.15, 0.0],
+	]
+	var walls := [Color("c9b9a6"), Color("bcbfba"), Color("dbd2bd"), Color("c0ac9b")]
+	var roofs := [Color("5f686a"), Color("73695e"), Color("6f7776"), Color("776664")]
+	for i in homes.size():
+		var house: Array = homes[i]
+		var scale_factor: float = house[1]
+		batch.xf = Transform3D(Basis(Vector3.UP, house[2]).scaled(Vector3.ONE * scale_factor), house[0])
+		_house(batch, walls[i % walls.size()], roofs[i % roofs.size()])
+	batch.xf = Transform3D.IDENTITY
+	batch.build(root, "NeighborhoodBeyondTheLot")
+
+
+static func _house(batch: Look.Batch, wall_color: Color, roof_color: Color) -> void:
+	var wall := Look.mat("plaster", wall_color)
+	var roof := Look.mat("metal", roof_color)
+	var frames := Look.mat("wood", Color("989185"))
+	var glass := Look.mat("glass", Color("718287"))
+	batch.boxp(wall, Vector3(0, 2.73, 0), Vector3(7.4, 5.8, 5.4))
+	var gable := [Vector2(-3.7, 0), Vector2(3.7, 0), Vector2(0, 1.65)]
+	batch.extrude(wall, Transform3D(Basis.IDENTITY, Vector3(0, 5.63, 0)), gable, 5.4)
+	for side in [-1, 1]:
+		var at := Transform3D(Basis(Vector3.BACK, -side * atan2(1.65, 3.7)),
+				Vector3(side * 1.93, 6.52, 0))
+		batch.box(roof, at, Vector3(4.38, 0.18, 5.95), Look.Batch.ALL)
+	for y in [1.55, 4.05]:
+		for x in [-2.10, 0, 2.10]:
+			batch.boxp(frames, Vector3(x, y, 2.72), Vector3(1.40, 1.23, 0.08))
+			batch.boxp(glass, Vector3(x, y, 2.768), Vector3(1.27, 1.09, 0.04))
+			batch.boxp(frames, Vector3(x, y, 2.79), Vector3(0.05, 1.10, 0.035))
+
+
+static func _planting(root: Node3D) -> void:
+	var batch := Look.Batch.new()
+	for p in [Vector3(-19, 0.005, -9), Vector3(-19, 0.005, 12), Vector3(17, 0.005, -14), Vector3(20, 0.005, -10)]:
+		Foliage.tree(batch, p, 1.16)
+		batch.solidp(p + Vector3.UP * 0.89, Vector3(0.31, 1.78, 0.31))
+		batch.solidp(p + Vector3.UP * 0.064, Vector3(1.50, 0.13, 1.50))
+	# 金網越しに足元の地面が途切れないよう、低い茂みの後ろに木立と屋根を重ねる。
+	var shrubs := [Vector2(-24.1, -16), Vector2(-25, -12.6), Vector2(-24.5, -9.1),
+			Vector2(-24.8, -4.5), Vector2(-24.4, -1.6), Vector2(-24.2, 2.8), Vector2(-25, 7.3),
+			Vector2(-24.3, 10.3), Vector2(-24.0, 14.0), Vector2(-22.1, 19.8),
+			Vector2(-17.8, 20.4), Vector2(-13.7, 20.2), Vector2(-9.7, 20.0), Vector2(-5.4, 20.2),
+			Vector2(-1.2, 19.9), Vector2(3.6, 20.5), Vector2(8, 20.1), Vector2(13, 20.4),
+			Vector2(17.6, 20.2), Vector2(22.0, 20.5), Vector2(24.7, 13.0), Vector2(24.8, 8.1),
+			Vector2(25.0, 3.6), Vector2(24.5, -1.1), Vector2(25.0, -6.0), Vector2(24.7, -10.4),
+			Vector2(24.0, -15), Vector2(8.5, -20.4), Vector2(12.7, -20.9), Vector2(17.6, -20.0)]
+	for i in shrubs.size():
+		var spot: Vector2 = shrubs[i]
+		var radius := 1.4 + 0.24 * (i % 4)
+		Foliage.bush(batch, Vector3(spot.x, radius * 0.63, spot.y), radius, "hedge")
+	var trees := [Vector3(-27, 0, -15), Vector3(-30, 0, -5), Vector3(-27, 0, 4), Vector3(-31, 0, 13),
+			Vector3(-21, 0, 24), Vector3(-12, 0, 24), Vector3(-3, 0, 23), Vector3(7, 0, 24), Vector3(18, 0, 24),
+			Vector3(26, 0, 14), Vector3(26, 0, 3), Vector3(26, 0, -9), Vector3(25, 0, -17),
+			Vector3(6, 0, -32), Vector3(14, 0, -30), Vector3(23, 0, -29), Vector3(-24, 0, -25)]
+	for i in trees.size():
+		Foliage.tree(batch, trees[i], 1.32 + 0.14 * (i % 4), "young" if i % 3 == 0 else "street")
+	batch.build(root, "ExistingStreetTreesAndShrubs")
