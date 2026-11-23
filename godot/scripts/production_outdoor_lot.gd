@@ -119,6 +119,49 @@ static func _construction(root: Node3D) -> void:
 		for i in 3:
 			batch.boxy(timber, Vector3(7.2, 0.14 + i * 0.13, z), Vector3(3.4, 0.10, 0.8), 0.14)
 	batch.build(root, "ConstructionNextDoor")
+	_construction_safety(root)
+
+
+static func _construction_safety(root: Node3D) -> void:
+	var batch := Look.Batch.new()
+	var yellow := Look.plain(Color("f1c435"))
+	var black := Look.plain(Color("292c2b"))
+	var white := Look.plain(Color("f5f1dd"))
+	var orange := Look.plain(Color("d95624"))
+	var frame := Look.mat("metal", Color("515b55"))
+	var sign_font := preload("res://assets/fonts/DelaGothicOne-Regular.ttf")
+	# 仮囲いと一体の看板。地面から伸びる看板や浮いた文字は使わない。
+	var sign_at := Vector3(-8.8, 1.27, -17.79)
+	batch.boxp(frame, sign_at, Vector3(3.14, 1.37, 0.12))
+	batch.boxp(white, sign_at + Vector3(0, 0, 0.065), Vector3(3.03, 1.25, 0.02))
+	batch.boxp(yellow, sign_at + Vector3(0, 0.24, 0.08), Vector3(3.03, 0.67, 0.02))
+	Look.label(root, Transform3D(Basis.IDENTITY, sign_at + Vector3(0, 0.23, 0.094)),
+			"工事中", 0.0052, 102, Color("252925"), sign_font, false)
+	Look.label(root, Transform3D(Basis.IDENTITY, sign_at + Vector3(0, -0.31, 0.079)),
+			"関係者以外 立入禁止", 0.0026, 88, Color("252925"), sign_font, false)
+	for x in [-16.8, -3.8, 0.65]:
+		# 黒い斜線は黄色の横桟の面に合わせ、両端からはみ出さない。
+		_hazard_rail(batch, Vector3(x, 0.79, -17.72), yellow, black)
+		for dx in [-1.46, 1.46]:
+			batch.boxp(frame, Vector3(x + dx, 0.39, -17.70), Vector3(0.075, 0.78, 0.08))
+			batch.boxp(frame, Vector3(x + dx, 0.04, -17.70), Vector3(0.19, 0.08, 0.32))
+	# カラーコーンは柵の切り替わりから資材置き場へ続く。帯は円錐の形状に沿う。
+	for p in [Vector3(3.25, 0.005, -17.53), Vector3(5.7, 0.005, -18.7),
+			Vector3(7.1, 0.005, -19.9), Vector3(9.4, 0.005, -20.4)]:
+		batch.boxy(black, p + Vector3.UP * 0.035, Vector3(0.50, 0.07, 0.50), 0.22)
+		batch.cylp(orange, p + Vector3.UP * 0.07, 0.20, 0.23, 12, 0.145)
+		batch.cylp(white, p + Vector3.UP * 0.30, 0.145, 0.14, 12, 0.111)
+		batch.cylp(orange, p + Vector3.UP * 0.44, 0.111, 0.28, 12, 0.043)
+	batch.build(root, "ConstructionSafety")
+
+
+static func _hazard_rail(batch: Look.Batch, at: Vector3, yellow: Look.Tint, black: Look.Tint) -> void:
+	batch.boxp(yellow, at, Vector3(3.42, 0.24, 0.13))
+	for stripe in 7:
+		var x := -1.59 + stripe * 0.45
+		var face := at + Vector3(x, 0, 0.066)
+		batch.poly_out(black, [face + Vector3(0, -0.12, 0), face + Vector3(0.21, -0.12, 0),
+				face + Vector3(0.42, 0.12, 0), face + Vector3(0.21, 0.12, 0)], Vector3.BACK)
 
 
 static func _horizon(root: Node3D) -> void:
