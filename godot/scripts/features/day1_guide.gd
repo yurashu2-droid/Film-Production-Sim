@@ -105,6 +105,9 @@ var _hint_t := 0.0
 var _ended := false                  # 最後のあいさつまで済んだ
 var _stand := Vector3.INF            # 講師が向かっている所
 var _t := 0.0
+var _field_words := ""
+var _field_focus := Vector3.INF
+var _departure: Tween
 
 
 func setup() -> void:
@@ -169,8 +172,13 @@ func _process(delta: float) -> void:
 		on = want
 		if on:
 			_appear()
-		else:
+		elif _field_words.is_empty():
 			_leave()
+	if not _field_words.is_empty():
+		_label.text = _field_words
+		_label.visible = not game.ui_blocking()
+		_place(delta, _field_focus)
+		return
 	if not on:
 		return
 	var now := _now()
@@ -426,9 +434,9 @@ func target() -> Vector3:
 
 
 # 講師と、輪・矢印を、いまの番の目当てへ
-func _place(delta: float) -> void:
+func _place(delta: float, focus: Vector3 = Vector3.INF) -> void:
 	var flow: Node = game.production
-	var at := target()
+	var at := target() if focus == Vector3.INF else focus
 	marker.visible = at != Vector3.INF and not game.ui_blocking()
 	if at != Vector3.INF:
 		marker.global_position = Vector3(at.x, 0.0, at.z)
@@ -468,6 +476,8 @@ func _go(stand: Vector3) -> void:
 # ---- 出る・言う・消える ----
 
 func _appear() -> void:
+	if _departure != null:
+		_departure.kill()
 	step = ""
 	_stand = Vector3.INF
 	teacher.visible = true
@@ -510,7 +520,10 @@ func _leave() -> void:
 		drone.visible = false
 		return
 	# 像が消えてから、ドローンは空へ飛び去る
+	if _departure != null:
+		_departure.kill()
 	var out := create_tween()
+	_departure = out
 	out.tween_method(_fade, 1.0, 0.0, 0.6)
 	out.tween_callback(teacher.hide)
 	out.tween_callback(func() -> void: drone.fly_to(drone.under() + Vector3(0.0, 14.0, -6.0)))
@@ -522,6 +535,32 @@ func _fade(v: float) -> void:
 	_fade_v = v
 	for m: ShaderMaterial in _mats:
 		m.set_shader_parameter("strength", v)
+
+
+# 初めて使う道具の案内も、初日の案内と同じ講師・ドローンを使う。
+func show_field_tip(words: String, focus: Vector3) -> void:
+	if _departure != null:
+		_departure.kill()
+	if not on and _field_words.is_empty():
+		_stand = Vector3.INF
+		teacher.show()
+		drone.show()
+		_fade(1.0)
+	_field_words = words
+	_field_focus = focus
+	_speech.face = "normal"
+	_vis.play("ORDER", 0.15, true)
+	Sfx.play("ui_select", null, -12.0)
+
+
+func close_field_tip() -> void:
+	if _field_words.is_empty():
+		return
+	_field_words = ""
+	_field_focus = Vector3.INF
+	_vis.play("idle", 0.2)
+	if not on:
+		_leave()
 
 
 func _say(words: String) -> void:

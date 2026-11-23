@@ -221,6 +221,31 @@ func run() -> void:
 	flow.day = 2
 	await frames(90)
 	check(not guide.on and not guide.teacher.visible and not guide.marker.visible, "2日目からは、案内の講師は出ない")
+	# 初めて持った物に矢印が出て、実際に回すと一度だけ反応する。
+	var first_use: Node = game.hooks.feature("first_use_guide")
+	first_use.force = true
+	first_use._seen.clear()
+	game._set_state(S.PREP)
+	if me.held != 0:
+		game.h_release()
+	game.h_grab(board.pid)
+	await frames(8)
+	check(first_use._active == "rotate" and guide.teacher.visible and first_use._arrow.visible,
+			"初めて物を持つとバズ山と回転の矢印が出る")
+	me.spin_hold(Vector3.UP, 0.55)
+	await frames(8)
+	check(first_use._active == "rotated" and not first_use._arrow.visible and guide._field_words.contains("その向き"),
+			"持った物を回すと矢印が消えてバズ山が答える")
+	await frames(110)
+	game.h_release()
+	game.h_grab(board.pid)
+	await frames(8)
+	check(first_use._active != "rotate", "回し方を覚えたら、持ち直しても同じ案内は出ない")
+	game.h_release()
+	game.h_grab(boxes[0].pid)
+	await frames(8)
+	check(first_use._active == "carton" and guide._field_words.contains("ふたを開ける"),
+			"初めて段ボールを持った場面で、ふたの操作を教える")
 	print("GUIDE_TEST_FAIL" if failed else "GUIDE_TEST_OK")
 	root.get_node("Sfx").silence_all()
 	await frames(4)
