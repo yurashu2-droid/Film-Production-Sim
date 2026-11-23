@@ -149,7 +149,7 @@ func _save_slots() -> void:
 	menu._saves.directory = "user://menu_save_test_%d" % OS.get_process_id()
 	menu.solo_button.pressed.emit()
 	_check(menu._save_picker.visible and menu.game_node == null, "solo opens the save picker")
-	menu._save_picker._rows.get_child(1).pressed.emit()
+	menu._save_picker.press(1)
 	while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 		await _wait(0.05)
 	var game: Node = menu.game_node
@@ -172,7 +172,7 @@ func _save_slots() -> void:
 	_check(menu._saves.read(2).day == 2, "returning to the office saves the new day")
 	await menu.return_to_menu()
 	menu.solo_button.pressed.emit()
-	menu._save_picker._rows.get_child(1).pressed.emit()
+	menu._save_picker.press(1)
 	while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 		await _wait(0.05)
 	flow = menu.game_node.production
@@ -188,7 +188,7 @@ func _save_slots() -> void:
 	broken.store_string("[company]\nversion=999\n")
 	broken.close()
 	menu.solo_button.pressed.emit()
-	_check(menu._save_picker._rows.get_child(0).disabled and not menu._save_picker._rows.get_child(1).disabled, "an unreadable slot stays protected while another one still loads")
+	_check(not menu._save_picker._usable(0) and menu._save_picker._usable(1), "an unreadable slot stays protected while another one still loads")
 	menu._save_picker.closed.emit()
 	DirAccess.remove_absolute(invalid_path)
 	DirAccess.remove_absolute(menu._saves.directory.path_join("company_2.cfg"))

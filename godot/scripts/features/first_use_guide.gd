@@ -245,25 +245,30 @@ func _remember(id: String) -> void:
 	file.save(SAVE)
 
 
+# 回す向きの印：太い弧の矢印を2本、輪の形に向かい合わせる（「回す」の記号）。持った物の上で、ゆっくり回る。
+# 2026-11-24 見た目を作り直した（1 版は、細くて平らな水色の輪に三角が1つ。物に隠れて、何の印か分かりにくかった）。
+# 色は、講師のガイド（holo_guides.gd）と同じ青。物に隠れないよう、奥行きを見ずに上から描く。制作班にだけ見える
 func _build_arrow() -> MeshInstance3D:
-	var mesh := ImmediateMesh.new()
-	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-	for i in 32:
-		var theta := 4.5 * i / 31.0
-		var direction := Vector3(cos(theta), 0, sin(theta))
-		mesh.surface_add_vertex(direction * 0.93)
-		mesh.surface_add_vertex(direction * 1.07)
-	mesh.surface_end()
-	var end := Vector3(cos(4.5), 0, sin(4.5))
-	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-	mesh.surface_add_vertex(end * 0.76)
-	mesh.surface_add_vertex(end * 1.24)
-	mesh.surface_add_vertex(end + Vector3(-end.z, 0, end.x) * 0.30)
-	mesh.surface_end()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for half in 2:
+		var start := PI * float(half) + 0.35
+		_arc(st, start, start + PI - 1.05, 0.085, 0.04)
+	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.albedo_color = Color("80cfff")
+	mat.albedo_color = Color(0.35, 0.72, 1.0, 0.92)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.no_depth_test = true
+	mat.render_priority = 2
+	# ふち：同じ形を少し太く、濃い青で後ろに描く（明るい地でも、形が立つ）
+	var rim := mat.duplicate() as StandardMaterial3D
+	rim.albedo_color = Color(0.03, 0.16, 0.42, 0.85)
+	rim.render_priority = 1
+	rim.grow = true
+	rim.grow_amount = 0.022
+	rim.cull_mode = BaseMaterial3D.CULL_FRONT
+	mat.next_pass = rim
 	var model := MeshInstance3D.new()
 	model.name = "GuideRotationArrow"
 	model.mesh = mesh
@@ -271,3 +276,41 @@ func _build_arrow() -> MeshInstance3D:
 	model.layers = CREW_LAYER
 	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return model
+
+
+# 半径 1 の輪に沿った、丸い管の弧（from〜to ラジアン）と、先の矢じり（円すい）
+func _arc(st: SurfaceTool, from: float, to: float, tube: float, tilt: float) -> void:
+	const SEG := 28
+	const SIDES := 10
+	var rings: Array = []
+	for i in SEG + 1:
+		var a := lerpf(from, to, float(i) / float(SEG))
+		var center := Vector3(cos(a), sin(a * 2.0) * tilt, sin(a))
+		var out := Vector3(cos(a), 0, sin(a))
+		var ring: Array = []
+		for j in SIDES:
+			var b := TAU * float(j) / float(SIDES)
+			ring.append(center + (out * cos(b) + Vector3.UP * sin(b)) * tube)
+		rings.append(ring)
+	for i in SEG:
+		for j in SIDES:
+			var a: Vector3 = rings[i][j]
+			var b: Vector3 = rings[i][(j + 1) % SIDES]
+			var c: Vector3 = rings[i + 1][j]
+			var d: Vector3 = rings[i + 1][(j + 1) % SIDES]
+			for v: Vector3 in [a, c, b, b, c, d]:
+				st.add_vertex(v)
+	# 矢じり：弧の先から、進む向き（接線）へ
+	var tip_a := to
+	var base := Vector3(cos(tip_a), sin(tip_a * 2.0) * tilt, sin(tip_a))
+	var ahead := Vector3(-sin(tip_a), 0, cos(tip_a))
+	var out2 := Vector3(cos(tip_a), 0, sin(tip_a))
+	var point := base + ahead * 0.34
+	var head := tube * 2.7
+	for j in SIDES:
+		var b0 := TAU * float(j) / float(SIDES)
+		var b1 := TAU * float(j + 1) / float(SIDES)
+		var p0 := base + (out2 * cos(b0) + Vector3.UP * sin(b0)) * head
+		var p1 := base + (out2 * cos(b1) + Vector3.UP * sin(b1)) * head
+		for v: Vector3 in [p0, point, p1, p1, base, p0]:
+			st.add_vertex(v)
