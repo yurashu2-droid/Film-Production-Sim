@@ -100,6 +100,8 @@ var _wheel_dust_distance := 0.0
 var _performance := ""
 var _performance_left := 0.0
 var _performance_length := 0.0
+var has_performed_expression := false
+var has_performed_pose := false
 # スタント（features/stunts.gd）
 var down := 0.0                 # のびている残り（秒）。その間は、歩けない・跳べない・物を持てない（見回すことはできる）
 var impact := 0.0               # 何かにぶつかった強さ（面へ向かっていた速さ m/秒）。stunts.gd が読んで 0 に戻す
@@ -822,11 +824,15 @@ func performance_active() -> bool:
 
 func start_performance(clip: String) -> void:
 	if clip.begins_with("face:"):
-		vis.set_face(clip.trim_prefix("face:"))
+		var expression := clip.trim_prefix("face:")
+		if vis.face_anim != null and vis.face_anim.has_animation(expression):
+			has_performed_expression = true
+		vis.set_face(expression)
 		_face_t = 4.0
 		return
 	if not vis.has(clip):
 		return
+	has_performed_pose = true
 	_motion = ""
 	_dash_dust_pending = false
 	_run_requested = false

@@ -177,8 +177,24 @@ func run() -> void:
 	check(not guide.marker.visible, "役に入る番は、目当ての物が無い（輪と矢印は出ない）")
 	stand.h_cast_actor("player", int(me.peer_id), 0)
 	await frames(20)
-	check(guide.step == "act" and str(guide.said).contains("Z"), "社長の役に入ると、本番の前に決めポーズの練習（%s）" % guide.step)
-	game.performance.request_act()
+	check(guide.step == "face" and str(guide.said).contains("F3"), "社長の役に入ると、先に表情を練習する（%s）" % guide.step)
+	var picker: Node = me.face_picker
+	check(picker.open(), "F3 の表情選びを開ける")
+	picker.close(false)
+	await frames(5)
+	check(guide.step == "face", "表情を選ばずに閉じても次へ進まない")
+	picker.open()
+	picker.select(picker.faces.find("happy"))
+	picker.close(true)
+	await frames(20)
+	check(guide.step == "act", "表情を確定したら、次はポーズ（%s）" % guide.step)
+	game.performance._last_act.erase(int(me.peer_id))  # 固定 FPS のテストでも実時間の連打制限を待たない
+	if "acts" in picker:
+		picker.open()
+		picker.select_row(1)
+		picker.close(true)
+	else:
+		game.performance.request_act()
 	await frames(20)
 	check(guide.step == "take" and str(guide.said).contains("カチンコ"), "決めポーズをやると、次はカチンコ（%s）" % guide.step)
 	check(flat(guide.target(), game.clapper.global_position) < 0.1 and guide.marker.visible, "目当ては、カチンコ")
@@ -194,6 +210,7 @@ func run() -> void:
 		await physics_frame
 	await frames(10)
 	check(game.state == S.TAKE and guide.step == "scene0" and str(guide.said).contains("社員紹介"), "本番が回ると、1カット目のひとこと（%s）" % guide.step)
+	check(str(guide.said).contains("Z"), "社員紹介の本番で、練習したポーズを Z でもう一度と伝える")
 	check(guide.hook_hud(me, "", "1・2・3 合図").is_empty(), "本番中は、画面の下の案内には足さない")
 	game.host_ev("guide_say", ["寄りが足りない"])
 	await frames(5)

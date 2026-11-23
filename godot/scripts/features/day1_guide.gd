@@ -37,7 +37,8 @@ const SAY := {
 	"sign_stand": "書いた看板を、城のとなりに立てかける。\n表を、カメラのほうへ",
 	"script": "事務所の机の上に、台本がある。\n持ってきて、撮る場所のそばに置く",
 	"role": "主役の社長は、あなた。\n何も持たず、何も見ずに Y",
-	"act": "本番の前に、決めポーズの練習。\nZ で、ポーズ！",
+	"face": "会社の紹介だぞ。どんな顔で映りたい？\nF3 を長押し。顔を選んで、離してみな",
+	"act": "次は、社長らしいポーズをひとつ。\nF3 を押したまま下の段で選んで、離す！",
 	"take": "カチンコを持って F で本番。\n鳴らしたら、カメラの前へ走る！",
 	"scene0": "1カット目、社員紹介。\nカメラに近づいて、胸から上を大きく映す",
 	"scene1": "2カット目。お城が後ろに映るように、\n少し下がって立つ",
@@ -64,7 +65,8 @@ const TASK := {
 	"sign_stand": "書いた看板を、城のとなりに立てかけよう（表をカメラへ）",
 	"script": "机の上の台本を、撮る場所のそばに置こう",
 	"role": "何も持たず、何も見ずに Y で、社長の役に入ろう",
-	"act": "Z で決めポーズを1回やってみよう（H で、ほかの演技を選べる）",
+	"face": "F3 を長押し → 顔をマウス左右で選ぶ → 離して確定",
+	"act": "F3 を長押し → マウスを下へ動かしてポーズの段へ → 選んで離す",
 	"take": "カチンコを持って F で本番",
 	"hold0": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
 	"hold1": "フィルムは止まっているだけ。次の用意をして、台本のそばで 1（まだ続く）",
@@ -73,7 +75,7 @@ const TASK := {
 	"retake": "まだ途中のテイク。Space で撮り直して、4カット続けて撮ろう",
 }
 # 本番の前に、この順で教える（済んでいない最初の物が、いまの番）
-const PREP := ["boxes", "camera", "castle", "castle_turn", "blast", "sign_paint", "sign_stand", "script", "role", "act"]
+const PREP := ["boxes", "camera", "castle", "castle_turn", "blast", "sign_paint", "sign_stand", "script", "role", "face", "act"]
 # ライトの番は、PREP の順には入れない：準備の間に日が暮れて（features/night_sky.gd）、暗くなった時に割り込む。
 # 物を持っている間は、置くまで待つ。暮れる前に準備が全部済んだら、急いで暮れさせて、ライトの番にする
 const LIGHT_AT := Vector3(-0.8, 0.0, 7.0)    # ライトを立てる所（撮る場所の中心から。カメラの少し後ろ、左）
@@ -187,12 +189,12 @@ func _process(delta: float) -> void:
 		step = now
 		_same_t = 0.0
 		_hint_t = 0.0
-		_say(str(SAY.get(step, "")))
+		_say(_step_words())
 	else:
 		_same_t += delta
 		if _same_t >= AGAIN_SEC and TASK.has(step):
 			_same_t = 0.0
-			_say(str(SAY[step]))
+			_say(_step_words())
 	_host_hint(delta)
 	# せりふは、決まった秒数で消す。メニューを開いている間は隠す
 	if said != "":
@@ -272,10 +274,16 @@ func _is_done(id: String) -> bool:
 		"role":
 			var stand: Node = game.hooks.feature("stand_ins")
 			ok = stand != null and str((stand.holders as Array)[0][0]) != ""
-		"act":
-			# 役に入ったあと、自分で決めポーズを 1 回やった（言わないと絶対に分からない操作なので、本番の前に 1 回やらせる）
+		"face", "act":
 			var me: Node = game.local_player()
-			ok = me != null and bool(me.performance_active())
+			var stand: Node = game.hooks.feature("stand_ins")
+			# 別の人が役に入った場合は、その人の練習を待つ案内を自分には出さない。
+			if me == null or stand == null or stand.role_of("player", int(me.peer_id)) < 0:
+				return true
+			if id == "face":
+				ok = me.has_performed_expression or me.vis.face_anim == null
+			else:
+				ok = me.has_performed_pose
 		"light":
 			# 夜の撮影：役者の立つあたりの顔の高さが、ライトで照らされている（採点と同じ明るさの数え方）
 			var judge: Variant = game.get("judge")
@@ -568,6 +576,19 @@ func close_field_tip() -> void:
 		_leave()
 
 
+func _pose_picker_available() -> bool:
+	var me: Node = game.local_player()
+	return me != null and me.face_picker != null and "acts" in me.face_picker
+
+
+func _step_words() -> String:
+	if step == "act" and not _pose_picker_available():
+		return "次は、社長らしいポーズをひとつ。\nH で演技を選んで、Z で見せてくれ"
+	if step == "scene0" and _done.has("act"):
+		return "1カット目、社員紹介。胸から上を映して、\nさっきのポーズを Z でもう一回！"
+	return str(SAY.get(step, ""))
+
+
 func _say(words: String) -> void:
 	if words == "":
 		return
@@ -579,7 +600,7 @@ func _say(words: String) -> void:
 		look = "stern"
 	elif step == "retake":
 		look = "troubled"
-	elif step in ["take", "deliver", "bye", "role", "act"]:
+	elif step in ["take", "deliver", "bye", "role", "face", "act"]:
 		look = "happy"
 	elif step == "scene2":
 		look = "surprised"
@@ -635,4 +656,5 @@ func hook_hud(_me: Node, _label_text: String, keys: String) -> Dictionary:
 		if not kept.is_empty():
 			lines.append(" ／ ".join(kept))
 	var rest := "\n".join(lines)
-	return {"keys_all": str(TASK[step]) + (" ／ " + rest if rest != "" else "")}
+	var task := "H でポーズを選ぶ → Z で演じる" if step == "act" and not _pose_picker_available() else str(TASK[step])
+	return {"keys_all": task + (" ／ " + rest if rest != "" else "")}
