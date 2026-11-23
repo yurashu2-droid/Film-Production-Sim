@@ -7,6 +7,14 @@ const StartTransition := preload("res://scripts/start_transition.gd")
 const GameSettings := preload("res://scripts/game_settings.gd")
 const Player := preload("res://scripts/player.gd")
 const SettingsSheet := preload("res://scripts/ui/settings_sheet.gd")
+const CompanySaves := preload("res://scripts/company_saves.gd")
+const CompanySavePicker := preload("res://scripts/ui/company_save_picker.gd")
+
+var _saves := CompanySaves.new()
+var _save_picker: Control
+var _slot := 0
+var _slot_progress: Dictionary = {}
+var _slot_host := false
 var _transition: CanvasLayer
 const StartupResources := preload("res://scripts/startup_resources.gd")
 var _startup_resources: Node
@@ -145,6 +153,10 @@ void fragment() {
 	quit_button = _object_button("ゲームを閉じる", 1)
 	quit_button.pressed.connect(func(): get_tree().quit())
 	_build_settings(root)
+	_save_picker = CompanySavePicker.new()
+	root.add_child(_save_picker)
+	_save_picker.selected.connect(_start_company)
+	_save_picker.closed.connect(_close_save_picker)
 
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_canvas.visibility_changed.connect(func() -> void:
@@ -215,6 +227,10 @@ func close_settings() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _save_picker != null and _save_picker.visible and event.is_action_pressed("ui_cancel"):
+		_close_save_picker()
+		get_viewport().set_input_as_handled()
+		return
 	if _settings_layer != null and _settings_layer.visible and event.is_action_pressed("ui_cancel") and not _settings_sheet.rebinding():
 		close_settings()
 		get_viewport().set_input_as_handled()
@@ -382,20 +398,42 @@ func _connection_changed(_index: int) -> void:
 	_layout.call_deferred()
 
 func _solo() -> void:
-	if _busy or game_node != null:
-		return
-	_set_busy(true)
-	_transition.begin()
-	await _prepare_resources()
-	_launch(false)
+	_open_save_picker(false)
+
 
 func _host() -> void:
+	_open_save_picker(true)
+
+
+func _open_save_picker(host_requested: bool) -> void:
 	if _busy or game_node != null:
 		return
+	_slot_host = host_requested
 	_set_busy(true)
+	_save_picker.open(_saves, host_requested)
+
+
+func _close_save_picker() -> void:
+	_save_picker.hide()
+	_set_busy(false)
+	var button := host_button if _slot_host else solo_button
+	button.grab_focus()
+
+
+func _start_company(slot: int) -> void:
+	if not _save_picker.visible:
+		return
+	var entry: Dictionary = _saves.status(slot)
+	if int(entry.error) != OK:
+		_save_picker.open(_saves, _slot_host)
+		return
+	_slot = slot
+	_slot_progress = entry.data
+	_save_picker.hide()
 	_transition.begin()
 	await _prepare_resources()
-	_launch(false, true)
+	_launch(false, _slot_host)
+
 
 func _join() -> void:
 	if _busy or game_node != null:
@@ -482,6 +520,9 @@ func _finish_launch(send_hello: bool, host_requested: bool) -> void:
 	if _returning or not _transition.active or not is_instance_valid(launching_game) or game_node != launching_game:
 		return
 	_resume_network_poll()
+	var company_save: Node = launching_game.hooks.feature("company_save") if _slot != 0 else null
+	if company_save != null:
+		company_save.restore(_slot_progress)
 	# Gameの準備と画面の被覆が両方済んでから、接続を受け付ける。
 	if host_requested:
 		var err: Error = await Net.host_online() if _online() else Net.host()
@@ -489,6 +530,9 @@ func _finish_launch(send_hello: bool, host_requested: bool) -> void:
 		if err != OK:
 			return_to_menu(Net.last_error if _online() and not Net.last_error.is_empty() else "会社を開けませんでした。もう一度試してください。")
 			return
+	if company_save != null and company_save.activate(_saves, _slot, _slot_progress) != OK:
+		return_to_menu("セーブデータを作れませんでした。保存先を確認してください。")
+		return
 	launching_game.input_locked = true
 	launching_game.process_mode = Node.PROCESS_MODE_INHERIT
 	if Sfx.current_music() == "music_title":
@@ -530,6 +574,9 @@ func return_to_menu(message: String = "会社を閉じました。次の制作�
 	_joining = false
 	var old_game: Node = game_node
 	if is_instance_valid(old_game):
+		var company_save: Node = old_game.hooks.feature("company_save")
+		if company_save != null and company_save.save_at_office() != OK:
+			message = "会社を保存できませんでした。前回の保存データは残っています。"
 		old_game.process_mode = Node.PROCESS_MODE_DISABLED
 		_disconnect_game_signals(old_game)
 		old_game.queue_free()
@@ -538,6 +585,8 @@ func return_to_menu(message: String = "会社を閉じました。次の制作�
 	while is_instance_valid(old_game):
 		await get_tree().process_frame
 	game_node = null
+	_slot = 0
+	_slot_progress = {}
 	_canvas.visible = true
 	_film_set.set_case_note(message)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

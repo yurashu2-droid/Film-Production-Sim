@@ -36,10 +36,12 @@ var _cam: Camera3D
 var _sig := ""
 var _due := -1.0
 var _busy := false
+var _return_ink := {}
 var _layers := {}                    # 物のID → [見た目, 元の layers] の一覧
 
 
 func setup() -> void:
+	Logo.set_logo(null)
 	_build_hooks()
 	_build_camera()
 	_hide_old_sign()
@@ -297,10 +299,20 @@ func hang_layout(group: Array, anchor: int) -> Dictionary:
 	return out
 
 
+# 帰社時に初期配置へ戻る板から、会社の看板の絵だけを引き継ぐ。
+func hook_return_office() -> void:
+	_return_ink.clear()
+	for pid: int in members:
+		var board: Node = game.props.get(pid)
+		if board != null:
+			_return_ink[pid] = board.get_state()
+
+
 # 帰社：掛けた看板は、片づけない（置き場所を戻す処理のあとで、掛け直す）。倒産して新しい会社になったら、外す
 func hook_office_ready() -> void:
 	var flow: Node = game.production
 	if not hung():
+		_return_ink.clear()
 		return
 	if flow != null and int(flow.day) <= 1:
 		var home: Dictionary = flow._home_layout
@@ -310,14 +322,63 @@ func hook_office_ready() -> void:
 			var q: RigidBody3D = game.props.get(id)
 			if q != null and home.has(id):
 				q.restore(home[id])
+		_return_ink.clear()
 		game.host_ev("csign", [[], true])
 		return
 	_place_all()
+	for pid: int in _return_ink:
+		var board: Node = game.props.get(pid)
+		if board != null:
+			board._apply_extra(_return_ink[pid])
+	_return_ink.clear()
 
 
 # 1日目の段取り（tutorial_day.gd）が板を出すとき、掛けてある板は使わない
 func in_use(p: Node) -> bool:
 	return p != null and int(p.pid) in members
+
+
+func checkpoint() -> Dictionary:
+	if not hung():
+		return {}
+	var sheets := _sheets()
+	var boards: Dictionary = {}
+	var order: Array[int] = []
+	for pid: int in members:
+		var board: Node = game.props.get(pid)
+		var i := sheets.find(board)
+		if i < 0:
+			return {}
+		boards[i] = board.get_state()
+		order.append(i)
+	var joints: Array = []
+	for pair: Dictionary in glue:
+		var a := sheets.find(game.props.get(pair.a))
+		var b := sheets.find(game.props.get(pair.b))
+		if a in boards and b in boards:
+			joints.append([a, b, pair.pa, pair.pb])
+	return {"order": order, "boards": boards, "joints": joints}
+
+
+func restore_checkpoint(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	var sheets := _sheets()
+	var boards: Dictionary = data.boards
+	for i: int in data.order:
+		if i < 0 or i >= sheets.size():
+			return
+	for i: int in data.order:
+		var board: RigidBody3D = sheets[i]
+		var state: Array = boards[i]
+		board.restore(state)
+		layout[board.pid] = board.global_transform
+		members.append(board.pid)
+	for joint: Array in data.joints:
+		glue.append({"a": sheets[joint[0]].pid, "b": sheets[joint[1]].pid,
+			"pa": joint[2], "pb": joint[3], "joined": true})
+	game.hooks.feature("spray_sign").hook_office_ready()
+	game.host_ev("csign", [members, false])
 
 
 func hook_events() -> Array:

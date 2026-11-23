@@ -412,7 +412,7 @@ func _build_lobby(menu: Node) -> void:
 	lobby_rows.add_child(settings)
 	if can_leave:
 		var leave_button := _button("会社を閉じる" if Net.mode in ["solo", "host"] else "会社を出る", "slate", 17, 44)
-		leave_button.tooltip_text = "現在の会社の残金と撮影は終了します。"
+		leave_button.tooltip_text = "次回は最後に保存した事務所から再開します。" if Net.is_host() else "ホストの会社から退出します。"
 		FilmSet.style_sign_button(leave_button, "tomato", 19, 46)
 		leave_button.pressed.connect(func(): menu.return_to_menu())
 		lobby_rows.add_child(leave_button)
