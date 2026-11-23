@@ -107,6 +107,7 @@ var _stand := Vector3.INF            # 講師が向かっている所
 var _t := 0.0
 var _field_words := ""
 var _field_focus := Vector3.INF
+var _field_stand := Vector3.INF
 var _departure: Tween
 
 
@@ -445,6 +446,8 @@ func _place(delta: float, focus: Vector3 = Vector3.INF) -> void:
 	var guides: Node = game.hooks.feature("holo_guides")
 	var base: Vector3 = at if at != Vector3.INF else flow.HOME_SET + (guides.CAM_AT if guides != null else Vector3(0, 0, 5)) + Vector3(0.9, 0.0, 0.6)
 	var stand := Vector3(base.x, 0.0, base.z) + BESIDE
+	if _field_stand != Vector3.INF:
+		stand = _field_stand
 	if _stand == Vector3.INF or stand.distance_to(_stand) > 1.4:
 		_go(stand)
 	# 講師の像は、ドローンの真下。少し遅れてついて来て、飛んでいる間は乱れる
@@ -538,7 +541,7 @@ func _fade(v: float) -> void:
 
 
 # 初めて使う道具の案内も、初日の案内と同じ講師・ドローンを使う。
-func show_field_tip(words: String, focus: Vector3) -> void:
+func show_field_tip(words: String, focus: Vector3, stand: Vector3 = Vector3.INF) -> void:
 	if _departure != null:
 		_departure.kill()
 	if not on and _field_words.is_empty():
@@ -548,6 +551,7 @@ func show_field_tip(words: String, focus: Vector3) -> void:
 		_fade(1.0)
 	_field_words = words
 	_field_focus = focus
+	_field_stand = stand
 	_speech.face = "normal"
 	_vis.play("ORDER", 0.15, true)
 	Sfx.play("ui_select", null, -12.0)
@@ -558,6 +562,7 @@ func close_field_tip() -> void:
 		return
 	_field_words = ""
 	_field_focus = Vector3.INF
+	_field_stand = Vector3.INF
 	_vis.play("idle", 0.2)
 	if not on:
 		_leave()
