@@ -1,0 +1,50 @@
+[
+  {
+    "file": "S051_street_lamp_simple.glb",
+    "mesh_batches": 2,
+    "triangles": 634,
+    "blender_bounds_min": [
+      -0.125,
+      -0.125,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.125,
+      0.125,
+      1.2940000295639038
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "S096_giant_clock_simple.glb",
+    "mesh_batches": 4,
+    "triangles": 1204,
+    "blender_bounds_min": [
+      -0.30000001192092896,
+      -0.17500001192092896,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.30000001192092896,
+      0.1599999964237213,
+      1.399999976158142
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "S059_vending_machine_simple.glb",
+    "mesh_batches": 7,
+    "triangles": 3892,
+    "blender_bounds_min": [
+      -0.4000000059604645,
+      -0.2720000147819519,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4000000059604645,
+      0.25,
+      1.5
+    ],
+    "textures_embedded": false
+  }
+]

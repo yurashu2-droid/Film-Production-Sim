@@ -1,0 +1,2 @@
+requests==2.32.5
+capcut-tts @ git+https://github.com/jutlyne/capcut-tts.git@150e49bee79462f83f527498535cd39ad5c74dcb

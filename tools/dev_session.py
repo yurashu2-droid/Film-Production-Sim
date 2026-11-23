@@ -87,7 +87,7 @@ class Session:
         except (OSError, ValueError, KeyError) as error:
             raise SessionError("Session is unavailable. Run start; log: " + str(self.log)) from error
 
-    def start(self, mode="headless"):
+    def start(self, mode="headless", play=False):
         if mode not in ("headless", "render"):
             raise SessionError("Mode must be headless or render")
         if mode == "render" and os.name != "nt":
@@ -117,6 +117,9 @@ class Session:
             # Start outside the desktop; the runner hides and unfocuses its window.
             command += ["--position", "-32000,-32000"]
         command += ["--", "--dev-port=" + str(port), "--dev-token=" + config["token"]]
+        if play:
+            # Play as a player would: title screen, day-one intro and daily stock stay on
+            command += ["--dev-play"]
         options = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
         if os.name == "nt":
             options["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
@@ -188,6 +191,7 @@ def main():
     start = commands.add_parser("start")
     start.add_argument("--mode", choices=["headless", "render"], default="headless")
     start.add_argument("--scene")
+    start.add_argument("--play", action="store_true", help="Run the game as in normal play (not as an automatic check)")
     for command in ["status", "stop", "watch"]:
         commands.add_parser(command)
     request = commands.add_parser("request", help="Send an operation as JSON, or '-' to read JSON from stdin")
@@ -208,7 +212,7 @@ def main():
     try:
         session = Session(args.project, args.name, args.engine)
         if args.command == "start":
-            result = session.start(args.mode)
+            result = session.start(args.mode, args.play)
             if args.scene:
                 session.request({"op": "load", "scene": args.scene})
                 result = session.request({"op": "status"})

@@ -1,0 +1,47 @@
+{
+  "bundle": "Human Base Meshes v1.4.1",
+  "author": "Julien Kaspar",
+  "license": "CC0",
+  "source_url": "https://www.blender.org/download/demo-files/",
+  "source_sha256": "3c121505651140ceb4d69fd1d8923f7788ffadd81672f5be14845a5f2c75c137",
+  "objects": {
+    "GEO-head_stylized": {
+      "vertices": 4118,
+      "polygons": 4134,
+      "relative_location": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "GEO-head_stylized.eye.R": {
+      "vertices": 802,
+      "polygons": 832,
+      "relative_location": [
+        -0.04401803016662598,
+        -0.09320104867219925,
+        0.1725999116897583
+      ]
+    },
+    "GEO-head_stylized.eye.L": {
+      "vertices": 802,
+      "polygons": 832,
+      "relative_location": [
+        0.04401803016662598,
+        -0.09320104867219925,
+        0.1725999116897583
+      ]
+    },
+    "GEO-body_female_stylized": {
+      "vertices": 12502,
+      "polygons": 12500,
+      "relative_location": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "metadata_evidence": "Head - Stylized and Body Female - Stylized collection asset_data inspected in the source bundle",
+  "usage": "Head topology is adapted in the rendered character; full female body is a hidden editable fitting reference."
+}

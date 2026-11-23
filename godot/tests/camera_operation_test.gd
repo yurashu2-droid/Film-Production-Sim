@@ -69,6 +69,11 @@ func run() -> void:
 	Input.action_release("move_forward")
 	check(player.global_position.distance_to(start) > 0.1,"walking resumes from the original spot")
 	print("CAMERA_OPERATION_TEST_FAIL" if failed else "CAMERA_OPERATION_TEST_OK")
+	# 鳴っている音を止めてから、数コマ待って終える（すぐ終えると、使い終わっていない音が残る）
+	var sfx := root.get_node_or_null("Sfx")
+	if sfx != null:
+		sfx.silence_all()
 	game.queue_free()
-	await process_frame
+	for i in 8:
+		await process_frame
 	quit(1 if failed else 0)

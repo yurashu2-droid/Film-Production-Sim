@@ -1,0 +1,10 @@
+{
+  "status": "succeeded",
+  "path": "/review.png",
+  "file_id": "file_00000000a100820686616d1eaf331226",
+  "library_file_id": "libfile_3d23c5d58ac08191bd86e396b3428dda",
+  "version": 0,
+  "mime_type": "image/png",
+  "file_size_bytes": 472709,
+  "local_metadata_helper": "unsupported on Windows: os.setxattr is unavailable; identity retained in this ledger"
+}

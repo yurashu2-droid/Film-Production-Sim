@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "scrap_walkie_talkie",
+    "original_file": "P053_walkie_talkie",
+    "file": "P053_walkie_talkie_rebuilt"
+  },
+  {
+    "kind": "scrap_headset",
+    "original_file": "P054_headset",
+    "file": "P054_headset_rebuilt"
+  },
+  {
+    "kind": "scrap_headphones",
+    "original_file": "P055_headphones",
+    "file": "P055_headphones_rebuilt"
+  },
+  {
+    "kind": "scrap_lens_case",
+    "original_file": "P058_lens_case",
+    "file": "P058_lens_case_rebuilt"
+  },
+  {
+    "kind": "scrap_tabletop_tripod",
+    "original_file": "P059_tabletop_tripod",
+    "file": "P059_tabletop_tripod_rebuilt"
+  },
+  {
+    "kind": "scrap_audio_recorder",
+    "original_file": "P060_audio_recorder",
+    "file": "P060_audio_recorder_rebuilt"
+  },
+  {
+    "kind": "scrap_field_mixer",
+    "original_file": "P061_field_mixer",
+    "file": "P061_field_mixer_rebuilt"
+  },
+  {
+    "kind": "scrap_portable_monitor",
+    "original_file": "P062_portable_monitor",
+    "file": "P062_portable_monitor_rebuilt"
+  }
+]

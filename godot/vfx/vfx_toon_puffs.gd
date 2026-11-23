@@ -12,6 +12,8 @@ var _size := 1.0
 var _tint := Color.WHITE
 var _frame := -1
 var _mm: MultiMesh
+var _mat: ShaderMaterial
+var rise := 0.2           # 動き終えた後も上へ流れ続ける速さ（m/秒 × size）。霧や湯気は 0.8〜1.5 にする
 
 
 static func spawn(parent: Node, pos: Vector3, plan: Array, size: float = 1.0, tint: Color = Color.WHITE) -> Node3D:
@@ -37,11 +39,19 @@ func start(plan: Array, size: float, tint: Color) -> void:
 	_mm.instance_count = plan.size()
 	var holder := MultiMeshInstance3D.new()
 	holder.multimesh = _mm
-	holder.material_override = Lib.material("flipbook", {"sheet": Lib.tex("smoke_flipbook_n7.png")})
+	_mat = Lib.material("flipbook", {"sheet": Lib.tex("smoke_flipbook_n7.png")})
+	holder.material_override = _mat
 	holder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.custom_aabb = AABB(Vector3.ONE * -8.0 * size, Vector3.ONE * 16.0 * size)
 	add_child(holder)
 	_pose(0.0)
+
+
+# 塗りの色を替える（既定は土煙の暖色。tint は掛け算なので、tint だけでは青白くならない）。start() の後に呼ぶ
+func recolor(light: Vector3, shade: Vector3, ink: Vector3) -> void:
+	_mat.set_shader_parameter("light", light)
+	_mat.set_shader_parameter("shade", shade)
+	_mat.set_shader_parameter("ink", ink)
 
 
 func _tick(_delta: float) -> void:
@@ -63,7 +73,7 @@ func _pose(now: float) -> void:
 			var travel := ease_out(clampf(t / 0.32, 0.0, 1.0))
 			var pop := lerpf(0.5, 1.15, t / 0.07) if t < 0.07 else (lerpf(1.15, 1.0, (t - 0.07) / 0.12) if t < 0.19 else 1.0)
 			dia = float(p[3]) * _size * pop
-			pos = (p[1] as Vector3).normalized() * float(p[2]) * _size * travel + Vector3.UP * 0.2 * t * _size
+			pos = (p[1] as Vector3).normalized() * float(p[2]) * _size * travel + Vector3.UP * rise * t * _size
 			pos.y = maxf(pos.y, dia * 0.42)
 			# 最初の4コマは丸い煙のまま少し保ち、そのあと欠けていく
 			shot = floor(clampf(k * 1.15 - 0.15, 0.0, 0.999) * FRAMES)

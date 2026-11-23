@@ -1,0 +1,336 @@
+extends Node
+## 役に入る（兼任）：台本の役者 A・B を、班の誰か（プレイヤー）か等身大パネルが演じる。
+##   ・役に入るのは Y（見立てと同じキー。準備中だけ）。何も狙っていない・持っていないときの Y で、自分が A → B → やめる。
+##     等身大パネルを狙って（持って）Y：A → B → 物の役の見立てへ戻る（城・怪獣など）
+##   ・役に入った人には、役ごとの安い作り物（帽子・ネクタイ・社員証など。scripts/role_props.gd）が、ぽんと付く（映画にも映る衣装）。
+##     何を付けるかは、台本の役の名前で決める（社長＝シルクハットとネクタイ など）。名前の無い役は、役の色の紙の帽子
+##   ・役に入っている間、NPC の役者は姿を消して、その人に付いていく（actor.gd の stand_in）。
+##     判定・場面の進め方・試写会は、その人の位置と動きで数える。役に入った人は「映り込み」に数えない（production_notes.gd）
+##   ・誰も入っていない役は、発注（電話）で雇った役者が演じる。ベテラン（高い・確実）か、劇団の新人（安い・出遅れる・通り過ぎる・
+##     転ぶ・せりふで固まる。actor.gd）。雇わなければ、その役は誰も演じない（NPC の役者は姿を消す）。
+##     自動確認の中だけは、ベテランが無料で付く（今までの確認が、NPC の役者の動きを前提にしているため。flow.daily が false のとき）
+## 決めるのはホスト（h_cast_actor）。誰が何の役かは、"stand_in" の合図で全員へ配る
+const CREW_LAYER := 1 << 11
+const ROLE_NAMES := ["A", "B", "C", "D"]          # 役者は台本ごとに最大4人。何人かは台本の "cast"（production_beats.gd の cast_count）
+const RoleProps := preload("res://scripts/role_props.gd")
+const Scripts := preload("res://scripts/production_script.gd")
+const SASH := [Color("e8768f"), Color("4f8fd1"), Color("6fca7f"), Color("f2a64a")]     # 役の印の色（A＝桃・B＝青・C＝緑・D＝橙）とそろえる
+const REACH := 3.8 + 2.0                            # 等身大パネルに役を付けられる距離（見立てと同じ。player.gd の REACH ＋ 2m）
+
+var game: Node
+var holders: Array = [["", 0], ["", 0], ["", 0], ["", 0]]     # 役ごとに [種類（"player"・"prop"・""）, 番号（プレイヤーの番号・物のID）]
+var _marks := {}                            # 役に入っている人・物 → [付けた物の入れ物, 札（使わない）, 役, 帽子, 額の物, 頭からてっぺんまで]
+var plan: Array = ["pro", "pro", "none", "none"]     # 役ごとに、誰が演じるか（"stand"・"pro"・"rookie"・"none"。全員の画面）
+
+
+# 役を決め直せる時：準備中と、カット割りの本番の場転（フィルムを止めている間。着替えて、次の役になる）
+func _may_cast() -> bool:
+	if game.state == game.S.PREP:
+		return true
+	return game.state == game.S.TAKE and game.get("beats") != null and bool(game.beats.holding)
+
+
+# この台本の役者の人数（役は A から順に、この数まで）
+func _cast_n() -> int:
+	return int(game.beats.cast_count()) if game.get("beats") != null else 2
+
+
+# ---- 役を決める（ホスト） ----
+
+@rpc("any_peer", "call_local", "reliable")
+func h_cast_actor(kind: String, ref: int, role: int) -> void:
+	if not Net.is_host() or game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
+		return
+	var who: int = Net.sender()
+	if kind == "player" and ref != who:
+		return                        # 自分の役だけを決められる
+	if kind == "prop":
+		var me: Node = game.players.get(who)
+		var panel: Node = game.props.get(ref)
+		if me == null or panel == null or panel.kind != "standin" or panel.absent:
+			return
+		if panel.holder != who and me.reach_base().distance_to(panel.center_global()) > REACH:
+			return
+	var table: Array = holders.duplicate(true)
+	for i in table.size():
+		if str(table[i][0]) == kind and int(table[i][1]) == ref:
+			table[i] = ["", 0]        # 前の役から抜ける
+	if role >= 0 and role < mini(table.size(), _cast_n()):
+		table[role] = [kind, ref]     # その役にいた人は、役から外れる
+	game.host_ev("stand_in", [table])
+
+
+# 役に入っているか（-1＝入っていない / 0＝A / 1＝B）
+func role_of(kind: String, ref: int) -> int:
+	for i in holders.size():
+		if str(holders[i][0]) == kind and int(holders[i][1]) == ref:
+			return i
+	return -1
+
+
+# ---- 全員の画面：役に入った人に、役者を付ける ----
+
+func hook_events() -> Array:
+	return ["stand_in", "actor_plan"]
+
+
+func hook_event(n: String, a: Array) -> void:
+	if n == "stand_in":
+		_apply(a[0])
+	elif n == "actor_plan":
+		plan = (a[0] as Array).duplicate()
+		for i in mini(plan.size(), (game.actors as Array).size()):
+			game.actors[i].set_grade(str(plan[i]))
+
+
+func hook_sync(who: int) -> void:
+	if multiplayer.is_server() and who != multiplayer.get_unique_id():
+		game.ev.rpc_id(who, "stand_in", [holders])
+		game.ev.rpc_id(who, "actor_plan", [plan])
+
+
+# 誰が演じるかを、役に入った人と、決めた発注（雇った役者）から決める（ホスト）
+func _physics_process(_delta: float) -> void:
+	if not Net.is_host() or game.production == null or (game.actors as Array).size() < 2:
+		return
+	var want := plan_now()
+	if want != plan:
+		game.host_ev("actor_plan", [want])
+
+
+func plan_now() -> Array:
+	var flow: Node = game.production
+	var pros := int(flow.ordered.get("actor_pro", 0))
+	var rookies := int(flow.ordered.get("actor_new", 0))
+	if not bool(flow.daily):
+		pros = _cast_n()                # 自動確認の中：ベテランが無料で付く
+	var out: Array = []
+	for i in holders.size():
+		if i >= _cast_n():
+			out.append("none")          # この台本に無い役
+		elif str(holders[i][0]) != "":
+			out.append("stand")
+		elif pros > 0:
+			out.append("pro")
+			pros -= 1
+		elif rookies > 0:
+			out.append("rookie")
+			rookies -= 1
+		else:
+			out.append("none")
+	return out
+
+
+# 帰社したら、みんな役から抜ける（次の依頼で、また決める）
+func hook_return_office() -> void:
+	if Net.is_host():
+		game.host_ev("stand_in", [[["", 0], ["", 0], ["", 0], ["", 0]]])
+
+
+func _apply(table: Array) -> void:
+	var me: Node = game.local_player()
+	var mine_before: int = role_of("player", int(me.peer_id)) if me != null else -1
+	holders = table.duplicate(true)
+	for i in mini(holders.size(), (game.actors as Array).size()):
+		var body: Node3D = _resolve(str(holders[i][0]), int(holders[i][1]))
+		var actor: Node = game.actors[i]
+		if actor.stand_in != body:
+			actor.set_stand_in(body)
+	_refresh_marks()
+	var mine: int = role_of("player", int(me.peer_id)) if me != null else -1
+	if mine != mine_before and game.get("hud") != null:
+		if mine >= 0:
+			game.hud.show_toast("役者%sに入った。台本の %s のせりふと動きを演じる（もう一度 Y で、ほかの役・やめる）" % [ROLE_NAMES[mine], ROLE_NAMES[mine]], game.hud.GREEN, 3.4)
+		else:
+			game.hud.show_toast("役から抜けた（裏方にもどる）", game.hud.YELLOW)
+
+
+func _resolve(kind: String, ref: int) -> Node3D:
+	match kind:
+		"player":
+			return game.players.get(ref)
+		"prop":
+			var p: Node = game.props.get(ref)
+			return p if p != null and not p.absent else null
+	return null
+
+
+# 役の小物を付け直す（役から抜けた人・物からは外す）
+func _refresh_marks() -> void:
+	var want := {}
+	for i in holders.size():
+		var body: Node3D = _resolve(str(holders[i][0]), int(holders[i][1]))
+		if body != null:
+			want[body] = i
+	for body: Object in _marks.keys():
+		if not want.has(body) or not is_instance_valid(body) or not is_instance_valid(_marks[body][0]) or int(_marks[body][2]) != int(want.get(body, -1)):
+			for n: Variant in (_marks[body] as Array).slice(0, 2):
+				if n is Node and is_instance_valid(n):
+					(n as Node).queue_free()
+			_marks.erase(body)
+	for body: Node3D in want:
+		if not _marks.has(body):
+			_marks[body] = _wear(body, int(want[body]))
+
+
+# 役の名前（台本の "cast"。無ければ ""）
+func _role_name(role: int) -> String:
+	var flow: Node = game.production
+	if flow == null or game.get("beats") == null or not bool(game.beats.active()):
+		return ""
+	var names: Array = Scripts.cast(flow.chosen_job)
+	return str(names[role]) if role < names.size() else ""
+
+
+# 役の小物を付ける：帽子は頭のてっぺん、胸の物は胸の前、額の物は額（_process で頭について行く）。付く時は、ぽんとはずむ
+func _wear(body: Node3D, role: int) -> Array:
+	var holder: Node3D = body.get("vis") if body.get("vis") is Node3D else body
+	var box := Node3D.new()
+	box.name = "RoleProps"
+	holder.add_child(box)
+	var parts: Dictionary = RoleProps.make(_role_name(role), SASH[role])
+	var front: Vector3 = holder.global_basis.z.normalized()
+	var chest_item: Node3D = parts["chest"]
+	if chest_item != null:
+		box.add_child(chest_item)
+		chest_item.global_position = chest_at(holder, body) + front * _front_reach(holder, 0.16)
+		chest_item.global_rotation = holder.global_rotation
+	for key: String in ["hat", "brow"]:
+		if parts[key] != null:
+			box.add_child(parts[key])
+	var mark := [box, null, role, parts["hat"], parts["brow"], _top_offset(holder, body)]
+	_follow_head(holder, body, mark)
+	for n: Node in box.get_children():
+		var item := n as Node3D
+		var size := item.scale
+		item.scale = size * 0.01
+		if is_inside_tree():
+			var pop := create_tween()
+			pop.tween_property(item, "scale", size, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		else:
+			item.scale = size
+	if is_inside_tree() and not box.get_children().is_empty():
+		Sfx.play("ui_select", holder.global_position + Vector3(0, 1.2, 0), -10.0)
+	return mark
+
+
+# 胸の物（ネクタイ・社員証）を下げる所：腰の骨と頭の骨の間の 7 割の高さ（襟元のあたり）。
+# cast_visual.gd の chest_pos は、キャラによっては顔の高さになった（黒いコートのキャラで、ネクタイが顔に掛かった）
+func chest_at(holder: Node3D, body: Node3D) -> Vector3:
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var head := skel.find_bone("HEAD") if skel != null else -1
+	var hips := skel.find_bone("BODY") if skel != null else -1
+	if head < 0 or hips < 0:
+		return holder.chest_pos() if holder.has_method("chest_pos") else body.global_position + Vector3(0, 1.1, 0)
+	var h: Vector3 = skel.global_transform * skel.get_bone_global_pose(head).origin
+	var w: Vector3 = skel.global_transform * skel.get_bone_global_pose(hips).origin
+	return w.lerp(h, 0.7)
+
+
+# 体の前の面までの距離のめやす（胸の物・額の物を、体にめり込ませない）。骨の無い物（等身大パネル）は、板の表のすぐ前
+func _front_reach(holder: Node3D, fallback: float) -> float:
+	if holder.get("skel") == null:
+		return 0.05
+	var depth := 0.0
+	for mi: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null:
+			continue
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		depth = maxf(depth, b.size.z * 0.5)
+	return clampf(depth * 0.85, fallback * 0.6, 0.45) if depth > 0.0 else fallback
+
+
+# 頭の骨から、頭のてっぺんまでの高さ（m）。骨の無い物（等身大パネル）は、足元からてっぺんまで
+func _top_offset(holder: Node3D, body: Node3D) -> float:
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var bone := skel.find_bone("HEAD") if skel != null else -1
+	if bone < 0:
+		return float(body.get("center").y + body.get("half").y) if body.get("half") != null else 1.8
+	var top := -INF
+	for mi: MeshInstance3D in holder.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null:
+			continue
+		var b: AABB = mi.global_transform * mi.get_aabb()
+		top = maxf(top, b.end.y)
+	var head: float = (skel.global_transform * skel.get_bone_global_rest(bone).origin).y
+	return maxf(top - head, 0.06) if top > -INF else 0.25
+
+
+# 帽子と額の物を、いまの頭の場所へ（しゃがむ・跳ねるにもついて行く）
+func _follow_head(holder: Node3D, body: Node3D, mark: Array) -> void:
+	if not is_instance_valid(mark[0]):
+		return
+	var hat: Node3D = mark[3]
+	var brow: Node3D = mark[4]
+	if hat == null and brow == null:
+		return
+	var skel: Skeleton3D = holder.get("skel") as Skeleton3D
+	var bone := skel.find_bone("HEAD") if skel != null else -1
+	var up := Vector3.UP
+	var top: Vector3
+	if bone >= 0:
+		top = skel.global_transform * skel.get_bone_global_pose(bone).origin + up * (float(mark[5]) - 0.035)
+	else:
+		top = body.global_position + up * float(mark[5])
+	var yaw := Basis(Vector3.UP, holder.global_rotation.y)
+	if hat != null and is_instance_valid(hat):
+		hat.global_transform = Transform3D(yaw, top) * Transform3D(Basis.from_scale(hat.scale), Vector3.ZERO)
+	if brow != null and is_instance_valid(brow):
+		var front: Vector3 = holder.global_basis.z.normalized()
+		if mark.size() < 7:
+			mark.append(_front_reach(holder, 0.12))          # 体の前までの距離は、最初の 1 回だけ測る
+		var at := top - up * (float(mark[5]) * 0.42) + front * float(mark[6]) * 0.9
+		brow.global_transform = Transform3D(yaw, at) * Transform3D(Basis.from_scale(brow.scale), Vector3.ZERO)
+
+
+func _process(_delta: float) -> void:
+	for body: Object in _marks.keys():
+		if not is_instance_valid(body):
+			continue
+		var b := body as Node3D
+		var mark: Array = _marks[body]
+		if not is_instance_valid(mark[0]):
+			# キャラを替えた（C）：見た目ごと作り直されて、小物も一緒に消えた。新しい見た目に付け直す
+			_marks[body] = _wear(b, int(mark[2]))
+			mark = _marks[body]
+		var holder: Node3D = b.get("vis") if b.get("vis") is Node3D else b
+		_follow_head(holder, b, mark)
+
+
+# ---- 自分の操作：Y ----
+
+func hook_key(event: InputEvent, me: Node) -> bool:
+	if not Keybinds.pressed(event, "cast_role"):
+		return false
+	if game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
+		return false
+	var subject: Node = game.props.get(me.held) if me.held != 0 else me.target
+	if subject == null:
+		# 自分：入っていない → A → B → やめる
+		var now: int = role_of("player", int(me.peer_id))
+		h_cast_actor.rpc_id(1, "player", int(me.peer_id), now + 1 if now < _cast_n() - 1 else -1)
+		return true
+	if subject.kind == "standin":
+		var now: int = role_of("prop", int(subject.pid))
+		if now == _cast_n() - 1:
+			# B のあとは、役者の役をやめて、物の役の見立て（城・怪獣など）へ。この Y は見立てにも回す
+			h_cast_actor.rpc_id(1, "prop", int(subject.pid), -1)
+			return false
+		if now >= 0 or str(game.production.role_of(subject)) == "":
+			h_cast_actor.rpc_id(1, "prop", int(subject.pid), now + 1)
+			return true
+	return false
+
+
+func hook_hud(me: Node, _label: String, _keys: String) -> Dictionary:
+	if game.production == null or int(game.production.phase) not in [2, 4] or not _may_cast():
+		return {}
+	if me.held == 0 and me.target == null:
+		var now: int = role_of("player", int(me.peer_id))
+		return {"keys": "Y %s" % ("役をやめる" if now >= _cast_n() - 1 else "役者%sになる" % ROLE_NAMES[now + 1])}
+	var subject: Node = game.props.get(me.held) if me.held != 0 else me.target
+	if subject != null and subject.kind == "standin":
+		var now: int = role_of("prop", int(subject.pid))
+		if now >= 0:
+			return {"tail": "　（役者%s）" % ROLE_NAMES[now]}
+	return {}

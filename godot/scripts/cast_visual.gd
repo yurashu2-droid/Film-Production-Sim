@@ -8,7 +8,7 @@ const RUN_START_ORIGINAL_ANTICIPATION := 0.08
 const RUN_START_ANTICIPATION := 0.16
 const RUN_START_ACCELERATION := 0.2
 const LOOPS := ["idle", "walk", "run", "crouch_idle", "crouch_walk"]
-const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "glue", "crown", "fish"]
+const ONE_HAND_PROPS := ["clapper", "rose", "letter", "tape", "glue", "crown", "fish", "hair_cord"]
 const GROUNDED := ["idle", "walk", "run", "run_start", "run_stop", "step_down", "crouch_idle", "crouch_walk"]
 const SOLE_CLEARANCE := 0.002
 static var _foot_support_cache: Dictionary = {}
@@ -27,6 +27,7 @@ var grounding_enabled := bool(ProjectSettings.get_setting("animation/foot_ground
 		if is_instance_valid(_model):
 			_update_grounding()
 var _model: Node3D
+var _hand_props: SkeletonModifier3D        # 元から手に持っている小道具を外す（hand_props_hide.gd）
 var _foot_points: Dictionary = {}
 var _head := -1
 var _body := -1
@@ -34,9 +35,10 @@ var _blink := 2.0
 var _blinking := 0.0
 
 
-func setup(cast_tag: String) -> void:
+# model_path：別の場所の同じ作りのモデル（紹介動画の依頼主たち。godot/trailer/）。空なら assets/cast の castNN_game.glb
+func setup(cast_tag: String, model_path := "") -> void:
 	tag = cast_tag
-	var model: Node3D = (load("res://assets/cast/cast%s_game.glb" % tag) as PackedScene).instantiate()
+	var model: Node3D = (load(model_path if model_path != "" else "res://assets/cast/cast%s_game.glb" % tag) as PackedScene).instantiate()
 	_model = model
 	model.scale = Vector3.ONE * SCALE
 	add_child(model)
@@ -52,6 +54,10 @@ func setup(cast_tag: String) -> void:
 	_setup_face()
 	_setup_transitions()
 	_setup_carry()
+	_hand_props = preload("res://scripts/hand_props_hide.gd").new()
+	_hand_props.name = "HandPropsHide"
+	skel.add_child(_hand_props)
+	_hand_props.setup(skel)
 	_setup_grounding()
 	skel.skeleton_updated.connect(_update_grounding)
 	play("idle")
@@ -60,6 +66,11 @@ func setup(cast_tag: String) -> void:
 
 # 書き出された動きは全部の骨を含んでいるので、体の動きから顔の骨を、表情から体の骨を外して重ねられるようにする
 func _setup_face() -> void:
+	if tag == "M02":
+		face_anim = preload("res://scripts/robot_screen_face.gd").new()
+		add_child(face_anim)
+		face_anim.setup(_model)
+		return
 	var prefix := tag + "_face_"
 	var faces: Array = []
 	for a: String in anim.get_animation_list():
@@ -125,7 +136,7 @@ func _setup_carry() -> void:
 		return
 	var grab := anim.get_animation(tag + "_grab")
 	var lib := anim.get_animation_library("")
-	for base: String in ["idle", "walk", "run", "jump", "step_down", "run_stop"]:
+	for base: String in ["idle", "walk", "run", "jump", "step_down", "run_stop", "crouch_idle", "crouch_walk"]:
 		if not has(base):
 			continue
 		for mode: String in ["carry", "onehand"]:
@@ -205,6 +216,12 @@ func _update_grounding() -> void:
 	_model.position.y = maxf(0.0, SOLE_CLEARANCE - bottom)
 
 
+# 元から手に持っている小道具（バラ・クリップボード・木づち・カチンコなど）を外す・戻す。物を持っている間は外す
+func hide_hand_props(on: bool) -> void:
+	if _hand_props != null and _hand_props.hidden != on:
+		_hand_props.hidden = on
+
+
 func has(a: String) -> bool:
 	return anim.has_animation(tag + "_" + a)
 
@@ -231,7 +248,9 @@ func set_face(f: String) -> void:
 		return
 	face = f
 	if face_anim and face_anim.has_animation(f):
-		face_anim.play(f, 0.12)
+		face_anim.play(f, 0.0 if tag == "M02" else 0.12)
+		if tag == "M02":
+			face_anim.advance(0.0) # アトラスの状態間は混ぜず、先頭コマへ切り替える。
 		_blinking = 0.0
 
 

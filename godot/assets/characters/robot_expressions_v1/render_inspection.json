@@ -1,0 +1,16 @@
+{
+  "display_node": "/root/DevSession/Game/RobotExpressionsPreview/castM02_game2/CAST_M02_RIG/Skeleton3D/castM02_game_screen",
+  "expressions": [
+    "neutral",
+    "happy",
+    "surprised",
+    "worried",
+    "angry",
+    "sleep"
+  ],
+  "screen_aabb": "[P: (-0.347, 1.521, 0.448), S: (0.694, 0.61, 0.06)]",
+  "source_emission_energy": 1.0,
+  "source_texture_filter": 3,
+  "surface_count": 1,
+  "target": "CastM02"
+}

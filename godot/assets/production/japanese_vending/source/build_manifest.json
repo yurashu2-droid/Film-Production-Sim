@@ -1,0 +1,16 @@
+{
+  "file": "S059_vending_machine_jp.glb",
+  "mesh_batches": 10,
+  "triangles": 30100,
+  "blender_bounds_min": [
+    -0.4099999964237213,
+    -0.36500000953674316,
+    0.0
+  ],
+  "blender_bounds_max": [
+    0.4099999964237213,
+    0.28999999165534973,
+    1.5
+  ],
+  "textures_embedded": false
+}

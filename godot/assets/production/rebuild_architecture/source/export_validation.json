@@ -1,0 +1,485 @@
+[
+  {
+    "file": "S020_crooked_chimney_rebuilt.glb",
+    "bounds_error_max": 5.960464477539063e-08,
+    "ticket_clearances": [
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049,
+      0.01049
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.13443395495414734,
+      -0.3305555582046509,
+      0.8086934685707092
+    ]
+  },
+  {
+    "file": "S011_foam_column_rebuilt.glb",
+    "bounds_error_max": 2.384185791015625e-07,
+    "ticket_clearances": [
+      0.005,
+      0.005,
+      0.00776,
+      0.005,
+      0.005,
+      0.00776,
+      0.005,
+      0.005,
+      0.00776
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.07999999821186066,
+      -0.45500001311302185,
+      0.19999998807907104
+    ]
+  },
+  {
+    "file": "S010_freestanding_arch_rebuilt.glb",
+    "bounds_error_max": 2.384185791015625e-07,
+    "ticket_clearances": [
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -1.100000023841858,
+      -0.2370000034570694,
+      0.7519782185554504
+    ]
+  },
+  {
+    "file": "S001_hinged_door_wall_rebuilt.glb",
+    "bounds_error_max": 2.9802322387695312e-08,
+    "ticket_clearances": [
+      0.011,
+      0.011,
+      0.011,
+      0.011,
+      0.011,
+      0.011,
+      0.011,
+      0.011,
+      0.011
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.8299999833106995,
+      -0.0610000304877758,
+      1.350000023841858
+    ]
+  },
+  {
+    "file": "S002_saloon_swing_doors_rebuilt.glb",
+    "bounds_error_max": 2.384185791015625e-07,
+    "ticket_clearances": [
+      0.008,
+      0.008,
+      0.008,
+      0.008,
+      0.008,
+      0.008,
+      0.008,
+      0.008,
+      0.008
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.44999992847442627,
+      -0.10000003129243851,
+      0.5999999642372131
+    ]
+  },
+  {
+    "file": "S003_barred_cell_gate_rebuilt.glb",
+    "bounds_error_max": 2.9802322387695312e-08,
+    "ticket_clearances": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.49000000953674316,
+      -0.17000001668930054,
+      1.0399999618530273
+    ]
+  },
+  {
+    "file": "S004_barn_double_door_rebuilt.glb",
+    "bounds_error_max": 2.9802322387695312e-08,
+    "ticket_clearances": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.800000011920929,
+      -0.06000002473592758,
+      1.7799999713897705
+    ]
+  },
+  {
+    "file": "S005_sliding_shoji_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125,
+      0.0125
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.550000011920929,
+      -0.11999999731779099,
+      0.2800000011920929
+    ]
+  },
+  {
+    "file": "S006_sash_window_wall_rebuilt.glb",
+    "bounds_error_max": 5.960464477539063e-08,
+    "ticket_clearances": [
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.8700000047683716,
+      -0.0570000559091568,
+      1.350000023841858
+    ]
+  },
+  {
+    "file": "S008_porthole_bulkhead_rebuilt.glb",
+    "bounds_error_max": 2.9802322387695312e-08,
+    "ticket_clearances": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.6800000071525574,
+      -0.055000029504299164,
+      0.5799999833106995
+    ]
+  },
+  {
+    "file": "S009_serving_hatch_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048,
+      0.0048
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -1.0399999618530273,
+      -0.018696073442697525,
+      1.4199999570846558
+    ]
+  },
+  {
+    "file": "S012_timber_portal_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.015,
+      0.015,
+      0.015,
+      0.015,
+      0.015,
+      0.015,
+      0.015,
+      0.015,
+      0.015
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -1.2300000190734863,
+      -0.1599999964237213,
+      1.25
+    ]
+  },
+  {
+    "file": "S013_straight_stair_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.01318,
+      0.01318,
+      0.00586,
+      0.01318,
+      0.01318,
+      0.00586,
+      0.01318,
+      0.01318,
+      0.00586
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.3400000035762787,
+      -1.0553340911865234,
+      0.11991666257381439
+    ]
+  },
+  {
+    "file": "S014_turning_stair_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.01022,
+      0.01022,
+      0.00292,
+      0.01022,
+      0.01022,
+      0.00292,
+      0.01022,
+      0.01022,
+      0.00292
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.6000000238418579,
+      -0.8640000820159912,
+      0.11688239872455597
+    ]
+  },
+  {
+    "file": "S015_access_ramp_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065,
+      0.0065
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.6499999165534973,
+      -1.4208853244781494,
+      0.49147725105285645
+    ]
+  },
+  {
+    "file": "S017_trapdoor_platform_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.006,
+      0.006,
+      0.006,
+      0.006,
+      0.006,
+      0.006,
+      0.006,
+      0.006,
+      0.006
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.550000011920929,
+      -1.1710000038146973,
+      0.4121544659137726
+    ]
+  },
+  {
+    "file": "S018_plank_bridge_rebuilt.glb",
+    "bounds_error_max": 1.1920928955078125e-07,
+    "ticket_clearances": [
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.33000001311302185,
+      -1.556999921798706,
+      0.20000000298023224
+    ]
+  },
+  {
+    "file": "S019_gable_roof_rebuilt.glb",
+    "bounds_error_max": 1.1920928955078125e-07,
+    "ticket_clearances": [
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796,
+      0.00796
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      0.0,
+      -1.1029865741729736,
+      0.8526232242584229
+    ]
+  },
+  {
+    "file": "S021_scenic_fireplace_rebuilt.glb",
+    "bounds_error_max": 0.0,
+    "ticket_clearances": [
+      0.013,
+      0.013,
+      0.013,
+      0.013,
+      0.013,
+      0.013,
+      0.013,
+      0.013,
+      0.013
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.6700000166893005,
+      -0.27799999713897705,
+      0.6999999284744263
+    ]
+  },
+  {
+    "file": "S022_broken_arch_rebuilt.glb",
+    "bounds_error_max": 2.384185791015625e-07,
+    "ticket_clearances": [
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832,
+      0.00832
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -1.0842856168746948,
+      -0.10937696695327759,
+      0.7548694610595703
+    ]
+  },
+  {
+    "file": "S023_elevator_facade_rebuilt.glb",
+    "bounds_error_max": 1.1920928955078125e-07,
+    "ticket_clearances": [
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -1.1000001430511475,
+      -0.05700002983212471,
+      1.2999999523162842
+    ]
+  },
+  {
+    "file": "S024_folding_room_corner_rebuilt.glb",
+    "bounds_error_max": 1.1920928955078125e-07,
+    "ticket_clearances": [
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007,
+      0.007
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.5399999618530273,
+      -1.2082500457763672,
+      1.3600000143051147
+    ]
+  },
+  {
+    "file": "S025_sewer_entry_rebuilt.glb",
+    "bounds_error_max": 5.960464477539063e-08,
+    "ticket_clearances": [
+      0.009,
+      0.009,
+      0.009,
+      0.009,
+      0.009,
+      0.009,
+      0.009,
+      0.009,
+      0.009
+    ],
+    "ticket_missing_support_samples": 0,
+    "ticket_anchor": [
+      -0.8599098920822144,
+      -0.43400004506111145,
+      0.7504180669784546
+    ]
+  }
+]

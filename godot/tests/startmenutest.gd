@@ -35,6 +35,9 @@ func _reply(data: Dictionary) -> void:
 func _run() -> void:
 	await _wait(0.2)
 	_check(menu.game_node == null,"menu does not create a solo game before selection")
+	if role == "saves":
+		await _save_slots()
+		return
 	if role == "shot":
 		await RenderingServer.frame_post_draw
 		var image := get_viewport().get_texture().get_image()
@@ -42,6 +45,10 @@ func _run() -> void:
 		image.save_png("res://tests/shots/start-menu.png")
 		get_tree().quit()
 		return
+	menu._saves.directory = "user://menu_test_%d" % OS.get_process_id()
+	# This regression test exercises the existing LAN transport explicitly.
+	menu.connection_choice.select(1)
+	menu._connection_changed(1)
 	if role == "failure":
 		menu.address_input.text = "127.0.0.1"
 		menu.join_button.pressed.emit()
@@ -54,6 +61,7 @@ func _run() -> void:
 			get_tree().quit(1)
 			return
 		menu.solo_button.pressed.emit()
+		menu._save_picker.selected.emit(1)
 		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 			await _wait(0.05)
 		_check(menu.game_node != null and menu.game_node.players.size() == 1 and menu.game_node.local_player().is_local,"solo works after failed connection")
@@ -62,6 +70,7 @@ func _run() -> void:
 		return
 	if role in ["host","host-disconnect"]:
 		menu.host_button.pressed.emit()
+		menu._save_picker.selected.emit(1)
 		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 			await _wait(0.05)
 		_check(menu.game_node != null and Net.mode == "host","host button opens company")
@@ -94,6 +103,11 @@ func _run() -> void:
 		return
 	await _wait(0.7)
 	var game: Node = menu.game_node
+	# 事務所へ移す知らせは、名簿と物の状態の一式のあとに届く（物が多いと、少しかかる）。着くまで待つ
+	elapsed = 0.0
+	while not (game.local_player().position.x > 60 and game.players[1].position.x > 60) and elapsed < 5.0:
+		await _wait(0.1)
+		elapsed += 0.1
 	_check(game.startup_complete and get_tree().multiplayer_poll, "joining resumes network only after game is ready")
 	var locals := 0
 	for player: Node in game.players.values():
@@ -111,6 +125,8 @@ func _run() -> void:
 	_check(_host_state.get("count") == 2 and _host_state.get("locals") == 1 and _host_state.get("host_local",false) and _host_state.get("office",false) and _host_state.get("phase") == 0 and _host_state.get("path") == str(game.get_path()),"host roster and Game node path match")
 	if role == "client-disconnect":
 		var old_game: Node = game
+		var peer_left_count: int = Net.get_signal_connection_list("peer_left").size()
+		var joined_host_count: int = Net.get_signal_connection_list("joined_host").size()
 		elapsed = 0.0
 		while menu.game_node != null and elapsed < 5.0:
 			await _wait(0.1)
@@ -118,11 +134,64 @@ func _run() -> void:
 		_check(not is_instance_valid(old_game) and menu.game_node == null and menu._canvas.visible and not menu.solo_button.disabled and Net.mode == "solo" and multiplayer.multiplayer_peer is OfflineMultiplayerPeer,"host disconnect restores retry menu after Game freed")
 		_check(Sfx.current_music() == "" and Sfx._oneshots.is_empty() and Net.get_signal_connection_list("peer_left").is_empty() and Net.get_signal_connection_list("joined_host").size() == 1,"old audio and Game signal connections removed")
 		menu.solo_button.pressed.emit()
+		menu._save_picker.selected.emit(1)
 		while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
 			await _wait(0.05)
 		var next_game: Node = menu.game_node
 		_check(next_game.name == "Game" and str(next_game.get_path()) == "/root/StartMenu/Game" and next_game.players.size() == 1 and next_game.players[1].is_local and next_game.local_player().is_local,"solo retry keeps stable Game path and one local player")
-		_check(Net.get_signal_connection_list("peer_left").size() == 1 and Net.get_signal_connection_list("joined_host").size() == 2,"new Game has one fresh signal subscription")
+		_check(Net.get_signal_connection_list("peer_left").size() == peer_left_count and Net.get_signal_connection_list("joined_host").size() == joined_host_count,"new Game restores exactly one set of fresh signal subscriptions")
 		_check(menu.host_addresses().all(func(address: String): return address.is_valid_ip_address() and not address.contains(":") and not address.begins_with("127.") and not address.begins_with("169.254.")),"host address helper filters local IPv4")
 	print("CLIENT STARTMENUTEST_FAIL" if _failed else "CLIENT STARTMENUTEST_OK")
+	get_tree().quit(1 if _failed else 0)
+
+
+func _save_slots() -> void:
+	menu._saves.directory = "user://menu_save_test_%d" % OS.get_process_id()
+	menu.solo_button.pressed.emit()
+	_check(menu._save_picker.visible and menu.game_node == null, "solo opens the save picker")
+	menu._save_picker.press(1)
+	while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
+		await _wait(0.05)
+	var game: Node = menu.game_node
+	var flow: Node = game.production
+	_check(flow.day == 1 and menu._saves.read(2).day == 1, "new company creates its own save")
+	flow.wallet = 1420
+	flow.reputation = 17
+	flow.levels.car = 1
+	flow.films = [{"job": flow.debut_job(), "ok": 4, "of": 4}]
+	var sign: Node = game.hooks.feature("company_sign")
+	var sheet: Node = game.hooks.feature("spray_sign").sheets[0]
+	sheet.spray(PackedVector2Array([Vector2(100, 100)]), PackedFloat32Array([9.0]), Color.RED, 5)
+	var ink: PackedByteArray = sheet.png()
+	var layout: Dictionary = sign.hang_layout([sheet.pid], sheet.pid)
+	sign.layout = layout
+	sign.members = [sheet.pid]
+	sign._place_all()
+	flow.phase = 5
+	flow.return_office()
+	_check(menu._saves.read(2).day == 2, "returning to the office saves the new day")
+	await menu.return_to_menu()
+	menu.solo_button.pressed.emit()
+	menu._save_picker.press(1)
+	while menu.game_node == null or not menu.game_node.startup_complete or menu._transition.active:
+		await _wait(0.05)
+	flow = menu.game_node.production
+	_check(flow.phase == 0 and flow.day == 2 and flow.wallet == 1420 and flow.reputation == 17 and flow.levels.car == 1 and flow.films.size() == 1, "reopening restores company progress at the office")
+	game = menu.game_node
+	sign = game.hooks.feature("company_sign")
+	sheet = game.hooks.feature("spray_sign").sheets[0]
+	_check(sign.members == [sheet.pid] and sheet.png() == ink and sheet.fixed, "the painted company sign survives reopening")
+	_check(menu._saves.read(1).is_empty(), "other slots stay independent")
+	await menu.return_to_menu()
+	var invalid_path: String = menu._saves.directory.path_join("company_1.cfg")
+	var broken := FileAccess.open(invalid_path, FileAccess.WRITE)
+	broken.store_string("[company]\nversion=999\n")
+	broken.close()
+	menu.solo_button.pressed.emit()
+	_check(not menu._save_picker._usable(0) and menu._save_picker._usable(1), "an unreadable slot stays protected while another one still loads")
+	menu._save_picker.closed.emit()
+	DirAccess.remove_absolute(invalid_path)
+	DirAccess.remove_absolute(menu._saves.directory.path_join("company_2.cfg"))
+	DirAccess.remove_absolute(menu._saves.directory)
+	print("SAVES STARTMENUTEST_FAIL" if _failed else "SAVES STARTMENUTEST_OK")
 	get_tree().quit(1 if _failed else 0)

@@ -1,0 +1,50 @@
+[
+  {
+    "file": "S079_large_wind_fan_photo.glb",
+    "mesh_batches": 4,
+    "triangles": 11176,
+    "blender_bounds_min": [
+      -0.4675000011920929,
+      -0.23547987639904022,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.4675000011920929,
+      0.2600083649158478,
+      1.2059282064437866
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "S040_clawfoot_tub_photo.glb",
+    "mesh_batches": 3,
+    "triangles": 8140,
+    "blender_bounds_min": [
+      -0.6489999890327454,
+      -0.3310000002384186,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.6489999890327454,
+      0.3310000002384186,
+      0.5740923285484314
+    ],
+    "textures_embedded": false
+  },
+  {
+    "file": "S058_phone_booth_photo.glb",
+    "mesh_batches": 6,
+    "triangles": 6316,
+    "blender_bounds_min": [
+      -0.3799999952316284,
+      -0.3633438050746918,
+      0.0
+    ],
+    "blender_bounds_max": [
+      0.3799999952316284,
+      0.3499999940395355,
+      1.5999999046325684
+    ],
+    "textures_embedded": false
+  }
+]

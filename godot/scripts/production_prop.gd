@@ -8,6 +8,7 @@ var _clip := ""
 var _table: Node3D
 var _deck_shape: CollisionShape3D
 const LIFT_END := 3.0
+const PropShapes := preload("res://scripts/prop_shapes.gd")
 
 func build_model(model_kind: String) -> void:
 	assert(model_kind in ["lift_cart", "cleaning_cart"])
@@ -30,13 +31,12 @@ func build_model(model_kind: String) -> void:
 		_table = visual.find_child("TABLE_RIG", true, false) as Node3D
 		deck_half = Vector2(0.48, 0.24)
 		deck_c = Vector2.ZERO
-		_add_box(Vector3(-0.08, 0.14, 0), Vector3(1.08, 0.28, 0.52))
-		# Handle proxy above the narrow rolling chassis.
-		_add_box(Vector3(-0.65, 0.56, 0), Vector3(0.075, 0.70, 0.48))
-		_deck_shape = _add_box(Vector3(0, 0.415, 0), Vector3(1.0, 0.05, 0.50))
+		# 台車の本体と押し手の枠は表（prop_shapes.gd）。上下する荷台の板だけ、ここで作る
+		PropShapes.build(self, kind)
+		_deck_shape = _add_box(Vector3(0, 0.415, 0), Vector3(1.0, 0.05, 0.52))
 	else:
-		_add_box(Vector3(0, 0.29, 0), Vector3(1.16, 0.58, 0.52))
-		_add_box(Vector3(-0.46, 0.78, 0), Vector3(0.10, 0.44, 0.50))
+		# 台・ごみ袋・棚・バケツと絞り機・押し手（表）。横に立てかけたモップには付けない
+		PropShapes.build(self, kind)
 	_sample_action(false)
 
 func _add_box(at: Vector3, size: Vector3) -> CollisionShape3D:

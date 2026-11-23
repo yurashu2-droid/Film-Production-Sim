@@ -1,0 +1,72 @@
+[
+  {
+    "kind": "scrap_folding_privacy_screen",
+    "original_file": "S034_folding_privacy_screen",
+    "file": "S034_folding_privacy_screen_rebuilt"
+  },
+  {
+    "kind": "scrap_wardrobe_cabinet",
+    "original_file": "S035_wardrobe_cabinet",
+    "file": "S035_wardrobe_cabinet_rebuilt"
+  },
+  {
+    "kind": "scrap_open_bookshelf",
+    "original_file": "S036_open_bookshelf",
+    "file": "S036_open_bookshelf_rebuilt"
+  },
+  {
+    "kind": "scrap_filing_cabinet",
+    "original_file": "S037_filing_cabinet",
+    "file": "S037_filing_cabinet_rebuilt"
+  },
+  {
+    "kind": "scrap_reception_desk",
+    "original_file": "S038_reception_desk",
+    "file": "S038_reception_desk_rebuilt"
+  },
+  {
+    "kind": "scrap_bulb_vanity",
+    "original_file": "S039_bulb_vanity",
+    "file": "S039_bulb_vanity_rebuilt"
+  },
+  {
+    "kind": "scrap_pedestal_sink",
+    "original_file": "S041_pedestal_sink",
+    "file": "S041_pedestal_sink_rebuilt"
+  },
+  {
+    "kind": "scrap_kitchen_stove",
+    "original_file": "S043_kitchen_stove",
+    "file": "S043_kitchen_stove_rebuilt"
+  },
+  {
+    "kind": "scrap_diner_booth",
+    "original_file": "S045_diner_booth",
+    "file": "S045_diner_booth_rebuilt"
+  },
+  {
+    "kind": "scrap_upright_piano",
+    "original_file": "S046_upright_piano",
+    "file": "S046_upright_piano_rebuilt"
+  },
+  {
+    "kind": "scrap_hospital_bed",
+    "original_file": "S047_hospital_bed",
+    "file": "S047_hospital_bed_rebuilt"
+  },
+  {
+    "kind": "scrap_lectern",
+    "original_file": "S048_lectern",
+    "file": "S048_lectern_rebuilt"
+  },
+  {
+    "kind": "scrap_church_pew",
+    "original_file": "S049_church_pew",
+    "file": "S049_church_pew_rebuilt"
+  },
+  {
+    "kind": "scrap_standing_coatrack",
+    "original_file": "S050_standing_coatrack",
+    "file": "S050_standing_coatrack_rebuilt"
+  }
+]
