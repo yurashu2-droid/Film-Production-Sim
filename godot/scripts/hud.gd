@@ -91,8 +91,10 @@ var take_monitor_view: TextureRect
 var take_monitor_label: Label
 var take_monitor_tally: Control
 const MAX_SIGNS := 4             # 下の操作の札は、多くてもこの枚数
-const HOLD_INTRO := 4.0          # 物を持ってから、細かい操作（回す・傾ける…）の札を出しておく秒
+const HOLD_INTRO := 4.0          # 物を持ってから、細かい操作（傾ける・起こす…）の札を出しておく秒
+const HOLD_BASICS := ["左クリック 置く", "右クリック 押したまま動かして回す", "ホイール 距離"]
 var _held_pid := 0
+var _show_hold_basics := false
 var _held_since := 0             # 物を持った時刻（ミリ秒）
 var _scene_paren := RegEx.new()
 
@@ -933,6 +935,7 @@ func _process(delta: float) -> void:
 	if held_now != _held_pid:
 		_held_pid = held_now
 		_held_since = Time.get_ticks_msec()
+	_show_hold_basics = me != null and held_now != 0 and me.operating == 0 and not game.adhesive.applying
 	help.visible = game.help_open
 	help_dim.visible = help.visible
 	if help.visible:
@@ -1120,7 +1123,7 @@ func _sync_cues(live: Dictionary, passed: Array) -> void:
 # ---- 操作の案内：「／」区切りを、キーキャップ＋説明にして並べる（最大2行） ----
 
 func _sync_key_help() -> void:
-	var show := keys.visible and keys.text != ""
+	var show := keys.visible and (keys.text != "" or _show_hold_basics)
 	key_help.visible = show
 	if not show:
 		_key_sig = ""
@@ -1159,7 +1162,7 @@ func _sync_key_help() -> void:
 
 
 # 操作の案内の文（1行目＝いまの操作、2行目＝次の一歩とあそびかた）から、札にする区切りを選ぶ。
-#   ・持っている物の細かい操作（回す・傾ける・奥行き・起こす…）は、持ってすぐの数秒だけ。あとは Tab の手引きにある
+#   ・置く・回す・距離は、持っている間は残す。傾ける・起こすなどの補助は持ってすぐの数秒だけ
 #   ・多くても MAX_SIGNS 枚。1行目を先に取り、2行目の先頭（次の一歩）の分は1枚空けておく
 #   ・並べた幅が width を超えるなら、後回しの札から外す
 func key_segments(text: String, width: float = INF) -> Array:
@@ -1168,6 +1171,8 @@ func key_segments(text: String, width: float = INF) -> Array:
 		var parts: PackedStringArray = str(game.hold_hint()).split("／", false)
 		for i in range(1, parts.size()):
 			detail.append(parts[i].strip_edges())
+	# 別の仕組みが案内を書き換えたあとでも、持ち物の基本操作はここで合流させる。
+	var basics: Array = HOLD_BASICS if _show_hold_basics else []
 	var fresh: bool = _held_pid != 0 and Time.get_ticks_msec() - _held_since < int(HOLD_INTRO * 1000.0)
 	var lines := text.split("\n", false)
 	var first: Array = []
@@ -1179,18 +1184,23 @@ func key_segments(text: String, width: float = INF) -> Array:
 			if s == "" or s in seen:
 				continue
 			seen.append(s)
+			if _show_hold_basics and (s in basics or s in ["右ドラッグ 回す", "ホイール 奥行き"]):
+				continue
 			if s in detail and not fresh:
 				continue
 			(first if li == 0 else rest).append(s)
 	# 選ぶ順（＝外すときは後ろから）
 	var room_first: int = MAX_SIGNS - (1 if not rest.is_empty() else 0)
 	var order: Array = first.slice(0, room_first) + rest.slice(0, 1) + first.slice(room_first) + rest.slice(1)
+	if not basics.is_empty():
+		var context: Array = (first + rest).filter(func(s: String) -> bool: return s not in detail)
+		order = [basics[1], basics[0]] + context.slice(0, 1) + [basics[2]] + order
 	order = order.slice(0, MAX_SIGNS)
 	while order.size() > 1 and _signs_width(order) > width:
 		order.pop_back()
 	# 見せる順は、元の文の順
 	var out: Array = []
-	for s: String in first + rest:
+	for s: String in first + basics + rest:
 		if s in order:
 			out.append(s)
 	return out

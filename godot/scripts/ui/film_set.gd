@@ -304,6 +304,13 @@ static func help_board() -> VBoxContainer:
 	fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(fill)
+	var topics_button := Button.new()
+	topics_button.name = "TutorialTopicsButton"
+	topics_button.text = "練習を選ぶ"
+	topics_button.focus_mode = Control.FOCUS_NONE
+	topics_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	style_sign_button(topics_button, "mustard", 18, 40)
+	head.add_child(topics_button)
 	# 閉じる札（マウスで押せる。Tab でも閉じる）。押した時の動きは、作った側（production_hud.gd）がつなぐ
 	var close := Button.new()
 	close.name = "Close"
@@ -397,7 +404,64 @@ static func help_board() -> VBoxContainer:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.custom_minimum_size.x = 380
 		tl.add_child(l)
+	var topics := _tutorial_topics()
+	board.add_child(topics)
+	topics.hide()
+	topics_button.pressed.connect(func() -> void:
+		topics.visible = not topics.visible
+		film.visible = not topics.visible
+		lower.visible = not topics.visible
+		topics_button.text = "操作一覧に戻る" if topics.visible else "練習を選ぶ")
 	return board
+
+
+static func _tutorial_topics() -> VBoxContainer:
+	var instructions := preload("res://scripts/ui/tutorial_topics.gd")
+	var view := VBoxContainer.new()
+	view.name = "TutorialTopics"
+	view.add_theme_constant_override("separation", 12)
+	var choices := GridContainer.new()
+	choices.columns = 4
+	choices.add_theme_constant_override("h_separation", 8)
+	choices.add_theme_constant_override("v_separation", 8)
+	view.add_child(choices)
+	var page := PanelContainer.new()
+	page.add_theme_stylebox_override("panel", KanpeStyle.new())
+	page.custom_minimum_size.y = 396
+	view.add_child(page)
+	var lines := VBoxContainer.new()
+	lines.name = "Lesson"
+	lines.add_theme_constant_override("separation", 8)
+	page.add_child(lines)
+	var buttons := ButtonGroup.new()
+	for i in instructions.PAGES.size():
+		var topic: Array = instructions.PAGES[i]
+		var button := Button.new()
+		button.name = "Topic%d" % i
+		button.text = topic[0]
+		button.toggle_mode = true
+		button.button_group = buttons
+		button.button_pressed = i == 0
+		button.focus_mode = Control.FOCUS_NONE
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		style_sign_button(button, "cream", 17, 40)
+		choices.add_child(button)
+		button.pressed.connect(func() -> void: _show_tutorial_topic(lines, topic))
+	_show_tutorial_topic(lines, instructions.PAGES[0])
+	return view
+
+
+static func _show_tutorial_topic(lines: VBoxContainer, topic: Array) -> void:
+	for child in lines.get_children():
+		lines.remove_child(child)
+		child.queue_free()
+	lines.add_child(label(topic[0], 24, MARKER_RED, "marker"))
+	for entry: Array in topic[1]:
+		var heading := label(entry[0], 18, MARKER_INK, "bold")
+		lines.add_child(heading)
+		var body := label(Keybinds.translate(entry[1]), 17, MARKER_INK, "body")
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lines.add_child(body)
 
 
 # ---- 依頼の掲示板：映画館のロビーの「近日撮影」の壁。依頼1件が額縁入りのポスター1枚 ----
